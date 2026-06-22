@@ -78,12 +78,8 @@ async function run(args: string[], runtime: CliRuntime): Promise<void | number> 
   const options = parseAnalyzeArgs(commandArgs);
   const runtimeCwd = runtime.cwd ?? process.cwd();
   const cwd = resolve(runtimeCwd, options.cwd ?? ".");
-  const rootDir = getRepoRoot(cwd);
-  const changedFiles = getGitChangedFiles({
-    cwd: rootDir,
-    base: options.base,
-    head: options.head
-  });
+  const rootDir = getRepoRootForCli(cwd, options);
+  const changedFiles = getChangedFilesForCli(rootDir, options);
 
   const analyzerResult = analyzeJsProject({
     rootDir,
@@ -233,6 +229,53 @@ function writeOutput(cwd: string, path: string, contents: string): void {
   mkdirSync(outputDir, { recursive: true });
 
   writeFileSync(outputPath, contents, "utf8");
+}
+
+function getRepoRootForCli(cwd: string, options: AnalyzeOptions): string {
+  try {
+    return getRepoRoot(cwd);
+  } catch (error: unknown) {
+    throw formatGitErrorForCli(error, cwd, options);
+  }
+}
+
+function getChangedFilesForCli(rootDir: string, options: AnalyzeOptions) {
+  try {
+    return getGitChangedFiles({
+      cwd: rootDir,
+      base: options.base,
+      head: options.head
+    });
+  } catch (error: unknown) {
+    throw formatGitErrorForCli(error, rootDir, options);
+  }
+}
+
+function formatGitErrorForCli(error: unknown, cwd: string, options: AnalyzeOptions): Error {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (message.includes("rev-parse --show-toplevel") && message.includes("not a git repository")) {
+    return new Error(`${cwd} is not a git repository. Run from a git repo or pass --cwd <repo>.`);
+  }
+
+  const unresolvedRef = findUnresolvedRef(message, options);
+  if (unresolvedRef) {
+    return new Error(
+      `Could not resolve git ref "${unresolvedRef}". Check --base/--head and fetch the ref before running CodeDecay.`
+    );
+  }
+
+  return error instanceof Error ? error : new Error(message);
+}
+
+function findUnresolvedRef(message: string, options: AnalyzeOptions): string | undefined {
+  for (const ref of [options.base, options.head]) {
+    if (ref && message.includes(ref)) {
+      return ref;
+    }
+  }
+
+  return undefined;
 }
 
 function printHelp(runtime: CliRuntime): void {

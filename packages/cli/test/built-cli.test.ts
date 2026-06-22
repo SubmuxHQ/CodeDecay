@@ -56,6 +56,34 @@ describe("built codedecay CLI", () => {
     expect(existsSync(join(repo, "codedecay.sarif"))).toBe(true);
   });
 
+  it("prints user-friendly git errors from the built CLI", () => {
+    const nonGitDir = createTempDir();
+    const nonGit = runBuilt(["analyze", "--cwd", nonGitDir, "--format", "json"]);
+
+    expect(nonGit.status).toBe(2);
+    expect(nonGit.stdout).toBe("");
+    expect(nonGit.stderr).toBe(
+      `CodeDecay failed: ${nonGitDir} is not a git repository. Run from a git repo or pass --cwd <repo>.\n`
+    );
+
+    const repo = createLowRiskRepo();
+    const invalidRef = runBuilt([
+      "analyze",
+      "--cwd",
+      repo,
+      "--base",
+      "definitely-missing-ref",
+      "--head",
+      "HEAD",
+      "--format",
+      "json"
+    ]);
+
+    expect(invalidRef.status).toBe(2);
+    expect(invalidRef.stdout).toBe("");
+    expect(invalidRef.stderr).toContain('CodeDecay failed: Could not resolve git ref "definitely-missing-ref".');
+  });
+
   it("runs when dist CLI is invoked through a symlinked path", () => {
     const repo = createLowRiskRepo();
     const symlinkRoot = createTempDir();

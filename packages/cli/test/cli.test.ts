@@ -107,8 +107,19 @@ describe("codedecay analyze CLI contract", () => {
 
     expect(result.exitCode).toBe(2);
     expect(result.stdout).toBe("");
-    expect(result.stderr).toContain("Git command failed");
-    expect(result.stderr).toContain("definitely-missing-ref");
+    expect(result.stderr).toContain('CodeDecay failed: Could not resolve git ref "definitely-missing-ref".');
+    expect(result.stderr).toContain("Check --base/--head and fetch the ref before running CodeDecay.");
+  });
+
+  it("fails clearly for invalid head refs", async () => {
+    const repo = createLowRiskRepo();
+
+    const result = await run(["analyze", "--head", "definitely-missing-head", "--format", "json"], repo);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain('CodeDecay failed: Could not resolve git ref "definitely-missing-head".');
+    expect(result.stderr).toContain("Check --base/--head and fetch the ref before running CodeDecay.");
   });
 
   it("fails clearly outside a git repository", async () => {
@@ -118,8 +129,9 @@ describe("codedecay analyze CLI contract", () => {
 
     expect(result.exitCode).toBe(2);
     expect(result.stdout).toBe("");
-    expect(result.stderr).toContain("Git command failed");
-    expect(result.stderr).toContain("rev-parse");
+    expect(result.stderr).toBe(
+      `CodeDecay failed: ${nonGitDir} is not a git repository. Run from a git repo or pass --cwd <repo>.\n`
+    );
   });
 
   it("has deterministic report content after ignoring generatedAt", async () => {
