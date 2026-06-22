@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+.turbo/
+.DS_Store
+*.log
+codedecay.sarif

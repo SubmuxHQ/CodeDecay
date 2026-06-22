@@ -1,0 +1,20 @@
+{
+  "name": "codedecay",
+  "version": "0.0.0",
+  "description": "Deterministic PR regression risk and maintainability decay analysis",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "codedecay": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts && chmod +x dist/index.js"
+  }
+}

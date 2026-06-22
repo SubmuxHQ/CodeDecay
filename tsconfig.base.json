@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "types": ["node", "vitest/globals"],
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@submuxhq/codedecay-core": ["packages/core/src/index.ts"],
+      "@submuxhq/codedecay-git": ["packages/git/src/index.ts"],
+      "@submuxhq/codedecay-analyzer-js": ["packages/analyzer-js/src/index.ts"],
+      "@submuxhq/codedecay-report": ["packages/report/src/index.ts"]
+    },
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "sourceMap": true
+  },
+  "include": ["packages/**/*.ts", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

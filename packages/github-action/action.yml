@@ -1,0 +1,86 @@
+name: "CodeDecay"
+description: "Deterministic PR regression risk and maintainability decay analysis"
+author: "SubmuxHQ"
+
+inputs:
+  base:
+    description: "Base git ref or SHA to compare from"
+    required: false
+    default: ""
+  head:
+    description: "Head git ref or SHA to compare to"
+    required: false
+    default: ""
+  cwd:
+    description: "Working directory to analyze."
+    required: false
+    default: "."
+  format:
+    description: "Report format: json, markdown, or sarif"
+    required: false
+    default: "markdown"
+  output:
+    description: "Optional output path relative to the checked-out repository"
+    required: false
+    default: ""
+  fail-on:
+    description: "Fail the workflow on low, medium, or high risk"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Build CodeDecay CLI"
+      shell: "bash"
+      run: |
+        set -euo pipefail
+        ACTION_ROOT="$(cd "$GITHUB_ACTION_PATH/../.." && pwd)"
+        cd "$ACTION_ROOT"
+        corepack enable
+        pnpm install --frozen-lockfile
+        pnpm --filter codedecay build
+
+    - name: "Write CodeDecay summary"
+      shell: "bash"
+      run: |
+        set -euo pipefail
+        ACTION_ROOT="$(cd "$GITHUB_ACTION_PATH/../.." && pwd)"
+        CLI_PATH="$ACTION_ROOT/packages/cli/dist/index.js"
+        SUMMARY_PATH="$RUNNER_TEMP/codedecay-summary.md"
+
+        args=(analyze --cwd "${{ inputs.cwd }}" --format markdown)
+        if [[ -n "${{ inputs.base }}" ]]; then
+          args+=(--base "${{ inputs.base }}")
+        fi
+        if [[ -n "${{ inputs.head }}" ]]; then
+          args+=(--head "${{ inputs.head }}")
+        fi
+
+        cd "$GITHUB_WORKSPACE"
+        node "$CLI_PATH" "${args[@]}" > "$SUMMARY_PATH" || true
+        cat "$SUMMARY_PATH" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: "Run CodeDecay"
+      shell: "bash"
+      run: |
+        set -euo pipefail
+        ACTION_ROOT="$(cd "$GITHUB_ACTION_PATH/../.." && pwd)"
+        CLI_PATH="$ACTION_ROOT/packages/cli/dist/index.js"
+
+        args=(analyze --cwd "${{ inputs.cwd }}" --format "${{ inputs.format }}")
+        if [[ -n "${{ inputs.base }}" ]]; then
+          args+=(--base "${{ inputs.base }}")
+        fi
+        if [[ -n "${{ inputs.head }}" ]]; then
+          args+=(--head "${{ inputs.head }}")
+        fi
+        if [[ -n "${{ inputs.output }}" ]]; then
+          args+=(--output "${{ inputs.output }}")
+        fi
+        if [[ -n "${{ inputs.fail-on }}" ]]; then
+          args+=(--fail-on "${{ inputs.fail-on }}")
+        fi
+
+        cd "$GITHUB_WORKSPACE"
+        node "$CLI_PATH" "${args[@]}"
