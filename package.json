@@ -1,0 +1,22 @@
+{
+  "name": "codedecay-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "CodeDecay monorepo",
+  "license": "Apache-2.0",
+  "type": "module",
+  "packageManager": "pnpm@11.8.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "lint": "tsc -p tsconfig.base.json --noEmit",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.base.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4",
+    "yaml": "^2.8.1"
+  }
+}
