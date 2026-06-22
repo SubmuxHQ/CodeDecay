@@ -56,6 +56,52 @@ Options:
 
 If `--base` is omitted, CodeDecay analyzes the current working tree diff.
 
+## Sample Output
+
+For a PR that touches API, auth, database/schema, config, and UI files without
+nearby tests, CodeDecay produces a report like this:
+
+```markdown
+## CodeDecay Report
+
+**Overall risk:** High
+
+| Score | Value |
+| --- | ---: |
+| Merge risk | 100/100 |
+| Decay risk | 62/100 |
+
+| Findings | Count |
+| --- | ---: |
+| High | 5 |
+| Medium | 4 |
+| Low | 0 |
+
+### Likely Impacted Areas
+
+- High **API surface** (api): `src/api/users.ts`
+- High **Authentication and authorization** (auth): `src/auth/session.ts`
+- High **Database and schema** (database): `prisma/schema.prisma`
+- Medium **Build and runtime configuration** (config): `vite.config.ts`
+
+### High Risk Findings
+
+- **Risky source changes without changed tests**
+- **Api area changed**
+- **Auth area changed**
+- **Database area changed**
+- **Potential silent failure path**
+
+### Recommended Checks
+
+- `Add or run tests covering src/api/users.ts`
+- `Add or run tests covering src/auth/session.ts`
+```
+
+Read the report in this order: overall risk, likely impacted areas, high-risk
+findings, then recommended checks. Full Markdown, JSON, and SARIF examples are
+available in [Sample reports](docs/sample-reports/README.md).
+
 ## GitHub Action
 
 ```yaml
