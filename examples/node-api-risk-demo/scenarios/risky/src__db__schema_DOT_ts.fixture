@@ -1,0 +1,18 @@
+export interface UserRecord {
+  id: string;
+  email: string;
+  role: "USER" | "ADMIN";
+  disabled: boolean;
+  exportToken?: string;
+}
+
+export const userDefaults = {
+  role: "ADMIN",
+  disabled: false,
+  exportToken: "pending"
+} satisfies Partial<UserRecord>;
+
+export async function findUsers(options: { includeDisabled: boolean; limit?: number }): Promise<UserRecord[]> {
+  void options;
+  return [];
+}

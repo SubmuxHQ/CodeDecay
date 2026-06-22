@@ -1,0 +1,27 @@
+import { Router } from "express";
+import { canExportUsers, requireSession } from "../auth/session";
+import { loadRuntimeConfig } from "../config/runtime";
+import { findUsers } from "../db/schema";
+
+const router = Router();
+
+router.get("/users", async (request, response) => {
+  const session = requireSession(request.header("authorization"));
+
+  if (!session) {
+    return response.status(401).json({ error: "unauthorized" });
+  }
+
+  const query: any = request.query;
+  const config = loadRuntimeConfig();
+  const includeDisabled = query.includeDisabled === "true";
+  const limit = Number(query.limit ?? config.maxPageSize);
+  const users = await findUsers({ includeDisabled, limit });
+
+  return response.json({
+    users,
+    canExport: canExportUsers(session)
+  });
+});
+
+export default router;

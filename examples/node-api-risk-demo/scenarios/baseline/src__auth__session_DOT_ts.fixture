@@ -1,0 +1,19 @@
+export interface Session {
+  userId: string;
+  role: "USER" | "ADMIN";
+}
+
+export function requireSession(token: string | undefined): Session | null {
+  if (!token) {
+    return null;
+  }
+
+  return {
+    userId: token,
+    role: "USER"
+  };
+}
+
+export function canExportUsers(session: Session | null): boolean {
+  return session?.role === "ADMIN";
+}

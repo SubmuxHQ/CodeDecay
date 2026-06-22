@@ -1,0 +1,17 @@
+{
+  "name": "codedecay-node-api-risk-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "NODE_ENV=production node --no-warnings dist/server.js",
+    "test": "echo \"tests temporarily disabled\""
+  },
+  "dependencies": {
+    "express": "^5.0.0"
+  },
+  "devDependencies": {
+    "@submux/codedecay": "0.1.2",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

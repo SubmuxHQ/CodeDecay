@@ -1,0 +1,18 @@
+import { Router } from "express";
+import { requireSession } from "../auth/session";
+import { findUsers } from "../db/schema";
+
+const router = Router();
+
+router.get("/users", async (request, response) => {
+  const session = requireSession(request.header("authorization"));
+
+  if (!session) {
+    return response.status(401).json({ error: "unauthorized" });
+  }
+
+  const users = await findUsers({ includeDisabled: false });
+  return response.json({ users });
+});
+
+export default router;

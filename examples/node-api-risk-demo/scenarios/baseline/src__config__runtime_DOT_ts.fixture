@@ -1,0 +1,11 @@
+export interface RuntimeConfig {
+  auditExports: boolean;
+  maxPageSize: number;
+}
+
+export function loadRuntimeConfig(): RuntimeConfig {
+  return {
+    auditExports: true,
+    maxPageSize: 100
+  };
+}

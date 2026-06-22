@@ -1,0 +1,16 @@
+export interface UserRecord {
+  id: string;
+  email: string;
+  role: "USER" | "ADMIN";
+  disabled: boolean;
+}
+
+export const userDefaults = {
+  role: "USER",
+  disabled: false
+} satisfies Pick<UserRecord, "role" | "disabled">;
+
+export async function findUsers(options: { includeDisabled: boolean }): Promise<UserRecord[]> {
+  void options;
+  return [];
+}
