@@ -97,6 +97,7 @@ git@github.com:SubmuxHQ/codedecay.git
 
 - [Getting started](docs/getting-started.md)
 - [GitHub Action](docs/github-action.md)
+- [Sample reports](docs/sample-reports/README.md)
 - [Scoring model](docs/scoring.md)
 - [Research basis](docs/research.md)
 - [Releasing](docs/releasing.md)
