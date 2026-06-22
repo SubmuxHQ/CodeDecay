@@ -34,6 +34,15 @@ describe("GitHub Action metadata", () => {
     expect(documentedInputs).toContain("cwd");
     expect(documentedInputs.every((input) => supportedInputs.has(input))).toBe(true);
   });
+
+  it("documents output paths relative to cwd", () => {
+    const action = parse(readFileSync("packages/github-action/action.yml", "utf8"));
+    const docs = readFileSync("docs/github-action.md", "utf8");
+
+    expect(action.inputs.output.description).toContain("Relative paths resolve from cwd");
+    expect(docs).toContain("Relative `output` paths resolve from `cwd`.");
+    expect(docs).toContain("Absolute `output` paths are honored exactly.");
+  });
 });
 
 function extractCodeDecayActionInputs(markdown: string): string[] {
