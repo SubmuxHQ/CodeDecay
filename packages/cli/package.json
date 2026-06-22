@@ -3,6 +3,26 @@
   "version": "0.0.0",
   "description": "Open-source CLI for PR regression-risk, blast-radius, and code-decay analysis",
   "license": "Apache-2.0",
+  "author": "SubmuxHQ",
+  "homepage": "https://github.com/SubmuxHQ/CodeDecay#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SubmuxHQ/CodeDecay.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/SubmuxHQ/CodeDecay/issues"
+  },
+  "keywords": [
+    "ai",
+    "ci",
+    "code-quality",
+    "github-action",
+    "pull-request",
+    "regression-risk",
+    "static-analysis",
+    "typescript"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
