@@ -122,6 +122,39 @@ describe("live git integration", () => {
       /Git command failed: git -C .* diff .*does-not-exist/
     );
   });
+
+  it("detects changes between explicit base and head refs", () => {
+    const repo = createRepo({
+      "src/app.ts": "export const value = 1;\n"
+    });
+    const base = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+
+    writeFile(repo, "src/app.ts", "export const value = 1;\nexport const next = 2;\n");
+    git(repo, ["add", "."]);
+    git(repo, ["commit", "-m", "update app"]);
+    const head = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+    writeFile(repo, "src/untracked.ts", "export const untracked = true;\n");
+
+    expect(getGitChangedFiles({ cwd: repo, base, head })).toEqual([
+      {
+        path: "src/app.ts",
+        status: "modified",
+        additions: 1,
+        deletions: 0,
+        addedLines: [{ line: 2, content: "export const next = 2;" }]
+      }
+    ]);
+  });
+
+  it("throws a clear error for invalid head refs", () => {
+    const repo = createRepo({
+      "src/app.ts": "export const value = 1;\n"
+    });
+
+    expect(() => getGitChangedFiles({ cwd: repo, head: "does-not-exist" })).toThrow(
+      /Git command failed: git -C .* diff .*does-not-exist/
+    );
+  });
 });
 
 function createRepo(files: Record<string, string>): string {
@@ -150,5 +183,12 @@ function writeFile(root: string, path: string, contents: string): void {
 function git(repo: string, args: string[]): void {
   execFileSync("git", ["-C", repo, ...args], {
     stdio: "ignore"
+  });
+}
+
+function gitOutput(repo: string, args: string[]): string {
+  return execFileSync("git", ["-C", repo, ...args], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"]
   });
 }
