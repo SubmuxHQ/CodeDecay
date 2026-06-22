@@ -20,7 +20,7 @@ inputs:
     required: false
     default: "markdown"
   output:
-    description: "Optional output path relative to the checked-out repository"
+    description: "Optional output path. Relative paths resolve from cwd; absolute paths are honored exactly."
     required: false
     default: ""
   fail-on:

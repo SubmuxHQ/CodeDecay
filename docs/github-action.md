@@ -37,5 +37,17 @@ jobs:
     fail-on: high
 ```
 
+Relative `output` paths resolve from `cwd`. For example, with `cwd:
+packages/web` and `output: codedecay.sarif`, the SARIF file is written to
+`packages/web/codedecay.sarif`. Absolute `output` paths are honored exactly.
+
+```yaml
+- uses: SubmuxHQ/CodeDecay/packages/github-action@v0
+  with:
+    cwd: packages/web
+    format: sarif
+    output: codedecay.sarif
+```
+
 The MVP action writes a markdown summary to `$GITHUB_STEP_SUMMARY`. SARIF upload
 can be added by the workflow using GitHub's code scanning upload action.
