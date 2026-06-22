@@ -4,7 +4,7 @@ import { renderJsonReport, renderMarkdownReport, renderSarifReport } from "../sr
 
 const report: CodeDecayReport = {
   tool: "CodeDecay",
-  version: "0.1.0",
+  version: "0.1.1",
   generatedAt: "2026-06-22T00:00:00.000Z",
   base: "main",
   head: "HEAD",

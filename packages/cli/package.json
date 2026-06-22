@@ -1,6 +1,6 @@
 {
   "name": "@submux/codedecay",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Open-source CLI for PR regression-risk, blast-radius, and code-decay analysis",
   "license": "Apache-2.0",
   "author": "SubmuxHQ",
@@ -27,7 +27,7 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "codedecay": "./dist/index.js"
+    "codedecay": "dist/index.js"
   },
   "files": [
     "dist",
