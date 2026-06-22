@@ -99,4 +99,5 @@ git@github.com:SubmuxHQ/codedecay.git
 - [GitHub Action](docs/github-action.md)
 - [Scoring model](docs/scoring.md)
 - [Research basis](docs/research.md)
+- [Releasing](docs/releasing.md)
 - [Contributing](CONTRIBUTING.md)
