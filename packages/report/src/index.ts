@@ -70,7 +70,7 @@ export function renderMarkdownReport(report: CodeDecayReport): string {
   if (report.recommendedTests.length > 0) {
     lines.push("### Recommended Checks", "");
     for (const test of report.recommendedTests.slice(0, 12)) {
-      lines.push(`- ${test.includes("/") ? `\`${test}\`` : test}`);
+      lines.push(`- \`${test}\``);
     }
     lines.push("");
   }

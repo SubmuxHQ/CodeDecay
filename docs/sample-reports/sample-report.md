@@ -49,9 +49,8 @@
 - `Add or run tests covering app/dashboard/page.tsx`
 - `Add or run tests covering src/api/users.ts`
 - `Add or run tests covering src/auth/session.ts`
-- Add or run tests covering vite.config.ts
+- `Add or run tests covering vite.config.ts`
 
 ### Notes
 
 CodeDecay is deterministic and local-first. This report was generated without telemetry, API keys, LLMs, or model calls.
-

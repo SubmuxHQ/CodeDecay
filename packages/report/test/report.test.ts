@@ -46,7 +46,7 @@ const report: CodeDecayReport = {
       line: 3
     }
   ],
-  recommendedTests: ["src/auth/session.test.ts"]
+  recommendedTests: ["src/auth/session.test.ts", "Add or run tests covering next.config.js"]
 };
 
 describe("reports", () => {
@@ -56,6 +56,9 @@ describe("reports", () => {
     expect(markdown).toContain("CodeDecay Report");
     expect(markdown).toContain("Merge risk");
     expect(markdown).toContain("src/auth/session.ts");
+    expect(markdown).toContain("- `src/auth/session.test.ts`");
+    expect(markdown).toContain("- `Add or run tests covering next.config.js`");
+    expect(markdown).not.toContain("- Add or run tests covering next.config.js");
   });
 
   it("renders json", () => {
