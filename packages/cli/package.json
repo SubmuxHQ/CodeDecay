@@ -1,5 +1,5 @@
 {
-  "name": "codedecay",
+  "name": "@submux/codedecay",
   "version": "0.1.0",
   "description": "Open-source CLI for PR regression-risk, blast-radius, and code-decay analysis",
   "license": "Apache-2.0",

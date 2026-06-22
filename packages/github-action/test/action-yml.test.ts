@@ -25,6 +25,13 @@ describe("GitHub Action metadata", () => {
     expect(invocations.every((line) => line.includes("--cwd \"${{ inputs.cwd }}\""))).toBe(true);
   });
 
+  it("builds the scoped npm package", () => {
+    const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
+
+    expect(actionYaml).toContain("pnpm --filter @submux/codedecay build");
+    expect(actionYaml).not.toContain("pnpm --filter codedecay build");
+  });
+
   it("documents only supported action inputs in examples", () => {
     const action = parse(readFileSync("packages/github-action/action.yml", "utf8"));
     const supportedInputs = new Set(Object.keys(action.inputs));

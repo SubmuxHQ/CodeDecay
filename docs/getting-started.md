@@ -7,7 +7,7 @@ model calls.
 ## Install
 
 ```bash
-pnpm add -D codedecay
+pnpm add -D @submux/codedecay
 ```
 
 ## Analyze A PR Diff

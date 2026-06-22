@@ -23,7 +23,7 @@ does not require telemetry, API keys, LLMs, or model calls.
 ## Install
 
 ```bash
-pnpm add -D codedecay
+pnpm add -D @submux/codedecay
 ```
 
 For local development in this repository:

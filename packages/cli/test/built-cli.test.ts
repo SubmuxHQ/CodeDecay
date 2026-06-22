@@ -9,7 +9,7 @@ const cliPath = join(repoRoot, "packages/cli/dist/index.js");
 const tempRoots: string[] = [];
 
 beforeAll(() => {
-  execFileSync("pnpm", ["--filter", "codedecay", "build"], {
+  execFileSync("pnpm", ["--filter", "@submux/codedecay", "build"], {
     cwd: repoRoot,
     stdio: "ignore"
   });
