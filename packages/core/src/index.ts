@@ -1,4 +1,4 @@
-export const CODEDECAY_VERSION = "0.0.0";
+export const CODEDECAY_VERSION = "0.1.0";
 
 export type RiskLevel = "low" | "medium" | "high";
 
