@@ -51,3 +51,6 @@ packages/web` and `output: codedecay.sarif`, the SARIF file is written to
 
 The MVP action writes a markdown summary to `$GITHUB_STEP_SUMMARY`. SARIF upload
 can be added by the workflow using GitHub's code scanning upload action.
+
+The CodeDecay repository dogfoods this local action before release to verify the
+same workflow users run in pull requests.
