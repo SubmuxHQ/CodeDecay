@@ -1,0 +1,14 @@
+export default function DashboardPage() {
+  const cards = ["Revenue", "Users", "Incidents", "Admin"];
+
+  return (
+    <main>
+      <h1>Dashboard</h1>
+      <section>
+        {cards.map((card) => (
+          <article key={card}>{card}</article>
+        ))}
+      </section>
+    </main>
+  );
+}

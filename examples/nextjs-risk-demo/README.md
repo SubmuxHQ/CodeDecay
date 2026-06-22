@@ -3,7 +3,7 @@
 This is a small Next.js-style example for trying CodeDecay on a realistic pull
 request shape without setting up a full application.
 
-The baseline project includes:
+The generated baseline project includes:
 
 - an App Router UI page: `src/app/dashboard/page.tsx`
 - an App Router API route: `src/app/api/users/route.ts`
@@ -11,8 +11,10 @@ The baseline project includes:
 - a Prisma schema: `prisma/schema.prisma`
 - a Next.js config file: `next.config.js`
 
-The included `scripts/apply-risky-change.mjs` script changes those files in ways
-CodeDecay should flag:
+The included `scripts/materialize.mjs` script writes either the baseline files
+or the risky PR version from the snapshots under `scenarios/`.
+
+The risky scenario changes those files in ways CodeDecay should flag:
 
 - API route behavior changes without test updates.
 - Auth/session behavior becomes more permissive.
@@ -26,12 +28,13 @@ From the repository root:
 
 ```sh
 cd examples/nextjs-risk-demo
+node scripts/materialize.mjs baseline
 git init
 git config user.name "CodeDecay Example"
 git config user.email "codedecay@example.com"
 git add .
 git commit -m "baseline Next.js example"
-node scripts/apply-risky-change.mjs
+node scripts/materialize.mjs risky
 npx @submux/codedecay@0.1.2 analyze --cwd . --format markdown
 ```
 

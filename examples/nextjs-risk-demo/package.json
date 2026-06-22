@@ -2,7 +2,8 @@
   "name": "codedecay-nextjs-risk-demo",
   "private": true,
   "scripts": {
-    "apply-risky-change": "node scripts/apply-risky-change.mjs",
+    "write-baseline": "node scripts/materialize.mjs baseline",
+    "apply-risky-change": "node scripts/materialize.mjs risky",
     "codedecay": "codedecay analyze --cwd . --format markdown"
   },
   "dependencies": {
