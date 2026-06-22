@@ -1,0 +1,262 @@
+{
+  "tool": "CodeDecay",
+  "version": "0.1.2",
+  "generatedAt": "2026-06-22T18:13:09.175Z",
+  "summary": {
+    "mergeRiskScore": 100,
+    "decayScore": 62,
+    "riskLevel": "high",
+    "findingCounts": {
+      "low": 0,
+      "medium": 4,
+      "high": 5
+    }
+  },
+  "changedFiles": [
+    {
+      "path": "app/dashboard/page.tsx",
+      "status": "modified",
+      "additions": 1,
+      "deletions": 1,
+      "addedLines": [
+        {
+          "line": 2,
+          "content": "  return <main>Admin dashboard</main>;"
+        }
+      ]
+    },
+    {
+      "path": "prisma/schema.prisma",
+      "status": "modified",
+      "additions": 3,
+      "deletions": 1,
+      "addedLines": [
+        {
+          "line": 2,
+          "content": "  id    String @id"
+        },
+        {
+          "line": 3,
+          "content": "  email String @unique"
+        },
+        {
+          "line": 4,
+          "content": "  role  String"
+        }
+      ]
+    },
+    {
+      "path": "src/api/users.ts",
+      "status": "modified",
+      "additions": 5,
+      "deletions": 1,
+      "addedLines": [
+        {
+          "line": 1,
+          "content": "export function listUsers(input: any) {"
+        },
+        {
+          "line": 2,
+          "content": "  if (input.includeAdmins) {"
+        },
+        {
+          "line": 3,
+          "content": "    return [{ id: \"admin_1\", role: \"admin\" }];"
+        },
+        {
+          "line": 4,
+          "content": "  }"
+        },
+        {
+          "line": 5,
+          "content": ""
+        }
+      ]
+    },
+    {
+      "path": "src/auth/session.ts",
+      "status": "modified",
+      "additions": 6,
+      "deletions": 1,
+      "addedLines": [
+        {
+          "line": 2,
+          "content": "  try {"
+        },
+        {
+          "line": 3,
+          "content": "    if (!token) return null;"
+        },
+        {
+          "line": 4,
+          "content": "    return token.startsWith(\"session_\");"
+        },
+        {
+          "line": 5,
+          "content": "  } catch {}"
+        },
+        {
+          "line": 6,
+          "content": ""
+        },
+        {
+          "line": 7,
+          "content": "  return null;"
+        }
+      ]
+    },
+    {
+      "path": "vite.config.ts",
+      "status": "modified",
+      "additions": 4,
+      "deletions": 1,
+      "addedLines": [
+        {
+          "line": 1,
+          "content": "export default {"
+        },
+        {
+          "line": 2,
+          "content": "  plugins: [],"
+        },
+        {
+          "line": 3,
+          "content": "  server: { host: \"0.0.0.0\" }"
+        },
+        {
+          "line": 4,
+          "content": "};"
+        }
+      ]
+    }
+  ],
+  "impactedAreas": [
+    {
+      "name": "API surface",
+      "kind": "api",
+      "risk": "high",
+      "files": [
+        "src/api/users.ts"
+      ]
+    },
+    {
+      "name": "Authentication and authorization",
+      "kind": "auth",
+      "risk": "high",
+      "files": [
+        "src/auth/session.ts"
+      ]
+    },
+    {
+      "name": "Database and schema",
+      "kind": "database",
+      "risk": "high",
+      "files": [
+        "prisma/schema.prisma"
+      ]
+    },
+    {
+      "name": "Build and runtime configuration",
+      "kind": "config",
+      "risk": "medium",
+      "files": [
+        "vite.config.ts"
+      ]
+    },
+    {
+      "name": "UI route",
+      "kind": "ui",
+      "risk": "medium",
+      "files": [
+        "app/dashboard/page.tsx"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "ruleId": "missing-nearby-tests",
+      "title": "Risky source changes without changed tests",
+      "description": "This PR changes risky source areas but does not change any obvious test files.",
+      "severity": "high",
+      "category": "coverage",
+      "file": "app/dashboard/page.tsx",
+      "line": 2
+    },
+    {
+      "ruleId": "risky-api-change",
+      "title": "Api area changed",
+      "description": "src/api/users.ts touches a api area and should be reviewed for regression impact.",
+      "severity": "high",
+      "category": "regression",
+      "file": "src/api/users.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "risky-auth-change",
+      "title": "Auth area changed",
+      "description": "src/auth/session.ts touches a auth area and should be reviewed for regression impact.",
+      "severity": "high",
+      "category": "regression",
+      "file": "src/auth/session.ts",
+      "line": 2
+    },
+    {
+      "ruleId": "risky-database-change",
+      "title": "Database area changed",
+      "description": "prisma/schema.prisma touches a database area and should be reviewed for regression impact.",
+      "severity": "high",
+      "category": "regression",
+      "file": "prisma/schema.prisma",
+      "line": 2
+    },
+    {
+      "ruleId": "silent-failure",
+      "title": "Potential silent failure path",
+      "description": "src/auth/session.ts adds code that can hide type, lint, or runtime failures.",
+      "severity": "high",
+      "category": "decay",
+      "file": "src/auth/session.ts",
+      "line": 5
+    },
+    {
+      "ruleId": "broad-unrelated-change",
+      "title": "Broad unrelated change set",
+      "description": "This PR changes 5 files across 4 top-level areas and 5 risk categories.",
+      "severity": "medium",
+      "category": "scope"
+    },
+    {
+      "ruleId": "risky-config-change",
+      "title": "Config area changed",
+      "description": "vite.config.ts touches a config area and should be reviewed for regression impact.",
+      "severity": "medium",
+      "category": "configuration",
+      "file": "vite.config.ts",
+      "line": 1
+    },
+    {
+      "ruleId": "risky-ui-change",
+      "title": "Ui area changed",
+      "description": "app/dashboard/page.tsx touches a ui area and should be reviewed for regression impact.",
+      "severity": "medium",
+      "category": "regression",
+      "file": "app/dashboard/page.tsx",
+      "line": 2
+    },
+    {
+      "ruleId": "typescript-any",
+      "title": "New unchecked TypeScript escape hatch",
+      "description": "src/api/users.ts adds code that can hide type, lint, or runtime failures.",
+      "severity": "medium",
+      "category": "decay",
+      "file": "src/api/users.ts",
+      "line": 1
+    }
+  ],
+  "recommendedTests": [
+    "Add or run tests covering app/dashboard/page.tsx",
+    "Add or run tests covering src/api/users.ts",
+    "Add or run tests covering src/auth/session.ts",
+    "Add or run tests covering vite.config.ts"
+  ]
+}

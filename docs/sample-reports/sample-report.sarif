@@ -1,0 +1,294 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "CodeDecay",
+          "informationUri": "https://github.com/SubmuxHQ/codedecay",
+          "rules": [
+            {
+              "id": "missing-nearby-tests",
+              "name": "Risky source changes without changed tests",
+              "shortDescription": {
+                "text": "Risky source changes without changed tests"
+              },
+              "fullDescription": {
+                "text": "This PR changes risky source areas but does not change any obvious test files."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "risky-api-change",
+              "name": "Api area changed",
+              "shortDescription": {
+                "text": "Api area changed"
+              },
+              "fullDescription": {
+                "text": "src/api/users.ts touches a api area and should be reviewed for regression impact."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "risky-auth-change",
+              "name": "Auth area changed",
+              "shortDescription": {
+                "text": "Auth area changed"
+              },
+              "fullDescription": {
+                "text": "src/auth/session.ts touches a auth area and should be reviewed for regression impact."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "risky-database-change",
+              "name": "Database area changed",
+              "shortDescription": {
+                "text": "Database area changed"
+              },
+              "fullDescription": {
+                "text": "prisma/schema.prisma touches a database area and should be reviewed for regression impact."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "silent-failure",
+              "name": "Potential silent failure path",
+              "shortDescription": {
+                "text": "Potential silent failure path"
+              },
+              "fullDescription": {
+                "text": "src/auth/session.ts adds code that can hide type, lint, or runtime failures."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "broad-unrelated-change",
+              "name": "Broad unrelated change set",
+              "shortDescription": {
+                "text": "Broad unrelated change set"
+              },
+              "fullDescription": {
+                "text": "This PR changes 5 files across 4 top-level areas and 5 risk categories."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "risky-config-change",
+              "name": "Config area changed",
+              "shortDescription": {
+                "text": "Config area changed"
+              },
+              "fullDescription": {
+                "text": "vite.config.ts touches a config area and should be reviewed for regression impact."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "risky-ui-change",
+              "name": "Ui area changed",
+              "shortDescription": {
+                "text": "Ui area changed"
+              },
+              "fullDescription": {
+                "text": "app/dashboard/page.tsx touches a ui area and should be reviewed for regression impact."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "typescript-any",
+              "name": "New unchecked TypeScript escape hatch",
+              "shortDescription": {
+                "text": "New unchecked TypeScript escape hatch"
+              },
+              "fullDescription": {
+                "text": "src/api/users.ts adds code that can hide type, lint, or runtime failures."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "missing-nearby-tests",
+          "level": "error",
+          "message": {
+            "text": "Risky source changes without changed tests: This PR changes risky source areas but does not change any obvious test files."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/dashboard/page.tsx"
+                },
+                "region": {
+                  "startLine": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "risky-api-change",
+          "level": "error",
+          "message": {
+            "text": "Api area changed: src/api/users.ts touches a api area and should be reviewed for regression impact."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/api/users.ts"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "risky-auth-change",
+          "level": "error",
+          "message": {
+            "text": "Auth area changed: src/auth/session.ts touches a auth area and should be reviewed for regression impact."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/auth/session.ts"
+                },
+                "region": {
+                  "startLine": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "risky-database-change",
+          "level": "error",
+          "message": {
+            "text": "Database area changed: prisma/schema.prisma touches a database area and should be reviewed for regression impact."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "prisma/schema.prisma"
+                },
+                "region": {
+                  "startLine": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "silent-failure",
+          "level": "error",
+          "message": {
+            "text": "Potential silent failure path: src/auth/session.ts adds code that can hide type, lint, or runtime failures."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/auth/session.ts"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "broad-unrelated-change",
+          "level": "warning",
+          "message": {
+            "text": "Broad unrelated change set: This PR changes 5 files across 4 top-level areas and 5 risk categories."
+          }
+        },
+        {
+          "ruleId": "risky-config-change",
+          "level": "warning",
+          "message": {
+            "text": "Config area changed: vite.config.ts touches a config area and should be reviewed for regression impact."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "vite.config.ts"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "risky-ui-change",
+          "level": "warning",
+          "message": {
+            "text": "Ui area changed: app/dashboard/page.tsx touches a ui area and should be reviewed for regression impact."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/dashboard/page.tsx"
+                },
+                "region": {
+                  "startLine": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "typescript-any",
+          "level": "warning",
+          "message": {
+            "text": "New unchecked TypeScript escape hatch: src/api/users.ts adds code that can hide type, lint, or runtime failures."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/api/users.ts"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
