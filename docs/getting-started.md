@@ -7,6 +7,12 @@ model calls.
 ## Install
 
 ```bash
+npm install -D @submux/codedecay
+```
+
+Using pnpm:
+
+```bash
 pnpm add -D @submux/codedecay
 ```
 
@@ -45,3 +51,11 @@ Risk levels:
 - `0-39`: low
 - `40-69`: medium
 - `70-100`: high
+
+## Try An Example
+
+Use the example projects to see a realistic high-risk report before wiring
+CodeDecay into your own repository:
+
+- [Next.js risk demo](../examples/nextjs-risk-demo/README.md)
+- [Node API risk demo](../examples/node-api-risk-demo/README.md)
