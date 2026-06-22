@@ -1,0 +1,46 @@
+name: Usage question
+description: Ask for help using CodeDecay or interpreting its output.
+title: "[question] "
+labels:
+  - question
+  - "status: needs-triage"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For faster help, include the exact command, config, and what you expected to see.
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What have you tried?
+      description: Include docs or examples you already checked
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Relevant command, workflow, or config
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node version, package manager, CI runner, and repo/framework context
+
+  - type: textarea
+    id: details
+    attributes:
+      label: Additional details
+      description: Output snippets, screenshots, or links that help explain the question

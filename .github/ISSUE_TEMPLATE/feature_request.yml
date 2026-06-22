@@ -1,0 +1,68 @@
+name: Feature request
+description: Propose a new capability, rule, integration, or workflow improvement.
+title: "[feature] "
+labels:
+  - enhancement
+  - "status: needs-triage"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please describe the user problem first. Feature requests are easier to evaluate when the expected outcome is concrete.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - CLI
+        - GitHub Action
+        - JS/TS analyzer
+        - Report output
+        - Git integration
+        - Packaging or release metadata
+        - Core scoring or rules
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What is hard, noisy, missing, or risky today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the behavior, output, or workflow you want
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Example use case
+      description: Show how a team would use this in practice
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds, related tools, or competing designs you considered
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Project constraints
+      description: Keep these project rules in mind when proposing changes
+      options:
+        - label: This request can stay deterministic for the same git diff
+        - label: This request does not require telemetry or cloud-only behavior
+        - label: This request does not require API keys or model calls

@@ -1,0 +1,66 @@
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - "README.md"
+      - "CONTRIBUTING.md"
+      - "SECURITY.md"
+      - "CODE_OF_CONDUCT.md"
+      - ".github/SUPPORT.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - "docs/**"
+      - "**/*.md"
+
+"type: ci":
+  - changed-files:
+    - any-glob-to-any-file:
+      - ".github/workflows/**"
+
+"type: test":
+  - changed-files:
+    - any-glob-to-any-file:
+      - "test/**"
+      - "packages/*/test/**"
+
+"area: cli":
+  - changed-files:
+    - any-glob-to-any-file: "packages/cli/**"
+
+"area: core":
+  - changed-files:
+    - any-glob-to-any-file: "packages/core/**"
+
+"area: analyzer-js":
+  - changed-files:
+    - any-glob-to-any-file: "packages/analyzer-js/**"
+
+"area: git":
+  - changed-files:
+    - any-glob-to-any-file: "packages/git/**"
+
+"area: report":
+  - changed-files:
+    - any-glob-to-any-file: "packages/report/**"
+
+"area: github-action":
+  - changed-files:
+    - any-glob-to-any-file: "packages/github-action/**"
+
+"area: packaging":
+  - changed-files:
+    - any-glob-to-any-file:
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "packages/*/package.json"
+
+"area: docs":
+  - changed-files:
+    - any-glob-to-any-file:
+      - "docs/**"
+      - "README.md"
+      - "CONTRIBUTING.md"
+      - "SECURITY.md"
+      - "CODE_OF_CONDUCT.md"
+      - ".github/SUPPORT.md"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+      - ".github/ISSUE_TEMPLATE/**"

@@ -1,7 +1,7 @@
 {
   "name": "codedecay",
   "version": "0.0.0",
-  "description": "Deterministic PR regression risk and maintainability decay analysis",
+  "description": "Open-source CLI for PR regression-risk, blast-radius, and code-decay analysis",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",

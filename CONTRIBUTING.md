@@ -35,6 +35,23 @@ pnpm test
 - Improve markdown report clarity.
 - Add SARIF locations where a rule can identify a useful line number.
 
+## Issue And PR Labels
+
+CodeDecay keeps labels compact and functional:
+
+- `bug`, `enhancement`, `documentation`, and `question` describe the request type.
+- `type:*` labels cover maintenance work such as `type: chore`, `type: ci`, `type: refactor`, `type: test`, `type: security`, and `type: release`.
+- `status:*` labels show what is blocking progress, such as `status: needs-triage`, `status: needs-repro`, `status: needs-tests`, `status: blocked`, or `status: release-blocker`.
+- `area:*` labels map work to packages and docs, such as `area: cli`, `area: core`, `area: analyzer-js`, `area: git`, `area: report`, `area: github-action`, `area: packaging`, and `area: docs`.
+- `good first issue` and `help wanted` identify issues that are suitable for external contributors.
+
+## Pull Request Expectations
+
+- Keep PRs focused on one change or one clear follow-up sequence.
+- Include tests when behavior changes.
+- Update docs when CLI flags, report output, or action behavior changes.
+- Call out risk areas and missing follow-up work explicitly in the PR description.
+
 ## Rule Guidelines
 
 Rules should produce findings that explain:

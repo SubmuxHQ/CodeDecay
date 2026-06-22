@@ -1,8 +1,9 @@
 # CodeDecay CLI
 
-CodeDecay analyzes pull requests for regression risk and maintainability decay.
-It is deterministic, local-first, and does not require telemetry, cloud
-services, API keys, LLMs, or model calls.
+CodeDecay is an open-source CLI for pull request regression-risk analysis,
+code-decay detection, and change-impact analysis. It is deterministic,
+local-first, and does not require telemetry, cloud services, API keys, LLMs,
+or model calls.
 
 ## Usage
 

@@ -1,0 +1,36 @@
+name: Documentation improvement
+description: Report missing, unclear, or incorrect documentation.
+title: "[docs] "
+labels:
+  - documentation
+  - "status: needs-triage"
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Affected page or file
+      description: Link or path to the doc that needs work
+      placeholder: README.md or docs/github-action.md
+    validations:
+      required: true
+
+  - type: textarea
+    id: gap
+    attributes:
+      label: What is missing or unclear?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested
+    attributes:
+      label: Suggested improvement
+      description: What would make this clearer or more complete?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, failed commands, or related docs

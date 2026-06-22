@@ -1,7 +1,12 @@
 # CodeDecay
 
-CodeDecay is an Apache-2.0 open-source tool for pull request regression risk
-and maintainability decay analysis.
+CodeDecay is an open-source CLI and GitHub Action for pull request
+regression-risk analysis, code-decay detection, and change-impact analysis.
+
+It helps teams using AI coding agents and AI-assisted development detect what a
+PR might break before merge: impacted files, routes, modules, missing tests,
+duplicated logic, complexity growth, fragile abstractions, and maintainability
+decay.
 
 It is not a generic AI code reviewer. CodeDecay analyzes any pull request, with
 special focus on risks common in AI-generated or AI-assisted code:

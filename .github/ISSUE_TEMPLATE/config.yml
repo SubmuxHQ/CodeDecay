@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Support guide
+    url: https://github.com/SubmuxHQ/CodeDecay/blob/main/.github/SUPPORT.md
+    about: Where to ask questions, report bugs, request features, and report security issues.
+  - name: Getting started docs
+    url: https://github.com/SubmuxHQ/CodeDecay/blob/main/docs/getting-started.md
+    about: Install, run, and interpret CodeDecay locally.
+  - name: GitHub Action guide
+    url: https://github.com/SubmuxHQ/CodeDecay/blob/main/docs/github-action.md
+    about: Configure CodeDecay in pull request workflows and SARIF uploads.
+  - name: Security policy
+    url: https://github.com/SubmuxHQ/CodeDecay/blob/main/SECURITY.md
+    about: Report vulnerabilities privately before opening a public issue.

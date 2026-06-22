@@ -1,0 +1,91 @@
+name: Bug report
+description: Report a defect, regression, or incorrect analysis result.
+title: "[bug] "
+labels:
+  - bug
+  - "status: needs-triage"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. A minimal reproduction and the exact command or workflow help a lot.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      description: Where did you hit the problem?
+      options:
+        - CLI
+        - GitHub Action
+        - JS/TS analyzer
+        - Report output
+        - Git integration
+        - Packaging or release metadata
+        - Core scoring or rules
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: npm version, git tag, or commit SHA
+      placeholder: v0.1.0 or abc1234
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node version, package manager, CI runner, and any repo/framework context
+      placeholder: |
+        macOS 14
+        Node 22
+        pnpm 11
+        GitHub Actions ubuntu-latest
+        Next.js app
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command or workflow
+      description: Paste the CLI command, GitHub Action step, or configuration that triggered the issue
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide minimal repro steps, sample files, or screenshots of the output
+      placeholder: |
+        1. Check out ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Logs, stack traces, PR links, or anything else useful

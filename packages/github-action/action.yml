@@ -1,5 +1,5 @@
 name: "CodeDecay"
-description: "Deterministic PR regression risk and maintainability decay analysis"
+description: "Analyze pull requests for regression risk, blast radius, missing tests, and code decay"
 author: "SubmuxHQ"
 
 inputs:
