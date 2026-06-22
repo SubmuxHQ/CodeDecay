@@ -73,6 +73,33 @@ describe("analyzeJsProject", () => {
     expect(result.findings.map((finding) => finding.ruleId)).toContain("duplicated-added-logic");
   });
 
+  it("recommends nearby matching tests for changed source files", () => {
+    const rootDir = createTempProject({
+      "src/api/users.ts": "export function users() { return []; }\n",
+      "src/api/users.test.ts": "import { users } from \"./users\";\n"
+    });
+
+    const result = analyzeJsProject({
+      rootDir,
+      changedFiles: [change("src/api/users.ts", "export function users() { return [1]; }")]
+    });
+
+    expect(result.recommendedTests).toContain("src/api/users.test.ts");
+  });
+
+  it("recommends adding or running tests when no nearby test exists", () => {
+    const rootDir = createTempProject({
+      "src/lib/formatter.ts": "export function format() { return \"\"; }\n"
+    });
+
+    const result = analyzeJsProject({
+      rootDir,
+      changedFiles: [change("src/lib/formatter.ts", "export function format() { return \"ok\"; }")]
+    });
+
+    expect(result.recommendedTests).toContain("Add or run tests covering src/lib/formatter.ts");
+  });
+
   it("detects UI route, database/schema, and config changes", () => {
     const changedFiles: FileChange[] = [
       change("app/dashboard/page.tsx", "export default function Page() { return <main />; }"),
