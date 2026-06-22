@@ -1,6 +1,6 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
 import {
   createAnalysisReport,
@@ -282,5 +282,13 @@ function writeStderr(runtime: CliRuntime, text: string): void {
 
 function isDirectRun(): boolean {
   const entrypoint = process.argv[1];
-  return Boolean(entrypoint && import.meta.url === pathToFileURL(entrypoint).href);
+  return Boolean(entrypoint && realPathOrResolve(entrypoint) === realPathOrResolve(fileURLToPath(import.meta.url)));
+}
+
+function realPathOrResolve(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
 }

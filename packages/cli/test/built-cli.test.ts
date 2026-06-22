@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { beforeAll, afterEach, describe, expect, it } from "vitest";
@@ -55,10 +55,27 @@ describe("built codedecay CLI", () => {
     expect(result.stdout).toBe("");
     expect(existsSync(join(repo, "codedecay.sarif"))).toBe(true);
   });
+
+  it("runs when dist CLI is invoked through a symlinked path", () => {
+    const repo = createLowRiskRepo();
+    const symlinkRoot = createTempDir();
+    const linkedRoot = join(symlinkRoot, "codedecay-link");
+    symlinkSync(repoRoot, linkedRoot, "dir");
+
+    const result = runBuilt(["analyze", "--cwd", repo, "--format", "json"], join(linkedRoot, "packages/cli/dist/index.js"));
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      tool: "CodeDecay",
+      summary: {
+        riskLevel: "low"
+      }
+    });
+  });
 });
 
-function runBuilt(args: string[]): { status: number | null; stdout: string; stderr: string } {
-  const result = spawnSync("node", [cliPath, ...args], {
+function runBuilt(args: string[], path = cliPath): { status: number | null; stdout: string; stderr: string } {
+  const result = spawnSync("node", [path, ...args], {
     cwd: repoRoot,
     encoding: "utf8"
   });
@@ -109,8 +126,7 @@ function createHighRiskRepo(): string {
 }
 
 function createRepo(files: Record<string, string>): string {
-  const repo = mkdtempSync(join(tmpdir(), "codedecay-built-"));
-  tempRoots.push(repo);
+  const repo = createTempDir();
   git(repo, ["init", "-b", "main"]);
   git(repo, ["config", "user.email", "codedecay@example.com"]);
   git(repo, ["config", "user.name", "CodeDecay Test"]);
@@ -122,6 +138,12 @@ function createRepo(files: Record<string, string>): string {
   git(repo, ["add", "."]);
   git(repo, ["commit", "-m", "initial"]);
   return repo;
+}
+
+function createTempDir(): string {
+  const root = mkdtempSync(join(tmpdir(), "codedecay-built-"));
+  tempRoots.push(root);
+  return root;
 }
 
 function writeFile(root: string, path: string, contents: string): void {
