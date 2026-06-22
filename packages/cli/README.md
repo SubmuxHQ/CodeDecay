@@ -7,12 +7,15 @@ or model calls.
 
 ## Usage
 
+After a local install, run the CLI with `npx codedecay` or add `codedecay` to
+an npm script.
+
 ```bash
-codedecay analyze --format json
-codedecay analyze --format markdown
-codedecay analyze --format sarif --output codedecay.sarif
-codedecay analyze --base main --head HEAD --fail-on high
-codedecay analyze --cwd ../my-repo --format markdown
+npx codedecay analyze --format json
+npx codedecay analyze --format markdown
+npx codedecay analyze --format sarif --output codedecay.sarif
+npx codedecay analyze --base main --head HEAD --fail-on high
+npx codedecay analyze --cwd ../my-repo --format markdown
 ```
 
 Reports are written to stdout by default. Relative `--output` paths are resolved

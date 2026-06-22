@@ -16,34 +16,37 @@ Using pnpm:
 pnpm add -D @submux/codedecay
 ```
 
+After a local install, run CodeDecay with `npx codedecay` or add `codedecay` to
+an npm script.
+
 ## Analyze A PR Diff
 
 ```bash
-codedecay analyze --base main --head HEAD --format markdown
+npx codedecay analyze --base main --head HEAD --format markdown
 ```
 
 ## Analyze Current Working Tree
 
 ```bash
-codedecay analyze --format markdown
+npx codedecay analyze --format markdown
 ```
 
 ## Analyze Another Repository
 
 ```bash
-codedecay analyze --cwd ../my-repo --format markdown
+npx codedecay analyze --cwd ../my-repo --format markdown
 ```
 
 ## Write SARIF
 
 ```bash
-codedecay analyze --format sarif --output codedecay.sarif
+npx codedecay analyze --format sarif --output codedecay.sarif
 ```
 
 ## Fail CI On High Risk
 
 ```bash
-codedecay analyze --base main --head HEAD --fail-on high
+npx codedecay analyze --base main --head HEAD --fail-on high
 ```
 
 Risk levels:

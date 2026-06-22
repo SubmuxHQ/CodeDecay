@@ -26,6 +26,9 @@ does not require telemetry, API keys, LLMs, or model calls.
 npm install -D @submux/codedecay
 ```
 
+After a local install, run the CLI with `npx codedecay` or add `codedecay` to
+an npm script.
+
 For local development in this repository:
 
 ```bash
@@ -37,11 +40,11 @@ pnpm test
 ## CLI
 
 ```bash
-codedecay analyze --base main --head HEAD --format markdown
-codedecay analyze --format json
-codedecay analyze --format sarif --output codedecay.sarif
-codedecay analyze --cwd ../my-repo --format markdown
-codedecay analyze --fail-on high
+npx codedecay analyze --base main --head HEAD --format markdown
+npx codedecay analyze --format json
+npx codedecay analyze --format sarif --output codedecay.sarif
+npx codedecay analyze --cwd ../my-repo --format markdown
+npx codedecay analyze --fail-on high
 ```
 
 Options:
