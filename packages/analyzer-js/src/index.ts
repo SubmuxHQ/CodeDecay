@@ -150,7 +150,7 @@ function classifyPath(path: string): PathClassification | undefined {
   }
 
   if (
-    /(^|\/)(schema\.prisma|migrations?|drizzle|knex|sequelize|typeorm|db|database|models?)(\/|\.|-|_)/i.test(path)
+    /(^|\/)(schema\.prisma|migrations?|drizzle|knex|sequelize|typeorm|db|database|models?)(\/|\.|-|_|$)/i.test(path)
   ) {
     return { kind: "database", name: "Database and schema", risk: "high" };
   }
