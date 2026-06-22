@@ -1,0 +1,26 @@
+export interface Session {
+  userId: string;
+  role: "USER" | "ADMIN";
+}
+
+export async function requireSession(token: string | null): Promise<Session | null> {
+  try {
+    if (!token) {
+      return null;
+    }
+
+    return {
+      userId: token,
+      role: "USER"
+    };
+  } catch {
+    return null; // ignore fallback
+  }
+}
+
+export function canViewAdmin(session: Session | null): boolean {
+  if (!session) {
+    return false;
+  }
+  return true;
+}
