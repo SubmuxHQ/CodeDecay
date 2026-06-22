@@ -1,0 +1,17 @@
+{
+  "name": "codedecay-nextjs-risk-demo",
+  "private": true,
+  "scripts": {
+    "apply-risky-change": "node scripts/apply-risky-change.mjs",
+    "codedecay": "codedecay analyze --cwd . --format markdown"
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@submux/codedecay": "0.1.2",
+    "typescript": "^5.8.3"
+  }
+}
