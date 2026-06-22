@@ -145,6 +145,7 @@ git@github.com:SubmuxHQ/codedecay.git
 - [GitHub Action](docs/github-action.md)
 - [Sample reports](docs/sample-reports/README.md)
 - [Scoring model](docs/scoring.md)
+- [Framework-aware impact map proposal](docs/proposals/framework-aware-impact-map.md)
 - [Research basis](docs/research.md)
 - [Releasing](docs/releasing.md)
 - [Contributing](CONTRIBUTING.md)
