@@ -26,6 +26,10 @@ interface ConfigOptions {
   format: ConfigFormat;
 }
 
+interface McpOptions {
+  cwd?: string | undefined;
+}
+
 interface CliRuntime {
   cwd?: string | undefined;
   stdout?: (text: string) => void;
@@ -87,6 +91,14 @@ async function run(args: string[], runtime: CliRuntime): Promise<void | number> 
     const cwd = resolve(runtimeCwd, options.cwd ?? ".");
     const loadedConfig = loadCodeDecayConfig({ cwd });
     write(runtime.stdout, renderConfig(loadedConfig, options.format));
+    return;
+  }
+
+  if (command === "mcp") {
+    const options = parseMcpArgs(commandArgs);
+    const cwd = resolve(runtimeCwd, options.cwd ?? ".");
+    const { startMcpServer } = await import("@submuxhq/codedecay-mcp");
+    await startMcpServer({ cwd });
     return;
   }
 
@@ -157,6 +169,37 @@ function parseConfigArgs(args: string[]): ConfigOptions {
 
     if (arg === "--format") {
       options.format = parseConfigFormat(requireValue(args, index, arg));
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`Unknown option: ${arg}`);
+  }
+
+  return options;
+}
+
+function parseMcpArgs(args: string[]): McpOptions {
+  const options: McpOptions = {};
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (!arg) {
+      continue;
+    }
+
+    if (arg === "--help" || arg === "-h") {
+      throw new HelpRequested();
+    }
+
+    if (arg.startsWith("--cwd=")) {
+      options.cwd = arg.slice("--cwd=".length);
+      continue;
+    }
+
+    if (arg === "--cwd") {
+      options.cwd = requireValue(args, index, arg);
       index += 1;
       continue;
     }
@@ -421,6 +464,7 @@ function printHelp(runtime: CliRuntime): void {
 Usage:
   codedecay analyze [options]
   codedecay config [options]
+  codedecay mcp [options]
 
 Options:
   --base <ref>               Base git ref to compare from
@@ -435,12 +479,16 @@ Config Options:
   --cwd <path>               Repository working directory (default: current directory)
   --format <format>          json or markdown (default: json)
 
+MCP Options:
+  --cwd <path>               Repository working directory exposed to MCP tools
+
 Examples:
   codedecay analyze --base main --head HEAD --format markdown
   codedecay analyze --cwd ../my-repo --format json
   codedecay analyze --format sarif --output codedecay.sarif
   codedecay analyze --fail-on high
   codedecay config --cwd ../my-repo --format markdown
+  codedecay mcp --cwd ../my-repo
 `);
 }
 

@@ -148,6 +148,7 @@ git@github.com:SubmuxHQ/codedecay.git
 - [Getting started](docs/getting-started.md)
 - [Configuration](docs/configuration.md)
 - [LLM providers](docs/llm-providers.md)
+- [MCP server](docs/mcp.md)
 - [GitHub Action](docs/github-action.md)
 - [Sample reports](docs/sample-reports/README.md)
 - [Scoring model](docs/scoring.md)

@@ -9,7 +9,7 @@ export default defineConfig({
   sourcemap: true,
   target: "node20",
   tsconfig: "../../tsconfig.base.json",
-  external: ["yaml"],
+  external: ["@modelcontextprotocol/sdk", "yaml", "zod"],
   banner: {
     js: "#!/usr/bin/env node"
   },

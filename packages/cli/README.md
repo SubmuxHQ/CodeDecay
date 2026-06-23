@@ -17,6 +17,7 @@ npx codedecay analyze --format sarif --output codedecay.sarif
 npx codedecay analyze --base main --head HEAD --fail-on high
 npx codedecay analyze --cwd ../my-repo --format markdown
 npx codedecay config --cwd ../my-repo --format markdown
+npx codedecay mcp --cwd ../my-repo
 ```
 
 Reports are written to stdout by default. Relative `--output` paths are resolved
