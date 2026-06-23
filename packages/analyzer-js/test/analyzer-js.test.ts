@@ -216,6 +216,150 @@ describe("analyzeJsProject", () => {
       expect.arrayContaining(["typescript-any", "compiler-suppression", "silent-failure"])
     );
   });
+
+  it("flags changed tests without assertions", () => {
+    const rootDir = createTempProject({
+      "src/auth/session.ts": "export function validateSession(token?: string) { return Boolean(token); }\n",
+      "src/auth/session.test.ts": [
+        "import { validateSession } from './session';",
+        "test('validates a session', () => {",
+        "  validateSession('token');",
+        "});",
+        ""
+      ].join("\n")
+    });
+
+    const result = analyzeJsProject({
+      rootDir,
+      changedFiles: [
+        change("src/auth/session.ts", "export function validateSession(token?: string) { return Boolean(token); }"),
+        change("src/auth/session.test.ts", "  validateSession('token');")
+      ]
+    });
+
+    expect(result.findings.map((finding) => finding.ruleId)).toContain("test-without-assertions");
+    expect(result.recommendedTests).toContain("Add real assertions to src/auth/session.test.ts");
+  });
+
+  it("flags snapshot-only changed tests", () => {
+    const rootDir = createTempProject({
+      "app/dashboard/page.tsx": "export default function Page() { return <main />; }\n",
+      "app/dashboard/page.test.tsx": [
+        "import Page from './page';",
+        "test('renders dashboard', () => {",
+        "  expect(Page()).toMatchSnapshot();",
+        "});",
+        ""
+      ].join("\n")
+    });
+
+    const result = analyzeJsProject({
+      rootDir,
+      changedFiles: [
+        change("app/dashboard/page.tsx", "export default function Page() { return <main />; }"),
+        change("app/dashboard/page.test.tsx", "  expect(Page()).toMatchSnapshot();")
+      ]
+    });
+
+    expect(result.findings.map((finding) => finding.ruleId)).toContain("snapshot-only-test");
+    expect(result.recommendedTests).toContain("Add explicit behavior assertions to app/dashboard/page.test.tsx");
+  });
+
+  it("flags changed tests that mock changed source", () => {
+    const rootDir = createTempProject({
+      "src/imu/calibration.ts": "export function calibrate(value: number) { return value * 2; }\n",
+      "src/imu/calibration.test.ts": [
+        "import { calibrate } from './calibration';",
+        "vi.mock('./calibration', () => ({ calibrate: vi.fn(() => 42) }));",
+        "test('calibrates imu data', () => {",
+        "  expect(calibrate(20)).toBe(42);",
+        "});",
+        ""
+      ].join("\n")
+    });
+
+    const result = analyzeJsProject({
+      rootDir,
+      changedFiles: [
+        change("src/imu/calibration.ts", "export function calibrate(value: number) { return value * 2; }"),
+        change("src/imu/calibration.test.ts", "vi.mock('./calibration', () => ({ calibrate: vi.fn(() => 42) }));")
+      ]
+    });
+
+    expect(result.findings.map((finding) => finding.ruleId)).toContain("mocked-changed-source");
+    expect(result.recommendedTests).toContain("Add an integration or real-module check for src/imu/calibration.ts");
+  });
+
+  it("flags changed tests unrelated to changed source", () => {
+    const rootDir = createTempProject({
+      "src/api/users.ts": "export function listUsers() { return []; }\n",
+      "src/lib/math.test.ts": [
+        "import { add } from './math';",
+        "test('adds numbers', () => {",
+        "  expect(add(1, 2)).toBe(3);",
+        "});",
+        ""
+      ].join("\n")
+    });
+
+    const result = analyzeJsProject({
+      rootDir,
+      changedFiles: [
+        change("src/api/users.ts", "export function listUsers() { return []; }"),
+        change("src/lib/math.test.ts", "  expect(add(1, 2)).toBe(3);")
+      ]
+    });
+
+    expect(result.findings.map((finding) => finding.ruleId)).toContain("unrelated-test-change");
+    expect(result.recommendedTests).toContain("Add or update tests that exercise src/api/users.ts");
+  });
+
+  it("flags tests that copy implementation logic", () => {
+    const sourceLines = [
+      { line: 2, content: "const normalized = value.trim().toLowerCase();" },
+      { line: 3, content: "const bounded = normalized.slice(0, 8);" },
+      { line: 4, content: "return bounded.replace(/[^a-z]/g, '');" }
+    ];
+
+    const rootDir = createTempProject({
+      "src/imu/normalize.ts": [
+        "export function normalize(value: string) {",
+        ...sourceLines.map((line) => `  ${line.content}`),
+        "}",
+        ""
+      ].join("\n"),
+      "src/imu/normalize.test.ts": [
+        "import { normalize } from './normalize';",
+        "function copiedNormalize(value: string) {",
+        "  const normalized = value.trim().toLowerCase();",
+        "  const bounded = normalized.slice(0, 8);",
+        "  return bounded.replace(/[^a-z]/g, '');",
+        "}",
+        "test('normalizes imu id', () => {",
+        "  const value = ' SENSOR-123 ';",
+        "  expect(normalize(value)).toBe(copiedNormalize(value));",
+        "});",
+        ""
+      ].join("\n")
+    });
+
+    const result = analyzeJsProject({
+      rootDir,
+      changedFiles: [
+        {
+          path: "src/imu/normalize.ts",
+          status: "modified",
+          additions: 3,
+          deletions: 0,
+          addedLines: sourceLines
+        },
+        change("src/imu/normalize.test.ts", "  const normalized = value.trim().toLowerCase();")
+      ]
+    });
+
+    expect(result.findings.map((finding) => finding.ruleId)).toContain("copied-implementation-in-test");
+    expect(result.recommendedTests).toContain("Exercise src/imu/normalize.ts through its public API instead of copying its logic");
+  });
 });
 
 function change(path: string, content: string): FileChange {
