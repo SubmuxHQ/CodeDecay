@@ -10,6 +10,7 @@
     "paths": {
       "@submuxhq/codedecay-core": ["packages/core/src/index.ts"],
       "@submuxhq/codedecay-config": ["packages/config/src/index.ts"],
+      "@submuxhq/codedecay-adapters": ["packages/adapters/src/index.ts"],
       "@submuxhq/codedecay-git": ["packages/git/src/index.ts"],
       "@submuxhq/codedecay-analyzer-js": ["packages/analyzer-js/src/index.ts"],
       "@submuxhq/codedecay-report": ["packages/report/src/index.ts"]

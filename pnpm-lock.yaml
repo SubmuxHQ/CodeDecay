@@ -24,6 +24,15 @@ importers:
         specifier: ^2.8.1
         version: 2.9.0
 
+  packages/adapters:
+    dependencies:
+      '@submuxhq/codedecay-config':
+        specifier: workspace:*
+        version: link:../config
+      '@submuxhq/codedecay-core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/analyzer-js:
     dependencies:
       '@babel/parser':
