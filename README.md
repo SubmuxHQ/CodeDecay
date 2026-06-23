@@ -47,6 +47,7 @@ npx codedecay analyze --cwd ../my-repo --format markdown
 npx codedecay analyze --fail-on high
 npx codedecay config --format markdown
 npx codedecay execute --format markdown
+npx codedecay differential --base main --head HEAD --format markdown
 ```
 
 Options:
@@ -150,6 +151,7 @@ git@github.com:SubmuxHQ/codedecay.git
 - [Configuration](docs/configuration.md)
 - [Local repo memory](docs/memory.md)
 - [Execution probes](docs/execution.md)
+- [Differential behavior checks](docs/differential.md)
 - [LLM providers](docs/llm-providers.md)
 - [MCP server](docs/mcp.md)
 - [GitHub Action](docs/github-action.md)

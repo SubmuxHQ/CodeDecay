@@ -1,9 +1,17 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { getGitChangedFiles, getRepoRoot, parseAddedLines, parseNameStatus, parseNumStat } from "../src/index";
+import {
+  createGitWorktree,
+  getGitChangedFiles,
+  getRepoRoot,
+  parseAddedLines,
+  parseNameStatus,
+  parseNumStat,
+  removeGitWorktree
+} from "../src/index";
 
 const tempRoots: string[] = [];
 
@@ -154,6 +162,21 @@ describe("live git integration", () => {
     expect(() => getGitChangedFiles({ cwd: repo, head: "does-not-exist" })).toThrow(
       /Git command failed: git -C .* diff .*does-not-exist/
     );
+  });
+
+  it("creates and removes temporary git worktrees", () => {
+    const repo = createRepo({
+      "src/app.ts": "export const value = 1;\n"
+    });
+    const ref = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+
+    const worktree = createGitWorktree({ cwd: repo, ref, prefix: "test" });
+    expect(existsSync(join(worktree.path, "src/app.ts"))).toBe(true);
+
+    removeGitWorktree({ cwd: repo, path: worktree.path });
+
+    expect(existsSync(worktree.path)).toBe(false);
+    expect(gitOutput(repo, ["worktree", "list", "--porcelain"])).not.toContain(worktree.path);
   });
 });
 
