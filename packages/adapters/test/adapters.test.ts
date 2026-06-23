@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { CodeDecayConfig } from "@submuxhq/codedecay-config";
-import { createCommandAdapter, runAdapters, type AdapterContext } from "../src/index";
+import { createCommandAdapter, createConfiguredCommandAdapters, runAdapters, type AdapterContext } from "../src/index";
 
 const tempRoots: string[] = [];
 
@@ -80,6 +80,40 @@ describe("adapter runner", () => {
 
     expect(result.status).toBe("timed_out");
     expect(result.error).toBe("Command timed out after 50ms.");
+  });
+
+  it("creates allowlisted adapters from explicit config commands and probes", async () => {
+    const config = createConfig({ allowCommands: true });
+    config.commands.test = ["node -e \"console.log('test')\""];
+    config.commands.build = ["node -e \"console.log('build')\""];
+    config.commands.start = ["node -e \"console.log('start')\""];
+    config.probes = [{ name: "Users API", command: "node -e \"console.log('probe')\"", timeoutMs: 500 }];
+
+    const configured = createConfiguredCommandAdapters(config);
+
+    expect(configured.map((item) => [item.kind, item.command])).toEqual([
+      ["test", "node -e \"console.log('test')\""],
+      ["build", "node -e \"console.log('build')\""],
+      ["start", "node -e \"console.log('start')\""],
+      ["probe", "node -e \"console.log('probe')\""]
+    ]);
+    expect(configured.map((item) => item.adapter.id)).toEqual(["test-1", "build-1", "start-1", "probe-users-api"]);
+  });
+
+  it("keeps configured command adapters disabled unless safety.allowCommands is true", async () => {
+    const config = createConfig({ allowCommands: false });
+    config.commands.test = ["node -e \"console.log('should not run')\""];
+    const [configured] = createConfiguredCommandAdapters(config);
+
+    if (!configured) {
+      throw new Error("Expected configured adapter.");
+    }
+
+    const result = await runOne(configured.adapter, createContext({ allowCommands: false }));
+
+    expect(result.status).toBe("skipped");
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("Command execution is disabled");
   });
 });
 

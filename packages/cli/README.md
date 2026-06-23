@@ -18,6 +18,7 @@ npx codedecay analyze --base main --head HEAD --fail-on high
 npx codedecay analyze --cwd ../my-repo --format markdown
 npx codedecay config --cwd ../my-repo --format markdown
 npx codedecay memory --cwd ../my-repo --format markdown
+npx codedecay execute --cwd ../my-repo --format markdown
 npx codedecay mcp --cwd ../my-repo
 ```
 

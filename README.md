@@ -46,6 +46,7 @@ npx codedecay analyze --format sarif --output codedecay.sarif
 npx codedecay analyze --cwd ../my-repo --format markdown
 npx codedecay analyze --fail-on high
 npx codedecay config --format markdown
+npx codedecay execute --format markdown
 ```
 
 Options:
@@ -148,6 +149,7 @@ git@github.com:SubmuxHQ/codedecay.git
 - [Getting started](docs/getting-started.md)
 - [Configuration](docs/configuration.md)
 - [Local repo memory](docs/memory.md)
+- [Execution probes](docs/execution.md)
 - [LLM providers](docs/llm-providers.md)
 - [MCP server](docs/mcp.md)
 - [GitHub Action](docs/github-action.md)

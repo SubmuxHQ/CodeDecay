@@ -301,6 +301,101 @@ describe("codedecay memory CLI contract", () => {
   });
 });
 
+describe("codedecay execute CLI contract", () => {
+  it("skips configured commands unless safety.allowCommands is true", async () => {
+    const repo = createLowRiskRepo();
+    writeFile(
+      repo,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "commands:",
+        "  test:",
+        "    - node -e \"console.log('should not run')\"",
+        "safety:",
+        "  allowCommands: false",
+        ""
+      ].join("\n")
+    );
+
+    const result = await run(["execute", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(report.summary).toMatchObject({
+      status: "skipped",
+      total: 1,
+      skipped: 1
+    });
+    expect(report.results[0]).toMatchObject({
+      kind: "test",
+      status: "skipped",
+      stdout: ""
+    });
+  });
+
+  it("runs configured test, build, start, and probe commands", async () => {
+    const repo = createLowRiskRepo();
+    writeExecutionConfig(repo, {
+      allowCommands: true,
+      testCommand: "node -e \"console.log('test ok')\"",
+      buildCommand: "node -e \"console.log('build ok')\"",
+      startCommand: "node -e \"console.log('start ok')\"",
+      probeCommand: "node -e \"console.log('probe ok')\""
+    });
+
+    const result = await run(["execute", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(report.summary).toMatchObject({
+      status: "passed",
+      total: 4,
+      passed: 4
+    });
+    expect(report.results.map((item: { kind: string }) => item.kind)).toEqual(["test", "build", "start", "probe"]);
+    expect(report.results.map((item: { stdout: string }) => item.stdout)).toEqual([
+      "test ok\n",
+      "build ok\n",
+      "start ok\n",
+      "probe ok\n"
+    ]);
+  });
+
+  it("returns exit 1 and reports failures from configured commands", async () => {
+    const repo = createLowRiskRepo();
+    writeExecutionConfig(repo, {
+      allowCommands: true,
+      testCommand: "node -e \"console.log('test ok')\"",
+      probeCommand: "node -e \"console.error('probe failed'); process.exit(3)\""
+    });
+
+    const result = await run(["execute", "--format", "markdown"], repo);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain("## CodeDecay Execution Report");
+    expect(result.stdout).toContain("**Overall status:** Failed");
+    expect(result.stdout).toContain("Exit code: 3");
+    expect(result.stdout).toContain("probe failed");
+  });
+
+  it("writes execution reports to relative --output paths from --cwd", async () => {
+    const repo = createLowRiskRepo();
+    const outsideCwd = createTempDir();
+    writeExecutionConfig(repo, {
+      allowCommands: true,
+      testCommand: "node -e \"console.log('test ok')\""
+    });
+
+    const result = await run(["execute", "--cwd", repo, "--format", "json", "--output", "codedecay-execute.json"], outsideCwd);
+    const outputPath = join(repo, "codedecay-execute.json");
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("");
+    expect(JSON.parse(readFileSync(outputPath, "utf8")).summary.status).toBe("passed");
+  });
+});
+
 async function expectExit(args: string[], cwd: string, expectedExitCode: number): Promise<void> {
   const result = await run(args, cwd);
   expect(result.exitCode).toBe(expectedExitCode);
@@ -402,6 +497,50 @@ function writeFile(root: string, path: string, contents: string): void {
   const fullPath = join(root, path);
   mkdirSync(dirname(fullPath), { recursive: true });
   writeFileSync(fullPath, contents, "utf8");
+}
+
+function writeExecutionConfig(
+  repo: string,
+  input: {
+    allowCommands: boolean;
+    testCommand?: string | undefined;
+    buildCommand?: string | undefined;
+    startCommand?: string | undefined;
+    probeCommand?: string | undefined;
+  }
+): void {
+  const lines = ["version: 1"];
+  const commands = [
+    ["test", input.testCommand],
+    ["build", input.buildCommand],
+    ["start", input.startCommand]
+  ] as const;
+
+  if (commands.some(([, command]) => command)) {
+    lines.push("commands:");
+    for (const [name, command] of commands) {
+      appendCommand(lines, name, command);
+    }
+  } else {
+    lines.push("commands: {}");
+  }
+
+  if (input.probeCommand) {
+    lines.push("probes:");
+    lines.push("  - name: smoke probe", `    command: ${input.probeCommand}`, "    timeoutMs: 1000");
+  } else {
+    lines.push("probes: []");
+  }
+
+  lines.push("safety:", "  commandTimeoutMs: 1000", `  allowCommands: ${input.allowCommands}`, "");
+  writeFile(repo, ".codedecay/config.yml", lines.join("\n"));
+}
+
+function appendCommand(lines: string[], name: "test" | "build" | "start", command: string | undefined): void {
+  if (command) {
+    lines.push(`  ${name}:`);
+    lines.push(`    - ${command}`);
+  }
 }
 
 function git(repo: string, args: string[]): void {

@@ -107,6 +107,36 @@ describe("built codedecay CLI", () => {
     });
   });
 
+  it("executes configured commands from the built CLI", () => {
+    const repo = createLowRiskRepo();
+    writeFile(
+      repo,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "commands:",
+        "  test:",
+        "    - node -e \"console.log('built execute ok')\"",
+        "probes: []",
+        "safety:",
+        "  allowCommands: true",
+        "  commandTimeoutMs: 1000",
+        ""
+      ].join("\n")
+    );
+
+    const result = runBuilt(["execute", "--cwd", repo, "--format", "json"]);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(report.summary.status).toBe("passed");
+    expect(report.results[0]).toMatchObject({
+      kind: "test",
+      status: "passed",
+      stdout: "built execute ok\n"
+    });
+  });
+
   it("runs when dist CLI is invoked through a symlinked path", () => {
     const repo = createLowRiskRepo();
     const symlinkRoot = createTempDir();

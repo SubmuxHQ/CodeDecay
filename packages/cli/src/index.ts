@@ -1,9 +1,17 @@
 import { mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  createConfiguredCommandAdapters,
+  runAdapters,
+  type AdapterResult,
+  type AdapterStatus,
+  type ConfiguredCommandKind
+} from "@submuxhq/codedecay-adapters";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
 import { loadCodeDecayConfig, type LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import {
+  CODEDECAY_VERSION,
   createAnalysisReport,
   riskLevelFromScore,
   shouldFailForRisk,
@@ -34,6 +42,37 @@ interface McpOptions {
 interface MemoryOptions {
   cwd?: string | undefined;
   format: ConfigFormat;
+}
+
+interface ExecuteOptions {
+  cwd?: string | undefined;
+  format: ConfigFormat;
+  output?: string | undefined;
+}
+
+interface ExecutionReport {
+  tool: "CodeDecay";
+  version: string;
+  generatedAt: string;
+  configSource?: string | undefined;
+  summary: ExecutionSummary;
+  results: ExecutionResult[];
+}
+
+interface ExecutionSummary {
+  status: AdapterStatus;
+  total: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  timedOut: number;
+  errors: number;
+  durationMs: number;
+}
+
+interface ExecutionResult extends AdapterResult {
+  kind: ConfiguredCommandKind;
+  command: string;
 }
 
 interface CliRuntime {
@@ -114,6 +153,26 @@ async function run(args: string[], runtime: CliRuntime): Promise<void | number> 
     const rootDir = getRepoRootForCli(cwd, { format: "markdown" });
     const loadedMemory = loadCodeDecayMemory(rootDir);
     write(runtime.stdout, renderMemory(loadedMemory, options.format));
+    return;
+  }
+
+  if (command === "execute") {
+    const options = parseExecuteArgs(commandArgs);
+    const cwd = resolve(runtimeCwd, options.cwd ?? ".");
+    const loadedConfig = loadCodeDecayConfig({ cwd });
+    const report = await createExecutionReport(cwd, loadedConfig);
+    const rendered = renderExecutionReport(report, options.format);
+
+    if (options.output) {
+      writeOutput(cwd, options.output, rendered);
+    } else {
+      write(runtime.stdout, rendered);
+    }
+
+    if (isExecutionFailure(report.summary.status)) {
+      throw new CliExit(1);
+    }
+
     return;
   }
 
@@ -266,6 +325,61 @@ function parseMemoryArgs(args: string[]): MemoryOptions {
 
     if (arg === "--format") {
       options.format = parseConfigFormat(requireValue(args, index, arg));
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`Unknown option: ${arg}`);
+  }
+
+  return options;
+}
+
+function parseExecuteArgs(args: string[]): ExecuteOptions {
+  const options: ExecuteOptions = {
+    format: "markdown"
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (!arg) {
+      continue;
+    }
+
+    if (arg === "--help" || arg === "-h") {
+      throw new HelpRequested();
+    }
+
+    if (arg.startsWith("--cwd=")) {
+      options.cwd = arg.slice("--cwd=".length);
+      continue;
+    }
+
+    if (arg === "--cwd") {
+      options.cwd = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--format=")) {
+      options.format = parseConfigFormat(arg.slice("--format=".length));
+      continue;
+    }
+
+    if (arg === "--format") {
+      options.format = parseConfigFormat(requireValue(args, index, arg));
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--output=")) {
+      options.output = arg.slice("--output=".length);
+      continue;
+    }
+
+    if (arg === "--output") {
+      options.output = requireValue(args, index, arg);
       index += 1;
       continue;
     }
@@ -442,6 +556,186 @@ function renderMemory(loadedMemory: LoadedCodeDecayMemory, format: ConfigFormat)
   return `${lines.join("\n")}\n`;
 }
 
+async function createExecutionReport(rootDir: string, loadedConfig: LoadedCodeDecayConfig): Promise<ExecutionReport> {
+  const startedAt = Date.now();
+  const configuredAdapters = createConfiguredCommandAdapters(loadedConfig.config);
+  const adapterResults: ExecutionResult[] = [];
+
+  for (const configured of configuredAdapters) {
+    const [result] = await runAdapters([configured.adapter], {
+      rootDir,
+      changedFiles: [],
+      config: loadedConfig.config
+    });
+
+    if (!result) {
+      continue;
+    }
+
+    adapterResults.push({
+      ...result,
+      kind: configured.kind,
+      command: configured.command
+    });
+  }
+
+  const report: ExecutionReport = {
+    tool: "CodeDecay",
+    version: CODEDECAY_VERSION,
+    generatedAt: new Date().toISOString(),
+    summary: createExecutionSummary(adapterResults, elapsed(startedAt)),
+    results: adapterResults
+  };
+
+  if (loadedConfig.sourcePath) {
+    report.configSource = loadedConfig.sourcePath;
+  }
+
+  return report;
+}
+
+function createExecutionSummary(results: ExecutionResult[], durationMs: number): ExecutionSummary {
+  const passed = countStatus(results, "passed");
+  const failed = countStatus(results, "failed");
+  const skipped = countStatus(results, "skipped");
+  const timedOut = countStatus(results, "timed_out");
+  const errors = countStatus(results, "error");
+
+  return {
+    status: executionStatus(results, { failed, timedOut, errors }),
+    total: results.length,
+    passed,
+    failed,
+    skipped,
+    timedOut,
+    errors,
+    durationMs
+  };
+}
+
+function executionStatus(
+  results: ExecutionResult[],
+  counts: Pick<ExecutionSummary, "failed" | "timedOut" | "errors">
+): AdapterStatus {
+  if (counts.errors > 0) {
+    return "error";
+  }
+
+  if (counts.timedOut > 0) {
+    return "timed_out";
+  }
+
+  if (counts.failed > 0) {
+    return "failed";
+  }
+
+  if (results.length === 0 || results.every((result) => result.status === "skipped")) {
+    return "skipped";
+  }
+
+  return "passed";
+}
+
+function renderExecutionReport(report: ExecutionReport, format: ConfigFormat): string {
+  if (format === "json") {
+    return `${JSON.stringify(report, null, 2)}\n`;
+  }
+
+  return renderExecutionMarkdown(report);
+}
+
+function renderExecutionMarkdown(report: ExecutionReport): string {
+  const lines = [
+    "## CodeDecay Execution Report",
+    "",
+    `**Overall status:** ${formatStatus(report.summary.status)}`,
+    `**Config:** ${report.configSource ? `\`${report.configSource}\`` : "defaults (no config file found)"}`,
+    "",
+    "| Result | Count |",
+    "| --- | ---: |",
+    `| Total | ${report.summary.total} |`,
+    `| Passed | ${report.summary.passed} |`,
+    `| Failed | ${report.summary.failed} |`,
+    `| Timed out | ${report.summary.timedOut} |`,
+    `| Errors | ${report.summary.errors} |`,
+    `| Skipped | ${report.summary.skipped} |`,
+    `| Duration | ${report.summary.durationMs}ms |`,
+    ""
+  ];
+
+  if (report.results.length === 0) {
+    lines.push("No configured commands or probes found.", "");
+    return `${lines.join("\n")}\n`;
+  }
+
+  lines.push("### Results", "");
+  for (const result of report.results) {
+    lines.push(
+      `- **${result.name}** (${result.kind}) ${formatStatus(result.status)} in ${result.durationMs}ms: \`${result.command}\``
+    );
+
+    if (result.exitCode !== undefined) {
+      lines.push(`  - Exit code: ${result.exitCode}`);
+    }
+
+    if (result.error) {
+      lines.push(`  - Error: ${result.error}`);
+    }
+
+    appendOutputBlock(lines, "stdout", result.stdout);
+    appendOutputBlock(lines, "stderr", result.stderr);
+  }
+
+  lines.push(
+    "",
+    "### Notes",
+    "",
+    "CodeDecay only runs commands explicitly configured in CodeDecay config. It does not run commands proposed by LLMs or remote services.",
+    ""
+  );
+
+  return `${lines.join("\n")}\n`;
+}
+
+function appendOutputBlock(lines: string[], label: "stdout" | "stderr", output: string): void {
+  const trimmed = output.trim();
+  if (!trimmed) {
+    return;
+  }
+
+  lines.push(`  - ${label}:`);
+  lines.push("    ```text");
+  for (const line of trimLongOutput(trimmed).split(/\r?\n/)) {
+    lines.push(`    ${line}`);
+  }
+  lines.push("    ```");
+}
+
+function trimLongOutput(output: string): string {
+  const limit = 2000;
+  if (output.length <= limit) {
+    return output;
+  }
+
+  return `${output.slice(output.length - limit)}\n[output truncated to last ${limit} characters]`;
+}
+
+function countStatus(results: ExecutionResult[], status: AdapterStatus): number {
+  return results.filter((result) => result.status === status).length;
+}
+
+function isExecutionFailure(status: AdapterStatus): boolean {
+  return status === "failed" || status === "timed_out" || status === "error";
+}
+
+function formatStatus(status: AdapterStatus): string {
+  if (status === "timed_out") {
+    return "Timed out";
+  }
+
+  return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
+}
+
 function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig): string {
   const { config, sourcePath } = loadedConfig;
   const lines = [
@@ -555,6 +849,7 @@ Usage:
   codedecay analyze [options]
   codedecay config [options]
   codedecay memory [options]
+  codedecay execute [options]
   codedecay mcp [options]
 
 Options:
@@ -574,6 +869,11 @@ Memory Options:
   --cwd <path>               Repository working directory (default: current directory)
   --format <format>          json or markdown (default: json)
 
+Execution Options:
+  --cwd <path>               Repository working directory (default: current directory)
+  --format <format>          json or markdown (default: markdown)
+  --output <path>            Write execution report to a file instead of stdout
+
 MCP Options:
   --cwd <path>               Repository working directory exposed to MCP tools
 
@@ -584,6 +884,7 @@ Examples:
   codedecay analyze --fail-on high
   codedecay config --cwd ../my-repo --format markdown
   codedecay memory --cwd ../my-repo --format markdown
+  codedecay execute --cwd ../my-repo --format markdown
   codedecay mcp --cwd ../my-repo
 `);
 }
@@ -621,4 +922,8 @@ function realPathOrResolve(path: string): string {
   } catch {
     return resolve(path);
   }
+}
+
+function elapsed(startedAt: number): number {
+  return Math.max(0, Date.now() - startedAt);
 }

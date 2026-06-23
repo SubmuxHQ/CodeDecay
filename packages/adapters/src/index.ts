@@ -3,6 +3,7 @@ import type { CodeDecayConfig } from "@submuxhq/codedecay-config";
 import type { FileChange, Finding } from "@submuxhq/codedecay-core";
 
 export type AdapterStatus = "passed" | "failed" | "skipped" | "timed_out" | "error";
+export type ConfiguredCommandKind = "test" | "build" | "start" | "probe";
 
 export interface AdapterContext {
   rootDir: string;
@@ -26,6 +27,12 @@ export interface CodeDecayAdapter {
   id: string;
   name: string;
   run(context: AdapterContext): Promise<AdapterResult>;
+}
+
+export interface ConfiguredCommandAdapter {
+  kind: ConfiguredCommandKind;
+  command: string;
+  adapter: CodeDecayAdapter;
 }
 
 export interface CommandAdapterOptions {
@@ -58,6 +65,43 @@ export function createCommandAdapter(options: CommandAdapterOptions): CodeDecayA
     id: options.id,
     name: options.name,
     run: (context) => runCommandAdapter(options, context)
+  };
+}
+
+export function createConfiguredCommandAdapters(config: CodeDecayConfig): ConfiguredCommandAdapter[] {
+  return [
+    ...config.commands.test.map((command, index) =>
+      createConfiguredCommandAdapter("test", command, `test-${index + 1}`, `Test command ${index + 1}`)
+    ),
+    ...config.commands.build.map((command, index) =>
+      createConfiguredCommandAdapter("build", command, `build-${index + 1}`, `Build command ${index + 1}`)
+    ),
+    ...config.commands.start.map((command, index) =>
+      createConfiguredCommandAdapter("start", command, `start-${index + 1}`, `Start command ${index + 1}`)
+    ),
+    ...config.probes.map((probe, index) =>
+      createConfiguredCommandAdapter("probe", probe.command, `probe-${slugify(probe.name, index + 1)}`, `Probe: ${probe.name}`, probe.timeoutMs)
+    )
+  ];
+}
+
+function createConfiguredCommandAdapter(
+  kind: ConfiguredCommandKind,
+  command: string,
+  id: string,
+  name: string,
+  timeoutMs?: number | undefined
+): ConfiguredCommandAdapter {
+  return {
+    kind,
+    command,
+    adapter: createCommandAdapter({
+      id,
+      name,
+      command,
+      timeoutMs,
+      requiresCommandAllowlist: true
+    })
   };
 }
 
@@ -193,4 +237,14 @@ function elapsed(startedAt: number): number {
 
 function isIdentifier(value: string): boolean {
   return value.trim().length > 0;
+}
+
+function slugify(value: string, fallbackIndex: number): string {
+  const slug = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || String(fallbackIndex);
 }

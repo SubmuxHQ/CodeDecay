@@ -57,13 +57,15 @@ Current behavior:
 
 - `codedecay analyze` does not require config.
 - `codedecay config` only loads and prints config.
+- `codedecay execute` runs only commands and probes from config, and only when
+  `safety.allowCommands` is true.
 - missing config returns safe defaults.
 - no telemetry, API keys, LLM calls, or cloud services are used.
 - LLM use is disabled by default. Future LLM-backed commands must opt in
   explicitly and treat model output as untrusted suggestions.
 
-Future execution features should use this config as their allowlisted command
-source.
+Execution uses this config as its allowlisted command source. See
+[Execution probes](execution.md).
 
 Read [LLM providers](llm-providers.md) for the optional local/BYOK model
 adapter direction.
