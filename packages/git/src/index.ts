@@ -1,5 +1,6 @@
 import { execFileSync, type ExecFileSyncOptionsWithStringEncoding } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ChangedLine, FileChange, FileStatus } from "@submuxhq/codedecay-core";
 
@@ -7,6 +8,17 @@ export interface GitDiffOptions {
   cwd: string;
   base?: string | undefined;
   head?: string | undefined;
+}
+
+export interface GitWorktree {
+  path: string;
+  ref: string;
+}
+
+export interface GitWorktreeOptions {
+  cwd: string;
+  ref: string;
+  prefix?: string | undefined;
 }
 
 interface ParsedNameStatus {
@@ -80,6 +92,32 @@ export function readFileAtRef(cwd: string, ref: string, path: string): string | 
     return runGit(cwd, ["show", `${ref}:${path}`]);
   } catch {
     return undefined;
+  }
+}
+
+export function createGitWorktree(options: GitWorktreeOptions): GitWorktree {
+  const repoRoot = getRepoRoot(options.cwd);
+  const prefix = options.prefix ?? "worktree";
+  const path = mkdtempSync(join(tmpdir(), `codedecay-${prefix}-`));
+  rmSync(path, { recursive: true, force: true });
+
+  try {
+    runGit(repoRoot, ["worktree", "add", "--detach", path, options.ref]);
+    return {
+      path,
+      ref: options.ref
+    };
+  } catch (error: unknown) {
+    rmSync(path, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+export function removeGitWorktree(options: { cwd: string; path: string }): void {
+  try {
+    runGit(options.cwd, ["worktree", "remove", "--force", options.path]);
+  } catch {
+    rmSync(options.path, { recursive: true, force: true });
   }
 }
 

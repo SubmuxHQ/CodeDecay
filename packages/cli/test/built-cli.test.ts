@@ -137,6 +137,42 @@ describe("built codedecay CLI", () => {
     });
   });
 
+  it("compares configured probes from the built CLI", () => {
+    const repo = createRepo({
+      "probe.js": [
+        "const { readFileSync } = require('node:fs');",
+        "const value = readFileSync('value.txt', 'utf8').trim();",
+        "console.log(JSON.stringify({ value }));",
+        ""
+      ].join("\n"),
+      "value.txt": "base\n",
+      ".codedecay/config.yml": [
+        "version: 1",
+        "commands: {}",
+        "probes:",
+        "  - name: value probe",
+        "    command: node probe.js",
+        "    timeoutMs: 1000",
+        "safety:",
+        "  commandTimeoutMs: 1000",
+        "  allowCommands: true",
+        ""
+      ].join("\n")
+    });
+    const base = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+    writeFile(repo, "value.txt", "head\n");
+    git(repo, ["add", "."]);
+    git(repo, ["commit", "-m", "update value"]);
+    const head = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+
+    const result = runBuilt(["differential", "--cwd", repo, "--base", base, "--head", head, "--format", "json"]);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(1);
+    expect(report.summary.status).toBe("changed");
+    expect(report.results[0].differences).toContain("structured stdout changed");
+  });
+
   it("runs when dist CLI is invoked through a symlinked path", () => {
     const repo = createLowRiskRepo();
     const symlinkRoot = createTempDir();
@@ -236,5 +272,12 @@ function writeFile(root: string, path: string, contents: string): void {
 function git(repo: string, args: string[]): void {
   execFileSync("git", ["-C", repo, ...args], {
     stdio: "ignore"
+  });
+}
+
+function gitOutput(repo: string, args: string[]): string {
+  return execFileSync("git", ["-C", repo, ...args], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"]
   });
 }
