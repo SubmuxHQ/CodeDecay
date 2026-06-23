@@ -34,6 +34,9 @@
     "README.md",
     "LICENSE"
   ],
+  "dependencies": {
+    "yaml": "^2.8.1"
+  },
   "scripts": {
     "build": "tsup --config tsup.config.ts && chmod +x dist/index.js"
   }

@@ -2,6 +2,7 @@ import { mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
+import { loadCodeDecayConfig, type LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import {
   createAnalysisReport,
   riskLevelFromScore,
@@ -20,13 +21,21 @@ interface AnalyzeOptions {
   failOn?: RiskLevel | undefined;
 }
 
+interface ConfigOptions {
+  cwd?: string | undefined;
+  format: ConfigFormat;
+}
+
 interface CliRuntime {
   cwd?: string | undefined;
   stdout?: (text: string) => void;
   stderr?: (text: string) => void;
 }
 
+type ConfigFormat = "json" | "markdown";
+
 const VALID_FORMATS = new Set<ReportFormat>(["json", "markdown", "sarif"]);
+const VALID_CONFIG_FORMATS = new Set<ConfigFormat>(["json", "markdown"]);
 const VALID_RISK_LEVELS = new Set<RiskLevel>(["low", "medium", "high"]);
 
 class CliExit extends Error {
@@ -71,12 +80,21 @@ async function run(args: string[], runtime: CliRuntime): Promise<void | number> 
     return;
   }
 
+  const runtimeCwd = runtime.cwd ?? process.cwd();
+
+  if (command === "config") {
+    const options = parseConfigArgs(commandArgs);
+    const cwd = resolve(runtimeCwd, options.cwd ?? ".");
+    const loadedConfig = loadCodeDecayConfig({ cwd });
+    write(runtime.stdout, renderConfig(loadedConfig, options.format));
+    return;
+  }
+
   if (command !== "analyze") {
     throw new Error(`Unknown command: ${command}`);
   }
 
   const options = parseAnalyzeArgs(commandArgs);
-  const runtimeCwd = runtime.cwd ?? process.cwd();
   const cwd = resolve(runtimeCwd, options.cwd ?? ".");
   const rootDir = getRepoRootForCli(cwd, options);
   const changedFiles = getChangedFilesForCli(rootDir, options);
@@ -103,6 +121,50 @@ async function run(args: string[], runtime: CliRuntime): Promise<void | number> 
   if (options.failOn && shouldFailForRisk(report.summary.riskLevel, options.failOn)) {
     throw new CliExit(1);
   }
+}
+
+function parseConfigArgs(args: string[]): ConfigOptions {
+  const options: ConfigOptions = {
+    format: "json"
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (!arg) {
+      continue;
+    }
+
+    if (arg === "--help" || arg === "-h") {
+      throw new HelpRequested();
+    }
+
+    if (arg.startsWith("--cwd=")) {
+      options.cwd = arg.slice("--cwd=".length);
+      continue;
+    }
+
+    if (arg === "--cwd") {
+      options.cwd = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--format=")) {
+      options.format = parseConfigFormat(arg.slice("--format=".length));
+      continue;
+    }
+
+    if (arg === "--format") {
+      options.format = parseConfigFormat(requireValue(args, index, arg));
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`Unknown option: ${arg}`);
+  }
+
+  return options;
 }
 
 function parseAnalyzeArgs(args: string[]): AnalyzeOptions {
@@ -201,6 +263,14 @@ function parseFormat(value: string): ReportFormat {
   throw new Error(`Invalid format "${value}". Expected json, markdown, or sarif.`);
 }
 
+function parseConfigFormat(value: string): ConfigFormat {
+  if (VALID_CONFIG_FORMATS.has(value as ConfigFormat)) {
+    return value as ConfigFormat;
+  }
+
+  throw new Error(`Invalid config format "${value}". Expected json or markdown.`);
+}
+
 function parseRiskLevel(value: string): RiskLevel {
   if (VALID_RISK_LEVELS.has(value as RiskLevel)) {
     return value as RiskLevel;
@@ -229,6 +299,64 @@ function writeOutput(cwd: string, path: string, contents: string): void {
   mkdirSync(outputDir, { recursive: true });
 
   writeFileSync(outputPath, contents, "utf8");
+}
+
+function renderConfig(loadedConfig: LoadedCodeDecayConfig, format: ConfigFormat): string {
+  if (format === "markdown") {
+    return renderConfigMarkdown(loadedConfig);
+  }
+
+  return `${JSON.stringify(loadedConfig, null, 2)}\n`;
+}
+
+function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig): string {
+  const { config, sourcePath } = loadedConfig;
+  const lines = [
+    "## CodeDecay Config",
+    "",
+    `**Source:** ${sourcePath ? `\`${sourcePath}\`` : "defaults (no config file found)"}`,
+    "",
+    "### Safety",
+    "",
+    "| Setting | Value |",
+    "| --- | ---: |",
+    `| Command timeout | ${config.safety.commandTimeoutMs}ms |`,
+    `| Allow configured commands | ${config.safety.allowCommands ? "yes" : "no"} |`,
+    "",
+    "### Commands",
+    "",
+    "| Type | Commands |",
+    "| --- | --- |",
+    `| Test | ${formatCommandList(config.commands.test)} |`,
+    `| Build | ${formatCommandList(config.commands.build)} |`,
+    `| Start | ${formatCommandList(config.commands.start)} |`,
+    "",
+    "### Probes",
+    ""
+  ];
+
+  if (config.probes.length === 0) {
+    lines.push("No probes configured.", "");
+    return `${lines.join("\n")}\n`;
+  }
+
+  lines.push("| Name | Command | Timeout |", "| --- | --- | ---: |");
+  for (const probe of config.probes) {
+    lines.push(
+      `| ${probe.name} | \`${probe.command}\` | ${probe.timeoutMs ? `${probe.timeoutMs}ms` : "default"} |`
+    );
+  }
+  lines.push("");
+
+  return `${lines.join("\n")}\n`;
+}
+
+function formatCommandList(commands: string[]): string {
+  if (commands.length === 0) {
+    return "none";
+  }
+
+  return commands.map((command) => `\`${command}\``).join("<br>");
 }
 
 function getRepoRootForCli(cwd: string, options: AnalyzeOptions): string {
@@ -283,6 +411,7 @@ function printHelp(runtime: CliRuntime): void {
 
 Usage:
   codedecay analyze [options]
+  codedecay config [options]
 
 Options:
   --base <ref>               Base git ref to compare from
@@ -293,11 +422,16 @@ Options:
   --fail-on <level>          Exit non-zero on low, medium, or high risk
   -h, --help                 Show help
 
+Config Options:
+  --cwd <path>               Repository working directory (default: current directory)
+  --format <format>          json or markdown (default: json)
+
 Examples:
   codedecay analyze --base main --head HEAD --format markdown
   codedecay analyze --cwd ../my-repo --format json
   codedecay analyze --format sarif --output codedecay.sarif
   codedecay analyze --fail-on high
+  codedecay config --cwd ../my-repo --format markdown
 `);
 }
 

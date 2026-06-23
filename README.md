@@ -45,6 +45,7 @@ npx codedecay analyze --format json
 npx codedecay analyze --format sarif --output codedecay.sarif
 npx codedecay analyze --cwd ../my-repo --format markdown
 npx codedecay analyze --fail-on high
+npx codedecay config --format markdown
 ```
 
 Options:
@@ -145,6 +146,7 @@ git@github.com:SubmuxHQ/codedecay.git
 ## Documentation
 
 - [Getting started](docs/getting-started.md)
+- [Configuration](docs/configuration.md)
 - [GitHub Action](docs/github-action.md)
 - [Sample reports](docs/sample-reports/README.md)
 - [Scoring model](docs/scoring.md)
