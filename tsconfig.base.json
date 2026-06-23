@@ -13,6 +13,7 @@
       "@submuxhq/codedecay-adapters": ["packages/adapters/src/index.ts"],
       "@submuxhq/codedecay-llm": ["packages/llm/src/index.ts"],
       "@submuxhq/codedecay-mcp": ["packages/mcp/src/index.ts"],
+      "@submuxhq/codedecay-memory": ["packages/memory/src/index.ts"],
       "@submuxhq/codedecay-git": ["packages/git/src/index.ts"],
       "@submuxhq/codedecay-analyzer-js": ["packages/analyzer-js/src/index.ts"],
       "@submuxhq/codedecay-report": ["packages/report/src/index.ts"]

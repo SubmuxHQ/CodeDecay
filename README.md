@@ -147,6 +147,7 @@ git@github.com:SubmuxHQ/codedecay.git
 
 - [Getting started](docs/getting-started.md)
 - [Configuration](docs/configuration.md)
+- [Local repo memory](docs/memory.md)
 - [LLM providers](docs/llm-providers.md)
 - [MCP server](docs/mcp.md)
 - [GitHub Action](docs/github-action.md)

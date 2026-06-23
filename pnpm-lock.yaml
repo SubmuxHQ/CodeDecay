@@ -93,12 +93,21 @@ importers:
       '@submuxhq/codedecay-git':
         specifier: workspace:*
         version: link:../git
+      '@submuxhq/codedecay-memory':
+        specifier: workspace:*
+        version: link:../memory
       '@submuxhq/codedecay-report':
         specifier: workspace:*
         version: link:../report
       zod:
         specifier: ^4.0.0
         version: 4.4.3
+
+  packages/memory:
+    dependencies:
+      '@submuxhq/codedecay-core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/report:
     dependencies:
