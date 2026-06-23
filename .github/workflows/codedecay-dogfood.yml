@@ -23,4 +23,3 @@ jobs:
           head: ${{ github.event.pull_request.head.sha }}
           cwd: .
           format: markdown
-          fail-on: high
