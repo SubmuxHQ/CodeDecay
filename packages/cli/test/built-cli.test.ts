@@ -84,6 +84,29 @@ describe("built codedecay CLI", () => {
     expect(invalidRef.stderr).toContain('CodeDecay failed: Could not resolve git ref "definitely-missing-ref".');
   });
 
+  it("prints loaded config from the built CLI", () => {
+    const repo = createLowRiskRepo();
+    writeFile(
+      repo,
+      ".codedecay/config.yml",
+      ["version: 1", "commands:", "  test: pnpm test", "safety:", "  commandTimeoutMs: 15000", ""].join("\n")
+    );
+
+    const result = runBuilt(["config", "--cwd", repo, "--format", "json"]);
+
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      config: {
+        commands: {
+          test: ["pnpm test"]
+        },
+        safety: {
+          commandTimeoutMs: 15000
+        }
+      }
+    });
+  });
+
   it("runs when dist CLI is invoked through a symlinked path", () => {
     const repo = createLowRiskRepo();
     const symlinkRoot = createTempDir();

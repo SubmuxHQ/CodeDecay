@@ -43,6 +43,14 @@ npx codedecay analyze --cwd ../my-repo --format markdown
 npx codedecay analyze --format sarif --output codedecay.sarif
 ```
 
+## Inspect CodeDecay Config
+
+Configuration is optional. Missing config uses safe defaults.
+
+```bash
+npx codedecay config --format markdown
+```
+
 ## Fail CI On High Risk
 
 ```bash
