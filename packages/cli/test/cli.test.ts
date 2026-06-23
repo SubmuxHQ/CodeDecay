@@ -163,6 +163,10 @@ describe("codedecay config CLI contract", () => {
         safety: {
           commandTimeoutMs: 120000,
           allowCommands: false
+        },
+        llm: {
+          provider: "disabled",
+          timeoutMs: 30000
         }
       }
     });
@@ -192,6 +196,8 @@ describe("codedecay config CLI contract", () => {
     expect(result.stdout).toContain(".codedecay/config.yml");
     expect(result.stdout).toContain("`pnpm test`");
     expect(result.stdout).toContain("45000ms");
+    expect(result.stdout).toContain("### LLM");
+    expect(result.stdout).toContain("| Provider | disabled |");
   });
 
   it("fails clearly for invalid config files", async () => {

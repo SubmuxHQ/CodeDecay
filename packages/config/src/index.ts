@@ -7,6 +7,7 @@ export interface CodeDecayConfig {
   commands: CodeDecayCommands;
   probes: CodeDecayProbe[];
   safety: CodeDecaySafety;
+  llm: CodeDecayLlmConfig;
 }
 
 export interface CodeDecayCommands {
@@ -24,6 +25,13 @@ export interface CodeDecayProbe {
 export interface CodeDecaySafety {
   commandTimeoutMs: number;
   allowCommands: boolean;
+}
+
+export interface CodeDecayLlmConfig {
+  provider: "disabled" | "ollama";
+  model?: string | undefined;
+  endpoint?: string | undefined;
+  timeoutMs: number;
 }
 
 export interface LoadedCodeDecayConfig {
@@ -53,6 +61,10 @@ export const DEFAULT_CODEDECAY_CONFIG: CodeDecayConfig = {
   safety: {
     commandTimeoutMs: 120_000,
     allowCommands: false
+  },
+  llm: {
+    provider: "disabled",
+    timeoutMs: 30_000
   }
 };
 
@@ -106,12 +118,14 @@ function normalizeConfig(value: unknown, sourcePath: string): CodeDecayConfig {
   const commands = normalizeCommands(value.commands, sourcePath);
   const probes = normalizeProbes(value.probes, sourcePath);
   const safety = normalizeSafety(value.safety, sourcePath);
+  const llm = normalizeLlm(value.llm, sourcePath);
 
   return {
     version: 1,
     commands,
     probes,
-    safety
+    safety,
+    llm
   };
 }
 
@@ -209,6 +223,45 @@ function normalizeSafety(value: unknown, sourcePath: string): CodeDecaySafety {
   };
 }
 
+function normalizeLlm(value: unknown, sourcePath: string): CodeDecayLlmConfig {
+  if (value === undefined) {
+    return { ...DEFAULT_CODEDECAY_CONFIG.llm };
+  }
+
+  if (!isPlainObject(value)) {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: llm must be an object.`);
+  }
+
+  const provider = value.provider === undefined ? DEFAULT_CODEDECAY_CONFIG.llm.provider : value.provider;
+  if (provider !== "disabled" && provider !== "ollama") {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: llm.provider must be disabled or ollama.`);
+  }
+
+  const llmConfig: CodeDecayLlmConfig = {
+    provider,
+    timeoutMs:
+      value.timeoutMs === undefined
+        ? DEFAULT_CODEDECAY_CONFIG.llm.timeoutMs
+        : normalizePositiveInteger(value.timeoutMs, "llm.timeoutMs", sourcePath)
+  };
+
+  if (value.model !== undefined) {
+    if (typeof value.model !== "string" || value.model.trim().length === 0) {
+      throw new Error(`Invalid CodeDecay config at ${sourcePath}: llm.model must be a non-empty string.`);
+    }
+    llmConfig.model = value.model;
+  }
+
+  if (value.endpoint !== undefined) {
+    if (typeof value.endpoint !== "string" || value.endpoint.trim().length === 0) {
+      throw new Error(`Invalid CodeDecay config at ${sourcePath}: llm.endpoint must be a non-empty string.`);
+    }
+    llmConfig.endpoint = value.endpoint;
+  }
+
+  return llmConfig;
+}
+
 function normalizePositiveInteger(value: unknown, field: string, sourcePath: string): number {
   if (typeof value === "number" && Number.isInteger(value) && value > 0) {
     return value;
@@ -230,7 +283,8 @@ function cloneConfig(config: CodeDecayConfig): CodeDecayConfig {
     version: config.version,
     commands: cloneCommands(config.commands),
     probes: config.probes.map((probe) => ({ ...probe })),
-    safety: { ...config.safety }
+    safety: { ...config.safety },
+    llm: { ...config.llm }
   };
 }
 

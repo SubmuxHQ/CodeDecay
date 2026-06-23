@@ -42,6 +42,10 @@ probes:
 safety:
   commandTimeoutMs: 120000
   allowCommands: false
+
+llm:
+  provider: disabled
+  timeoutMs: 30000
 ```
 
 ## Safety Model
@@ -55,6 +59,11 @@ Current behavior:
 - `codedecay config` only loads and prints config.
 - missing config returns safe defaults.
 - no telemetry, API keys, LLM calls, or cloud services are used.
+- LLM use is disabled by default. Future LLM-backed commands must opt in
+  explicitly and treat model output as untrusted suggestions.
 
 Future execution features should use this config as their allowlisted command
 source.
+
+Read [LLM providers](llm-providers.md) for the optional local/BYOK model
+adapter direction.

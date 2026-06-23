@@ -30,6 +30,10 @@ describe("loadCodeDecayConfig", () => {
       safety: {
         commandTimeoutMs: 120_000,
         allowCommands: false
+      },
+      llm: {
+        provider: "disabled",
+        timeoutMs: 30_000
       }
     });
   });
@@ -53,6 +57,11 @@ describe("loadCodeDecayConfig", () => {
         "safety:",
         "  commandTimeoutMs: 30000",
         "  allowCommands: true",
+        "llm:",
+        "  provider: ollama",
+        "  model: qwen2.5-coder",
+        "  endpoint: http://127.0.0.1:11434",
+        "  timeoutMs: 20000",
         ""
       ].join("\n")
     );
@@ -77,6 +86,12 @@ describe("loadCodeDecayConfig", () => {
       safety: {
         commandTimeoutMs: 30000,
         allowCommands: true
+      },
+      llm: {
+        provider: "ollama",
+        model: "qwen2.5-coder",
+        endpoint: "http://127.0.0.1:11434",
+        timeoutMs: 20000
       }
     });
   });
@@ -106,6 +121,13 @@ describe("loadCodeDecayConfig", () => {
     writeFile(root, ".codedecay/config.yml", "version: 2\n");
 
     expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(/version must be 1/);
+  });
+
+  it("fails clearly for invalid llm provider", () => {
+    const root = createTempDir();
+    writeFile(root, ".codedecay/config.yml", "version: 1\nllm:\n  provider: hosted\n");
+
+    expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(/llm.provider must be disabled or ollama/);
   });
 });
 
