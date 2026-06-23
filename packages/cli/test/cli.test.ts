@@ -213,6 +213,94 @@ describe("codedecay config CLI contract", () => {
   });
 });
 
+describe("codedecay memory CLI contract", () => {
+  it("prints memory defaults", async () => {
+    const repo = createLowRiskRepo();
+
+    const result = await run(["memory", "--format", "json"], repo);
+    const parsed = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed.memory.version).toBe(1);
+    for (const section of ["flows", "commands", "invariants", "architecture", "regressions"]) {
+      expect(parsed.memory[section]).toEqual([]);
+    }
+  });
+
+  it("loads memory from --cwd and renders markdown", async () => {
+    const repo = createLowRiskRepo();
+    const outsideCwd = createTempDir();
+    writeFile(
+      repo,
+      ".codedecay/memory.json",
+      JSON.stringify(
+        {
+          version: 1,
+          flows: [{ name: "Checkout", areas: ["api"], checks: ["failed card retry"] }]
+        },
+        null,
+        2
+      )
+    );
+
+    const result = await run(["memory", "--cwd", repo, "--format", "markdown"], outsideCwd);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("## CodeDecay Memory");
+    expect(result.stdout).toContain("| Flows | 1 |");
+  });
+
+  it("adds memory context to analyze reports", async () => {
+    const repo = createRepo({
+      "src/auth/session.ts": "export function session() { return true; }\n",
+      ".codedecay/memory.json": JSON.stringify(
+        {
+          version: 1,
+          flows: [{ name: "Login flow", areas: ["auth"], checks: ["missing token"] }],
+          commands: [{ name: "Auth tests", command: "pnpm test auth", areas: ["auth"] }],
+          invariants: [
+            {
+              name: "Auth fails closed",
+              description: "Missing users must not become admins.",
+              areas: ["auth"],
+              severity: "high"
+            }
+          ],
+          architecture: [],
+          regressions: [
+            {
+              title: "Anonymous admin",
+              description: "Fallback user became admin.",
+              areas: ["auth"],
+              check: "missing token request"
+            }
+          ]
+        },
+        null,
+        2
+      )
+    });
+    writeFile(repo, "src/auth/session.ts", "export function session() { return { role: 'admin' }; }\n");
+
+    const result = await run(["analyze", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(report.findings.map((finding: { ruleId: string }) => finding.ruleId)).toEqual(
+      expect.arrayContaining(["memory-invariant-impacted", "memory-past-regression-area"])
+    );
+    expect(report.recommendedTests).toEqual(
+      expect.arrayContaining([
+        "Verify invariant: Auth fails closed",
+        "Regression check: missing token request",
+        "Verify flow: Login flow",
+        "Flow check (Login flow): missing token",
+        "Run project command: Auth tests (pnpm test auth)"
+      ])
+    );
+  });
+});
+
 async function expectExit(args: string[], cwd: string, expectedExitCode: number): Promise<void> {
   const result = await run(args, cwd);
   expect(result.exitCode).toBe(expectedExitCode);

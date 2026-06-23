@@ -4,6 +4,7 @@ import { z } from "zod";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
 import { createAnalysisReport, type CodeDecayReport, type ImpactedArea } from "@submuxhq/codedecay-core";
 import { getGitChangedFiles, getRepoRoot } from "@submuxhq/codedecay-git";
+import { applyMemoryContext, loadCodeDecayMemory } from "@submuxhq/codedecay-memory";
 import { renderMarkdownReport } from "@submuxhq/codedecay-report";
 
 export interface StartMcpServerOptions {
@@ -150,12 +151,19 @@ function createReport(serverOptions: StartMcpServerOptions, input: McpToolInput)
     rootDir,
     changedFiles
   });
+  const loadedMemory = loadCodeDecayMemory(rootDir);
+  const analyzerResultWithMemory = applyMemoryContext({
+    memory: loadedMemory.memory,
+    changedFiles,
+    impactedAreas: analyzerResult.impactedAreas,
+    analyzerResult
+  });
 
   return createAnalysisReport({
     base: input.base,
     head: input.head,
     changedFiles,
-    analyzerResult
+    analyzerResult: analyzerResultWithMemory
   });
 }
 

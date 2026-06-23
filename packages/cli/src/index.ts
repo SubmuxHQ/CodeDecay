@@ -10,6 +10,7 @@ import {
   type RiskLevel
 } from "@submuxhq/codedecay-core";
 import { getGitChangedFiles, getRepoRoot } from "@submuxhq/codedecay-git";
+import { applyMemoryContext, loadCodeDecayMemory, type LoadedCodeDecayMemory } from "@submuxhq/codedecay-memory";
 import { renderReport, type ReportFormat } from "@submuxhq/codedecay-report";
 
 interface AnalyzeOptions {
@@ -28,6 +29,11 @@ interface ConfigOptions {
 
 interface McpOptions {
   cwd?: string | undefined;
+}
+
+interface MemoryOptions {
+  cwd?: string | undefined;
+  format: ConfigFormat;
 }
 
 interface CliRuntime {
@@ -102,6 +108,15 @@ async function run(args: string[], runtime: CliRuntime): Promise<void | number> 
     return;
   }
 
+  if (command === "memory") {
+    const options = parseMemoryArgs(commandArgs);
+    const cwd = resolve(runtimeCwd, options.cwd ?? ".");
+    const rootDir = getRepoRootForCli(cwd, { format: "markdown" });
+    const loadedMemory = loadCodeDecayMemory(rootDir);
+    write(runtime.stdout, renderMemory(loadedMemory, options.format));
+    return;
+  }
+
   if (command !== "analyze") {
     throw new Error(`Unknown command: ${command}`);
   }
@@ -115,12 +130,19 @@ async function run(args: string[], runtime: CliRuntime): Promise<void | number> 
     rootDir,
     changedFiles
   });
+  const loadedMemory = loadCodeDecayMemory(rootDir);
+  const analyzerResultWithMemory = applyMemoryContext({
+    memory: loadedMemory.memory,
+    changedFiles,
+    impactedAreas: analyzerResult.impactedAreas,
+    analyzerResult
+  });
 
   const report = createAnalysisReport({
     base: options.base,
     head: options.head,
     changedFiles,
-    analyzerResult
+    analyzerResult: analyzerResultWithMemory
   });
 
   const rendered = renderReport(report, options.format);
@@ -200,6 +222,50 @@ function parseMcpArgs(args: string[]): McpOptions {
 
     if (arg === "--cwd") {
       options.cwd = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`Unknown option: ${arg}`);
+  }
+
+  return options;
+}
+
+function parseMemoryArgs(args: string[]): MemoryOptions {
+  const options: MemoryOptions = {
+    format: "json"
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (!arg) {
+      continue;
+    }
+
+    if (arg === "--help" || arg === "-h") {
+      throw new HelpRequested();
+    }
+
+    if (arg.startsWith("--cwd=")) {
+      options.cwd = arg.slice("--cwd=".length);
+      continue;
+    }
+
+    if (arg === "--cwd") {
+      options.cwd = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--format=")) {
+      options.format = parseConfigFormat(arg.slice("--format=".length));
+      continue;
+    }
+
+    if (arg === "--format") {
+      options.format = parseConfigFormat(requireValue(args, index, arg));
       index += 1;
       continue;
     }
@@ -352,6 +418,30 @@ function renderConfig(loadedConfig: LoadedCodeDecayConfig, format: ConfigFormat)
   return `${JSON.stringify(loadedConfig, null, 2)}\n`;
 }
 
+function renderMemory(loadedMemory: LoadedCodeDecayMemory, format: ConfigFormat): string {
+  if (format === "json") {
+    return `${JSON.stringify(loadedMemory, null, 2)}\n`;
+  }
+
+  const { memory, sourcePath } = loadedMemory;
+  const lines = [
+    "## CodeDecay Memory",
+    "",
+    `**Source:** ${sourcePath ? `\`${sourcePath}\`` : "defaults (no memory file found)"}`,
+    "",
+    "| Section | Count |",
+    "| --- | ---: |",
+    `| Flows | ${memory.flows.length} |`,
+    `| Commands | ${memory.commands.length} |`,
+    `| Invariants | ${memory.invariants.length} |`,
+    `| Architecture notes | ${memory.architecture.length} |`,
+    `| Past regressions | ${memory.regressions.length} |`,
+    ""
+  ];
+
+  return `${lines.join("\n")}\n`;
+}
+
 function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig): string {
   const { config, sourcePath } = loadedConfig;
   const lines = [
@@ -464,6 +554,7 @@ function printHelp(runtime: CliRuntime): void {
 Usage:
   codedecay analyze [options]
   codedecay config [options]
+  codedecay memory [options]
   codedecay mcp [options]
 
 Options:
@@ -479,6 +570,10 @@ Config Options:
   --cwd <path>               Repository working directory (default: current directory)
   --format <format>          json or markdown (default: json)
 
+Memory Options:
+  --cwd <path>               Repository working directory (default: current directory)
+  --format <format>          json or markdown (default: json)
+
 MCP Options:
   --cwd <path>               Repository working directory exposed to MCP tools
 
@@ -488,6 +583,7 @@ Examples:
   codedecay analyze --format sarif --output codedecay.sarif
   codedecay analyze --fail-on high
   codedecay config --cwd ../my-repo --format markdown
+  codedecay memory --cwd ../my-repo --format markdown
   codedecay mcp --cwd ../my-repo
 `);
 }

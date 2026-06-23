@@ -1,5 +1,5 @@
 {
-  "name": "@submuxhq/codedecay-mcp",
+  "name": "@submuxhq/codedecay-memory",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -12,13 +12,7 @@
     }
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "@submuxhq/codedecay-analyzer-js": "workspace:*",
-    "@submuxhq/codedecay-core": "workspace:*",
-    "@submuxhq/codedecay-git": "workspace:*",
-    "@submuxhq/codedecay-memory": "workspace:*",
-    "@submuxhq/codedecay-report": "workspace:*",
-    "zod": "^4.0.0"
+    "@submuxhq/codedecay-core": "workspace:*"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean --tsconfig ../../tsconfig.base.json"
