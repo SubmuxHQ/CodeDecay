@@ -115,6 +115,10 @@ function createConfig(input: { allowCommands: boolean }): CodeDecayConfig {
     safety: {
       commandTimeoutMs: 1000,
       allowCommands: input.allowCommands
+    },
+    llm: {
+      provider: "disabled",
+      timeoutMs: 30_000
     }
   };
 }

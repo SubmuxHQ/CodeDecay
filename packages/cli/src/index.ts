@@ -331,6 +331,15 @@ function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig): string {
     `| Build | ${formatCommandList(config.commands.build)} |`,
     `| Start | ${formatCommandList(config.commands.start)} |`,
     "",
+    "### LLM",
+    "",
+    "| Setting | Value |",
+    "| --- | --- |",
+    `| Provider | ${config.llm.provider} |`,
+    `| Model | ${config.llm.model ? `\`${config.llm.model}\`` : "none"} |`,
+    `| Endpoint | ${config.llm.endpoint ? `\`${config.llm.endpoint}\`` : "none"} |`,
+    `| Timeout | ${config.llm.timeoutMs}ms |`,
+    "",
     "### Probes",
     ""
   ];

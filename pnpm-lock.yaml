@@ -64,6 +64,15 @@ importers:
 
   packages/github-action: {}
 
+  packages/llm:
+    dependencies:
+      '@submuxhq/codedecay-config':
+        specifier: workspace:*
+        version: link:../config
+      '@submuxhq/codedecay-core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/report:
     dependencies:
       '@submuxhq/codedecay-core':
