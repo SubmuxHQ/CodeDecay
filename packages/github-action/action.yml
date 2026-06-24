@@ -3,6 +3,10 @@ description: "Analyze pull requests for regression risk, blast radius, missing t
 author: "SubmuxHQ"
 
 inputs:
+  mode:
+    description: "Report mode: analyze, redteam, or agent. Command-executing modes are not supported by this action."
+    required: false
+    default: "analyze"
   base:
     description: "Base git ref or SHA to compare from"
     required: false
@@ -48,8 +52,18 @@ runs:
         ACTION_ROOT="$(cd "$GITHUB_ACTION_PATH/../.." && pwd)"
         CLI_PATH="$ACTION_ROOT/packages/cli/dist/index.js"
         SUMMARY_PATH="$RUNNER_TEMP/codedecay-summary.md"
+        MODE="${{ inputs.mode }}"
 
-        args=(analyze --cwd "${{ inputs.cwd }}" --format markdown)
+        case "$MODE" in
+          analyze|redteam|agent) ;;
+          *)
+            echo "Unsupported CodeDecay mode: $MODE" >&2
+            echo "Expected analyze, redteam, or agent." >&2
+            exit 2
+            ;;
+        esac
+
+        args=("$MODE" --cwd "${{ inputs.cwd }}" --format markdown)
         if [[ -n "${{ inputs.base }}" ]]; then
           args+=(--base "${{ inputs.base }}")
         fi
@@ -67,8 +81,25 @@ runs:
         set -euo pipefail
         ACTION_ROOT="$(cd "$GITHUB_ACTION_PATH/../.." && pwd)"
         CLI_PATH="$ACTION_ROOT/packages/cli/dist/index.js"
+        MODE="${{ inputs.mode }}"
+        FORMAT="${{ inputs.format }}"
 
-        args=(analyze --cwd "${{ inputs.cwd }}" --format "${{ inputs.format }}")
+        case "$MODE" in
+          analyze|redteam|agent) ;;
+          *)
+            echo "Unsupported CodeDecay mode: $MODE" >&2
+            echo "Expected analyze, redteam, or agent." >&2
+            exit 2
+            ;;
+        esac
+
+        if [[ "$MODE" != "analyze" && "$FORMAT" == "sarif" ]]; then
+          echo "CodeDecay mode '$MODE' does not support SARIF output." >&2
+          echo "Use format: markdown or json, or use mode: analyze for SARIF." >&2
+          exit 2
+        fi
+
+        args=("$MODE" --cwd "${{ inputs.cwd }}" --format "$FORMAT")
         if [[ -n "${{ inputs.base }}" ]]; then
           args+=(--base "${{ inputs.base }}")
         fi
@@ -78,7 +109,7 @@ runs:
         if [[ -n "${{ inputs.output }}" ]]; then
           args+=(--output "${{ inputs.output }}")
         fi
-        if [[ -n "${{ inputs.fail-on }}" ]]; then
+        if [[ "$MODE" != "agent" && -n "${{ inputs.fail-on }}" ]]; then
           args+=(--fail-on "${{ inputs.fail-on }}")
         fi
 
