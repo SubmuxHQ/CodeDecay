@@ -21,6 +21,7 @@ export default defineConfig({
       "@submuxhq/codedecay-redteam": fromRoot("./packages/redteam/src/index.ts"),
       "@submuxhq/codedecay-skills": fromRoot("./packages/skills/src/index.ts"),
       "@submuxhq/codedecay-test-audit": fromRoot("./packages/test-audit/src/index.ts"),
+      "@submuxhq/codedecay-tool-adapters": fromRoot("./packages/tool-adapters/src/index.ts"),
       "@submuxhq/codedecay-git": fromRoot("./packages/git/src/index.ts"),
       "@submuxhq/codedecay-analyzer-js": fromRoot("./packages/analyzer-js/src/index.ts"),
       "@submuxhq/codedecay-report": fromRoot("./packages/report/src/index.ts")

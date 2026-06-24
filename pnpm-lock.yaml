@@ -175,6 +175,15 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/tool-adapters:
+    dependencies:
+      '@submuxhq/codedecay-execution':
+        specifier: workspace:*
+        version: link:../execution
+      '@submuxhq/codedecay-harness':
+        specifier: workspace:*
+        version: link:../harness
+
 packages:
 
   '@babel/helper-string-parser@7.29.7':

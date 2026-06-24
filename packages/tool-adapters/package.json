@@ -1,0 +1,21 @@
+{
+  "name": "@submuxhq/codedecay-tool-adapters",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@submuxhq/codedecay-execution": "workspace:*",
+    "@submuxhq/codedecay-harness": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean --tsconfig ../../tsconfig.base.json"
+  }
+}
