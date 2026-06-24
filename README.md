@@ -152,6 +152,7 @@ git@github.com:SubmuxHQ/codedecay.git
 - [Configuration](docs/configuration.md)
 - [Development setup](DEVELOPMENT.md)
 - [Local repo memory](docs/memory.md)
+- [Agent skills](docs/skills.md)
 - [Execution probes](docs/execution.md)
 - [Differential behavior checks](docs/differential.md)
 - [Redteam reports](docs/redteam.md)

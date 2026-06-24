@@ -20,6 +20,7 @@
     "@submuxhq/codedecay-memory": "workspace:*",
     "@submuxhq/codedecay-redteam": "workspace:*",
     "@submuxhq/codedecay-report": "workspace:*",
+    "@submuxhq/codedecay-skills": "workspace:*",
     "zod": "^4.0.0"
   },
   "scripts": {

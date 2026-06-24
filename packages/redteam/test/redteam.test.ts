@@ -10,6 +10,7 @@ describe("redteam report", () => {
       analysisReport: createFixtureAnalysisReport(),
       config: createFixtureConfig(),
       memory: createFixtureMemory(),
+      skills: createFixtureSkills(),
       configSource: "/repo/.codedecay/config.yml",
       memorySource: "/repo/.codedecay/memory.json",
       generatedAt: "2026-01-01T00:00:00.000Z"
@@ -22,7 +23,8 @@ describe("redteam report", () => {
       riskLevel: "medium",
       changedFiles: 2,
       weakTestFindings: 1,
-      configuredChecks: 2
+      configuredChecks: 2,
+      skills: 1
     });
     expect(Object.values(report.safety).filter((value) => value === false)).toHaveLength(4);
     expect(report.weakTestFindings.map((finding) => finding.ruleId)).toEqual(["test-without-assertions"]);
@@ -33,8 +35,21 @@ describe("redteam report", () => {
         expect.objectContaining({ kind: "probe", command: "node probe.js", willRun: false })
       ])
     );
+    expect(report.skills).toEqual([
+      {
+        id: "pr-red-team",
+        title: "PR Red-Team Skill",
+        path: ".agents/skills/pr-red-team/SKILL.md",
+        summary: "Find missed PR risks.",
+        untrusted: true
+      }
+    ]);
     expect(report.fixTasks.map((task) => task.title)).toEqual(
-      expect.arrayContaining(["Verify invariant: Auth fails closed", "Re-check past regression: Anonymous admin"])
+      expect.arrayContaining([
+        "Verify invariant: Auth fails closed",
+        "Re-check past regression: Anonymous admin",
+        "Review with skill: PR Red-Team Skill"
+      ])
     );
   });
 
@@ -43,6 +58,7 @@ describe("redteam report", () => {
       analysisReport: createFixtureAnalysisReport(),
       config: createFixtureConfig(),
       memory: createFixtureMemory(),
+      skills: createFixtureSkills(),
       generatedAt: "2026-01-01T00:00:00.000Z"
     });
 
@@ -53,6 +69,8 @@ describe("redteam report", () => {
     const markdown = renderRedteamReport(report, "markdown");
     expect(markdown).toContain("## CodeDecay Redteam Report");
     expect(markdown).toContain("### Test Reality Check");
+    expect(markdown).toContain("### Agent Skills");
+    expect(markdown).toContain("PR Red-Team Skill");
     expect(markdown).toContain("Commands executed: no");
     expect(markdown).toContain("LLM/model called: no");
   });
@@ -171,6 +189,22 @@ function createFixtureMemory(): CodeDecayMemory {
         title: "Anonymous admin",
         description: "A missing token previously created an admin session.",
         check: "request protected route without token"
+      }
+    ]
+  };
+}
+
+function createFixtureSkills() {
+  return {
+    sourceDir: "/repo/.agents/skills",
+    skills: [
+      {
+        id: "pr-red-team",
+        title: "PR Red-Team Skill",
+        path: ".agents/skills/pr-red-team/SKILL.md",
+        summary: "Find missed PR risks.",
+        content: "# PR Red-Team Skill\n\nFind missed PR risks.\n",
+        untrusted: true as const
       }
     ]
   };

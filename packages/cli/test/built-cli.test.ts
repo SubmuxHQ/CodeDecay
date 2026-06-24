@@ -100,6 +100,7 @@ describe("built codedecay CLI", () => {
         ""
       ].join("\n")
     );
+    writeFile(repo, ".agents/skills/pr-red-team/SKILL.md", "# PR Red-Team Skill\n\nFind missed PR risks.\n");
 
     const json = runBuilt(["redteam", "--cwd", repo, "--format", "json"]);
     const report = JSON.parse(json.stdout);
@@ -116,6 +117,12 @@ describe("built codedecay CLI", () => {
     expect(report.configuredChecks).toEqual(
       expect.arrayContaining([expect.objectContaining({ kind: "test", willRun: false })])
     );
+    expect(report.skills).toEqual([
+      expect.objectContaining({
+        id: "pr-red-team",
+        title: "PR Red-Team Skill"
+      })
+    ]);
     expect(existsSync(join(repo, "codedecay-ran.txt"))).toBe(false);
 
     expect(runBuilt(["redteam", "--cwd", repo, "--fail-on", "high"]).status).toBe(0);

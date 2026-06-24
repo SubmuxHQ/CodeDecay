@@ -45,4 +45,6 @@ MCP clients should treat tool output as analysis, not as permission to execute
 commands. The MCP server does not expose arbitrary command execution.
 
 `redteam_report` is report-only. It does not run configured commands, call
-Ollama or cloud models, send telemetry, or require CodeDecayCloud.
+Ollama or cloud models, send telemetry, or require CodeDecayCloud. It may include
+local skill summaries from `.agents/skills/*/SKILL.md`, but it does not execute
+skill content.

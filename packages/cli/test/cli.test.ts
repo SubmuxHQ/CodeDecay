@@ -308,6 +308,7 @@ describe("codedecay redteam CLI contract", () => {
       allowCommands: true,
       testCommand: "node -e \"require('fs').writeFileSync('codedecay-ran.txt','yes')\""
     });
+    writeFile(repo, ".agents/skills/pr-red-team/SKILL.md", "# PR Red-Team Skill\n\nFind missed PR risks.\n");
 
     const json = await run(["redteam", "--format", "json"], repo);
     const report = JSON.parse(json.stdout);
@@ -319,6 +320,13 @@ describe("codedecay redteam CLI contract", () => {
     expect(report.summary.riskLevel).toBe("high");
     expect(Object.values(report.safety).filter((value) => value === false)).toHaveLength(4);
     expect(report.edgeCases).toContain("Check missing, expired, malformed, and privilege-escalation credentials.");
+    expect(report.skills).toEqual([
+      expect.objectContaining({
+        id: "pr-red-team",
+        title: "PR Red-Team Skill",
+        summary: "Find missed PR risks."
+      })
+    ]);
     expect(report.configuredChecks).toEqual(
       expect.arrayContaining([expect.objectContaining({ kind: "test", willRun: false })])
     );

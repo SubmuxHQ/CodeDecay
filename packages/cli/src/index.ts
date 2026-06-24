@@ -21,6 +21,7 @@ import { createGitWorktree, getGitChangedFiles, getRepoRoot, removeGitWorktree }
 import { applyMemoryContext, loadCodeDecayMemory, type LoadedCodeDecayMemory } from "@submuxhq/codedecay-memory";
 import { createRedteamReport, renderRedteamReport, type RedteamFormat } from "@submuxhq/codedecay-redteam";
 import { renderReport, type ReportFormat } from "@submuxhq/codedecay-report";
+import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
 
 interface AnalyzeOptions {
   base?: string | undefined;
@@ -297,12 +298,14 @@ function runRedteamCommand(context: CliCommandContext): void {
   const rootDir = getRepoRootForCli(cwd, options);
   const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
   const analysis = createAnalysisContextForCli(rootDir, options);
+  const loadedSkills = loadCodeDecaySkills({ cwd: rootDir });
   const report = createRedteamReport({
     analysisReport: analysis.report,
     config: loadedConfig.config,
     configSource: loadedConfig.sourcePath,
     memory: analysis.loadedMemory.memory,
-    memorySource: analysis.loadedMemory.sourcePath
+    memorySource: analysis.loadedMemory.sourcePath,
+    skills: loadedSkills
   });
 
   writeCliOutput({
