@@ -155,6 +155,15 @@ describe("agent architecture guide", () => {
   });
 });
 
+describe("agent harness RFC", () => {
+  it("uses the implemented MCP package name", () => {
+    const rfc = readFileSync(join(process.cwd(), "docs/rfcs/0001-agent-agnostic-redteam-harness.md"), "utf8");
+
+    expect(rfc).toContain("### `packages/mcp`");
+    expect(rfc).not.toContain("packages/mcp-server");
+  });
+});
+
 function createTempDir(): string {
   const root = join(tmpdir(), `codedecay-skills-${process.pid}-${tempRoots.length}`);
   rmSync(root, { recursive: true, force: true });
