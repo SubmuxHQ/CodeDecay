@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -54,6 +54,23 @@ describe("loadCodeDecaySkills", () => {
     const loaded = loadCodeDecaySkills({ cwd: repo });
 
     expect(loaded.skills.map((skill) => skill.id)).toEqual(["api-review"]);
+  });
+});
+
+describe("repo-local agent commands", () => {
+  it("keeps redteam-pr aligned with the analyze, redteam, and agent workflow", () => {
+    const command = readFileSync(join(process.cwd(), ".agents/commands/redteam-pr.md"), "utf8");
+
+    expect(command).toContain("node packages/cli/dist/index.js analyze --base origin/main --head HEAD --format markdown");
+    expect(command).toContain(
+      "node packages/cli/dist/index.js redteam --base origin/main --head HEAD --format markdown --output codedecay-redteam.md"
+    );
+    expect(command).toContain(
+      "node packages/cli/dist/index.js agent --base origin/main --head HEAD --format markdown --output codedecay-agent.md"
+    );
+    expect(command).toContain("Copy-Paste Prompt");
+    expect(command).toContain("Keep tool evidence separate from agent suggestions.");
+    expect(command).toContain("Do not claim a PR is 100%");
   });
 });
 
