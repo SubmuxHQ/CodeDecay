@@ -3,9 +3,9 @@
 `codedecay agent` turns a deterministic redteam report into a task bundle for a
 user-owned coding agent.
 
-Use it when you want Codex, Claude Code, Cursor, a desktop agent, or another
-local agent to fix what CodeDecay found without CodeDecay making a hidden model
-call.
+Use it when you want Codex, Claude Code, Cursor, Pi, OpenCode, a desktop agent,
+or another local agent to fix what CodeDecay found without CodeDecay making a
+hidden model call.
 
 ```bash
 npx codedecay agent --base main --head HEAD --format markdown
@@ -35,6 +35,8 @@ Supported profiles:
 - `codex`: handoff wording for a Codex repo session.
 - `claude-code`: handoff wording for Claude Code.
 - `cursor`: handoff wording for Cursor chat or agent mode.
+- `pi`: handoff wording for Pi harness or Pi-compatible agent workflows.
+- `opencode`: handoff wording for OpenCode.
 - `desktop`: handoff wording for desktop or local agent apps.
 
 Example:

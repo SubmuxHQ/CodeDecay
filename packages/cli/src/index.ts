@@ -1801,7 +1801,7 @@ Agent Options:
   --head <ref>               Head git ref to compare to
   --cwd <path>               Repository working directory (default: current directory)
   --format <format>          json or markdown (default: markdown)
-  --profile <profile>        generic, codex, claude-code, cursor, or desktop (default: generic)
+  --profile <profile>        ${AGENT_PROFILE_IDS.join(", ")} (default: generic)
   --output <path>            Write agent task bundle to a file instead of stdout
 
 Config Options:

@@ -8,7 +8,12 @@ import {
   type AdapterStatus,
   type ConfiguredCommandKind
 } from "@submuxhq/codedecay-adapters";
-import { createAgentTaskBundle, renderAgentTaskBundle, type AgentProfileId } from "@submuxhq/codedecay-agent";
+import {
+  AGENT_PROFILE_IDS,
+  createAgentTaskBundle,
+  renderAgentTaskBundle,
+  type AgentProfileId
+} from "@submuxhq/codedecay-agent";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
 import { loadCodeDecayConfig, type LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import { CODEDECAY_VERSION, createAnalysisReport, type CodeDecayReport, type ImpactedArea } from "@submuxhq/codedecay-core";
@@ -177,10 +182,7 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
       base: z.string().optional().describe("Base git ref or SHA."),
       head: z.string().optional().describe("Head git ref or SHA."),
       format: z.enum(["markdown", "json"]).optional().describe("Response format."),
-      profile: z
-        .enum(["generic", "codex", "claude-code", "cursor", "desktop"])
-        .optional()
-        .describe("User-owned agent handoff profile.")
+      profile: z.enum(AGENT_PROFILE_IDS).optional().describe("User-owned agent handoff profile.")
     },
     async (input) => textResult(runAgentTaskBundleTool(options, input))
   );
