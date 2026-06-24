@@ -175,6 +175,7 @@ describe("built codedecay CLI", () => {
     expect(bundle).toMatchObject({
       tool: "CodeDecay",
       mode: "agent-task-bundle",
+      prompt: expect.stringContaining("CodeDecay agent task bundle"),
       safety: {
         commandsExecuted: false,
         llmCalled: false
