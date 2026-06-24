@@ -13,6 +13,7 @@ export default defineConfig({
       "@submuxhq/codedecay-core": fromRoot("./packages/core/src/index.ts"),
       "@submuxhq/codedecay-config": fromRoot("./packages/config/src/index.ts"),
       "@submuxhq/codedecay-adapters": fromRoot("./packages/adapters/src/index.ts"),
+      "@submuxhq/codedecay-harness": fromRoot("./packages/harness/src/index.ts"),
       "@submuxhq/codedecay-llm": fromRoot("./packages/llm/src/index.ts"),
       "@submuxhq/codedecay-mcp": fromRoot("./packages/mcp/src/index.ts"),
       "@submuxhq/codedecay-memory": fromRoot("./packages/memory/src/index.ts"),

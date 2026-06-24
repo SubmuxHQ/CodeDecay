@@ -34,6 +34,7 @@ and optional CodeDecay config/memory examples.
 ## Project Layout
 
 - `packages/core`: shared types, scores, and rule runner.
+- `packages/harness`: harness interfaces, evidence schema, and registry.
 - `packages/git`: git diff collection and changed-file normalization.
 - `packages/analyzer-js`: JavaScript and TypeScript analyzer.
 - `packages/report`: JSON, Markdown, and SARIF report rendering.

@@ -88,6 +88,8 @@ importers:
         specifier: ^14.3.2
         version: 14.3.2
 
+  packages/harness: {}
+
   packages/llm:
     dependencies:
       '@submuxhq/codedecay-config':
