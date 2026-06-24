@@ -428,7 +428,8 @@ describe("built codedecay CLI", () => {
       mode: "agent-task-bundle",
       summary: {
         riskLevel: "high",
-        impactedRoutes: 2
+        impactedRoutes: 2,
+        missingTestFindings: expect.any(Number)
       },
       safety: {
         commandsExecuted: false,
@@ -449,7 +450,9 @@ describe("built codedecay CLI", () => {
         })
       ])
     );
+    expect(agentBundle.summary.missingTestFindings).toBeGreaterThan(0);
     expect(agentBundle.prompt).toContain("2 route/API impacts");
+    expect(agentBundle.prompt).toContain("missing-test findings");
     expect(agentBundle.prompt).toContain("Start with impacted routes/APIs when present");
     expect(agentBundle.instructions).toContain(
       "Start from impacted routes/APIs when present, then broad impacted areas and weak-test findings."

@@ -23,6 +23,7 @@ describe("redteam report", () => {
       riskLevel: "medium",
       changedFiles: 2,
       impactedRoutes: 1,
+      missingTestFindings: 0,
       weakTestFindings: 1,
       testProofStatus: "weak",
       configuredChecks: 2,
@@ -98,6 +99,7 @@ describe("redteam report", () => {
     expect(json.tool).toBe("CodeDecay");
     expect(json.mode).toBe("deterministic");
     expect(json.summary.impactedRoutes).toBe(1);
+    expect(json.summary.missingTestFindings).toBe(0);
     expect(json.analysis.impactedRoutes[0]).toMatchObject({
       framework: "nextjs",
       kind: "api-route",
@@ -107,6 +109,7 @@ describe("redteam report", () => {
     const markdown = renderRedteamReport(report, "markdown");
     expect(markdown).toContain("## CodeDecay Redteam Report");
     expect(markdown).toContain("### Test Proof Audit");
+    expect(markdown).toContain("| Missing-test findings | 0 |");
     expect(markdown).toContain("**Status:** Weak");
     expect(markdown).toContain("### Agent Skills");
     expect(markdown).toContain("### Likely Impacted Routes And APIs");
@@ -123,6 +126,55 @@ describe("redteam report", () => {
   it("exports weak-test rule ids for integrations", () => {
     expect(weakTestRuleIds()).toContain("test-without-assertions");
     expect(weakTestRuleIds()).toEqual([...weakTestRuleIds()].sort((left, right) => left.localeCompare(right)));
+  });
+
+  it("summarizes missing-test findings separately from weak-test findings", () => {
+    const report = createRedteamReport({
+      analysisReport: createAnalysisReport({
+        changedFiles: [
+          {
+            path: "src/api/users.ts",
+            status: "modified",
+            additions: 4,
+            deletions: 1,
+            addedLines: [{ line: 2, content: "return Response.json({ ok: true });" }]
+          }
+        ],
+        analyzerResult: {
+          impactedAreas: [
+            {
+              name: "API surface",
+              kind: "api",
+              risk: "high",
+              files: ["src/api/users.ts"]
+            }
+          ],
+          findings: [
+            {
+              ruleId: "missing-nearby-tests",
+              title: "Risky source changes without changed tests",
+              description: "API behavior changed without nearby test proof.",
+              severity: "high",
+              category: "coverage",
+              file: "src/api/users.ts",
+              line: 2
+            }
+          ],
+          recommendedTests: ["Add or run tests covering src/api/users.ts"]
+        },
+        generatedAt: "2026-01-01T00:00:00.000Z"
+      }),
+      config: createFixtureConfig(),
+      memory: createFixtureMemory(),
+      generatedAt: "2026-01-01T00:00:00.000Z"
+    });
+    const markdown = renderRedteamReport(report, "markdown");
+
+    expect(report.summary.missingTestFindings).toBe(1);
+    expect(report.summary.weakTestFindings).toBe(0);
+    expect(report.testAudit.status).toBe("missing");
+    expect(markdown).toContain("| Missing-test findings | 1 |");
+    expect(markdown).toContain("| Weak-test findings | 0 |");
   });
 });
 
