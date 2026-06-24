@@ -80,6 +80,38 @@ describe("GitHub repository metadata", () => {
     expect(readIssueAreaOptions(".github/ISSUE_TEMPLATE/bug_report.yml")).toEqual(expectedOptions);
     expect(readIssueAreaOptions(".github/ISSUE_TEMPLATE/feature_request.yml")).toEqual(expectedOptions);
   });
+
+  it("keeps the pull request template aligned with current validation and risk areas", () => {
+    const template = readFileSync(".github/PULL_REQUEST_TEMPLATE.md", "utf8");
+
+    const expectedRiskAreas = [
+      "CLI or npm package behavior",
+      "Core scoring, rules, or shared types",
+      "JS/TS analyzer, impact map, or test-audit behavior",
+      "Git diff, path normalization, or base/head handling",
+      "Reports, Markdown, JSON, or SARIF output",
+      "Redteam reports, agent bundles, MCP, memory, or LLM provider boundaries",
+      "Safe execution, differential checks, or tool adapters",
+      "GitHub Action, GitHub App, CI, or repository automation",
+      "Docs, examples, contributor setup, or agentic development resources",
+      "Packaging, release metadata, or published tarball contents"
+    ];
+    const expectedValidation = [
+      "`pnpm run lint`",
+      "`pnpm typecheck`",
+      "`pnpm test`",
+      "`pnpm build`",
+      "`pnpm --filter @submux/codedecay pack --dry-run`",
+      "Added or updated tests for behavior changes",
+      "Updated docs for user-facing changes",
+      "Ran a relevant CodeDecay self-check when useful"
+    ];
+
+    for (const line of [...expectedRiskAreas, ...expectedValidation]) {
+      expect(template).toContain(line);
+    }
+    expect(template).toContain("Closes #");
+  });
 });
 
 function readIssueAreaOptions(path: string): string[] {

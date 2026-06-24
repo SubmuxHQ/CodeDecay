@@ -33,15 +33,26 @@ and optional CodeDecay config/memory examples.
 
 ## Project Layout
 
+- `packages/adapters`: configured command adapter orchestration.
+- `packages/agent`: deterministic task bundles for user-owned agents.
+- `packages/analyzer-js`: JavaScript and TypeScript analyzer.
+- `packages/cli`: bundled `codedecay` CLI.
+- `packages/config`: repo-local CodeDecay config loading and validation.
 - `packages/core`: shared types, scores, and rule runner.
 - `packages/execution`: safe command execution primitives.
-- `packages/harness`: harness interfaces, evidence schema, and registry.
 - `packages/git`: git diff collection and changed-file normalization.
-- `packages/analyzer-js`: JavaScript and TypeScript analyzer.
-- `packages/report`: JSON, Markdown, and SARIF report rendering.
-- `packages/cli`: bundled `codedecay` CLI.
-- `packages/github-action`: composite GitHub Action wrapper.
 - `packages/github-app`: optional hosted GitHub App service.
+- `packages/github-action`: composite GitHub Action wrapper.
+- `packages/harness`: harness interfaces, evidence schema, and registry.
+- `packages/llm`: optional local/BYOK LLM provider boundaries.
+- `packages/mcp`: local MCP server and MCP tool wrappers.
+- `packages/memory`: local repo memory loading and memory provider boundaries.
+- `packages/redteam`: deterministic redteam report assembly.
+- `packages/report`: JSON, Markdown, and SARIF report rendering.
+- `packages/skills`: repo-local agent skill discovery.
+- `packages/test-audit`: missing-test and weak-test proof audit.
+- `packages/tool-adapters`: Playwright, StrykerJS, Schemathesis, and Pact adapter wrappers.
+- `examples`: runnable adoption examples and risk demos.
 - `docs`: public documentation.
 
 ## Good First Contributions
@@ -59,7 +70,7 @@ CodeDecay keeps labels compact and functional:
 - `bug`, `enhancement`, `documentation`, and `question` describe the request type.
 - `type:*` labels cover maintenance work such as `type: chore`, `type: ci`, `type: refactor`, `type: test`, `type: security`, and `type: release`.
 - `status:*` labels show what is blocking progress, such as `status: needs-triage`, `status: needs-repro`, `status: needs-tests`, `status: blocked`, or `status: release-blocker`.
-- `area:*` labels map work to packages and docs, such as `area: cli`, `area: core`, `area: analyzer-js`, `area: git`, `area: report`, `area: github-action`, `area: packaging`, and `area: docs`.
+- `area:*` labels map work to packages and docs, such as `area: cli`, `area: core`, `area: analyzer-js`, `area: git`, `area: report`, `area: config`, `area: adapters`, `area: execution`, `area: test-audit`, `area: redteam`, `area: agent`, `area: mcp`, `area: memory`, `area: llm`, `area: github-action`, `area: github-app`, `area: harness`, `area: packaging`, `area: docs`, and `area: dev-experience`.
 - `good first issue` and `help wanted` identify issues that are suitable for external contributors.
 
 ## Pull Request Expectations
