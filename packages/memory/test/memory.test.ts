@@ -4,7 +4,14 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AnalyzerResult, FileChange, ImpactedArea } from "@submuxhq/codedecay-core";
-import { applyMemoryContext, loadCodeDecayMemory } from "../src/index";
+import {
+  applyMemoryContext,
+  createLocalMemoryProvider,
+  createMemoryProviderRegistry,
+  loadCodeDecayMemory,
+  loadCodeDecayMemoryFromProvider,
+  type MemoryProvider
+} from "../src/index";
 
 const tempRoots: string[] = [];
 
@@ -42,6 +49,62 @@ describe("CodeDecay memory", () => {
     expect(loaded.sourcePath).toBe(join(root, ".codedecay/memory.json"));
     expect(loaded.memory.flows[0]?.name).toBe("Checkout");
     expect(loaded.memory.invariants[0]?.severity).toBe("high");
+  });
+
+  it("loads local memory through the local provider", () => {
+    const root = createTempDir();
+    writeJson(root, ".codedecay/memory.json", {
+      version: 1,
+      flows: [{ name: "Checkout", areas: ["api"] }]
+    });
+
+    const provider = createLocalMemoryProvider();
+    const loaded = loadCodeDecayMemoryFromProvider(provider, { rootDir: root });
+
+    expect(provider).toMatchObject({
+      id: "local",
+      name: "Local .codedecay memory",
+      kind: "local"
+    });
+    expect(loaded.sourcePath).toBe(join(root, ".codedecay/memory.json"));
+    expect(loaded.memory.flows[0]?.name).toBe("Checkout");
+  });
+
+  it("supports custom memory providers for future adapters", () => {
+    const provider: MemoryProvider = {
+      id: "custom",
+      name: "Custom memory provider",
+      kind: "external",
+      load: () => ({
+        memory: {
+          version: 1,
+          flows: [{ name: "Billing flow", areas: ["api"] }],
+          commands: [],
+          invariants: [],
+          architecture: [],
+          regressions: []
+        }
+      })
+    };
+
+    const loaded = loadCodeDecayMemoryFromProvider(provider, { rootDir: createTempDir() });
+
+    expect(loaded.memory.flows[0]?.name).toBe("Billing flow");
+  });
+
+  it("registers memory providers with stable ordering", () => {
+    const alpha = fakeProvider("alpha");
+    const zeta = fakeProvider("zeta");
+    const registry = createMemoryProviderRegistry([zeta, alpha]);
+
+    expect(registry.list().map((provider) => provider.id)).toEqual(["alpha", "zeta"]);
+    expect(registry.require("alpha").name).toBe("alpha provider");
+  });
+
+  it("prevents duplicate memory provider ids", () => {
+    expect(() => createMemoryProviderRegistry([fakeProvider("local"), fakeProvider("local")])).toThrow(
+      /already registered/
+    );
   });
 
   it("fails clearly for invalid memory", () => {
@@ -126,4 +189,22 @@ function writeText(root: string, path: string, contents: string): void {
   const fullPath = join(root, path);
   mkdirSync(dirname(fullPath), { recursive: true });
   writeFileSync(fullPath, contents, "utf8");
+}
+
+function fakeProvider(id: string): MemoryProvider {
+  return {
+    id,
+    name: `${id} provider`,
+    kind: "external",
+    load: () => ({
+      memory: {
+        version: 1,
+        flows: [],
+        commands: [],
+        invariants: [],
+        architecture: [],
+        regressions: []
+      }
+    })
+  };
 }
