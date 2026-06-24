@@ -88,6 +88,9 @@ Useful next commands:
 
 Agent setup:
   - Read AGENTS.md first.
+  - Use .agents/commands/redteam-pr.md to review PRs with analyze, redteam, and agent bundle evidence.
   - Use .agents/skills/pr-red-team/SKILL.md for PR safety reviews.
   - Use .agents/commands/ci-check.md before opening a PR.
+  - Give codedecay-agent.md to your own Codex, Claude Code, Cursor, desktop agent, or MCP client when fixes are needed.
+  - CodeDecay setup and agent bundles do not require telemetry, API keys, LLM calls, model calls, or CodeDecayCloud.
 EOF
