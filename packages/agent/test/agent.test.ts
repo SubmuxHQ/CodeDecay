@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createAgentTaskBundle, renderAgentTaskBundle } from "../src/index";
+import { createAgentTaskBundle, listAgentProfiles, renderAgentTaskBundle } from "../src/index";
 import type { RedteamReport } from "@submuxhq/codedecay-redteam";
 
 describe("agent task bundles", () => {
@@ -23,7 +23,12 @@ describe("agent task bundles", () => {
       }
     });
     expect(bundle.purpose).toContain("Codex");
+    expect(bundle.agentProfile).toMatchObject({
+      id: "generic",
+      name: "Generic user-owned agent"
+    });
     expect(bundle.prompt).toContain("CodeDecay agent task bundle");
+    expect(bundle.prompt).toContain("Target agent profile: Generic user-owned agent");
     expect(bundle.prompt).toContain("Current CodeDecay risk is High");
     expect(bundle.prompt).toContain("did not call an LLM");
     expect(bundle.evidence.changedFiles).toEqual([{ path: "src/api/imu.ts", status: "modified" }]);
@@ -51,6 +56,8 @@ describe("agent task bundles", () => {
 
     expect(markdown).toContain("## CodeDecay Agent Task Bundle");
     expect(markdown).toContain("Give this bundle to a user-owned coding agent");
+    expect(markdown).toContain("### Agent Handoff");
+    expect(markdown).toContain("Generic user-owned agent");
     expect(markdown).toContain("### Copy-Paste Prompt");
     expect(markdown).toContain("You are helping fix a pull request using a CodeDecay agent task bundle.");
     expect(markdown).toContain("### Tool Evidence");
@@ -64,8 +71,35 @@ describe("agent task bundles", () => {
     const parsed = JSON.parse(json);
 
     expect(parsed.mode).toBe("agent-task-bundle");
+    expect(parsed.agentProfile.id).toBe("generic");
     expect(parsed.prompt).toContain("Current CodeDecay risk is High");
     expect(parsed.instructions).toContain("Do not assume the PR is safe just because tests pass.");
+  });
+
+  it("creates profile-specific handoff guidance without changing safety guarantees", () => {
+    const bundle = createAgentTaskBundle(createFixtureReport(), { profile: "codex" });
+    const markdown = renderAgentTaskBundle(bundle, "markdown");
+
+    expect(listAgentProfiles().map((profile) => profile.id)).toEqual([
+      "generic",
+      "codex",
+      "claude-code",
+      "cursor",
+      "desktop"
+    ]);
+    expect(bundle.agentProfile).toMatchObject({
+      id: "codex",
+      name: "Codex"
+    });
+    expect(bundle.prompt).toContain("Target agent profile: Codex");
+    expect(markdown).toContain("### Agent Handoff");
+    expect(markdown).toContain("Paste the prompt and bundle into the Codex repo session.");
+    expect(bundle.safety).toMatchObject({
+      llmCalled: false,
+      commandsExecuted: false,
+      telemetrySent: false,
+      cloudDependency: false
+    });
   });
 });
 

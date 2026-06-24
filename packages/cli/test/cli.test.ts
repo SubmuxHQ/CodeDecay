@@ -454,6 +454,10 @@ describe("codedecay agent CLI contract", () => {
       }
     });
     expect(bundle.purpose).toContain("Codex");
+    expect(bundle.agentProfile).toMatchObject({
+      id: "generic",
+      name: "Generic user-owned agent"
+    });
     expect(bundle.evidence.impactedAreas.map((area: { kind: string }) => area.kind)).toEqual(
       expect.arrayContaining(["api", "auth"])
     );
@@ -477,9 +481,38 @@ describe("codedecay agent CLI contract", () => {
     expect(markdown.exitCode).toBe(0);
     expect(markdown.stdout).toContain("## CodeDecay Agent Task Bundle");
     expect(markdown.stdout).toContain("### Instructions For The Agent");
+    expect(markdown.stdout).toContain("### Agent Handoff");
     expect(markdown.stdout).toContain("### Tool Evidence");
     expect(markdown.stdout).toContain("### Safety And Limits");
     expect(markdown.stdout).toContain("LLM/model called by CodeDecay: no");
+  });
+
+  it("supports agent handoff profiles and rejects invalid profiles", async () => {
+    const repo = createMediumRiskRepo();
+
+    const codex = await run(["agent", "--profile", "codex", "--format", "json"], repo);
+    const codexBundle = JSON.parse(codex.stdout);
+
+    expect(codex.exitCode).toBe(0);
+    expect(codexBundle.agentProfile).toMatchObject({
+      id: "codex",
+      name: "Codex"
+    });
+    expect(codexBundle.prompt).toContain("Target agent profile: Codex");
+
+    const cursor = await run(["agent", "--profile=cursor", "--format", "markdown"], repo);
+
+    expect(cursor.exitCode).toBe(0);
+    expect(cursor.stdout).toContain("### Agent Handoff");
+    expect(cursor.stdout).toContain("Cursor");
+
+    const invalid = await run(["agent", "--profile", "unknown-agent", "--format", "json"], repo);
+
+    expect(invalid.exitCode).toBe(2);
+    expect(invalid.stdout).toBe("");
+    expect(invalid.stderr).toContain(
+      "CodeDecay failed: Invalid agent profile \"unknown-agent\". Expected generic, codex, claude-code, cursor, desktop."
+    );
   });
 
   it("uses --cwd and writes relative --output paths from that cwd", async () => {

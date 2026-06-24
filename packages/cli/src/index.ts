@@ -8,7 +8,14 @@ import {
   type AdapterStatus,
   type ConfiguredCommandKind
 } from "@submuxhq/codedecay-adapters";
-import { createAgentTaskBundle, renderAgentTaskBundle, type AgentTaskBundleFormat } from "@submuxhq/codedecay-agent";
+import {
+  AGENT_PROFILE_IDS,
+  createAgentTaskBundle,
+  isAgentProfileId,
+  renderAgentTaskBundle,
+  type AgentProfileId,
+  type AgentTaskBundleFormat
+} from "@submuxhq/codedecay-agent";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
 import { loadCodeDecayConfig, type LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import {
@@ -40,6 +47,7 @@ interface AgentOptions {
   head?: string | undefined;
   cwd?: string | undefined;
   format: AgentTaskBundleFormat;
+  profile: AgentProfileId;
   output?: string | undefined;
 }
 
@@ -338,7 +346,7 @@ function runAgentCommand(context: CliCommandContext): void {
   const options = parseAgentArgs(context.args);
   const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
   const report = createRedteamReportForCli(cwd, options);
-  const bundle = createAgentTaskBundle(report);
+  const bundle = createAgentTaskBundle(report, { profile: options.profile });
 
   writeCliOutput({
     cwd,
@@ -748,7 +756,8 @@ function parseRedteamArgs(args: string[]): RedteamOptions {
 
 function parseAgentArgs(args: string[]): AgentOptions {
   const options: AgentOptions = {
-    format: "markdown"
+    format: "markdown",
+    profile: "generic"
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -780,6 +789,17 @@ function parseAgentArgs(args: string[]): AgentOptions {
 
     if (arg === "--format") {
       options.format = parseAgentFormat(requireValue(args, index, arg));
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--profile=")) {
+      options.profile = parseAgentProfile(arg.slice("--profile=".length));
+      continue;
+    }
+
+    if (arg === "--profile") {
+      options.profile = parseAgentProfile(requireValue(args, index, arg));
       index += 1;
       continue;
     }
@@ -941,6 +961,14 @@ function parseAgentFormat(value: string): AgentTaskBundleFormat {
   }
 
   throw new Error(`Invalid agent format "${value}". Expected json or markdown.`);
+}
+
+function parseAgentProfile(value: string): AgentProfileId {
+  if (isAgentProfileId(value)) {
+    return value;
+  }
+
+  throw new Error(`Invalid agent profile "${value}". Expected ${AGENT_PROFILE_IDS.join(", ")}.`);
 }
 
 function parseRiskLevel(value: string): RiskLevel {
@@ -1772,6 +1800,7 @@ Agent Options:
   --head <ref>               Head git ref to compare to
   --cwd <path>               Repository working directory (default: current directory)
   --format <format>          json or markdown (default: markdown)
+  --profile <profile>        generic, codex, claude-code, cursor, or desktop (default: generic)
   --output <path>            Write agent task bundle to a file instead of stdout
 
 Config Options:
@@ -1807,6 +1836,7 @@ MCP Options:
 
 Examples:
   codedecay agent --base main --head HEAD --format markdown
+  codedecay agent --profile codex --format markdown
   codedecay agent --cwd ../my-repo --format json --output codedecay-agent.json
   codedecay analyze --base main --head HEAD --format markdown
   codedecay analyze --cwd ../my-repo --format json

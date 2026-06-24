@@ -50,6 +50,7 @@ npx codedecay execute --format markdown
 npx codedecay differential --base main --head HEAD --format markdown
 npx codedecay redteam --base main --head HEAD --format markdown
 npx codedecay agent --base main --head HEAD --format markdown
+npx codedecay agent --profile codex --format markdown
 ```
 
 Options:
@@ -58,6 +59,8 @@ Options:
 - `--head <ref>`: head git ref to compare to.
 - `--cwd <path>`: repository working directory to analyze.
 - `--format json|markdown|sarif`: report format.
+- `--profile generic|codex|claude-code|cursor|desktop`: agent handoff profile
+  for `codedecay agent`.
 - `--output <path>`: write report to a file instead of stdout.
 - `--fail-on low|medium|high`: exit non-zero when the PR reaches this risk
   level or higher.

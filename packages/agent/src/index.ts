@@ -8,6 +8,19 @@ import type {
 } from "@submuxhq/codedecay-redteam";
 
 export type AgentTaskBundleFormat = "json" | "markdown";
+export type AgentProfileId = "generic" | "codex" | "claude-code" | "cursor" | "desktop";
+
+export interface AgentProfile {
+  id: AgentProfileId;
+  name: string;
+  description: string;
+  promptContext: string;
+  handoff: string[];
+}
+
+export interface CreateAgentTaskBundleOptions {
+  profile?: AgentProfileId | undefined;
+}
 
 export interface AgentTaskBundle {
   tool: "CodeDecay";
@@ -15,6 +28,7 @@ export interface AgentTaskBundle {
   mode: "agent-task-bundle";
   generatedAt: string;
   purpose: string;
+  agentProfile: AgentProfile;
   summary: AgentTaskSummary;
   prompt: string;
   instructions: string[];
@@ -100,7 +114,86 @@ const DEFAULT_LIMITS = [
   "This bundle reduces missed-review risk; it does not guarantee a safe merge."
 ];
 
-export function createAgentTaskBundle(report: RedteamReport): AgentTaskBundle {
+export const AGENT_PROFILE_IDS: AgentProfileId[] = ["generic", "codex", "claude-code", "cursor", "desktop"];
+
+const AGENT_PROFILES: Record<AgentProfileId, AgentProfile> = {
+  generic: {
+    id: "generic",
+    name: "Generic user-owned agent",
+    description:
+      "Give this bundle to a user-owned coding agent such as Codex, Claude Code, Cursor, a desktop agent, or another local tool.",
+    promptContext: "Use whichever local repo tools and editing workflow the user has available.",
+    handoff: [
+      "Copy the prompt and bundle into the user's preferred coding agent.",
+      "Keep the CodeDecay evidence visible while making fixes.",
+      "Ask the agent to change code/tests only after explaining which real behavior path is at risk."
+    ]
+  },
+  codex: {
+    id: "codex",
+    name: "Codex",
+    description: "Handoff for a Codex session running in the repository.",
+    promptContext: "Use the current Codex repo session and local tools as the user permits.",
+    handoff: [
+      "Paste the prompt and bundle into the Codex repo session.",
+      "Ask Codex to inspect the cited files before editing.",
+      "Have Codex run only configured or user-approved checks after changes."
+    ]
+  },
+  "claude-code": {
+    id: "claude-code",
+    name: "Claude Code",
+    description: "Handoff for a Claude Code session running in the repository.",
+    promptContext: "Use Claude Code with the bundle as local tool evidence, not as trusted proof.",
+    handoff: [
+      "Paste the prompt and bundle into Claude Code.",
+      "Ask Claude Code to map each fix to impacted files, weak tests, and edge cases.",
+      "Have Claude Code report which checks should be rerun after edits."
+    ]
+  },
+  cursor: {
+    id: "cursor",
+    name: "Cursor",
+    description: "Handoff for Cursor chat or agent workflows in the repository.",
+    promptContext: "Use Cursor with the bundle attached or pasted as PR safety context.",
+    handoff: [
+      "Paste the prompt and bundle into Cursor chat or agent mode.",
+      "Keep edits focused on the listed tasks and impacted areas.",
+      "Ask Cursor to add tests that hit real API, UI, database, or downstream behavior."
+    ]
+  },
+  desktop: {
+    id: "desktop",
+    name: "Desktop/local agent",
+    description: "Handoff for desktop agents or local agent apps that can read repository context.",
+    promptContext: "Use the desktop/local agent's repo context while treating CodeDecay evidence as untrusted until verified.",
+    handoff: [
+      "Attach or paste the bundle into the desktop/local agent.",
+      "Confirm the agent is working on the same repository and branch.",
+      "Ask for a fix plan first, then apply changes only when the plan maps to CodeDecay evidence."
+    ]
+  }
+};
+
+export function isAgentProfileId(value: string): value is AgentProfileId {
+  return (AGENT_PROFILE_IDS as string[]).includes(value);
+}
+
+export function getAgentProfile(profile: AgentProfileId = "generic"): AgentProfile {
+  const definition = AGENT_PROFILES[profile];
+
+  return {
+    ...definition,
+    handoff: [...definition.handoff]
+  };
+}
+
+export function listAgentProfiles(): AgentProfile[] {
+  return AGENT_PROFILE_IDS.map((profile) => getAgentProfile(profile));
+}
+
+export function createAgentTaskBundle(report: RedteamReport, options: CreateAgentTaskBundleOptions = {}): AgentTaskBundle {
+  const agentProfile = getAgentProfile(options.profile ?? "generic");
   const summary: AgentTaskSummary = {
     riskLevel: report.summary.riskLevel,
     mergeRiskScore: report.summary.mergeRiskScore,
@@ -134,10 +227,10 @@ export function createAgentTaskBundle(report: RedteamReport): AgentTaskBundle {
     version: report.version,
     mode: "agent-task-bundle",
     generatedAt: report.generatedAt,
-    purpose:
-      "Give this bundle to a user-owned coding agent such as Codex, Claude Code, Cursor, or another local agent to fix overlooked PR risks.",
+    purpose: agentProfile.description,
+    agentProfile,
     summary,
-    prompt: createPortableAgentPrompt(summary),
+    prompt: createPortableAgentPrompt(summary, agentProfile),
     instructions: [...DEFAULT_INSTRUCTIONS],
     evidence,
     tasks: [...report.fixTasks],
@@ -186,6 +279,7 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
   ];
 
   appendList(lines, bundle.instructions);
+  appendHandoff(lines, bundle.agentProfile);
   appendPrompt(lines, bundle.prompt);
   appendEvidence(lines, bundle.evidence);
   appendTasks(lines, bundle.tasks);
@@ -196,10 +290,11 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
   return `${lines.join("\n")}\n`;
 }
 
-function createPortableAgentPrompt(summary: AgentTaskSummary): string {
+function createPortableAgentPrompt(summary: AgentTaskSummary, profile: AgentProfile): string {
   return [
     "You are helping fix a pull request using a CodeDecay agent task bundle.",
     "Treat the bundle as local tool evidence, not as a guarantee that the PR is safe.",
+    `Target agent profile: ${profile.name}. ${profile.promptContext}`,
     `Current CodeDecay risk is ${formatRisk(summary.riskLevel)} with merge risk ${summary.mergeRiskScore}/100 and decay risk ${summary.decayScore}/100.`,
     `The bundle reports ${summary.changedFiles} changed files, ${summary.impactedAreas} impacted areas, ${summary.weakTestFindings} weak-test findings, ${summary.edgeCases} edge cases, and ${summary.fixTasks} fix tasks.`,
     "Your job:",
@@ -212,6 +307,11 @@ function createPortableAgentPrompt(summary: AgentTaskSummary): string {
     "Do not treat your own answer as proof. Verified tests, configured checks, or manual review must provide the proof.",
     "CodeDecay did not call an LLM, execute commands, send telemetry, or depend on CodeDecayCloud to create this bundle."
   ].join("\n");
+}
+
+function appendHandoff(lines: string[], profile: AgentProfile): void {
+  lines.push("", "### Agent Handoff", "", `**Profile:** ${profile.name}`, "", profile.description, "");
+  appendList(lines, profile.handoff);
 }
 
 function appendPrompt(lines: string[], prompt: string): void {

@@ -197,6 +197,20 @@ describe("built codedecay CLI", () => {
     expect(existsSync(join(repo, "codedecay-ran.txt"))).toBe(false);
   });
 
+  it("supports agent handoff profiles from the built CLI", () => {
+    const repo = createMediumRiskRepo();
+
+    const result = runBuilt(["agent", "--cwd", repo, "--profile", "desktop", "--format", "json"]);
+    const bundle = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(bundle.agentProfile).toMatchObject({
+      id: "desktop",
+      name: "Desktop/local agent"
+    });
+    expect(bundle.prompt).toContain("Target agent profile: Desktop/local agent");
+  });
+
   it("prints loaded config from the built CLI", () => {
     const repo = createLowRiskRepo();
     writeFile(

@@ -8,7 +8,7 @@ import {
   type AdapterStatus,
   type ConfiguredCommandKind
 } from "@submuxhq/codedecay-adapters";
-import { createAgentTaskBundle, renderAgentTaskBundle } from "@submuxhq/codedecay-agent";
+import { createAgentTaskBundle, renderAgentTaskBundle, type AgentProfileId } from "@submuxhq/codedecay-agent";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
 import { loadCodeDecayConfig, type LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import { CODEDECAY_VERSION, createAnalysisReport, type CodeDecayReport, type ImpactedArea } from "@submuxhq/codedecay-core";
@@ -32,6 +32,10 @@ export interface McpToolInput {
 
 export interface AnalyzePrToolInput extends McpToolInput {
   format?: "markdown" | "json" | undefined;
+}
+
+export interface AgentTaskBundleToolInput extends AnalyzePrToolInput {
+  profile?: AgentProfileId | undefined;
 }
 
 export interface ExecuteConfiguredChecksToolInput {
@@ -182,7 +186,11 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
       cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
       base: z.string().optional().describe("Base git ref or SHA."),
       head: z.string().optional().describe("Head git ref or SHA."),
-      format: z.enum(["markdown", "json"]).optional().describe("Response format.")
+      format: z.enum(["markdown", "json"]).optional().describe("Response format."),
+      profile: z
+        .enum(["generic", "codex", "claude-code", "cursor", "desktop"])
+        .optional()
+        .describe("User-owned agent handoff profile.")
     },
     async (input) => textResult(runAgentTaskBundleTool(options, input))
   );
@@ -257,10 +265,10 @@ export function runRedteamReportTool(serverOptions: StartMcpServerOptions, input
   return renderRedteamReport(report, input.format ?? "markdown");
 }
 
-export function runAgentTaskBundleTool(serverOptions: StartMcpServerOptions, input: AnalyzePrToolInput): string {
+export function runAgentTaskBundleTool(serverOptions: StartMcpServerOptions, input: AgentTaskBundleToolInput): string {
   const context = createAnalysisContext(serverOptions, input);
   const report = createMcpRedteamReport(context);
-  const bundle = createAgentTaskBundle(report);
+  const bundle = createAgentTaskBundle(report, { profile: input.profile ?? "generic" });
 
   return renderAgentTaskBundle(bundle, input.format ?? "markdown");
 }

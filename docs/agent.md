@@ -9,6 +9,7 @@ call.
 
 ```bash
 npx codedecay agent --base main --head HEAD --format markdown
+npx codedecay agent --profile codex --format markdown
 npx codedecay agent --cwd ../my-repo --format json --output codedecay-agent.json
 ```
 
@@ -22,6 +23,25 @@ The bundle includes:
 - tasks for the coding agent
 - repo-local skill summaries
 - safety and limitation notes
+
+## Agent Profiles
+
+Profiles only shape the handoff instructions. They do not make CodeDecay call
+the selected agent, call an LLM, require API keys, or send code anywhere.
+
+Supported profiles:
+
+- `generic`: portable bundle for any user-owned agent.
+- `codex`: handoff wording for a Codex repo session.
+- `claude-code`: handoff wording for Claude Code.
+- `cursor`: handoff wording for Cursor chat or agent mode.
+- `desktop`: handoff wording for desktop or local agent apps.
+
+Example:
+
+```bash
+npx codedecay agent --profile cursor --format markdown --output codedecay-agent.md
+```
 
 ## How To Use
 
