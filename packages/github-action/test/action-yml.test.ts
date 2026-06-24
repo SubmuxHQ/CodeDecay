@@ -13,16 +13,33 @@ describe("GitHub Action metadata", () => {
       "fail-on",
       "format",
       "head",
+      "mode",
       "output"
     ]);
+    expect(action.inputs.mode.default).toBe("analyze");
   });
 
   it("forwards cwd to every CLI invocation", () => {
     const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
-    const invocations = actionYaml.match(/args=\(analyze[^\n]+/g) ?? [];
+    const invocations = actionYaml.match(/args=\("\$MODE"[^\n]+/g) ?? [];
 
     expect(invocations).toHaveLength(2);
     expect(invocations.every((line) => line.includes("--cwd \"${{ inputs.cwd }}\""))).toBe(true);
+  });
+
+  it("supports only report-only modes", () => {
+    const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
+
+    expect(actionYaml).toContain("analyze|redteam|agent");
+    expect(actionYaml).toContain("Unsupported CodeDecay mode");
+    expect(actionYaml).toContain("does not support SARIF output");
+    expect(actionYaml).not.toContain("analyze|redteam|agent|execute");
+  });
+
+  it("does not forward fail-on to agent mode", () => {
+    const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
+
+    expect(actionYaml).toContain('if [[ "$MODE" != "agent" && -n "${{ inputs.fail-on }}" ]]; then');
   });
 
   it("builds the scoped npm package", () => {
