@@ -74,6 +74,18 @@ describe("repo-local agent commands", () => {
   });
 });
 
+describe("local setup guidance", () => {
+  it("points contributors to the current agent workflow without requiring cloud or model calls", () => {
+    const setup = readFileSync(join(process.cwd(), ".codedecay/setup.local.sh"), "utf8");
+
+    expect(setup).toContain(".agents/commands/redteam-pr.md");
+    expect(setup).toContain("analyze, redteam, and agent bundle evidence");
+    expect(setup).toContain("codedecay-agent.md");
+    expect(setup).toContain("Codex, Claude Code, Cursor, desktop agent, or MCP client");
+    expect(setup).toContain("do not require telemetry, API keys, LLM calls, model calls, or CodeDecayCloud");
+  });
+});
+
 function createTempDir(): string {
   const root = join(tmpdir(), `codedecay-skills-${process.pid}-${tempRoots.length}`);
   rmSync(root, { recursive: true, force: true });
