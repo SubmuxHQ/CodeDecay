@@ -130,6 +130,9 @@ importers:
       '@submuxhq/codedecay-report':
         specifier: workspace:*
         version: link:../report
+      '@submuxhq/codedecay-skills':
+        specifier: workspace:*
+        version: link:../skills
       zod:
         specifier: ^4.0.0
         version: 4.4.3
@@ -151,12 +154,17 @@ importers:
       '@submuxhq/codedecay-memory':
         specifier: workspace:*
         version: link:../memory
+      '@submuxhq/codedecay-skills':
+        specifier: workspace:*
+        version: link:../skills
 
   packages/report:
     dependencies:
       '@submuxhq/codedecay-core':
         specifier: workspace:*
         version: link:../core
+
+  packages/skills: {}
 
 packages:
 

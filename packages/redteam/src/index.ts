@@ -9,6 +9,7 @@ import {
   type RiskLevel
 } from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
+import type { LoadedCodeDecaySkills } from "@submuxhq/codedecay-skills";
 
 export type RedteamFormat = "json" | "markdown";
 export type RedteamMode = "deterministic";
@@ -21,6 +22,7 @@ export interface RedteamReportInput {
   memory: CodeDecayMemory;
   configSource?: string | undefined;
   memorySource?: string | undefined;
+  skills?: LoadedCodeDecaySkills | undefined;
   generatedAt?: string | undefined;
 }
 
@@ -37,6 +39,7 @@ export interface RedteamReport {
   edgeCases: string[];
   configuredChecks: RedteamConfiguredCheck[];
   memory: RedteamMemorySummary;
+  skills: RedteamSkillSummary[];
   fixTasks: RedteamFixTask[];
   safety: RedteamSafetySummary;
 }
@@ -51,6 +54,7 @@ export interface RedteamSummary {
   weakTestFindings: number;
   edgeCases: number;
   configuredChecks: number;
+  skills: number;
   fixTasks: number;
 }
 
@@ -69,6 +73,14 @@ export interface RedteamMemorySummary {
   invariants: number;
   architecture: number;
   regressions: number;
+}
+
+export interface RedteamSkillSummary {
+  id: string;
+  title: string;
+  path: string;
+  summary: string;
+  untrusted: true;
 }
 
 export interface RedteamFixTask {
@@ -128,12 +140,14 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
   const edgeCases = suggestEdgeCases(input.analysisReport.impactedAreas);
   const configuredChecks = collectConfiguredChecks(input.config);
   const memory = summarizeMemory(input.memory, input.memorySource);
+  const skills = summarizeSkills(input.skills);
   const fixTasks = createFixTasks({
     analysisReport: input.analysisReport,
     weakTestFindings,
     edgeCases,
     configuredChecks,
-    memory: input.memory
+    memory: input.memory,
+    skills
   });
 
   const report: RedteamReport = {
@@ -151,6 +165,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
       weakTestFindings: weakTestFindings.length,
       edgeCases: edgeCases.length,
       configuredChecks: configuredChecks.length,
+      skills: skills.length,
       fixTasks: fixTasks.length
     },
     analysis: input.analysisReport,
@@ -158,6 +173,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
     edgeCases,
     configuredChecks,
     memory,
+    skills,
     fixTasks,
     safety: {
       commandsExecuted: false,
@@ -216,6 +232,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
   appendConfiguredChecks(lines, report.configuredChecks);
   appendFixTasks(lines, report.fixTasks);
   appendMemorySummary(lines, report.memory);
+  appendSkills(lines, report.skills);
 
   lines.push(
     "### Safety",
@@ -277,6 +294,16 @@ function summarizeMemory(memory: CodeDecayMemory, sourcePath: string | undefined
   return summary;
 }
 
+function summarizeSkills(loadedSkills: LoadedCodeDecaySkills | undefined): RedteamSkillSummary[] {
+  return (loadedSkills?.skills ?? []).map((skill) => ({
+    id: skill.id,
+    title: skill.title,
+    path: skill.path,
+    summary: skill.summary,
+    untrusted: true
+  }));
+}
+
 function suggestEdgeCases(areas: ImpactedArea[]): string[] {
   const suggestions = new Set<string>();
 
@@ -299,6 +326,7 @@ function createFixTasks(input: {
   edgeCases: string[];
   configuredChecks: RedteamConfiguredCheck[];
   memory: CodeDecayMemory;
+  skills: RedteamSkillSummary[];
 }): RedteamFixTask[] {
   const tasks: RedteamFixTask[] = [];
   const prioritizedFindings = input.analysisReport.findings
@@ -350,6 +378,15 @@ function createFixTasks(input: {
       priority: regression.severity ?? "high",
       source: "memory",
       detail: regression.check ? `${regression.description} Check: ${regression.check}` : regression.description
+    });
+  }
+
+  for (const skill of input.skills.slice(0, 4)) {
+    tasks.push({
+      title: `Review with skill: ${skill.title}`,
+      priority: input.analysisReport.summary.riskLevel === "high" ? "medium" : "low",
+      source: "memory",
+      detail: `${skill.summary} (${skill.path})`
     });
   }
 
@@ -463,6 +500,19 @@ function appendMemorySummary(lines: string[], memory: RedteamMemorySummary): voi
   lines.push(`| Invariants | ${memory.invariants} |`);
   lines.push(`| Architecture notes | ${memory.architecture} |`);
   lines.push(`| Past regressions | ${memory.regressions} |`, "");
+}
+
+function appendSkills(lines: string[], skills: RedteamSkillSummary[]): void {
+  lines.push("### Agent Skills", "");
+  if (skills.length === 0) {
+    lines.push("No repo-local agent skills found under `.agents/skills`.", "");
+    return;
+  }
+
+  for (const skill of skills.slice(0, 8)) {
+    lines.push(`- **${skill.title}** (\`${skill.path}\`): ${skill.summary}`);
+  }
+  lines.push("", "Skill content is local context for your own agent. CodeDecay does not execute it.", "");
 }
 
 function formatRisk(level: RiskLevel): string {

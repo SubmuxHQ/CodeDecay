@@ -34,6 +34,7 @@ Exit codes:
 - weak-test findings from deterministic test-audit rules
 - deterministic missing edge-case checklist
 - local memory summary from `.codedecay/memory.json`
+- repo-local agent skill summaries from `.agents/skills/*/SKILL.md`
 - configured test/build/start/probe commands that are available but not run
 - fix tasks for your coding agent
 - explicit safety flags showing that commands and models were not called
@@ -52,6 +53,8 @@ Suggested workflow:
 4. Run `codedecay analyze`, `codedecay execute`, or `codedecay differential`
    explicitly when you want static analysis, configured checks, or base/head
    behavior probes.
+
+See [Agent skills](skills.md) for the local skill file format.
 
 ## Safety Model
 

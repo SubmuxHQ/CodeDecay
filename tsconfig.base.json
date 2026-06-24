@@ -17,6 +17,7 @@
       "@submuxhq/codedecay-mcp": ["packages/mcp/src/index.ts"],
       "@submuxhq/codedecay-memory": ["packages/memory/src/index.ts"],
       "@submuxhq/codedecay-redteam": ["packages/redteam/src/index.ts"],
+      "@submuxhq/codedecay-skills": ["packages/skills/src/index.ts"],
       "@submuxhq/codedecay-github-app": ["packages/github-app/src/index.ts"],
       "@submuxhq/codedecay-git": ["packages/git/src/index.ts"],
       "@submuxhq/codedecay-analyzer-js": ["packages/analyzer-js/src/index.ts"],

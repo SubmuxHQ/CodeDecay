@@ -8,6 +8,7 @@ import { getGitChangedFiles, getRepoRoot } from "@submuxhq/codedecay-git";
 import { applyMemoryContext, loadCodeDecayMemory, type LoadedCodeDecayMemory } from "@submuxhq/codedecay-memory";
 import { createRedteamReport, renderRedteamReport, type RedteamReport } from "@submuxhq/codedecay-redteam";
 import { renderMarkdownReport } from "@submuxhq/codedecay-report";
+import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
 
 export interface StartMcpServerOptions {
   cwd: string;
@@ -166,7 +167,8 @@ export function runRedteamReportTool(serverOptions: StartMcpServerOptions, input
     config: context.loadedConfig.config,
     configSource: context.loadedConfig.sourcePath,
     memory: context.loadedMemory.memory,
-    memorySource: context.loadedMemory.sourcePath
+    memorySource: context.loadedMemory.sourcePath,
+    skills: loadCodeDecaySkills({ cwd: context.rootDir })
   });
 
   return renderRedteamReport(report, input.format ?? "markdown");

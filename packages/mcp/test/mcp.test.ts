@@ -80,6 +80,7 @@ describe("CodeDecay MCP tools", () => {
 
   it("returns a JSON redteam report for MCP agents", () => {
     const repo = createWeakTestRepo();
+    writeFile(repo, ".agents/skills/pr-red-team/SKILL.md", "# PR Red-Team Skill\n\nFind missed PR risks.\n");
 
     const output = JSON.parse(runRedteamReportTool({ cwd: repo }, { format: "json" }));
 
@@ -94,6 +95,12 @@ describe("CodeDecay MCP tools", () => {
     expect(output.weakTestFindings.map((finding: { ruleId: string }) => finding.ruleId)).toContain(
       "test-without-assertions"
     );
+    expect(output.skills).toEqual([
+      expect.objectContaining({
+        id: "pr-red-team",
+        title: "PR Red-Team Skill"
+      })
+    ]);
   });
 });
 
