@@ -47,6 +47,7 @@ export interface AgentTaskSummary {
   changedFiles: number;
   impactedAreas: number;
   impactedRoutes: number;
+  missingTestFindings: number;
   weakTestFindings: number;
   testProofStatus: string;
   edgeCases: number;
@@ -214,6 +215,7 @@ export function createAgentTaskBundle(report: RedteamReport, options: CreateAgen
     changedFiles: report.summary.changedFiles,
     impactedAreas: report.summary.impactedAreas,
     impactedRoutes: report.summary.impactedRoutes,
+    missingTestFindings: report.summary.missingTestFindings,
     weakTestFindings: report.summary.weakTestFindings,
     testProofStatus: report.summary.testProofStatus,
     edgeCases: report.summary.edgeCases,
@@ -294,6 +296,7 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
     `| Changed files | ${bundle.summary.changedFiles} |`,
     `| Impacted areas | ${bundle.summary.impactedAreas} |`,
     `| Route/API impacts | ${bundle.summary.impactedRoutes} |`,
+    `| Missing-test findings | ${bundle.summary.missingTestFindings} |`,
     `| Weak-test findings | ${bundle.summary.weakTestFindings} |`,
     `| Test proof status | ${bundle.summary.testProofStatus} |`,
     `| Edge cases | ${bundle.summary.edgeCases} |`,
@@ -321,7 +324,7 @@ function createPortableAgentPrompt(summary: AgentTaskSummary, profile: AgentProf
     "Treat the bundle as local tool evidence, not as a guarantee that the PR is safe.",
     `Target agent profile: ${profile.name}. ${profile.promptContext}`,
     `Current CodeDecay risk is ${formatRisk(summary.riskLevel)} with merge risk ${summary.mergeRiskScore}/100 and decay risk ${summary.decayScore}/100.`,
-    `The bundle reports ${summary.changedFiles} changed files, ${summary.impactedAreas} impacted areas, ${summary.impactedRoutes} route/API impacts, ${summary.weakTestFindings} weak-test findings, ${summary.edgeCases} edge cases, and ${summary.fixTasks} fix tasks.`,
+    `The bundle reports ${summary.changedFiles} changed files, ${summary.impactedAreas} impacted areas, ${summary.impactedRoutes} route/API impacts, ${summary.missingTestFindings} missing-test findings, ${summary.weakTestFindings} weak-test findings, ${summary.edgeCases} edge cases, and ${summary.fixTasks} fix tasks.`,
     "Your job:",
     "1. Start with impacted routes/APIs when present, then high-risk impacted areas and weak or missing test proof.",
     "2. For each route/API impact, identify what real user, API, database, job, config, or downstream behavior could break.",

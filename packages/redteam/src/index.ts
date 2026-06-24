@@ -61,6 +61,7 @@ export interface RedteamSummary {
   impactedAreas: number;
   impactedRoutes: number;
   findings: Record<RiskLevel, number>;
+  missingTestFindings: number;
   weakTestFindings: number;
   testProofStatus: TestProofAudit["status"];
   edgeCases: number;
@@ -179,6 +180,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
       impactedAreas: input.analysisReport.impactedAreas.length,
       impactedRoutes: input.analysisReport.impactedRoutes?.length ?? 0,
       findings: input.analysisReport.summary.findingCounts,
+      missingTestFindings: testAudit.missingTestFindings.length,
       weakTestFindings: weakTestFindings.length,
       testProofStatus: testAudit.status,
       edgeCases: edgeCases.length,
@@ -242,6 +244,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
     `| Changed files | ${report.summary.changedFiles} |`,
     `| Impacted areas | ${report.summary.impactedAreas} |`,
     `| Impacted routes/APIs | ${report.summary.impactedRoutes} |`,
+    `| Missing-test findings | ${report.summary.missingTestFindings} |`,
     `| Weak-test findings | ${report.summary.weakTestFindings} |`,
     `| Edge cases suggested | ${report.summary.edgeCases} |`,
     `| Configured checks listed | ${report.summary.configuredChecks} |`,
