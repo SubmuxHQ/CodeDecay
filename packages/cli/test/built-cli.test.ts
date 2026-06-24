@@ -149,6 +149,53 @@ describe("built codedecay CLI", () => {
     expect(runBuilt(["redteam", "--cwd", repo, "--fail-on", "medium"]).status).toBe(1);
   });
 
+  it("runs agent task bundles from the built CLI without executing configured commands", () => {
+    const repo = createMediumRiskRepo();
+    writeFile(
+      repo,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "commands:",
+        "  test:",
+        "    - node -e \"require('fs').writeFileSync('codedecay-ran.txt','yes')\"",
+        "safety:",
+        "  allowCommands: true",
+        "  commandTimeoutMs: 1000",
+        "toolAdapters:",
+        "  playwright: true",
+        ""
+      ].join("\n")
+    );
+
+    const result = runBuilt(["agent", "--cwd", repo, "--format", "json"]);
+    const bundle = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(bundle).toMatchObject({
+      tool: "CodeDecay",
+      mode: "agent-task-bundle",
+      safety: {
+        commandsExecuted: false,
+        llmCalled: false
+      }
+    });
+    expect(bundle.suggestedChecks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: "configured-command",
+          willRun: false
+        }),
+        expect.objectContaining({
+          source: "tool-adapter",
+          kind: "playwright",
+          willRun: false
+        })
+      ])
+    );
+    expect(existsSync(join(repo, "codedecay-ran.txt"))).toBe(false);
+  });
+
   it("prints loaded config from the built CLI", () => {
     const repo = createLowRiskRepo();
     writeFile(

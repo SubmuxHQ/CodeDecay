@@ -8,6 +8,7 @@ import {
   type AdapterStatus,
   type ConfiguredCommandKind
 } from "@submuxhq/codedecay-adapters";
+import { createAgentTaskBundle, renderAgentTaskBundle, type AgentTaskBundleFormat } from "@submuxhq/codedecay-agent";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
 import { loadCodeDecayConfig, type LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import {
@@ -32,6 +33,14 @@ interface AnalyzeOptions {
   format: ReportFormat;
   output?: string | undefined;
   failOn?: RiskLevel | undefined;
+}
+
+interface AgentOptions {
+  base?: string | undefined;
+  head?: string | undefined;
+  cwd?: string | undefined;
+  format: AgentTaskBundleFormat;
+  output?: string | undefined;
 }
 
 interface ConfigOptions {
@@ -185,6 +194,7 @@ class CliExit extends Error {
 class HelpRequested extends Error {}
 
 const COMMAND_HANDLERS: Record<string, CliCommandHandler> = {
+  agent: runAgentCommand,
   analyze: runAnalyzeCommand,
   config: runConfigCommand,
   differential: runDifferentialCommand,
@@ -310,18 +320,7 @@ async function runDifferentialCommand(context: CliCommandContext): Promise<void>
 function runRedteamCommand(context: CliCommandContext): void {
   const options = parseRedteamArgs(context.args);
   const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
-  const rootDir = getRepoRootForCli(cwd, options);
-  const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
-  const analysis = createAnalysisContextForCli(rootDir, options);
-  const loadedSkills = loadCodeDecaySkills({ cwd: rootDir });
-  const report = createRedteamReport({
-    analysisReport: analysis.report,
-    config: loadedConfig.config,
-    configSource: loadedConfig.sourcePath,
-    memory: analysis.loadedMemory.memory,
-    memorySource: analysis.loadedMemory.sourcePath,
-    skills: loadedSkills
-  });
+  const report = createRedteamReportForCli(cwd, options);
 
   writeCliOutput({
     cwd,
@@ -333,6 +332,20 @@ function runRedteamCommand(context: CliCommandContext): void {
   if (options.failOn && shouldFailForRisk(report.summary.riskLevel, options.failOn)) {
     throw new CliExit(1);
   }
+}
+
+function runAgentCommand(context: CliCommandContext): void {
+  const options = parseAgentArgs(context.args);
+  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
+  const report = createRedteamReportForCli(cwd, options);
+  const bundle = createAgentTaskBundle(report);
+
+  writeCliOutput({
+    cwd,
+    output: options.output,
+    rendered: renderAgentTaskBundle(bundle, options.format),
+    runtime: context.runtime
+  });
 }
 
 function runAnalyzeCommand(context: CliCommandContext): void {
@@ -351,6 +364,22 @@ function runAnalyzeCommand(context: CliCommandContext): void {
   if (options.failOn && shouldFailForRisk(report.summary.riskLevel, options.failOn)) {
     throw new CliExit(1);
   }
+}
+
+function createRedteamReportForCli(cwd: string, options: AgentOptions | RedteamOptions) {
+  const rootDir = getRepoRootForCli(cwd, options);
+  const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
+  const analysis = createAnalysisContextForCli(rootDir, options);
+  const loadedSkills = loadCodeDecaySkills({ cwd: rootDir });
+
+  return createRedteamReport({
+    analysisReport: analysis.report,
+    config: loadedConfig.config,
+    configSource: loadedConfig.sourcePath,
+    memory: analysis.loadedMemory.memory,
+    memorySource: analysis.loadedMemory.sourcePath,
+    skills: loadedSkills
+  });
 }
 
 function createAnalysisContextForCli(rootDir: string, options: AnalyzeOptions): CliAnalysisContext {
@@ -717,6 +746,83 @@ function parseRedteamArgs(args: string[]): RedteamOptions {
   return options;
 }
 
+function parseAgentArgs(args: string[]): AgentOptions {
+  const options: AgentOptions = {
+    format: "markdown"
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (!arg) {
+      continue;
+    }
+
+    if (arg === "--help" || arg === "-h") {
+      throw new HelpRequested();
+    }
+
+    if (arg.startsWith("--cwd=")) {
+      options.cwd = arg.slice("--cwd=".length);
+      continue;
+    }
+
+    if (arg === "--cwd") {
+      options.cwd = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--format=")) {
+      options.format = parseAgentFormat(arg.slice("--format=".length));
+      continue;
+    }
+
+    if (arg === "--format") {
+      options.format = parseAgentFormat(requireValue(args, index, arg));
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--base=")) {
+      options.base = arg.slice("--base=".length);
+      continue;
+    }
+
+    if (arg === "--base") {
+      options.base = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--head=")) {
+      options.head = arg.slice("--head=".length);
+      continue;
+    }
+
+    if (arg === "--head") {
+      options.head = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--output=")) {
+      options.output = arg.slice("--output=".length);
+      continue;
+    }
+
+    if (arg === "--output") {
+      options.output = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`Unknown option: ${arg}`);
+  }
+
+  return options;
+}
+
 function parseAnalyzeArgs(args: string[]): AnalyzeOptions {
   const options: AnalyzeOptions = {
     format: "markdown"
@@ -827,6 +933,14 @@ function parseRedteamFormat(value: string): RedteamFormat {
   }
 
   throw new Error(`Invalid redteam format "${value}". Expected json or markdown.`);
+}
+
+function parseAgentFormat(value: string): AgentTaskBundleFormat {
+  if (VALID_CONFIG_FORMATS.has(value as AgentTaskBundleFormat)) {
+    return value as AgentTaskBundleFormat;
+  }
+
+  throw new Error(`Invalid agent format "${value}". Expected json or markdown.`);
 }
 
 function parseRiskLevel(value: string): RiskLevel {
@@ -1635,6 +1749,7 @@ function printHelp(runtime: CliRuntime): void {
   writeStdout(runtime, `CodeDecay
 
 Usage:
+  codedecay agent [options]
   codedecay analyze [options]
   codedecay config [options]
   codedecay memory [options]
@@ -1651,6 +1766,13 @@ Options:
   --output <path>            Write report to a file instead of stdout
   --fail-on <level>          Exit non-zero on low, medium, or high risk
   -h, --help                 Show help
+
+Agent Options:
+  --base <ref>               Base git ref to compare from
+  --head <ref>               Head git ref to compare to
+  --cwd <path>               Repository working directory (default: current directory)
+  --format <format>          json or markdown (default: markdown)
+  --output <path>            Write agent task bundle to a file instead of stdout
 
 Config Options:
   --cwd <path>               Repository working directory (default: current directory)
@@ -1684,6 +1806,8 @@ MCP Options:
   --cwd <path>               Repository working directory exposed to MCP tools
 
 Examples:
+  codedecay agent --base main --head HEAD --format markdown
+  codedecay agent --cwd ../my-repo --format json --output codedecay-agent.json
   codedecay analyze --base main --head HEAD --format markdown
   codedecay analyze --cwd ../my-repo --format json
   codedecay analyze --format sarif --output codedecay.sarif
