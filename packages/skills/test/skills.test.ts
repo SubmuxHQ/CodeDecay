@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -83,6 +83,39 @@ describe("local setup guidance", () => {
     expect(setup).toContain("codedecay-agent.md");
     expect(setup).toContain("Codex, Claude Code, Cursor, desktop agent, or MCP client");
     expect(setup).toContain("do not require telemetry, API keys, LLM calls, model calls, or CodeDecayCloud");
+  });
+});
+
+describe("agent platform pointers", () => {
+  it("keeps Cursor MCP config aligned with the shared local MCP config", () => {
+    const cursorPath = join(process.cwd(), ".cursor/mcp.json");
+    const cursorLink = lstatSync(cursorPath);
+    const shared = JSON.parse(readFileSync(join(process.cwd(), ".mcp.json"), "utf8"));
+    const cursor = JSON.parse(readFileSync(cursorPath, "utf8"));
+
+    expect(cursorLink.isSymbolicLink()).toBe(true);
+    expect(readlinkSync(cursorPath)).toBe("../.mcp.json");
+    expect(cursor).toEqual(shared);
+    expect(cursor.mcpServers.codedecay).toEqual({
+      command: "node",
+      args: ["packages/cli/dist/index.js", "mcp"]
+    });
+  });
+
+  it("keeps Claude command and skill directories linked to canonical .agents resources", () => {
+    const commands = lstatSync(join(process.cwd(), ".claude/commands"));
+    const skills = lstatSync(join(process.cwd(), ".claude/skills"));
+
+    expect(commands.isSymbolicLink()).toBe(true);
+    expect(skills.isSymbolicLink()).toBe(true);
+    expect(readlinkSync(join(process.cwd(), ".claude/commands"))).toBe("../.agents/commands");
+    expect(readlinkSync(join(process.cwd(), ".claude/skills"))).toBe("../.agents/skills");
+    expect(readFileSync(join(process.cwd(), ".claude/commands/redteam-pr.md"), "utf8")).toContain(
+      "node packages/cli/dist/index.js agent --base origin/main --head HEAD --format markdown --output codedecay-agent.md"
+    );
+    expect(readFileSync(join(process.cwd(), ".claude/skills/pr-red-team/SKILL.md"), "utf8")).toContain(
+      "Find what a coding agent may have missed before merge."
+    );
   });
 });
 
