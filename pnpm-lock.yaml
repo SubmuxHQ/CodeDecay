@@ -112,6 +112,9 @@ importers:
       '@submuxhq/codedecay-analyzer-js':
         specifier: workspace:*
         version: link:../analyzer-js
+      '@submuxhq/codedecay-config':
+        specifier: workspace:*
+        version: link:../config
       '@submuxhq/codedecay-core':
         specifier: workspace:*
         version: link:../core
@@ -121,6 +124,9 @@ importers:
       '@submuxhq/codedecay-memory':
         specifier: workspace:*
         version: link:../memory
+      '@submuxhq/codedecay-redteam':
+        specifier: workspace:*
+        version: link:../redteam
       '@submuxhq/codedecay-report':
         specifier: workspace:*
         version: link:../report

@@ -14,9 +14,11 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@submuxhq/codedecay-analyzer-js": "workspace:*",
+    "@submuxhq/codedecay-config": "workspace:*",
     "@submuxhq/codedecay-core": "workspace:*",
     "@submuxhq/codedecay-git": "workspace:*",
     "@submuxhq/codedecay-memory": "workspace:*",
+    "@submuxhq/codedecay-redteam": "workspace:*",
     "@submuxhq/codedecay-report": "workspace:*",
     "zod": "^4.0.0"
   },

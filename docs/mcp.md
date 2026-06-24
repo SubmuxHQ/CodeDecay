@@ -35,8 +35,14 @@ runs CodeDecay locally and passes the repository path with `--cwd`.
 - `impact_map`: returns changed files and impacted areas.
 - `audit_tests`: returns weak-test findings and recommended checks.
 - `suggest_edge_cases`: returns deterministic edge-case suggestions.
+- `redteam_report`: returns a deterministic merge-safety report for your agent,
+  including impacted areas, weak-test findings, edge cases, configured checks,
+  memory summary, fix tasks, and safety flags.
 
 ## Safety
 
 MCP clients should treat tool output as analysis, not as permission to execute
-commands. The current MCP server does not expose arbitrary command execution.
+commands. The MCP server does not expose arbitrary command execution.
+
+`redteam_report` is report-only. It does not run configured commands, call
+Ollama or cloud models, send telemetry, or require CodeDecayCloud.

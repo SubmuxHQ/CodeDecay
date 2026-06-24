@@ -8,6 +8,7 @@ import {
   runAnalyzePrTool,
   runAuditTestsTool,
   runImpactMapTool,
+  runRedteamReportTool,
   runSuggestEdgeCasesTool
 } from "../src/index";
 
@@ -64,6 +65,35 @@ describe("CodeDecay MCP tools", () => {
 
     expect(output.edgeCases).toContain("Check missing, expired, malformed, and privilege-escalation credentials.");
     expect(output.recommendedChecks).toContain("Add real assertions to src/auth/session.test.ts");
+  });
+
+  it("returns a markdown redteam report for MCP agents", () => {
+    const repo = createWeakTestRepo();
+
+    const output = runRedteamReportTool({ cwd: repo }, { format: "markdown" });
+
+    expect(output).toContain("## CodeDecay Redteam Report");
+    expect(output).toContain("### Test Reality Check");
+    expect(output).toContain("Changed test has no assertions");
+    expect(output).toContain("LLM/model called: no");
+  });
+
+  it("returns a JSON redteam report for MCP agents", () => {
+    const repo = createWeakTestRepo();
+
+    const output = JSON.parse(runRedteamReportTool({ cwd: repo }, { format: "json" }));
+
+    expect(output).toMatchObject({
+      tool: "CodeDecay",
+      mode: "deterministic",
+      safety: {
+        commandsExecuted: false,
+        llmCalled: false
+      }
+    });
+    expect(output.weakTestFindings.map((finding: { ruleId: string }) => finding.ruleId)).toContain(
+      "test-without-assertions"
+    );
   });
 });
 
