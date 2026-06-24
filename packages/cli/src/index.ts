@@ -1651,6 +1651,7 @@ function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig): string {
     `| Provider | ${config.llm.provider} |`,
     `| Model | ${config.llm.model ? `\`${config.llm.model}\`` : "none"} |`,
     `| Endpoint | ${config.llm.endpoint ? `\`${config.llm.endpoint}\`` : "none"} |`,
+    `| API key env | ${config.llm.apiKeyEnv ? `\`${config.llm.apiKeyEnv}\`` : "none"} |`,
     `| Timeout | ${config.llm.timeoutMs}ms |`,
     "",
     "### Tool Adapters",

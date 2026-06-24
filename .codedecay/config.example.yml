@@ -22,3 +22,13 @@ safety:
 llm:
   provider: disabled
   timeoutMs: 30000
+
+# Optional user-owned providers can be configured explicitly. CodeDecay does
+# not call them unless a command opts into LLM assistance.
+#
+# llm:
+#   provider: litellm
+#   model: gpt-4.1-mini
+#   endpoint: http://127.0.0.1:4000/v1
+#   apiKeyEnv: LITELLM_API_KEY
+#   timeoutMs: 30000

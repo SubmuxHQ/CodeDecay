@@ -145,6 +145,34 @@ describe("loadCodeDecayConfig", () => {
     expect(loaded.config.commands.build).toEqual(["npm run build"]);
   });
 
+  it("loads LiteLLM BYOK provider config without storing literal keys", () => {
+    const root = createTempDir();
+    writeFile(
+      root,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "llm:",
+        "  provider: litellm",
+        "  model: gpt-4.1-mini",
+        "  endpoint: http://127.0.0.1:4000/v1",
+        "  apiKeyEnv: LITELLM_API_KEY",
+        "  timeoutMs: 15000",
+        ""
+      ].join("\n")
+    );
+
+    const loaded = loadCodeDecayConfig({ cwd: root });
+
+    expect(loaded.config.llm).toEqual({
+      provider: "litellm",
+      model: "gpt-4.1-mini",
+      endpoint: "http://127.0.0.1:4000/v1",
+      apiKeyEnv: "LITELLM_API_KEY",
+      timeoutMs: 15000
+    });
+  });
+
   it("fails clearly for invalid config", () => {
     const root = createTempDir();
     writeFile(root, ".codedecay/config.yml", "version: 2\n");
@@ -156,7 +184,7 @@ describe("loadCodeDecayConfig", () => {
     const root = createTempDir();
     writeFile(root, ".codedecay/config.yml", "version: 1\nllm:\n  provider: hosted\n");
 
-    expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(/llm.provider must be disabled or ollama/);
+    expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(/llm.provider must be disabled, ollama, or litellm/);
   });
 
   it("fails clearly for invalid tool adapter config", () => {

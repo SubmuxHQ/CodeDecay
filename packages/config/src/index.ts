@@ -29,9 +29,10 @@ export interface CodeDecaySafety {
 }
 
 export interface CodeDecayLlmConfig {
-  provider: "disabled" | "ollama";
+  provider: "disabled" | "ollama" | "litellm";
   model?: string | undefined;
   endpoint?: string | undefined;
+  apiKeyEnv?: string | undefined;
   timeoutMs: number;
 }
 
@@ -255,8 +256,8 @@ function normalizeLlm(value: unknown, sourcePath: string): CodeDecayLlmConfig {
   }
 
   const provider = value.provider === undefined ? DEFAULT_CODEDECAY_CONFIG.llm.provider : value.provider;
-  if (provider !== "disabled" && provider !== "ollama") {
-    throw new Error(`Invalid CodeDecay config at ${sourcePath}: llm.provider must be disabled or ollama.`);
+  if (provider !== "disabled" && provider !== "ollama" && provider !== "litellm") {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: llm.provider must be disabled, ollama, or litellm.`);
   }
 
   const llmConfig: CodeDecayLlmConfig = {
@@ -279,6 +280,13 @@ function normalizeLlm(value: unknown, sourcePath: string): CodeDecayLlmConfig {
       throw new Error(`Invalid CodeDecay config at ${sourcePath}: llm.endpoint must be a non-empty string.`);
     }
     llmConfig.endpoint = value.endpoint;
+  }
+
+  if (value.apiKeyEnv !== undefined) {
+    if (typeof value.apiKeyEnv !== "string" || value.apiKeyEnv.trim().length === 0) {
+      throw new Error(`Invalid CodeDecay config at ${sourcePath}: llm.apiKeyEnv must be a non-empty string.`);
+    }
+    llmConfig.apiKeyEnv = value.apiKeyEnv;
   }
 
   return llmConfig;

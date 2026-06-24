@@ -58,6 +58,21 @@ llm:
   timeoutMs: 30000
 ```
 
+Optional user-owned model providers must be configured explicitly. For a local
+LiteLLM or other OpenAI-compatible endpoint:
+
+```yaml
+llm:
+  provider: litellm
+  model: gpt-4.1-mini
+  endpoint: http://127.0.0.1:4000/v1
+  apiKeyEnv: LITELLM_API_KEY
+  timeoutMs: 30000
+```
+
+Use `apiKeyEnv` to point at an environment variable name. Do not store literal
+API keys in CodeDecay config.
+
 ## Safety Model
 
 Config files make project commands explicit. CodeDecay should not guess commands
@@ -75,7 +90,7 @@ Current behavior:
   worktrees, and only when `safety.allowCommands` is true.
 - missing config returns safe defaults.
 - no telemetry, API keys, LLM calls, or cloud services are used.
-- LLM use is disabled by default. Future LLM-backed commands must opt in
+- LLM use is disabled by default. LLM-backed commands must opt in
   explicitly and treat model output as untrusted suggestions.
 
 Execution uses this config as its allowlisted command source. See
@@ -85,5 +100,4 @@ Execution uses this config as its allowlisted command source. See
 Tool adapters are also configured here. See [Tool adapters](tool-adapters.md)
 for Playwright, StrykerJS, Schemathesis, and Pact adapter details.
 
-Read [LLM providers](llm-providers.md) for the optional local/BYOK model
-adapter direction.
+Read [LLM providers](llm-providers.md) for optional local/BYOK model adapters.

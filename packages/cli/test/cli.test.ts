@@ -189,6 +189,11 @@ describe("codedecay config CLI contract", () => {
         "  schemathesis:",
         "    schema: docs/openapi.yaml",
         "    baseUrl: http://127.0.0.1:4000",
+        "llm:",
+        "  provider: litellm",
+        "  model: gpt-4.1-mini",
+        "  endpoint: http://127.0.0.1:4000/v1",
+        "  apiKeyEnv: LITELLM_API_KEY",
         "safety:",
         "  commandTimeoutMs: 45000",
         ""
@@ -203,7 +208,8 @@ describe("codedecay config CLI contract", () => {
     expect(result.stdout).toContain("`pnpm test`");
     expect(result.stdout).toContain("45000ms");
     expect(result.stdout).toContain("### LLM");
-    expect(result.stdout).toContain("| Provider | disabled |");
+    expect(result.stdout).toContain("| Provider | litellm |");
+    expect(result.stdout).toContain("| API key env | `LITELLM_API_KEY` |");
     expect(result.stdout).toContain("### Tool Adapters");
     expect(result.stdout).toContain("| Playwright | yes | command: default | default |");
     expect(result.stdout).toContain("schema: `docs/openapi.yaml`");
