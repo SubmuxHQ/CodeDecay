@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { beforeAll, afterEach, describe, expect, it } from "vitest";
@@ -245,6 +245,70 @@ describe("built codedecay CLI", () => {
     });
   });
 
+  it("runs the Node API example redteam and execute workflow from the built CLI", () => {
+    const repo = createNodeApiExampleRepo();
+
+    const redteam = runBuilt(["redteam", "--cwd", repo, "--format", "json"]);
+    const redteamReport = JSON.parse(redteam.stdout);
+
+    expect(redteam.status).toBe(0);
+    expect(redteamReport.summary.riskLevel).toBe("high");
+    expect(redteamReport.toolAdapterPlans).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "playwright",
+          command: "node scripts/user-flow-smoke.mjs",
+          willRun: false
+        }),
+        expect.objectContaining({
+          kind: "pact",
+          command: "node scripts/pact-verify.mjs",
+          willRun: false
+        })
+      ])
+    );
+
+    const execute = runBuilt(["execute", "--cwd", repo, "--format", "json"]);
+    const executeReport = JSON.parse(execute.stdout);
+
+    expect(execute.status).toBe(1);
+    expect(executeReport.summary).toMatchObject({
+      status: "failed",
+      total: 3,
+      passed: 2,
+      failed: 1
+    });
+    expect(executeReport.results).toEqual([
+      expect.objectContaining({
+        kind: "test",
+        status: "passed",
+        stdout: "unit smoke passed\n"
+      })
+    ]);
+    expect(executeReport.toolAdapters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "playwright",
+          status: "passed",
+          summary: "Playwright checks passed."
+        }),
+        expect.objectContaining({
+          kind: "pact",
+          status: "failed",
+          failure: expect.objectContaining({
+            mode: "nonzero-exit"
+          }),
+          evidence: expect.arrayContaining([
+            expect.objectContaining({
+              kind: "contract",
+              severity: "high"
+            })
+          ])
+        })
+      ])
+    );
+  });
+
   it("compares configured probes from the built CLI", () => {
     const repo = createRepo({
       "probe.js": [
@@ -347,6 +411,29 @@ function createHighRiskRepo(): string {
   writeFile(repo, "src/api/users.ts", "export function handler() { return false; }\n");
   writeFile(repo, "src/auth/session.ts", "export function session(token?: string) { if (!token) return null; return true; }\n");
   writeFile(repo, "src/db/schema.prisma", "model User { id String @id email String }\n");
+  return repo;
+}
+
+function createNodeApiExampleRepo(): string {
+  const root = createTempDir();
+  const repo = join(root, "node-api-risk-demo");
+  cpSync(join(repoRoot, "examples/node-api-risk-demo"), repo, { recursive: true });
+
+  execFileSync("node", ["scripts/materialize.mjs", "baseline"], {
+    cwd: repo,
+    stdio: "ignore"
+  });
+  git(repo, ["init", "-b", "main"]);
+  git(repo, ["config", "user.email", "codedecay@example.com"]);
+  git(repo, ["config", "user.name", "CodeDecay Example"]);
+  git(repo, ["add", "."]);
+  git(repo, ["commit", "-m", "baseline Node API example"]);
+
+  execFileSync("node", ["scripts/materialize.mjs", "risky"], {
+    cwd: repo,
+    stdio: "ignore"
+  });
+
   return repo;
 }
 

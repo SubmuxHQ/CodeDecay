@@ -1,0 +1,21 @@
+version: 1
+
+commands:
+  test:
+    - node scripts/unit-smoke.mjs
+
+probes: []
+
+toolAdapters:
+  playwright:
+    command: node scripts/user-flow-smoke.mjs
+  pact:
+    command: node scripts/pact-verify.mjs
+
+safety:
+  commandTimeoutMs: 5000
+  allowCommands: true
+
+llm:
+  provider: disabled
+  timeoutMs: 30000

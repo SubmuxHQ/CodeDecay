@@ -4,13 +4,16 @@
   "type": "module",
   "scripts": {
     "start": "node dist/server.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "codedecay:analyze": "codedecay analyze --cwd . --format markdown",
+    "codedecay:redteam": "codedecay redteam --cwd . --format markdown",
+    "codedecay:execute": "codedecay execute --cwd . --format markdown"
   },
   "dependencies": {
     "express": "^5.0.0"
   },
   "devDependencies": {
-    "@submux/codedecay": "0.1.2",
+    "@submux/codedecay": "0.1.3",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
   }

@@ -22,9 +22,17 @@ The risky scenario changes those files in ways CodeDecay should flag:
 - Runtime/package configuration changes.
 - TypeScript escape hatches and silent failure paths are introduced.
 
+The example also materializes `.codedecay/config.yml` with explicit local
+commands and tool adapter commands:
+
+- `commands.test`: a small route smoke check.
+- `toolAdapters.playwright`: a dependency-free user-flow smoke script.
+- `toolAdapters.pact`: a dependency-free contract smoke script that fails on
+  the risky auth/schema change.
+
 ## Run The Example
 
-From the repository root:
+From a source checkout after `pnpm build`:
 
 ```sh
 cd examples/node-api-risk-demo
@@ -35,17 +43,41 @@ git config user.email "codedecay@example.com"
 git add .
 git commit -m "baseline Node API example"
 node scripts/materialize.mjs risky
-npx @submux/codedecay@0.1.2 analyze --cwd . --format markdown
+node ../../packages/cli/dist/index.js analyze --cwd . --format markdown
+node ../../packages/cli/dist/index.js redteam --cwd . --format markdown
 ```
 
-To write JSON or SARIF:
+After CodeDecay is installed from npm, use `npx codedecay` instead of the local
+`node ../../packages/cli/dist/index.js` command.
+
+To write JSON or SARIF analysis reports:
 
 ```sh
-npx @submux/codedecay@0.1.2 analyze --cwd . --format json --output codedecay.json
-npx @submux/codedecay@0.1.2 analyze --cwd . --format sarif --output codedecay.sarif
+node ../../packages/cli/dist/index.js analyze --cwd . --format json --output codedecay.json
+node ../../packages/cli/dist/index.js analyze --cwd . --format sarif --output codedecay.sarif
 ```
 
 Relative `--output` paths are written inside `--cwd`.
+
+## Run Configured Checks
+
+The example config enables local command execution so `codedecay execute` can
+run the explicit smoke commands:
+
+```sh
+node ../../packages/cli/dist/index.js execute --cwd . --format markdown
+```
+
+Expected result for the risky scenario:
+
+- exit code: `1`
+- unit smoke: passed
+- user-flow smoke: passed
+- contract smoke: failed
+
+The failing contract smoke is intentional. It catches that the risky PR makes
+exports available to any authenticated user and changes the default user role to
+`ADMIN`.
 
 ## Expected Summary
 
