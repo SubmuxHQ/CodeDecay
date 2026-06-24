@@ -81,7 +81,7 @@ describe("local setup guidance", () => {
     expect(setup).toContain(".agents/commands/redteam-pr.md");
     expect(setup).toContain("analyze, redteam, and agent bundle evidence");
     expect(setup).toContain("codedecay-agent.md");
-    expect(setup).toContain("Codex, Claude Code, Cursor, Pi, OpenCode, desktop agent, or MCP client");
+    expect(setup).toContain("Codex, Claude Code, Cursor, desktop agent, or MCP client");
     expect(setup).toContain("do not require telemetry, API keys, LLM calls, model calls, or CodeDecayCloud");
   });
 });

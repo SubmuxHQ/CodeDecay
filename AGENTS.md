@@ -4,7 +4,7 @@ You write clean, practical, maintainable code. You think like a senior engineer 
 
 CodeDecay is not just a scanner. CodeDecay is an AI orchestration system that helps developers and vibe coders use their own coding agents safely.
 
-The goal is to help users produce merge-ready, production-quality code by using Codex, Claude Code, Cursor, Pi, OpenCode, MCP tools, local/BYOK LLMs, repo memory, open-source testing tools, and real execution checks.
+The goal is to help users produce merge-ready, production-quality code by using Codex, Claude Code, Cursor, MCP tools, local/BYOK LLMs, repo memory, open-source testing tools, and real execution checks.
 
 ---
 

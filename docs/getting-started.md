@@ -51,8 +51,8 @@ The current redteam MVP is report-only. It does not run commands or call an LLM.
 
 ## Hand Evidence To Your Agent
 
-Use `agent` when you want Codex, Claude Code, Cursor, Pi, OpenCode, a desktop
-agent, or another user-owned agent to act on CodeDecay's findings.
+Use `agent` when you want Codex, Claude Code, Cursor, a desktop agent, or
+another user-owned agent to act on CodeDecay's findings.
 
 ```bash
 npx codedecay agent --base main --head HEAD --format markdown --output codedecay-agent.md
@@ -67,8 +67,8 @@ Then give `codedecay-agent.md` to your agent and ask it to:
 - rerun CodeDecay after changes.
 
 The agent bundle is local evidence plus instructions. CodeDecay does not call
-Codex, Claude, Cursor, Pi, OpenCode, Ollama, cloud models, or CodeDecayCloud
-while creating it.
+Codex, Claude, Cursor, Ollama, cloud models, or CodeDecayCloud while creating
+it.
 
 ## Recommended Local Loop
 

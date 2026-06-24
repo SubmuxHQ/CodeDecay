@@ -14,9 +14,9 @@ commands, does not call an LLM, does not require API keys, does not send
 telemetry, and does not depend on CodeDecayCloud.
 
 Use it when you want a local merge-safety brief for Codex, Claude Code, Cursor,
-Pi, OpenCode, desktop agents, or another user-owned agent. CodeDecay provides
-deterministic tool evidence; the receiving agent still has to inspect the code
-and prove fixes with tests or configured checks.
+desktop agents, or another user-owned agent. CodeDecay provides deterministic
+tool evidence; the receiving agent still has to inspect the code and prove fixes
+with tests or configured checks.
 
 ## Run
 
