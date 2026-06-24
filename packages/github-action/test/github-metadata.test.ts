@@ -51,4 +51,45 @@ describe("GitHub repository metadata", () => {
     ]);
     expect(issueTemplates).not.toEqual(expect.arrayContaining(["bug_report.md", "feature_request.md"]));
   });
+
+  it("keeps bug and feature area options aligned with current architecture", () => {
+    const expectedOptions = [
+      "CLI",
+      "Core scoring or rules",
+      "JS/TS analyzer",
+      "Git integration",
+      "Report output",
+      "Config",
+      "Adapters or tool adapters",
+      "Safe execution",
+      "Test audit",
+      "Redteam reports",
+      "Agent task bundles",
+      "MCP server",
+      "Memory",
+      "LLM providers",
+      "GitHub Action",
+      "GitHub App",
+      "Examples",
+      "Packaging or release",
+      "Documentation",
+      "Dev experience",
+      "Other"
+    ];
+
+    expect(readIssueAreaOptions(".github/ISSUE_TEMPLATE/bug_report.yml")).toEqual(expectedOptions);
+    expect(readIssueAreaOptions(".github/ISSUE_TEMPLATE/feature_request.yml")).toEqual(expectedOptions);
+  });
 });
+
+function readIssueAreaOptions(path: string): string[] {
+  const template = parse(readFileSync(path, "utf8")) as {
+    body: Array<{
+      id?: string | undefined;
+      attributes?: { options?: string[] | undefined } | undefined;
+    }>;
+  };
+
+  const areaInput = template.body.find((item) => item.id === "area");
+  return areaInput?.attributes?.options ?? [];
+}
