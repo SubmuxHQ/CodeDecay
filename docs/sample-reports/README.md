@@ -24,8 +24,12 @@ Look at these sections first:
 
 - **Overall risk**: the high-level merge risk and decay scores.
 - **Likely Impacted Areas**: the app surfaces CodeDecay thinks may be affected.
+- **Likely Impacted Routes And APIs**: concrete user/API paths to verify when
+  framework-aware route evidence is available.
 - **High Risk Findings**: the findings most likely to need reviewer attention.
-- **Recommended Checks**: tests or manual checks to run before merge.
+- **Recommended Checks**: tests or manual checks to run before merge. Prefer
+  checks that exercise the real route, API, UI, database, or downstream path
+  instead of only helper-level behavior.
 
 For automation and integrations:
 

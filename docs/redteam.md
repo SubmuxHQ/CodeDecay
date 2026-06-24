@@ -13,6 +13,11 @@ The command is report-only in the current MVP. It does not run configured
 commands, does not call an LLM, does not require API keys, does not send
 telemetry, and does not depend on CodeDecayCloud.
 
+Use it when you want a local merge-safety brief for Codex, Claude Code, Cursor,
+desktop agents, or another user-owned agent. CodeDecay provides deterministic
+tool evidence; the receiving agent still has to inspect the code and prove fixes
+with tests or configured checks.
+
 ## Run
 
 ```bash
@@ -30,6 +35,8 @@ Exit codes:
 ## What The Report Includes
 
 - changed files and impacted product/system areas
+- concrete route/API impacts when CodeDecay can detect them, such as Next.js
+  API routes, Next.js UI routes, Express handlers, or Fastify handlers
 - merge-risk and decay-risk scores
 - test proof audit status: `missing`, `weak`, `present`, or `not_applicable`
 - weak-test and missing-test findings from deterministic test-audit rules
@@ -50,10 +57,12 @@ agents, or internal agents. Use it to give those tools better evidence.
 Suggested workflow:
 
 1. Run `codedecay redteam --format markdown`.
-2. Paste or attach the report to your coding agent.
-3. Ask the agent to fix the high-risk findings and add real checks for the
-   missing edge cases.
-4. Run `codedecay analyze`, `codedecay execute`, or `codedecay differential`
+2. Start with the impacted route/API section and ask what real user/API path
+   reaches each changed file.
+3. Paste or attach the report to your coding agent.
+4. Ask the agent to fix the high-risk findings and add real checks for the
+   impacted routes, missing edge cases, and weak-test findings.
+5. Run `codedecay analyze`, `codedecay execute`, or `codedecay differential`
    explicitly when you want static analysis, configured checks, or base/head
    behavior probes.
 

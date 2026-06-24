@@ -16,7 +16,7 @@ npx codedecay agent --cwd ../my-repo --format json --output codedecay-agent.json
 The bundle includes:
 
 - a copy-paste prompt for any user-owned coding agent
-- impacted areas and changed files
+- changed files, impacted areas, and concrete route/API impacts when available
 - weak-test and missing-test proof signals
 - edge cases to check
 - configured checks and tool adapters that are available but not run
@@ -48,9 +48,11 @@ npx codedecay agent --profile cursor --format markdown --output codedecay-agent.
 1. Run `codedecay agent`.
 2. Copy the prompt from the `Copy-Paste Prompt` section.
 3. Give the prompt and Markdown or JSON output to your agent.
-4. Ask the agent to complete the listed tasks with real tests and behavior
+4. Ask the agent to start from impacted routes/APIs and explain what real user,
+   API, database, or downstream path could break.
+5. Ask the agent to complete the listed tasks with real tests and behavior
    checks.
-5. Run CodeDecay again.
+6. Run CodeDecay again.
 
 Example prompt style:
 
@@ -61,6 +63,11 @@ Do not assume the PR is safe because tests pass.
 Add or improve tests that exercise real behavior paths.
 After changes, tell me what checks to run.
 ```
+
+For JSON consumers, route/API evidence is available under
+`evidence.impactedRoutes`. Treat it as tool evidence for the agent's fix plan:
+the agent should map each proposed fix back to the changed file, route/API, weak
+test signal, and missing edge case it addresses.
 
 ## Safety
 

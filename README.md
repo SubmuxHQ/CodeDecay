@@ -1,12 +1,12 @@
 # CodeDecay
 
-CodeDecay is an open-source CLI and GitHub Action for pull request
-regression-risk analysis, code-decay detection, and change-impact analysis.
+CodeDecay is an open-source, local-first PR safety harness for AI-assisted
+development.
 
-It helps teams using AI coding agents and AI-assisted development detect what a
-PR might break before merge: impacted files, routes, modules, missing tests,
-duplicated logic, complexity growth, fragile abstractions, and maintainability
-decay.
+It helps teams using Codex, Claude Code, Cursor, desktop agents, or other
+AI-assisted workflows find what a coding agent may have missed before merge:
+impacted files, routes, APIs, modules, missing tests, weak proof, duplicated
+logic, complexity growth, fragile abstractions, and maintainability decay.
 
 It is not a generic AI code reviewer. CodeDecay analyzes any pull request, with
 special focus on risks common in AI-generated or AI-assisted code:
@@ -14,11 +14,13 @@ special focus on risks common in AI-generated or AI-assisted code:
 - What could this PR break?
 - Which files, routes, and modules are impacted?
 - What tests may be missing?
+- Are the tests proving the real API, UI, database, or downstream path?
 - Did this PR increase maintainability decay?
 - Should this PR be merged, reviewed carefully, or blocked?
 
 CodeDecay is deterministic, local-first, and useful without cloud services. It
-does not require telemetry, API keys, LLMs, or model calls.
+does not require telemetry, API keys, LLMs, or model calls. Optional agent and
+LLM integrations must be user-owned and explicit.
 
 ## Install
 
@@ -114,8 +116,9 @@ nearby tests, CodeDecay produces a report like this:
 ```
 
 Read the report in this order: overall risk, likely impacted areas, likely
-impacted routes/APIs, high-risk findings, then recommended checks. Full
-Markdown, JSON, and SARIF examples are available in
+impacted routes/APIs, high-risk findings, and whether the recommended checks
+prove the real behavior path. Full Markdown, JSON, and SARIF examples are
+available in
 [Sample reports](docs/sample-reports/README.md).
 
 ## GitHub Action
