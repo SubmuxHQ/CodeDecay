@@ -74,6 +74,7 @@ describe("reports", () => {
     const sarif = JSON.parse(renderSarifReport(report));
 
     expect(sarif.version).toBe("2.1.0");
+    expect(sarif.runs[0].tool.driver.informationUri).toBe("https://github.com/SubmuxHQ/CodeDecay");
     expect(sarif.runs[0].results[0].ruleId).toBe("risky-auth-change");
     expect(sarif.runs[0].results[0].locations[0].physicalLocation.region.startLine).toBe(3);
   });

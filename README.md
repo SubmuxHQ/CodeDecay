@@ -144,7 +144,7 @@ jobs:
 Public repository:
 
 ```text
-git@github.com:SubmuxHQ/codedecay.git
+git@github.com:SubmuxHQ/CodeDecay.git
 ```
 
 ## Documentation

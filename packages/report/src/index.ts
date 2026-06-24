@@ -138,7 +138,7 @@ export function renderSarifReport(report: CodeDecayReport): string {
           tool: {
             driver: {
               name: "CodeDecay",
-              informationUri: "https://github.com/SubmuxHQ/codedecay",
+              informationUri: "https://github.com/SubmuxHQ/CodeDecay",
               rules
             }
           },
