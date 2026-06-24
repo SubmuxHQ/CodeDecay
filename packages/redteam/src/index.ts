@@ -10,6 +10,11 @@ import {
 } from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
 import type { LoadedCodeDecaySkills } from "@submuxhq/codedecay-skills";
+import {
+  createTestProofAudit,
+  weakTestRuleIds as testAuditWeakTestRuleIds,
+  type TestProofAudit
+} from "@submuxhq/codedecay-test-audit";
 
 export type RedteamFormat = "json" | "markdown";
 export type RedteamMode = "deterministic";
@@ -35,6 +40,7 @@ export interface RedteamReport {
   head?: string | undefined;
   summary: RedteamSummary;
   analysis: CodeDecayReport;
+  testAudit: TestProofAudit;
   weakTestFindings: Finding[];
   edgeCases: string[];
   configuredChecks: RedteamConfiguredCheck[];
@@ -52,6 +58,7 @@ export interface RedteamSummary {
   impactedAreas: number;
   findings: Record<RiskLevel, number>;
   weakTestFindings: number;
+  testProofStatus: TestProofAudit["status"];
   edgeCases: number;
   configuredChecks: number;
   skills: number;
@@ -100,16 +107,7 @@ export interface RedteamSafetySummary {
   notes: string[];
 }
 
-const WEAK_TEST_RULES = new Set([
-  "test-without-assertions",
-  "snapshot-only-test",
-  "mocked-changed-source",
-  "unrelated-test-change",
-  "copied-implementation-in-test",
-  "happy-path-only-test",
-  "heavy-mocking",
-  "test-bloat"
-]);
+const WEAK_TEST_RULES = new Set(testAuditWeakTestRuleIds());
 
 const EDGE_CASES_BY_AREA: Partial<Record<ImpactedArea["kind"], string[]>> = {
   api: [
@@ -136,7 +134,8 @@ const EDGE_CASES_BY_AREA: Partial<Record<ImpactedArea["kind"], string[]>> = {
 };
 
 export function createRedteamReport(input: RedteamReportInput): RedteamReport {
-  const weakTestFindings = input.analysisReport.findings.filter((finding) => WEAK_TEST_RULES.has(finding.ruleId));
+  const testAudit = createTestProofAudit(input.analysisReport);
+  const weakTestFindings = testAudit.weakTestFindings;
   const edgeCases = suggestEdgeCases(input.analysisReport.impactedAreas);
   const configuredChecks = collectConfiguredChecks(input.config);
   const memory = summarizeMemory(input.memory, input.memorySource);
@@ -163,12 +162,14 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
       impactedAreas: input.analysisReport.impactedAreas.length,
       findings: input.analysisReport.summary.findingCounts,
       weakTestFindings: weakTestFindings.length,
+      testProofStatus: testAudit.status,
       edgeCases: edgeCases.length,
       configuredChecks: configuredChecks.length,
       skills: skills.length,
       fixTasks: fixTasks.length
     },
     analysis: input.analysisReport,
+    testAudit,
     weakTestFindings,
     edgeCases,
     configuredChecks,
@@ -227,7 +228,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
   ];
 
   appendImpactedAreas(lines, report.analysis.impactedAreas);
-  appendWeakTests(lines, report.weakTestFindings);
+  appendTestAudit(lines, report.testAudit);
   appendEdgeCases(lines, report.edgeCases);
   appendConfiguredChecks(lines, report.configuredChecks);
   appendFixTasks(lines, report.fixTasks);
@@ -442,17 +443,32 @@ function appendImpactedAreas(lines: string[], areas: ImpactedArea[]): void {
   lines.push("");
 }
 
-function appendWeakTests(lines: string[], findings: Finding[]): void {
-  lines.push("### Test Reality Check", "");
-  if (findings.length === 0) {
-    lines.push("No weak-test findings were detected by deterministic rules.", "");
-    return;
+function appendTestAudit(lines: string[], audit: TestProofAudit): void {
+  lines.push("### Test Proof Audit", "");
+  lines.push(`**Status:** ${formatTestProofStatus(audit.status)}`);
+  lines.push(`**Summary:** ${audit.summary}`, "");
+  lines.push("| Signal | Count |", "| --- | ---: |");
+  lines.push(`| Changed source files | ${audit.changedSourceFiles.length} |`);
+  lines.push(`| Changed test files | ${audit.changedTestFiles.length} |`);
+  lines.push(`| Missing-test findings | ${audit.missingTestFindings.length} |`);
+  lines.push(`| Weak-test findings | ${audit.weakTestFindings.length} |`, "");
+
+  if (audit.missingTestFindings.length === 0 && audit.weakTestFindings.length === 0) {
+    lines.push("No missing-test or weak-test findings were detected by deterministic rules.", "");
   }
 
-  for (const finding of findings.slice(0, 10)) {
+  for (const finding of [...audit.missingTestFindings, ...audit.weakTestFindings].slice(0, 10)) {
     const location = finding.file ? ` in \`${finding.file}${finding.line ? `:${finding.line}` : ""}\`` : "";
     lines.push(`- ${formatRisk(finding.severity)} **${finding.title}**${location}: ${finding.description}`);
   }
+
+  if (audit.recommendedChecks.length > 0) {
+    lines.push("", "Recommended stronger checks:");
+    for (const check of audit.recommendedChecks.slice(0, 8)) {
+      lines.push(`- ${check}`);
+    }
+  }
+
   lines.push("");
 }
 
@@ -527,6 +543,14 @@ function formatRisk(level: RiskLevel): string {
   return "Low";
 }
 
+function formatTestProofStatus(status: TestProofAudit["status"]): string {
+  if (status === "not_applicable") {
+    return "Not applicable";
+  }
+
+  return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
+}
+
 export function weakTestRuleIds(): string[] {
-  return dedupeStrings([...WEAK_TEST_RULES]);
+  return testAuditWeakTestRuleIds();
 }
