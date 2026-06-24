@@ -427,13 +427,29 @@ describe("built codedecay CLI", () => {
       tool: "CodeDecay",
       mode: "agent-task-bundle",
       summary: {
-        riskLevel: "high"
+        riskLevel: "high",
+        impactedRoutes: 2
       },
       safety: {
         commandsExecuted: false,
         llmCalled: false
       }
     });
+    expect(agentBundle.evidence.impactedRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          framework: "nextjs",
+          kind: "api-route",
+          route: "/api/users"
+        }),
+        expect.objectContaining({
+          framework: "nextjs",
+          kind: "ui-route",
+          route: "/dashboard"
+        })
+      ])
+    );
+    expect(agentBundle.prompt).toContain("2 route/API impacts");
     expect(agentBundle.evidence.edgeCases).toEqual(
       expect.arrayContaining([
         "Exercise the real API route with malformed, missing, and boundary-value payloads.",

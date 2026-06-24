@@ -406,6 +406,39 @@ describe("codedecay redteam CLI contract", () => {
     expect(markdown.stdout).toContain("LLM/model called: no");
   });
 
+  it("includes concrete route/API impacts in redteam reports", async () => {
+    const repo = createNextRouteRiskRepo();
+
+    const json = await run(["redteam", "--format", "json"], repo);
+    const report = JSON.parse(json.stdout);
+
+    expect(json.exitCode).toBe(0);
+    expect(report.summary.impactedRoutes).toBe(2);
+    expect(report.analysis.impactedRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          framework: "nextjs",
+          kind: "api-route",
+          route: "/api/users",
+          methods: ["GET", "POST"]
+        }),
+        expect.objectContaining({
+          framework: "nextjs",
+          kind: "ui-route",
+          route: "/dashboard",
+          methods: []
+        })
+      ])
+    );
+
+    const markdown = await run(["redteam", "--format", "markdown"], repo);
+
+    expect(markdown.exitCode).toBe(0);
+    expect(markdown.stdout).toContain("### Likely Impacted Routes And APIs");
+    expect(markdown.stdout).toContain("High `GET, POST /api/users` (Next.js API route)");
+    expect(markdown.stdout).toContain("Medium `/dashboard` (Next.js UI route)");
+  });
+
   it("uses --cwd and writes relative --output paths from that cwd", async () => {
     const repo = createMediumRiskRepo();
     const outsideCwd = createTempDir();
@@ -525,6 +558,40 @@ describe("codedecay agent CLI contract", () => {
     expect(markdown.stdout).toContain("### Tool Evidence");
     expect(markdown.stdout).toContain("### Safety And Limits");
     expect(markdown.stdout).toContain("LLM/model called by CodeDecay: no");
+  });
+
+  it("includes concrete route/API impacts in agent task bundles", async () => {
+    const repo = createNextRouteRiskRepo();
+
+    const json = await run(["agent", "--format", "json"], repo);
+    const bundle = JSON.parse(json.stdout);
+
+    expect(json.exitCode).toBe(0);
+    expect(bundle.summary.impactedRoutes).toBe(2);
+    expect(bundle.evidence.impactedRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          framework: "nextjs",
+          kind: "api-route",
+          route: "/api/users",
+          methods: ["GET", "POST"]
+        }),
+        expect.objectContaining({
+          framework: "nextjs",
+          kind: "ui-route",
+          route: "/dashboard",
+          methods: []
+        })
+      ])
+    );
+    expect(bundle.prompt).toContain("2 route/API impacts");
+
+    const markdown = await run(["agent", "--format", "markdown"], repo);
+
+    expect(markdown.exitCode).toBe(0);
+    expect(markdown.stdout).toContain("Impacted routes and APIs:");
+    expect(markdown.stdout).toContain("High `GET, POST /api/users` (Next.js API route)");
+    expect(markdown.stdout).toContain("Medium `/dashboard` (Next.js UI route)");
   });
 
   it("supports agent handoff profiles and rejects invalid profiles", async () => {

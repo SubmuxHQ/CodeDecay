@@ -11,6 +11,7 @@ describe("agent task bundles", () => {
       mode: "agent-task-bundle",
       summary: {
         riskLevel: "high",
+        impactedRoutes: 1,
         weakTestFindings: 1,
         fixTasks: 2
       },
@@ -30,8 +31,21 @@ describe("agent task bundles", () => {
     expect(bundle.prompt).toContain("CodeDecay agent task bundle");
     expect(bundle.prompt).toContain("Target agent profile: Generic user-owned agent");
     expect(bundle.prompt).toContain("Current CodeDecay risk is High");
+    expect(bundle.prompt).toContain("1 route/API impacts");
     expect(bundle.prompt).toContain("did not call an LLM");
     expect(bundle.evidence.changedFiles).toEqual([{ path: "src/api/imu.ts", status: "modified" }]);
+    expect(bundle.evidence.impactedRoutes).toEqual([
+      {
+        framework: "express",
+        kind: "route-handler",
+        route: "/api/imu",
+        methods: ["POST"],
+        risk: "high",
+        files: ["src/api/imu.ts"],
+        reasons: ["IMU ingestion route changed"],
+        recommendedTests: ["Add API-level IMU regression test."]
+      }
+    ]);
     expect(bundle.evidence.weakTestFindings[0]?.ruleId).toBe("mocked-changed-source");
     expect(bundle.suggestedChecks).toEqual([
       {
@@ -61,6 +75,8 @@ describe("agent task bundles", () => {
     expect(markdown).toContain("### Copy-Paste Prompt");
     expect(markdown).toContain("You are helping fix a pull request using a CodeDecay agent task bundle.");
     expect(markdown).toContain("### Tool Evidence");
+    expect(markdown).toContain("Impacted routes and APIs:");
+    expect(markdown).toContain("High `POST /api/imu` (Express route handler)");
     expect(markdown).toContain("### Tasks To Complete");
     expect(markdown).toContain("LLM/model called by CodeDecay: no");
     expect(markdown).toContain("This bundle reduces missed-review risk; it does not guarantee a safe merge.");
@@ -74,6 +90,11 @@ describe("agent task bundles", () => {
     expect(parsed.agentProfile.id).toBe("generic");
     expect(parsed.prompt).toContain("Current CodeDecay risk is High");
     expect(parsed.instructions).toContain("Do not assume the PR is safe just because tests pass.");
+    expect(parsed.evidence.impactedRoutes[0]).toMatchObject({
+      framework: "express",
+      route: "/api/imu",
+      methods: ["POST"]
+    });
   });
 
   it("creates profile-specific handoff guidance without changing safety guarantees", () => {
@@ -115,6 +136,7 @@ function createFixtureReport(): RedteamReport {
       riskLevel: "high",
       changedFiles: 1,
       impactedAreas: 1,
+      impactedRoutes: 1,
       findings: {
         low: 0,
         medium: 1,
@@ -152,6 +174,18 @@ function createFixtureReport(): RedteamReport {
           name: "API surface",
           risk: "high",
           files: ["src/api/imu.ts"]
+        }
+      ],
+      impactedRoutes: [
+        {
+          framework: "express",
+          kind: "route-handler",
+          route: "/api/imu",
+          methods: ["POST"],
+          files: ["src/api/imu.ts"],
+          risk: "high",
+          reasons: ["IMU ingestion route changed"],
+          recommendedTests: ["Add API-level IMU regression test."]
         }
       ],
       findings: [],

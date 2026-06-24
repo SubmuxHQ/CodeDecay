@@ -136,7 +136,7 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
 
   server.tool(
     "impact_map",
-    "Return changed files and likely impacted product/system areas for the PR.",
+    "Return changed files, likely impacted product/system areas, and concrete route/API impacts for the PR.",
     {
       cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
       base: z.string().optional().describe("Base git ref or SHA."),
@@ -226,7 +226,8 @@ export function runImpactMapTool(serverOptions: StartMcpServerOptions, input: Mc
   return JSON.stringify(
     {
       changedFiles: report.changedFiles,
-      impactedAreas: report.impactedAreas
+      impactedAreas: report.impactedAreas,
+      impactedRoutes: report.impactedRoutes ?? []
     },
     null,
     2

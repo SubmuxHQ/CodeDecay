@@ -22,6 +22,7 @@ describe("redteam report", () => {
     expect(report.summary).toMatchObject({
       riskLevel: "medium",
       changedFiles: 2,
+      impactedRoutes: 1,
       weakTestFindings: 1,
       testProofStatus: "weak",
       configuredChecks: 2,
@@ -95,12 +96,20 @@ describe("redteam report", () => {
     const json = JSON.parse(renderRedteamReport(report, "json"));
     expect(json.tool).toBe("CodeDecay");
     expect(json.mode).toBe("deterministic");
+    expect(json.summary.impactedRoutes).toBe(1);
+    expect(json.analysis.impactedRoutes[0]).toMatchObject({
+      framework: "nextjs",
+      kind: "api-route",
+      route: "/api/session"
+    });
 
     const markdown = renderRedteamReport(report, "markdown");
     expect(markdown).toContain("## CodeDecay Redteam Report");
     expect(markdown).toContain("### Test Proof Audit");
     expect(markdown).toContain("**Status:** Weak");
     expect(markdown).toContain("### Agent Skills");
+    expect(markdown).toContain("### Likely Impacted Routes And APIs");
+    expect(markdown).toContain("High `GET /api/session` (Next.js API route)");
     expect(markdown).toContain("### Tool Adapter Plans");
     expect(markdown).toContain("Playwright");
     expect(markdown).toContain("Schemathesis");
@@ -158,6 +167,18 @@ function createFixtureAnalyzerResult(): AnalyzerResult {
         kind: "test",
         risk: "medium",
         files: ["src/auth/session.test.ts"]
+      }
+    ],
+    impactedRoutes: [
+      {
+        framework: "nextjs",
+        kind: "api-route",
+        route: "/api/session",
+        methods: ["GET"],
+        files: ["src/auth/session.ts"],
+        risk: "high",
+        reasons: ["Protected session API route changed"],
+        recommendedTests: ["Add an API-level session regression test"]
       }
     ],
     findings: [

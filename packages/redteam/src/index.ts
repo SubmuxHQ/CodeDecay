@@ -6,6 +6,7 @@ import {
   type CodeDecayReport,
   type Finding,
   type ImpactedArea,
+  type ImpactedRoute,
   type RiskLevel
 } from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
@@ -58,6 +59,7 @@ export interface RedteamSummary {
   riskLevel: RiskLevel;
   changedFiles: number;
   impactedAreas: number;
+  impactedRoutes: number;
   findings: Record<RiskLevel, number>;
   weakTestFindings: number;
   testProofStatus: TestProofAudit["status"];
@@ -175,6 +177,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
       riskLevel: input.analysisReport.summary.riskLevel,
       changedFiles: input.analysisReport.changedFiles.length,
       impactedAreas: input.analysisReport.impactedAreas.length,
+      impactedRoutes: input.analysisReport.impactedRoutes?.length ?? 0,
       findings: input.analysisReport.summary.findingCounts,
       weakTestFindings: weakTestFindings.length,
       testProofStatus: testAudit.status,
@@ -238,6 +241,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
     `| Decay risk | ${report.summary.decayScore}/100 |`,
     `| Changed files | ${report.summary.changedFiles} |`,
     `| Impacted areas | ${report.summary.impactedAreas} |`,
+    `| Impacted routes/APIs | ${report.summary.impactedRoutes} |`,
     `| Weak-test findings | ${report.summary.weakTestFindings} |`,
     `| Edge cases suggested | ${report.summary.edgeCases} |`,
     `| Configured checks listed | ${report.summary.configuredChecks} |`,
@@ -246,6 +250,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
   ];
 
   appendImpactedAreas(lines, report.analysis.impactedAreas);
+  appendImpactedRoutes(lines, report.analysis.impactedRoutes ?? []);
   appendTestAudit(lines, report.testAudit);
   appendEdgeCases(lines, report.edgeCases);
   appendConfiguredChecks(lines, report.configuredChecks);
@@ -491,6 +496,28 @@ function appendImpactedAreas(lines: string[], areas: ImpactedArea[]): void {
   lines.push("");
 }
 
+function appendImpactedRoutes(lines: string[], routes: ImpactedRoute[]): void {
+  lines.push("### Likely Impacted Routes And APIs", "");
+  if (routes.length === 0) {
+    lines.push("No concrete route/API impacts were detected.", "");
+    return;
+  }
+
+  for (const route of routes.slice(0, 12)) {
+    const files = route.files.map((file) => `\`${file}\``).join(", ");
+    lines.push(`- ${formatRisk(route.risk)} \`${formatRoute(route)}\` (${routeKindLabel(route)}): ${files}`);
+
+    for (const reason of route.reasons.slice(0, 2)) {
+      lines.push(`  - ${reason}`);
+    }
+
+    if (route.recommendedTests.length > 0) {
+      lines.push(`  - Suggested proof: ${route.recommendedTests[0]}`);
+    }
+  }
+  lines.push("");
+}
+
 function appendTestAudit(lines: string[], audit: TestProofAudit): void {
   lines.push("### Test Proof Audit", "");
   lines.push(`**Status:** ${formatTestProofStatus(audit.status)}`);
@@ -603,6 +630,38 @@ function formatRisk(level: RiskLevel): string {
   }
 
   return "Low";
+}
+
+function formatRoute(route: ImpactedRoute): string {
+  if (route.methods.length === 0) {
+    return route.route;
+  }
+
+  return `${route.methods.join(", ")} ${route.route}`;
+}
+
+function routeKindLabel(route: ImpactedRoute): string {
+  if (route.framework === "nextjs" && route.kind === "api-route") {
+    return "Next.js API route";
+  }
+
+  if (route.framework === "nextjs" && route.kind === "ui-route") {
+    return "Next.js UI route";
+  }
+
+  if (route.framework === "nextjs" && route.kind === "middleware") {
+    return "Next.js middleware";
+  }
+
+  if (route.framework === "express") {
+    return "Express route handler";
+  }
+
+  if (route.framework === "fastify") {
+    return "Fastify route handler";
+  }
+
+  return "Node route handler";
 }
 
 function formatTestProofStatus(status: TestProofAudit["status"]): string {

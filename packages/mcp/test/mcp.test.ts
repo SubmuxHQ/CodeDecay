@@ -39,16 +39,63 @@ describe("CodeDecay MCP tools", () => {
   });
 
   it("returns an impact map", () => {
-    const repo = createWeakTestRepo();
+    const repo = createRouteImpactRepo();
 
     const output = JSON.parse(runImpactMapTool({ cwd: repo }, {}));
 
     expect(output.impactedAreas.map((area: { kind: string }) => area.kind)).toEqual(
-      expect.arrayContaining(["auth", "test"])
+      expect.arrayContaining(["api", "ui"])
     );
     expect(output.changedFiles.map((file: { path: string }) => file.path)).toEqual(
-      expect.arrayContaining(["src/auth/session.ts", "src/auth/session.test.ts"])
+      expect.arrayContaining(["src/app/api/users/route.ts", "src/app/dashboard/page.tsx"])
     );
+    expect(output.impactedRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          framework: "nextjs",
+          kind: "api-route",
+          route: "/api/users",
+          methods: ["GET", "POST"],
+          risk: "high"
+        }),
+        expect.objectContaining({
+          framework: "nextjs",
+          kind: "ui-route",
+          route: "/dashboard",
+          methods: [],
+          risk: "medium"
+        })
+      ])
+    );
+  });
+
+  it("returns route impact evidence through MCP redteam and agent tools", () => {
+    const repo = createRouteImpactRepo();
+
+    const redteam = JSON.parse(runRedteamReportTool({ cwd: repo }, { format: "json" }));
+    const agent = JSON.parse(runAgentTaskBundleTool({ cwd: repo }, { format: "json", profile: "codex" }));
+
+    expect(redteam.summary.impactedRoutes).toBe(2);
+    expect(redteam.analysis.impactedRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          framework: "nextjs",
+          kind: "api-route",
+          route: "/api/users"
+        })
+      ])
+    );
+    expect(agent.summary.impactedRoutes).toBe(2);
+    expect(agent.evidence.impactedRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          framework: "nextjs",
+          kind: "api-route",
+          route: "/api/users"
+        })
+      ])
+    );
+    expect(agent.prompt).toContain("2 route/API impacts");
   });
 
   it("returns weak-test audit findings", () => {
@@ -278,6 +325,30 @@ function createWeakTestRepo(): string {
     "src/auth/session.test.ts",
     ["import { validateSession } from './session';", "test('validates session', () => {", "  validateSession('token');", "});", ""].join("\n")
   );
+
+  return repo;
+}
+
+function createRouteImpactRepo(): string {
+  const repo = createRepo({
+    "src/app/api/users/route.ts": "export async function GET() { return Response.json([]); }\n",
+    "src/app/dashboard/page.tsx": "export default function Page() { return <main />; }\n"
+  });
+
+  writeFile(
+    repo,
+    "src/app/api/users/route.ts",
+    [
+      "export async function GET() {",
+      "  return Response.json([]);",
+      "}",
+      "export async function POST() {",
+      "  return Response.json({ ok: true });",
+      "}",
+      ""
+    ].join("\n")
+  );
+  writeFile(repo, "src/app/dashboard/page.tsx", "export default function Page() { return <main>Changed</main>; }\n");
 
   return repo;
 }

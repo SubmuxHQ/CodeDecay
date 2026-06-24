@@ -1,4 +1,4 @@
-import type { RiskLevel } from "@submuxhq/codedecay-core";
+import type { ImpactedRoute, RiskLevel } from "@submuxhq/codedecay-core";
 import type {
   RedteamConfiguredCheck,
   RedteamFixTask,
@@ -46,6 +46,7 @@ export interface AgentTaskSummary {
   decayScore: number;
   changedFiles: number;
   impactedAreas: number;
+  impactedRoutes: number;
   weakTestFindings: number;
   testProofStatus: string;
   edgeCases: number;
@@ -55,6 +56,7 @@ export interface AgentTaskSummary {
 export interface AgentEvidence {
   changedFiles: AgentChangedFile[];
   impactedAreas: AgentImpactedArea[];
+  impactedRoutes: AgentImpactedRoute[];
   weakTestFindings: AgentFindingEvidence[];
   missingTestFindings: AgentFindingEvidence[];
   edgeCases: string[];
@@ -71,6 +73,17 @@ export interface AgentImpactedArea {
   name: string;
   risk: RiskLevel;
   files: string[];
+}
+
+export interface AgentImpactedRoute {
+  framework: ImpactedRoute["framework"];
+  kind: ImpactedRoute["kind"];
+  route: string;
+  methods: string[];
+  risk: RiskLevel;
+  files: string[];
+  reasons: string[];
+  recommendedTests: string[];
 }
 
 export interface AgentFindingEvidence {
@@ -200,6 +213,7 @@ export function createAgentTaskBundle(report: RedteamReport, options: CreateAgen
     decayScore: report.summary.decayScore,
     changedFiles: report.summary.changedFiles,
     impactedAreas: report.summary.impactedAreas,
+    impactedRoutes: report.summary.impactedRoutes,
     weakTestFindings: report.summary.weakTestFindings,
     testProofStatus: report.summary.testProofStatus,
     edgeCases: report.summary.edgeCases,
@@ -215,6 +229,16 @@ export function createAgentTaskBundle(report: RedteamReport, options: CreateAgen
       name: area.name,
       risk: area.risk,
       files: [...area.files]
+    })),
+    impactedRoutes: (report.analysis.impactedRoutes ?? []).map((route) => ({
+      framework: route.framework,
+      kind: route.kind,
+      route: route.route,
+      methods: [...route.methods],
+      risk: route.risk,
+      files: [...route.files],
+      reasons: [...route.reasons],
+      recommendedTests: [...route.recommendedTests]
     })),
     weakTestFindings: report.weakTestFindings.map(findingEvidence),
     missingTestFindings: report.testAudit.missingTestFindings.map(findingEvidence),
@@ -269,6 +293,7 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
     `| Decay risk | ${bundle.summary.decayScore}/100 |`,
     `| Changed files | ${bundle.summary.changedFiles} |`,
     `| Impacted areas | ${bundle.summary.impactedAreas} |`,
+    `| Route/API impacts | ${bundle.summary.impactedRoutes} |`,
     `| Weak-test findings | ${bundle.summary.weakTestFindings} |`,
     `| Test proof status | ${bundle.summary.testProofStatus} |`,
     `| Edge cases | ${bundle.summary.edgeCases} |`,
@@ -296,7 +321,7 @@ function createPortableAgentPrompt(summary: AgentTaskSummary, profile: AgentProf
     "Treat the bundle as local tool evidence, not as a guarantee that the PR is safe.",
     `Target agent profile: ${profile.name}. ${profile.promptContext}`,
     `Current CodeDecay risk is ${formatRisk(summary.riskLevel)} with merge risk ${summary.mergeRiskScore}/100 and decay risk ${summary.decayScore}/100.`,
-    `The bundle reports ${summary.changedFiles} changed files, ${summary.impactedAreas} impacted areas, ${summary.weakTestFindings} weak-test findings, ${summary.edgeCases} edge cases, and ${summary.fixTasks} fix tasks.`,
+    `The bundle reports ${summary.changedFiles} changed files, ${summary.impactedAreas} impacted areas, ${summary.impactedRoutes} route/API impacts, ${summary.weakTestFindings} weak-test findings, ${summary.edgeCases} edge cases, and ${summary.fixTasks} fix tasks.`,
     "Your job:",
     "1. Start with high-risk impacted areas and weak or missing test proof.",
     "2. Identify what real API, UI, database, job, config, or downstream behavior could break.",
@@ -370,6 +395,24 @@ function appendEvidence(lines: string[], evidence: AgentEvidence): void {
   } else {
     for (const area of evidence.impactedAreas.slice(0, 12)) {
       lines.push(`- ${formatRisk(area.risk)} **${area.name}** (${area.kind}): ${area.files.map((file) => `\`${file}\``).join(", ")}`);
+    }
+  }
+
+  lines.push("", "Impacted routes and APIs:");
+  if (evidence.impactedRoutes.length === 0) {
+    lines.push("- none detected");
+  } else {
+    for (const route of evidence.impactedRoutes.slice(0, 12)) {
+      const files = route.files.map((file) => `\`${file}\``).join(", ");
+      lines.push(`- ${formatRisk(route.risk)} \`${formatRoute(route)}\` (${routeKindLabel(route)}): ${files}`);
+
+      for (const reason of route.reasons.slice(0, 2)) {
+        lines.push(`  - ${reason}`);
+      }
+
+      if (route.recommendedTests.length > 0) {
+        lines.push(`  - Suggested proof: ${route.recommendedTests[0]}`);
+      }
     }
   }
 
@@ -462,4 +505,36 @@ function formatRisk(level: RiskLevel): string {
   }
 
   return "Low";
+}
+
+function formatRoute(route: AgentImpactedRoute): string {
+  if (route.methods.length === 0) {
+    return route.route;
+  }
+
+  return `${route.methods.join(", ")} ${route.route}`;
+}
+
+function routeKindLabel(route: AgentImpactedRoute): string {
+  if (route.framework === "nextjs" && route.kind === "api-route") {
+    return "Next.js API route";
+  }
+
+  if (route.framework === "nextjs" && route.kind === "ui-route") {
+    return "Next.js UI route";
+  }
+
+  if (route.framework === "nextjs" && route.kind === "middleware") {
+    return "Next.js middleware";
+  }
+
+  if (route.framework === "express") {
+    return "Express route handler";
+  }
+
+  if (route.framework === "fastify") {
+    return "Fastify route handler";
+  }
+
+  return "Node route handler";
 }
