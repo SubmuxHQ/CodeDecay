@@ -1,0 +1,24 @@
+version: 1
+
+commands:
+  test:
+    - pnpm test
+  build:
+    - pnpm build
+  start: []
+
+probes:
+  - name: cli help
+    command: node packages/cli/dist/index.js --help
+    timeoutMs: 10000
+  - name: markdown analysis
+    command: node packages/cli/dist/index.js analyze --format markdown
+    timeoutMs: 30000
+
+safety:
+  commandTimeoutMs: 120000
+  allowCommands: false
+
+llm:
+  provider: disabled
+  timeoutMs: 30000

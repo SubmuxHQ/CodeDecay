@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "flows": [
+    {
+      "name": "CLI pull request analysis",
+      "description": "A contributor runs CodeDecay against a git diff and reads Markdown, JSON, or SARIF output.",
+      "areas": ["source", "config"],
+      "checks": [
+        "analyze current working tree",
+        "analyze with --base and --head",
+        "write SARIF with --output"
+      ]
+    },
+    {
+      "name": "GitHub Action PR report",
+      "description": "The composite GitHub Action builds the CLI, runs analysis, and writes the step summary.",
+      "areas": ["config"],
+      "checks": [
+        "action.yml inputs match docs",
+        "cwd and output path behavior are documented"
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "name": "full validation",
+      "command": "pnpm run lint && pnpm typecheck && pnpm test && pnpm build",
+      "areas": ["source", "config", "test"]
+    }
+  ],
+  "invariants": [
+    {
+      "name": "No hidden cloud dependency",
+      "description": "The OSS CLI must remain useful without telemetry, API keys, LLM calls, or hosted services.",
+      "areas": ["source", "config"],
+      "severity": "high"
+    },
+    {
+      "name": "Commands are explicit",
+      "description": "CodeDecay must not run project commands unless they are configured and safety.allowCommands is true.",
+      "areas": ["source"],
+      "severity": "high"
+    }
+  ],
+  "architecture": [
+    {
+      "title": "Private internal packages",
+      "note": "Only @submux/codedecay is published; @submuxhq/* packages are internal workspace packages."
+    }
+  ],
+  "regressions": []
+}

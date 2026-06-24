@@ -1,0 +1,19 @@
+---
+description: CodeDecay repository rules for AI-assisted development
+alwaysApply: true
+---
+
+Read `AGENTS.md` before making changes.
+
+Use `.agents/commands/ci-check.md` before opening a PR.
+
+Use `.agents/skills/pr-red-team/SKILL.md` for PR safety reviews and
+`.agents/skills/test-quality-review/SKILL.md` when tests are touched.
+
+Preserve CodeDecay constraints:
+
+- no telemetry,
+- no required API keys,
+- no required LLM/model calls,
+- no hidden cloud dependency,
+- deterministic baseline behavior.
