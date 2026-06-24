@@ -8,6 +8,7 @@ The first adapters are:
 
 - Playwright for browser/user-flow checks.
 - StrykerJS for mutation-testing evidence.
+- Schemathesis for OpenAPI/GraphQL API fuzzing evidence.
 
 ## Playwright Harness
 
@@ -66,8 +67,46 @@ pnpm exec stryker run
 Projects can override the command when they already have their own Stryker
 script, mutation score threshold, or package manager setup.
 
+## Schemathesis Harness
+
+The Schemathesis harness is also a private internal package API for now:
+
+```ts
+createSchemathesisHarness({
+  schema: "openapi.yaml",
+  baseUrl: "http://127.0.0.1:3000",
+  allowCommands: true
+});
+```
+
+Safety defaults:
+
+- command execution is disabled unless `allowCommands: true` is provided,
+- commands go through `@submuxhq/codedecay-execution`,
+- unsafe commands are blocked by the shared safety policy,
+- Schemathesis is not installed by CodeDecay,
+- API servers are not started by CodeDecay,
+- no telemetry, LLM calls, API keys, or CodeDecayCloud dependency are used.
+
+The default command is:
+
+```bash
+st run openapi.yaml --url http://127.0.0.1:3000
+```
+
+Projects can override the full command when they already use a different
+Schemathesis entry point, package manager, schema location, base URL, or
+service startup flow:
+
+```ts
+createSchemathesisHarness({
+  command: "uvx schemathesis run docs/openapi.yaml --url http://127.0.0.1:4000",
+  allowCommands: true
+});
+```
+
 ## Future Adapters
 
-The same package can add adapters for Schemathesis, Pact, coverage tools, and
-test runners. Each adapter should use safe configured execution and return
-evidence rather than bypassing CodeDecay safety rules.
+The same package can add adapters for Pact, coverage tools, and test runners.
+Each adapter should use safe configured execution and return evidence rather
+than bypassing CodeDecay safety rules.
