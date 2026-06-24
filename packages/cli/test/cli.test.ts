@@ -585,10 +585,15 @@ describe("codedecay agent CLI contract", () => {
       ])
     );
     expect(bundle.prompt).toContain("2 route/API impacts");
+    expect(bundle.prompt).toContain("Start with impacted routes/APIs when present");
+    expect(bundle.instructions).toContain(
+      "Start from impacted routes/APIs when present, then broad impacted areas and weak-test findings."
+    );
 
     const markdown = await run(["agent", "--format", "markdown"], repo);
 
     expect(markdown.exitCode).toBe(0);
+    expect(markdown.stdout).toContain("Start from impacted routes/APIs when present");
     expect(markdown.stdout).toContain("Impacted routes and APIs:");
     expect(markdown.stdout).toContain("High `GET, POST /api/users` (Next.js API route)");
     expect(markdown.stdout).toContain("Medium `/dashboard` (Next.js UI route)");

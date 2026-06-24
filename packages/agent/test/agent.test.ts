@@ -32,6 +32,10 @@ describe("agent task bundles", () => {
     expect(bundle.prompt).toContain("Target agent profile: Generic user-owned agent");
     expect(bundle.prompt).toContain("Current CodeDecay risk is High");
     expect(bundle.prompt).toContain("1 route/API impacts");
+    expect(bundle.prompt).toContain("Start with impacted routes/APIs when present");
+    expect(bundle.instructions).toContain(
+      "Start from impacted routes/APIs when present, then broad impacted areas and weak-test findings."
+    );
     expect(bundle.prompt).toContain("did not call an LLM");
     expect(bundle.evidence.changedFiles).toEqual([{ path: "src/api/imu.ts", status: "modified" }]);
     expect(bundle.evidence.impactedRoutes).toEqual([
@@ -70,6 +74,7 @@ describe("agent task bundles", () => {
 
     expect(markdown).toContain("## CodeDecay Agent Task Bundle");
     expect(markdown).toContain("Give this bundle to a user-owned coding agent");
+    expect(markdown).toContain("Start from impacted routes/APIs when present");
     expect(markdown).toContain("### Agent Handoff");
     expect(markdown).toContain("Generic user-owned agent");
     expect(markdown).toContain("### Copy-Paste Prompt");
@@ -89,6 +94,7 @@ describe("agent task bundles", () => {
     expect(parsed.mode).toBe("agent-task-bundle");
     expect(parsed.agentProfile.id).toBe("generic");
     expect(parsed.prompt).toContain("Current CodeDecay risk is High");
+    expect(parsed.prompt).toContain("For each route/API impact");
     expect(parsed.instructions).toContain("Do not assume the PR is safe just because tests pass.");
     expect(parsed.evidence.impactedRoutes[0]).toMatchObject({
       framework: "express",

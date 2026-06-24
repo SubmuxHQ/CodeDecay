@@ -450,6 +450,10 @@ describe("built codedecay CLI", () => {
       ])
     );
     expect(agentBundle.prompt).toContain("2 route/API impacts");
+    expect(agentBundle.prompt).toContain("Start with impacted routes/APIs when present");
+    expect(agentBundle.instructions).toContain(
+      "Start from impacted routes/APIs when present, then broad impacted areas and weak-test findings."
+    );
     expect(agentBundle.evidence.edgeCases).toEqual(
       expect.arrayContaining([
         "Exercise the real API route with malformed, missing, and boundary-value payloads.",
