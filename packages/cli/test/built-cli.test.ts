@@ -404,6 +404,20 @@ describe("built codedecay CLI", () => {
     expect(analysisReport.impactedAreas.map((area: { kind: string }) => area.kind)).toEqual(
       expect.arrayContaining(["api", "auth", "database", "config", "ui"])
     );
+    expect(analysisReport.impactedRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          framework: "nextjs",
+          kind: "api-route",
+          route: "/api/users"
+        }),
+        expect.objectContaining({
+          framework: "nextjs",
+          kind: "ui-route",
+          route: "/dashboard"
+        })
+      ])
+    );
 
     const agent = runBuilt(["agent", "--cwd", repo, "--format", "json"]);
     const agentBundle = JSON.parse(agent.stdout);

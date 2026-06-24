@@ -35,6 +35,28 @@ const report: CodeDecayReport = {
       files: ["src/auth/session.ts"]
     }
   ],
+  impactedRoutes: [
+    {
+      framework: "nextjs",
+      kind: "api-route",
+      route: "/api/session",
+      methods: ["GET"],
+      files: ["src/app/api/session/route.ts"],
+      risk: "high",
+      reasons: ["Next.js App Router API route changed"],
+      recommendedTests: ["Add or run tests covering src/app/api/session/route.ts"]
+    },
+    {
+      framework: "nextjs",
+      kind: "ui-route",
+      route: "/dashboard",
+      methods: [],
+      files: ["src/app/dashboard/page.tsx"],
+      risk: "medium",
+      reasons: ["Next.js App Router UI route changed"],
+      recommendedTests: ["Add or run tests covering src/app/dashboard/page.tsx"]
+    }
+  ],
   findings: [
     {
       ruleId: "risky-auth-change",
@@ -56,18 +78,31 @@ describe("reports", () => {
     expect(markdown).toContain("CodeDecay Report");
     expect(markdown).toContain("Merge risk");
     expect(markdown).toContain("src/auth/session.ts");
+    expect(markdown).toContain("### Likely Impacted Routes And APIs");
+    expect(markdown).toContain("High `GET /api/session` (Next.js API route)");
+    expect(markdown).toContain("Medium `/dashboard` (Next.js UI route)");
     expect(markdown).toContain("- `src/auth/session.test.ts`");
     expect(markdown).toContain("- `Add or run tests covering next.config.js`");
     expect(markdown).not.toContain("- Add or run tests covering next.config.js");
   });
 
   it("renders json", () => {
-    expect(JSON.parse(renderJsonReport(report))).toMatchObject({
+    const json = JSON.parse(renderJsonReport(report));
+
+    expect(json).toMatchObject({
       tool: "CodeDecay",
       summary: {
         riskLevel: "high"
       }
     });
+    expect(json.impactedRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          route: "/api/session",
+          methods: ["GET"]
+        })
+      ])
+    );
   });
 
   it("renders minimal sarif", () => {

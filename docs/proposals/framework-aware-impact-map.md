@@ -1,8 +1,9 @@
 # Framework-Aware Route/API Impact Map
 
-Status: proposal
+Status: implementation started
 
-Issue: [#35](https://github.com/SubmuxHQ/CodeDecay/issues/35)
+Proposal issue: [#35](https://github.com/SubmuxHQ/CodeDecay/issues/35)
+Implementation issue: [#144](https://github.com/SubmuxHQ/CodeDecay/issues/144)
 
 ## Goal
 

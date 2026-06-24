@@ -172,6 +172,24 @@
       ]
     }
   ],
+  "impactedRoutes": [
+    {
+      "framework": "nextjs",
+      "kind": "ui-route",
+      "route": "/dashboard",
+      "methods": [],
+      "files": [
+        "app/dashboard/page.tsx"
+      ],
+      "risk": "medium",
+      "reasons": [
+        "Next.js App Router UI route changed"
+      ],
+      "recommendedTests": [
+        "Add or run tests covering app/dashboard/page.tsx"
+      ]
+    }
+  ],
   "findings": [
     {
       "ruleId": "missing-nearby-tests",

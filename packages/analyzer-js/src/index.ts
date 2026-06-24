@@ -6,6 +6,7 @@ import type {
   ChangedLine,
   FileChange,
   Finding,
+  ImpactedRoute,
   ImpactedArea,
   RiskLevel
 } from "@submuxhq/codedecay-core";
@@ -37,6 +38,8 @@ interface TestAuditResult {
   recommendedTests: string[];
 }
 
+type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
+
 const SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"]);
 const TEST_FILE_PATTERN = /(^|[./_-])(test|spec|e2e|integration)([./_-]|$)/i;
 const IGNORED_DIRS = new Set([".git", "node_modules", "dist", "coverage", ".next", "build"]);
@@ -46,10 +49,12 @@ const SNAPSHOT_ASSERTION_PATTERN = /\b(toMatchSnapshot|toMatchInlineSnapshot|toH
 const MOCK_PATTERN =
   /\b(jest\.mock|vi\.mock|sinon\.stub|sinon\.mock|mockResolvedValue|mockRejectedValue|mockReturnValue|mockImplementation|createMock|mockFn)\b/;
 const TEST_CASE_PATTERN = /\b(it|test|specify)\s*\(/;
+const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
 export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
   const findings: Finding[] = [];
   const impactedAreas: ImpactedArea[] = [];
+  const impactedRoutes: ImpactedRoute[] = [];
   const recommendedTests: string[] = [];
   const changedSourceFiles = options.changedFiles.filter(
     (change) => isSourcePath(change.path) && change.status !== "deleted" && !isTestPath(change.path)
@@ -77,6 +82,8 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
       });
     }
   }
+
+  impactedRoutes.push(...detectImpactedRoutes(options.rootDir, changedSourceFiles));
 
   if (changedSourceFiles.length > 0 && changedTestFiles.length === 0) {
     const riskySourceFiles = changedSourceFiles.filter((change) => classifyPath(change.path)?.risk !== "low");
@@ -145,6 +152,7 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
   return {
     findings: dedupeFindings(findings),
     impactedAreas,
+    impactedRoutes,
     recommendedTests: recommendedTests.length > 0 ? dedupeStrings(recommendedTests) : ["Run the test suite for changed packages or apps."]
   };
 }
@@ -191,6 +199,219 @@ function classifyPath(path: string): PathClassification | undefined {
   }
 
   return undefined;
+}
+
+function detectImpactedRoutes(rootDir: string, changedSourceFiles: FileChange[]): ImpactedRoute[] {
+  return changedSourceFiles.flatMap((change) => {
+    const content = readChangedFile(rootDir, change.path) ?? change.addedLines.map((line) => line.content).join("\n");
+
+    return [...detectNextjsRoute(change, content), ...detectNodeRoutes(change, content)];
+  });
+}
+
+function detectNextjsRoute(change: FileChange, content: string): ImpactedRoute[] {
+  const normalized = normalizePath(change.path);
+  const withoutSrc = normalized.replace(/^src\//, "");
+
+  if (/^middleware\.(js|ts)$/.test(withoutSrc)) {
+    return [
+      routeImpact({
+        framework: "nextjs",
+        kind: "middleware",
+        route: "/",
+        methods: ["*"],
+        file: change.path,
+        risk: "high",
+        reasons: ["Next.js middleware changed"]
+      })
+    ];
+  }
+
+  const appApiMatch = /^app\/api\/(.+)\/route\.(js|ts)$/.exec(withoutSrc);
+  if (appApiMatch?.[1]) {
+    return [
+      routeImpact({
+        framework: "nextjs",
+        kind: "api-route",
+        route: `/api/${normalizeRouteSegments(appApiMatch[1])}`,
+        methods: findExportedHttpMethods(content),
+        file: change.path,
+        risk: "high",
+        reasons: ["Next.js App Router API route changed"]
+      })
+    ];
+  }
+
+  const appPageMatch = /^app\/(.+)\/page\.(js|jsx|ts|tsx)$/.exec(withoutSrc);
+  if (appPageMatch?.[1]) {
+    return [
+      routeImpact({
+        framework: "nextjs",
+        kind: "ui-route",
+        route: `/${normalizeRouteSegments(appPageMatch[1])}`,
+        methods: [],
+        file: change.path,
+        risk: "medium",
+        reasons: ["Next.js App Router UI route changed"]
+      })
+    ];
+  }
+
+  const pagesApiMatch = /^pages\/api\/(.+)\.(js|ts)$/.exec(withoutSrc);
+  if (pagesApiMatch?.[1]) {
+    return [
+      routeImpact({
+        framework: "nextjs",
+        kind: "api-route",
+        route: `/api/${normalizeRouteSegments(pagesApiMatch[1])}`,
+        methods: ["*"],
+        file: change.path,
+        risk: "high",
+        reasons: ["Next.js Pages API route changed"]
+      })
+    ];
+  }
+
+  return [];
+}
+
+function detectNodeRoutes(change: FileChange, content: string): ImpactedRoute[] {
+  if (!isNodeRouteCandidate(change.path)) {
+    return [];
+  }
+
+  const routes: ImpactedRoute[] = [];
+  const methodAlternation = HTTP_METHODS.map((method) => method.toLowerCase()).join("|");
+  const methodCallPattern = new RegExp(`\\b(app|router|server|fastify)\\.(${methodAlternation})\\s*\\(\\s*['"\`]([^'"\`]+)['"\`]`, "gi");
+  let match: RegExpExecArray | null;
+
+  while ((match = methodCallPattern.exec(content)) !== null) {
+    const receiver = match[1]?.toLowerCase();
+    const method = match[2]?.toUpperCase() as HttpMethod | undefined;
+    const route = match[3];
+    if (!receiver || !method || !route) {
+      continue;
+    }
+
+    const framework = receiver === "fastify" || receiver === "server" ? "fastify" : "express";
+
+    routes.push(
+      routeImpact({
+        framework,
+        kind: "route-handler",
+        route,
+        methods: [method],
+        file: change.path,
+        risk: "high",
+        reasons: [`${framework === "fastify" ? "Fastify" : "Express"} route handler changed`]
+      })
+    );
+  }
+
+  routes.push(...detectFastifyRouteObjects(change, content));
+
+  return routes;
+}
+
+function detectFastifyRouteObjects(change: FileChange, content: string): ImpactedRoute[] {
+  const routes: ImpactedRoute[] = [];
+  const routeObjectPattern = /\b(?:server|fastify)\.route\s*\(\s*\{([\s\S]*?)\}\s*\)/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = routeObjectPattern.exec(content)) !== null) {
+    const body = match[1] ?? "";
+    const url = /(?:url|path)\s*:\s*['"`]([^'"`]+)['"`]/i.exec(body)?.[1];
+    if (!url) {
+      continue;
+    }
+
+    const methods = extractRouteObjectMethods(body);
+    routes.push(
+      routeImpact({
+        framework: "fastify",
+        kind: "route-handler",
+        route: url,
+        methods,
+        file: change.path,
+        risk: "high",
+        reasons: ["Fastify route object changed"]
+      })
+    );
+  }
+
+  return routes;
+}
+
+function routeImpact(input: {
+  framework: ImpactedRoute["framework"];
+  kind: ImpactedRoute["kind"];
+  route: string;
+  methods: string[];
+  file: string;
+  risk: RiskLevel;
+  reasons: string[];
+}): ImpactedRoute {
+  return {
+    framework: input.framework,
+    kind: input.kind,
+    route: normalizeRoute(input.route),
+    methods: dedupeStrings(input.methods.map((method) => method.toUpperCase())),
+    files: [input.file],
+    risk: input.risk,
+    reasons: input.reasons,
+    recommendedTests: [`Add or run tests covering ${input.file}`]
+  };
+}
+
+function findExportedHttpMethods(content: string): string[] {
+  const methods = HTTP_METHODS.filter((method) => new RegExp(`\\bexport\\s+(?:async\\s+)?function\\s+${method}\\b|\\bexport\\s+const\\s+${method}\\b`).test(content));
+  return methods.length > 0 ? methods : ["*"];
+}
+
+function extractRouteObjectMethods(body: string): string[] {
+  const arrayMatch = /method\s*:\s*\[([\s\S]*?)\]/i.exec(body);
+  if (arrayMatch?.[1]) {
+    const methods = [...arrayMatch[1].matchAll(/['"`]([A-Za-z]+)['"`]/g)]
+      .map((match) => match[1]?.toUpperCase())
+      .filter((method): method is string => Boolean(method) && HTTP_METHODS.includes(method as HttpMethod));
+    if (methods.length > 0) {
+      return methods;
+    }
+  }
+
+  const singleMatch = /method\s*:\s*['"`]([A-Za-z]+)['"`]/i.exec(body);
+  if (singleMatch?.[1] && HTTP_METHODS.includes(singleMatch[1].toUpperCase() as HttpMethod)) {
+    return [singleMatch[1].toUpperCase()];
+  }
+
+  return ["*"];
+}
+
+function isNodeRouteCandidate(path: string): boolean {
+  if (!isSourcePath(path) || isTestPath(path)) {
+    return false;
+  }
+
+  return /(^|\/)(src\/)?(routes?|api|controllers?)(\/|$)|(^|\/)(server|app)\.(js|ts)$/i.test(path);
+}
+
+function normalizeRouteSegments(path: string): string {
+  const segments = path
+    .split("/")
+    .filter((segment) => segment.length > 0 && !/^\(.+\)$/.test(segment))
+    .map((segment) => (segment === "index" ? "" : segment))
+    .filter((segment) => segment.length > 0);
+
+  return segments.join("/");
+}
+
+function normalizeRoute(route: string): string {
+  const normalized = `/${route}`.replace(/\/+/g, "/").replace(/\/$/, "");
+  return normalized.length === 0 ? "/" : normalized;
+}
+
+function normalizePath(path: string): string {
+  return path.replaceAll("\\", "/");
 }
 
 function recommendTests(rootDir: string, sourceChanges: FileChange[]): string[] {
