@@ -96,6 +96,9 @@ pnpm build
 node packages/cli/dist/index.js mcp
 ```
 
+The agent-agnostic redteam harness roadmap is documented in
+[RFC 0001](docs/rfcs/0001-agent-agnostic-redteam-harness.md).
+
 ## PR workflow
 
 1. Create or use a GitHub issue.
