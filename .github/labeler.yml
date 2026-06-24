@@ -84,7 +84,7 @@ documentation:
   - changed-files:
     - any-glob-to-any-file: "packages/redteam/**"
 
-"area:agent":
+"area: agent":
   - changed-files:
     - any-glob-to-any-file: "packages/agent/**"
 

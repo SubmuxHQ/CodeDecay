@@ -18,7 +18,7 @@ describe("GitHub repository metadata", () => {
       "area: github-app": ["packages/github-app/**"],
       "area: harness": ["packages/harness/**"],
       "area: redteam": ["packages/redteam/**"],
-      "area:agent": ["packages/agent/**"],
+      "area: agent": ["packages/agent/**"],
       examples: ["examples/**"],
       "area: dev-experience": [".agents/**", ".codedecay/**", ".codex/**", ".cursor/**", "AGENTS.md", "DEVELOPMENT.md"]
     };
@@ -31,5 +31,11 @@ describe("GitHub repository metadata", () => {
         expect(labelJson, `${label} should include ${glob}`).toContain(glob);
       }
     }
+  });
+
+  it("does not use legacy duplicate area label names", () => {
+    const labeler = parse(readFileSync(".github/labeler.yml", "utf8")) as Record<string, unknown>;
+
+    expect(Object.keys(labeler)).not.toEqual(expect.arrayContaining(["area:agent", "area:mcp", "area:report"]));
   });
 });
