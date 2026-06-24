@@ -107,4 +107,39 @@ describe("createAnalysisReport", () => {
     ]);
     expect(report.recommendedTests).toEqual(["src/auth/session.test.ts"]);
   });
+
+  it("propagates route-level recommended tests into report recommendations", () => {
+    const report = createAnalysisReport({
+      changedFiles: [
+        {
+          path: "src/app/api/users/route.ts",
+          status: "modified",
+          additions: 4,
+          deletions: 1,
+          addedLines: [{ line: 2, content: "export async function POST() { return Response.json({ ok: true }); }" }]
+        }
+      ],
+      analyzerResult: {
+        impactedAreas: [],
+        impactedRoutes: [
+          {
+            framework: "nextjs",
+            kind: "api-route",
+            route: "/api/users",
+            methods: ["POST"],
+            files: ["src/app/api/users/route.ts"],
+            risk: "high",
+            reasons: ["Next.js App Router API route changed"],
+            recommendedTests: ["Add API route coverage for POST /api/users"]
+          }
+        ],
+        findings: [],
+        recommendedTests: []
+      },
+      generatedAt: "2026-06-22T00:00:00.000Z"
+    });
+
+    expect(report.impactedRoutes?.[0]?.recommendedTests).toEqual(["Add API route coverage for POST /api/users"]);
+    expect(report.recommendedTests).toEqual(["Add API route coverage for POST /api/users"]);
+  });
 });

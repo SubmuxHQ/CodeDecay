@@ -156,6 +156,8 @@ export function createAnalysisReport(input: {
   const mergeRiskScore = calculateScore(findings, MERGE_RISK_CATEGORIES, input.changedFiles);
   const decayScore = calculateScore(findings, DECAY_CATEGORIES, input.changedFiles);
   const riskLevel = riskLevelFromScore(Math.max(mergeRiskScore, decayScore));
+  const impactedRoutes = mergeImpactedRoutes(input.analyzerResult.impactedRoutes ?? []);
+  const routeRecommendedTests = impactedRoutes.flatMap((route) => route.recommendedTests);
 
   const report: CodeDecayReport = {
     tool: "CodeDecay",
@@ -170,10 +172,9 @@ export function createAnalysisReport(input: {
     changedFiles: input.changedFiles,
     impactedAreas: mergeImpactedAreas(input.analyzerResult.impactedAreas),
     findings,
-    recommendedTests: dedupeStrings(input.analyzerResult.recommendedTests)
+    recommendedTests: dedupeStrings([...input.analyzerResult.recommendedTests, ...routeRecommendedTests])
   };
 
-  const impactedRoutes = mergeImpactedRoutes(input.analyzerResult.impactedRoutes ?? []);
   if (impactedRoutes.length > 0) {
     report.impactedRoutes = impactedRoutes;
   }
