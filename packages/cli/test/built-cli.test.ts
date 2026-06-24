@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { beforeAll, afterEach, describe, expect, it } from "vitest";
@@ -412,6 +412,21 @@ describe("built codedecay CLI", () => {
         "Check loading, empty, error, and permission-denied UI states."
       ])
     );
+  });
+
+  it("keeps source-checkout examples independent of unpublished npm versions", () => {
+    const examplePackagePaths = [
+      "examples/nextjs-risk-demo/package.json",
+      "examples/node-api-risk-demo/scenarios/baseline/package_DOT_json.fixture",
+      "examples/node-api-risk-demo/scenarios/risky/package_DOT_json.fixture"
+    ];
+
+    for (const packagePath of examplePackagePaths) {
+      const packageJson = JSON.parse(readFileSync(join(repoRoot, packagePath), "utf8"));
+
+      expect(packageJson.devDependencies?.["@submux/codedecay"]).toBeUndefined();
+      expect(JSON.stringify(packageJson.scripts)).toContain("node ../../packages/cli/dist/index.js");
+    }
   });
 
   it("compares configured probes from the built CLI", () => {

@@ -48,6 +48,9 @@ node ../../packages/cli/dist/index.js redteam --cwd . --format markdown
 node ../../packages/cli/dist/index.js agent --cwd . --format markdown
 ```
 
+The included `codedecay:*` npm scripts use the same source-checkout CLI path,
+so run `pnpm build` from the repository root before using them.
+
 After CodeDecay is installed from npm, use `npx codedecay` instead of the local
 `node ../../packages/cli/dist/index.js` command.
 

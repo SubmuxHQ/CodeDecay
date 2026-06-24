@@ -16,7 +16,11 @@ Before opening the release PR, bump the published version in:
 - `packages/cli/package.json`
 - `packages/core/src/index.ts`
 
-Run from a clean `main` branch after the release PR is merged:
+After the release PR is merged, release only from a clean `main` branch at the
+commit that will be tagged and published. Do not publish npm contents from a
+different commit than the Git tag.
+
+Run:
 
 ```bash
 pnpm install
@@ -66,3 +70,15 @@ cd "$tmpdir"
 npm install @submux/codedecay@<version>
 node_modules/.bin/codedecay --help
 ```
+
+Create the GitHub release for the same tag and verify the release surfaces stay
+in sync:
+
+```bash
+git show --no-patch --decorate --oneline v<version>
+gh release view v<version>
+npm view @submux/codedecay version dist-tags --json
+```
+
+The package version, npm `latest` dist-tag, Git tag, and GitHub release should
+all refer to the same released version before the release is considered done.
