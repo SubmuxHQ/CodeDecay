@@ -1,14 +1,23 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import {
+  createConfiguredCommandAdapters,
+  runAdapters,
+  type AdapterResult,
+  type AdapterStatus,
+  type ConfiguredCommandKind
+} from "@submuxhq/codedecay-adapters";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
 import { loadCodeDecayConfig, type LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
-import { createAnalysisReport, type CodeDecayReport, type ImpactedArea } from "@submuxhq/codedecay-core";
+import { CODEDECAY_VERSION, createAnalysisReport, type CodeDecayReport, type ImpactedArea } from "@submuxhq/codedecay-core";
 import { getGitChangedFiles, getRepoRoot } from "@submuxhq/codedecay-git";
+import type { Evidence, HarnessFailure } from "@submuxhq/codedecay-harness";
 import { applyMemoryContext, loadCodeDecayMemory, type LoadedCodeDecayMemory } from "@submuxhq/codedecay-memory";
 import { createRedteamReport, renderRedteamReport, type RedteamReport } from "@submuxhq/codedecay-redteam";
 import { renderMarkdownReport } from "@submuxhq/codedecay-report";
 import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
+import { createConfiguredToolHarnesses, type ConfiguredToolAdapterKind } from "@submuxhq/codedecay-tool-adapters";
 
 export interface StartMcpServerOptions {
   cwd: string;
@@ -24,11 +33,65 @@ export interface AnalyzePrToolInput extends McpToolInput {
   format?: "markdown" | "json" | undefined;
 }
 
+export interface ExecuteConfiguredChecksToolInput {
+  cwd?: string | undefined;
+  format?: "markdown" | "json" | undefined;
+  confirmExecution?: boolean | undefined;
+}
+
 interface McpAnalysisContext {
   rootDir: string;
   loadedConfig: LoadedCodeDecayConfig;
   loadedMemory: LoadedCodeDecayMemory;
   report: CodeDecayReport;
+}
+
+interface McpExecutionReport {
+  tool: "CodeDecay";
+  version: string;
+  mode: "mcp-execute";
+  generatedAt: string;
+  executed: boolean;
+  configSource?: string | undefined;
+  summary: McpExecutionSummary;
+  results: McpExecutionResult[];
+  toolAdapters: McpExecutionToolAdapterResult[];
+  safety: McpExecutionSafety;
+}
+
+interface McpExecutionSummary {
+  status: AdapterStatus | "not_confirmed";
+  total: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  timedOut: number;
+  errors: number;
+  durationMs: number;
+}
+
+interface McpExecutionResult extends AdapterResult {
+  kind: ConfiguredCommandKind;
+  command: string;
+}
+
+interface McpExecutionToolAdapterResult {
+  kind: ConfiguredToolAdapterKind;
+  name: string;
+  command: string;
+  status: AdapterStatus;
+  durationMs: number;
+  summary: string;
+  evidence: Evidence[];
+  timeoutMs?: number | undefined;
+  failure?: HarnessFailure | undefined;
+}
+
+interface McpExecutionSafety {
+  confirmExecutionRequired: true;
+  confirmExecution: boolean;
+  allowCommands: boolean;
+  notes: string[];
 }
 
 const WEAK_TEST_RULES = new Set([
@@ -51,7 +114,7 @@ export async function startMcpServer(options: StartMcpServerOptions): Promise<vo
 export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpServer {
   const server = new McpServer({
     name: "codedecay",
-    version: "0.1.2"
+    version: CODEDECAY_VERSION
   });
 
   server.tool(
@@ -109,6 +172,20 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
       format: z.enum(["markdown", "json"]).optional().describe("Response format.")
     },
     async (input) => textResult(runRedteamReportTool(options, input))
+  );
+
+  server.tool(
+    "execute_configured_checks",
+    "Run only explicitly configured CodeDecay commands and tool adapters. Requires confirmExecution=true and safety.allowCommands=true; never runs arbitrary MCP-provided commands.",
+    {
+      cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
+      format: z.enum(["markdown", "json"]).optional().describe("Response format."),
+      confirmExecution: z
+        .boolean()
+        .optional()
+        .describe("Must be true before CodeDecay runs configured local commands.")
+    },
+    async (input) => textResult(runExecuteConfiguredChecksTool(options, input))
   );
 
   return server;
@@ -174,6 +251,18 @@ export function runRedteamReportTool(serverOptions: StartMcpServerOptions, input
   return renderRedteamReport(report, input.format ?? "markdown");
 }
 
+export async function runExecuteConfiguredChecksTool(
+  serverOptions: StartMcpServerOptions,
+  input: ExecuteConfiguredChecksToolInput
+): Promise<string> {
+  const cwd = input.cwd ?? serverOptions.cwd;
+  const rootDir = getRepoRoot(cwd);
+  const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
+  const report = await createMcpExecutionReport(rootDir, loadedConfig, Boolean(input.confirmExecution));
+
+  return renderMcpExecutionReport(report, input.format ?? "markdown");
+}
+
 function createReport(serverOptions: StartMcpServerOptions, input: McpToolInput): CodeDecayReport {
   return createAnalysisContext(serverOptions, input).report;
 }
@@ -211,6 +300,353 @@ function createAnalysisContext(serverOptions: StartMcpServerOptions, input: McpT
       analyzerResult: analyzerResultWithMemory
     })
   };
+}
+
+async function createMcpExecutionReport(
+  rootDir: string,
+  loadedConfig: LoadedCodeDecayConfig,
+  confirmExecution: boolean
+): Promise<McpExecutionReport> {
+  const startedAt = Date.now();
+  const safety = createExecutionSafety(loadedConfig, confirmExecution);
+
+  if (!confirmExecution) {
+    const report = createBaseExecutionReport({
+      loadedConfig,
+      executed: false,
+      safety,
+      summary: {
+        status: "not_confirmed",
+        total: 0,
+        passed: 0,
+        failed: 0,
+        skipped: 0,
+        timedOut: 0,
+        errors: 0,
+        durationMs: elapsed(startedAt)
+      },
+      results: [],
+      toolAdapters: []
+    });
+
+    return report;
+  }
+
+  const results = await runConfiguredCommandChecks(rootDir, loadedConfig);
+  const toolAdapters = await runConfiguredToolAdapterChecks(rootDir, loadedConfig);
+
+  return createBaseExecutionReport({
+    loadedConfig,
+    executed: true,
+    safety,
+    summary: createExecutionSummary(results, toolAdapters, elapsed(startedAt)),
+    results,
+    toolAdapters
+  });
+}
+
+function createBaseExecutionReport(input: {
+  loadedConfig: LoadedCodeDecayConfig;
+  executed: boolean;
+  safety: McpExecutionSafety;
+  summary: McpExecutionSummary;
+  results: McpExecutionResult[];
+  toolAdapters: McpExecutionToolAdapterResult[];
+}): McpExecutionReport {
+  const report: McpExecutionReport = {
+    tool: "CodeDecay",
+    version: CODEDECAY_VERSION,
+    mode: "mcp-execute",
+    generatedAt: new Date().toISOString(),
+    executed: input.executed,
+    summary: input.summary,
+    results: input.results,
+    toolAdapters: input.toolAdapters,
+    safety: input.safety
+  };
+
+  if (input.loadedConfig.sourcePath) {
+    report.configSource = input.loadedConfig.sourcePath;
+  }
+
+  return report;
+}
+
+function createExecutionSafety(loadedConfig: LoadedCodeDecayConfig, confirmExecution: boolean): McpExecutionSafety {
+  const notes = [
+    "This MCP tool never runs arbitrary commands from MCP input.",
+    "Only commands explicitly configured in CodeDecay config and enabled tool adapters are eligible to run.",
+    "Command execution also requires safety.allowCommands: true in CodeDecay config."
+  ];
+
+  if (!confirmExecution) {
+    notes.push("No commands were executed because confirmExecution was not true.");
+  }
+
+  if (!loadedConfig.config.safety.allowCommands) {
+    notes.push("Configured commands will be skipped because safety.allowCommands is false.");
+  }
+
+  return {
+    confirmExecutionRequired: true,
+    confirmExecution,
+    allowCommands: loadedConfig.config.safety.allowCommands,
+    notes
+  };
+}
+
+async function runConfiguredCommandChecks(
+  rootDir: string,
+  loadedConfig: LoadedCodeDecayConfig
+): Promise<McpExecutionResult[]> {
+  const configuredAdapters = createConfiguredCommandAdapters(loadedConfig.config);
+  const results: McpExecutionResult[] = [];
+
+  for (const configured of configuredAdapters) {
+    const [result] = await runAdapters([configured.adapter], {
+      rootDir,
+      changedFiles: [],
+      config: loadedConfig.config
+    });
+
+    if (!result) {
+      continue;
+    }
+
+    results.push({
+      ...result,
+      kind: configured.kind,
+      command: configured.command
+    });
+  }
+
+  return results;
+}
+
+async function runConfiguredToolAdapterChecks(
+  rootDir: string,
+  loadedConfig: LoadedCodeDecayConfig
+): Promise<McpExecutionToolAdapterResult[]> {
+  const configuredToolAdapters = createConfiguredToolHarnesses(loadedConfig.config);
+  const results: McpExecutionToolAdapterResult[] = [];
+
+  for (const configured of configuredToolAdapters) {
+    const plan = await configured.harness.plan({
+      cwd: rootDir,
+      evidence: []
+    });
+    const context = configured.timeoutMs === undefined ? { cwd: rootDir } : { cwd: rootDir, timeoutMs: configured.timeoutMs };
+    const result = await configured.harness.run(plan, context);
+    const mapped: McpExecutionToolAdapterResult = {
+      kind: configured.kind,
+      name: configured.name,
+      command: configured.command,
+      status: result.status,
+      durationMs: result.durationMs,
+      summary: result.summary ?? result.failure?.message ?? `${configured.name} produced ${result.evidence.length} evidence item(s).`,
+      evidence: result.evidence
+    };
+
+    if (configured.timeoutMs !== undefined) {
+      mapped.timeoutMs = configured.timeoutMs;
+    }
+
+    if (result.failure) {
+      mapped.failure = result.failure;
+    }
+
+    results.push(mapped);
+  }
+
+  return results;
+}
+
+function createExecutionSummary(
+  results: McpExecutionResult[],
+  toolAdapters: McpExecutionToolAdapterResult[],
+  durationMs: number
+): McpExecutionSummary {
+  const allResults = [...results, ...toolAdapters];
+  const passed = countStatus(allResults, "passed");
+  const failed = countStatus(allResults, "failed");
+  const skipped = countStatus(allResults, "skipped");
+  const timedOut = countStatus(allResults, "timed_out");
+  const errors = countStatus(allResults, "error");
+
+  return {
+    status: executionStatus(allResults, { failed, timedOut, errors }),
+    total: allResults.length,
+    passed,
+    failed,
+    skipped,
+    timedOut,
+    errors,
+    durationMs
+  };
+}
+
+function executionStatus(
+  results: Array<{ status: AdapterStatus }>,
+  counts: Pick<McpExecutionSummary, "failed" | "timedOut" | "errors">
+): AdapterStatus {
+  if (counts.errors > 0) {
+    return "error";
+  }
+
+  if (counts.timedOut > 0) {
+    return "timed_out";
+  }
+
+  if (counts.failed > 0) {
+    return "failed";
+  }
+
+  if (results.length === 0 || results.every((result) => result.status === "skipped")) {
+    return "skipped";
+  }
+
+  return "passed";
+}
+
+function renderMcpExecutionReport(report: McpExecutionReport, format: "markdown" | "json"): string {
+  if (format === "json") {
+    return `${JSON.stringify(report, null, 2)}\n`;
+  }
+
+  return renderMcpExecutionMarkdown(report);
+}
+
+function renderMcpExecutionMarkdown(report: McpExecutionReport): string {
+  const lines = [
+    "## CodeDecay MCP Execution Report",
+    "",
+    `**Executed:** ${report.executed ? "yes" : "no"}`,
+    `**Overall status:** ${formatExecutionStatus(report.summary.status)}`,
+    `**Config:** ${report.configSource ? `\`${report.configSource}\`` : "defaults (no config file found)"}`,
+    `**Command execution allowed:** ${report.safety.allowCommands ? "yes" : "no"}`,
+    "",
+    "| Result | Count |",
+    "| --- | ---: |",
+    `| Total | ${report.summary.total} |`,
+    `| Passed | ${report.summary.passed} |`,
+    `| Failed | ${report.summary.failed} |`,
+    `| Timed out | ${report.summary.timedOut} |`,
+    `| Errors | ${report.summary.errors} |`,
+    `| Skipped | ${report.summary.skipped} |`,
+    `| Duration | ${report.summary.durationMs}ms |`,
+    ""
+  ];
+
+  if (!report.executed) {
+    lines.push("No commands were executed. Pass `confirmExecution: true` to run configured local checks.", "");
+  }
+
+  if (report.results.length > 0) {
+    lines.push("### Configured Command Results", "");
+    for (const result of report.results) {
+      lines.push(
+        `- **${result.name}** (${result.kind}) ${formatExecutionStatus(result.status)} in ${result.durationMs}ms: \`${result.command}\``
+      );
+
+      if (result.exitCode !== undefined) {
+        lines.push(`  - Exit code: ${result.exitCode}`);
+      }
+
+      if (result.error) {
+        lines.push(`  - Error: ${result.error}`);
+      }
+
+      appendOutputBlock(lines, "stdout", result.stdout);
+      appendOutputBlock(lines, "stderr", result.stderr);
+    }
+    lines.push("");
+  }
+
+  if (report.toolAdapters.length > 0) {
+    lines.push("### Tool Adapter Results", "");
+    for (const result of report.toolAdapters) {
+      lines.push(
+        `- **${result.name}** (${result.kind}) ${formatExecutionStatus(result.status)} in ${result.durationMs}ms: \`${result.command}\``
+      );
+
+      if (result.failure) {
+        lines.push(`  - Failure: ${result.failure.mode}: ${result.failure.message}`);
+      }
+
+      appendToolEvidence(lines, result.evidence);
+    }
+    lines.push("");
+  }
+
+  if (report.results.length === 0 && report.toolAdapters.length === 0 && report.executed) {
+    lines.push("No configured commands, probes, or tool adapters found.", "");
+  }
+
+  lines.push("### Safety", "");
+  for (const note of report.safety.notes) {
+    lines.push(`- ${note}`);
+  }
+  lines.push("");
+
+  return `${lines.join("\n")}\n`;
+}
+
+function appendToolEvidence(lines: string[], evidence: Evidence[]): void {
+  if (evidence.length === 0) {
+    return;
+  }
+
+  lines.push("  - Evidence:");
+  for (const item of evidence.slice(0, 5)) {
+    lines.push(`    - ${formatEvidenceSeverity(item.severity)} ${item.kind}: ${item.summary}`);
+  }
+}
+
+function appendOutputBlock(lines: string[], label: string, output: string): void {
+  const trimmed = output.trim();
+  if (!trimmed) {
+    return;
+  }
+
+  lines.push(`  - ${label}:`);
+  lines.push("    ```text");
+  for (const line of trimLongOutput(trimmed).split(/\r?\n/)) {
+    lines.push(`    ${line}`);
+  }
+  lines.push("    ```");
+}
+
+function trimLongOutput(output: string): string {
+  const limit = 2000;
+  if (output.length <= limit) {
+    return output;
+  }
+
+  return `${output.slice(output.length - limit)}\n[output truncated to last ${limit} characters]`;
+}
+
+function countStatus(results: Array<{ status: AdapterStatus }>, status: AdapterStatus): number {
+  return results.filter((result) => result.status === status).length;
+}
+
+function formatExecutionStatus(status: AdapterStatus | "not_confirmed"): string {
+  if (status === "timed_out") {
+    return "Timed out";
+  }
+
+  if (status === "not_confirmed") {
+    return "Not confirmed";
+  }
+
+  return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
+}
+
+function formatEvidenceSeverity(severity: Evidence["severity"]): string {
+  return `${severity.charAt(0).toUpperCase()}${severity.slice(1)}`;
+}
+
+function elapsed(startedAt: number): number {
+  return Date.now() - startedAt;
 }
 
 function suggestEdgeCases(areas: ImpactedArea[]): string[] {

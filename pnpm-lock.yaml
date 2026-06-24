@@ -109,6 +109,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.29.0(zod@4.4.3)
+      '@submuxhq/codedecay-adapters':
+        specifier: workspace:*
+        version: link:../adapters
       '@submuxhq/codedecay-analyzer-js':
         specifier: workspace:*
         version: link:../analyzer-js
@@ -121,6 +124,9 @@ importers:
       '@submuxhq/codedecay-git':
         specifier: workspace:*
         version: link:../git
+      '@submuxhq/codedecay-harness':
+        specifier: workspace:*
+        version: link:../harness
       '@submuxhq/codedecay-memory':
         specifier: workspace:*
         version: link:../memory
@@ -133,6 +139,9 @@ importers:
       '@submuxhq/codedecay-skills':
         specifier: workspace:*
         version: link:../skills
+      '@submuxhq/codedecay-tool-adapters':
+        specifier: workspace:*
+        version: link:../tool-adapters
       zod:
         specifier: ^4.0.0
         version: 4.4.3

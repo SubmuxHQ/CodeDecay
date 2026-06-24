@@ -2,10 +2,12 @@
 
 CodeDecay can run as a local Model Context Protocol server so agent clients can
 ask it for PR risk, impact maps, weak-test audits, and deterministic edge-case
-suggestions.
+suggestions. It can also run explicitly configured local checks when the caller
+confirms execution.
 
 The MCP server calls local CodeDecay analysis only. It does not call an LLM,
-does not require API keys, and does not send telemetry.
+does not require API keys, and does not send telemetry. Command execution is
+opt-in and limited to commands already present in CodeDecay config.
 
 ## Run Locally
 
@@ -38,6 +40,18 @@ runs CodeDecay locally and passes the repository path with `--cwd`.
 - `redteam_report`: returns a deterministic merge-safety report for your agent,
   including impacted areas, weak-test findings, edge cases, configured checks,
   memory summary, fix tasks, and safety flags.
+- `execute_configured_checks`: runs configured CodeDecay commands, probes, and
+  enabled tool adapters. It requires `confirmExecution: true` and
+  `safety.allowCommands: true`.
+
+Example execution tool input:
+
+```json
+{
+  "confirmExecution": true,
+  "format": "markdown"
+}
+```
 
 ## Safety
 
@@ -48,3 +62,17 @@ commands. The MCP server does not expose arbitrary command execution.
 Ollama or cloud models, send telemetry, or require CodeDecayCloud. It may include
 local skill summaries from `.agents/skills/*/SKILL.md`, but it does not execute
 skill content.
+
+`execute_configured_checks` is the only MCP tool that can execute local commands.
+It never accepts command text from MCP input. It can only run commands from
+`.codedecay/config.yml`, `codedecay.config.yml`, or enabled configured tool
+adapters such as Playwright, StrykerJS, Schemathesis, and Pact.
+
+Execution requires both:
+
+- MCP input contains `confirmExecution: true`
+- CodeDecay config contains `safety.allowCommands: true`
+
+If confirmation is missing, CodeDecay returns a non-executing report. If
+`safety.allowCommands` is false, configured checks use the existing skip behavior
+and do not run.
