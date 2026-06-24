@@ -305,58 +305,83 @@ CodeDecay owns the orchestration and final merge-safety report.
 
 ## Architecture Guidelines
 
-Preserve the monorepo structure:
+Preserve the current monorepo structure:
 
 ```txt
 packages/
-  core/
-  git/
+  adapters/
+  agent/
   analyzer-js/
-  report/
   cli/
+  config/
+  core/
+  execution/
+  git/
   github-action/
+  github-app/
+  harness/
+  llm/
+  mcp/
+  memory/
+  redteam/
+  report/
+  skills/
+  test-audit/
+  tool-adapters/
 docs/
 .github/
+.agents/
+.codedecay/
 ```
 
-Future packages may include:
+Do not introduce a new package if an existing package already owns the
+boundary. Keep package responsibilities explicit.
 
-```txt
-packages/
-  mcp-server/
-  agent/
-  memory/
-  tools/
-  skills/
-  execution/
-  redteam/
-```
+### packages/adapters
 
-### packages/core
+Owns generic configured command adapters and adapter result normalization.
 
-Owns shared types, scoring, risk levels, report assembly, and core policies.
+### packages/agent
 
-### packages/git
-
-Owns git diff collection, root detection, changed/deleted/renamed/untracked files, base/head comparison, and path normalization.
+Owns deterministic agent task bundles for user-owned agents, including
+copy-paste prompts, evidence packaging, safety notes, and fix tasks.
 
 ### packages/analyzer-js
 
 Owns JS/TS analysis and early deterministic signals.
 
-### packages/report
-
-Owns JSON, Markdown, and SARIF rendering.
-
 ### packages/cli
 
 Owns the user-facing CLI.
 
-Future primary command:
+Primary workflow commands:
 
 ```bash
+codedecay analyze
 codedecay redteam
+codedecay agent
+codedecay execute
+codedecay differential
+codedecay mcp
 ```
+
+### packages/config
+
+Owns `.codedecay` config loading and normalization for commands, probes,
+safety settings, and tool adapters.
+
+### packages/core
+
+Owns shared types, scoring, risk levels, report assembly, and core policies.
+
+### packages/execution
+
+Owns safe configured command execution. It must not run arbitrary commands and
+must preserve the explicit user-configured command boundary.
+
+### packages/git
+
+Owns git diff collection, root detection, changed/deleted/renamed/untracked files, base/head comparison, and path normalization.
 
 ### packages/github-action
 
@@ -364,21 +389,70 @@ Owns GitHub Action integration.
 
 The action should run CodeDecay on PRs and produce useful PR/CI output.
 
+### packages/github-app
+
+Owns the deterministic GitHub App server path. It must not run project commands,
+deployments, model calls, or hosted CodeDecayCloud workflows without a separate
+reviewed design.
+
+### packages/harness
+
+Owns harness interfaces, evidence schemas, and registry primitives shared by
+agent and tool adapters.
+
+### packages/llm
+
+Owns optional local/BYOK provider abstractions. LLM use must remain explicit,
+opt-in, and disabled by default.
+
+### packages/mcp
+
+Owns the local MCP server and MCP tool wrappers for analyze, impact map,
+test audit, redteam reports, agent task bundles, and confirmed configured
+checks. The package path is `packages/mcp`.
+
+### packages/memory
+
+Owns local repo memory loading and memory provider boundaries.
+
+### packages/redteam
+
+Owns deterministic redteam report assembly: analysis, test audit, memory,
+skills, configured checks, edge cases, fix tasks, and safety notes.
+
+### packages/report
+
+Owns JSON, Markdown, and SARIF rendering for core analysis reports.
+
+### packages/skills
+
+Owns repo-local `.agents/skills/*/SKILL.md` loading and summaries.
+
+### packages/test-audit
+
+Owns weak-test and missing-test proof signals.
+
+### packages/tool-adapters
+
+Owns OSS tool adapter wrappers such as Playwright, StrykerJS, Schemathesis, and
+Pact. These adapters must go through safe configured execution.
+
 ---
 
 ## Main Product Workflow
 
-The future `codedecay redteam` workflow should:
+The current `codedecay redteam` and `codedecay agent` workflow should:
 
 1. Analyze the PR diff.
 2. Build an impact map.
 3. Load repo memory and skills.
-4. Ask user-owned AI what could break.
+4. Package evidence for user-owned agents.
 5. Audit changed tests.
 6. Detect fake confidence.
 7. Generate edge cases.
-8. Run configured checks.
-9. Compare base vs head behavior.
+8. List configured checks without running them in report-only modes.
+9. Run configured checks only through explicit `execute` or `differential`
+   commands.
 10. Produce a merge-safety report.
 11. Give tasks back to the coding agent.
 12. Re-run until risk is reduced.
