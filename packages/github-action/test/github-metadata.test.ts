@@ -138,6 +138,30 @@ describe("GitHub repository metadata", () => {
       commands.indexOf("pnpm build")
     );
   });
+
+  it("dogfoods the local action with a fail-on gate", () => {
+    const workflow = parse(readFileSync(".github/workflows/codedecay-dogfood.yml", "utf8")) as {
+      jobs: {
+        codedecay: {
+          steps: Array<{
+            uses?: string | undefined;
+            with?: Record<string, string> | undefined;
+          }>;
+        };
+      };
+    };
+
+    const actionStep = workflow.jobs.codedecay.steps.find((step) => step.uses === "./packages/github-action");
+
+    expect(actionStep?.with).toMatchObject({
+      mode: "redteam",
+      base: "${{ github.event.pull_request.base.sha }}",
+      head: "${{ github.event.pull_request.head.sha }}",
+      cwd: ".",
+      format: "markdown",
+      "fail-on": "high"
+    });
+  });
 });
 
 function readIssueAreaOptions(path: string): string[] {
