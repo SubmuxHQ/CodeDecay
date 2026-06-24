@@ -40,6 +40,10 @@ runs CodeDecay locally and passes the repository path with `--cwd`.
 - `redteam_report`: returns a deterministic merge-safety report for your agent,
   including impacted areas, weak-test findings, edge cases, configured checks,
   memory summary, fix tasks, and safety flags.
+- `agent_task_bundle`: returns a deterministic task bundle that Codex, Claude
+  Code, Cursor, desktop agents, or other MCP-compatible agents can use to fix
+  PR risks. It packages tool evidence, weak-test signals, edge cases, suggested
+  checks, skills, and fix tasks.
 - `execute_configured_checks`: runs configured CodeDecay commands, probes, and
   enabled tool adapters. It requires `confirmExecution: true` and
   `safety.allowCommands: true`.
@@ -62,6 +66,12 @@ commands. The MCP server does not expose arbitrary command execution.
 Ollama or cloud models, send telemetry, or require CodeDecayCloud. It may include
 local skill summaries from `.agents/skills/*/SKILL.md`, but it does not execute
 skill content.
+
+`agent_task_bundle` is also report-only. It uses the same deterministic
+CodeDecay evidence as `codedecay agent`, and it does not call the MCP client,
+Codex, Claude, Cursor, Ollama, cloud models, or CodeDecayCloud. The receiving
+agent should treat the bundle as tool evidence plus instructions, then verify
+any proposed fix with tests or configured checks.
 
 `execute_configured_checks` is the only MCP tool that can execute local commands.
 It never accepts command text from MCP input. It can only run commands from

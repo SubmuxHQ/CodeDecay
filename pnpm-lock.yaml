@@ -121,6 +121,9 @@ importers:
       '@submuxhq/codedecay-adapters':
         specifier: workspace:*
         version: link:../adapters
+      '@submuxhq/codedecay-agent':
+        specifier: workspace:*
+        version: link:../agent
       '@submuxhq/codedecay-analyzer-js':
         specifier: workspace:*
         version: link:../analyzer-js

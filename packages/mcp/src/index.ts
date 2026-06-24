@@ -8,6 +8,7 @@ import {
   type AdapterStatus,
   type ConfiguredCommandKind
 } from "@submuxhq/codedecay-adapters";
+import { createAgentTaskBundle, renderAgentTaskBundle } from "@submuxhq/codedecay-agent";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
 import { loadCodeDecayConfig, type LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import { CODEDECAY_VERSION, createAnalysisReport, type CodeDecayReport, type ImpactedArea } from "@submuxhq/codedecay-core";
@@ -175,6 +176,18 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
   );
 
   server.tool(
+    "agent_task_bundle",
+    "Return a deterministic CodeDecay task bundle that user-owned coding agents can use to fix PR risks. Report-only: does not execute commands or call models.",
+    {
+      cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
+      base: z.string().optional().describe("Base git ref or SHA."),
+      head: z.string().optional().describe("Head git ref or SHA."),
+      format: z.enum(["markdown", "json"]).optional().describe("Response format.")
+    },
+    async (input) => textResult(runAgentTaskBundleTool(options, input))
+  );
+
+  server.tool(
     "execute_configured_checks",
     "Run only explicitly configured CodeDecay commands and tool adapters. Requires confirmExecution=true and safety.allowCommands=true; never runs arbitrary MCP-provided commands.",
     {
@@ -239,16 +252,17 @@ export function runSuggestEdgeCasesTool(serverOptions: StartMcpServerOptions, in
 
 export function runRedteamReportTool(serverOptions: StartMcpServerOptions, input: AnalyzePrToolInput): string {
   const context = createAnalysisContext(serverOptions, input);
-  const report: RedteamReport = createRedteamReport({
-    analysisReport: context.report,
-    config: context.loadedConfig.config,
-    configSource: context.loadedConfig.sourcePath,
-    memory: context.loadedMemory.memory,
-    memorySource: context.loadedMemory.sourcePath,
-    skills: loadCodeDecaySkills({ cwd: context.rootDir })
-  });
+  const report = createMcpRedteamReport(context);
 
   return renderRedteamReport(report, input.format ?? "markdown");
+}
+
+export function runAgentTaskBundleTool(serverOptions: StartMcpServerOptions, input: AnalyzePrToolInput): string {
+  const context = createAnalysisContext(serverOptions, input);
+  const report = createMcpRedteamReport(context);
+  const bundle = createAgentTaskBundle(report);
+
+  return renderAgentTaskBundle(bundle, input.format ?? "markdown");
 }
 
 export async function runExecuteConfiguredChecksTool(
@@ -265,6 +279,17 @@ export async function runExecuteConfiguredChecksTool(
 
 function createReport(serverOptions: StartMcpServerOptions, input: McpToolInput): CodeDecayReport {
   return createAnalysisContext(serverOptions, input).report;
+}
+
+function createMcpRedteamReport(context: McpAnalysisContext): RedteamReport {
+  return createRedteamReport({
+    analysisReport: context.report,
+    config: context.loadedConfig.config,
+    configSource: context.loadedConfig.sourcePath,
+    memory: context.loadedMemory.memory,
+    memorySource: context.loadedMemory.sourcePath,
+    skills: loadCodeDecaySkills({ cwd: context.rootDir })
+  });
 }
 
 function createAnalysisContext(serverOptions: StartMcpServerOptions, input: McpToolInput): McpAnalysisContext {

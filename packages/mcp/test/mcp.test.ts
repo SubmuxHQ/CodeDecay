@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   createCodeDecayMcpServer,
   runAnalyzePrTool,
+  runAgentTaskBundleTool,
   runAuditTestsTool,
   runExecuteConfiguredChecksTool,
   runImpactMapTool,
@@ -97,6 +98,46 @@ describe("CodeDecay MCP tools", () => {
       "test-without-assertions"
     );
     expect(output.testAudit.status).toBe("weak");
+    expect(output.skills).toEqual([
+      expect.objectContaining({
+        id: "pr-red-team",
+        title: "PR Red-Team Skill"
+      })
+    ]);
+  });
+
+  it("returns a markdown agent task bundle for MCP agents", () => {
+    const repo = createWeakTestRepo();
+
+    const output = runAgentTaskBundleTool({ cwd: repo }, { format: "markdown" });
+
+    expect(output).toContain("## CodeDecay Agent Task Bundle");
+    expect(output).toContain("### Instructions For The Agent");
+    expect(output).toContain("### Tool Evidence");
+    expect(output).toContain("Changed test has no assertions");
+    expect(output).toContain("LLM/model called by CodeDecay: no");
+  });
+
+  it("returns a JSON agent task bundle for MCP agents", () => {
+    const repo = createWeakTestRepo();
+    writeFile(repo, ".agents/skills/pr-red-team/SKILL.md", "# PR Red-Team Skill\n\nFind missed PR risks.\n");
+
+    const output = JSON.parse(runAgentTaskBundleTool({ cwd: repo }, { format: "json" }));
+
+    expect(output).toMatchObject({
+      tool: "CodeDecay",
+      mode: "agent-task-bundle",
+      safety: {
+        commandsExecuted: false,
+        llmCalled: false,
+        telemetrySent: false,
+        cloudDependency: false,
+        agentOutputTrusted: false
+      }
+    });
+    expect(output.evidence.weakTestFindings.map((finding: { ruleId: string }) => finding.ruleId)).toContain(
+      "test-without-assertions"
+    );
     expect(output.skills).toEqual([
       expect.objectContaining({
         id: "pr-red-team",
