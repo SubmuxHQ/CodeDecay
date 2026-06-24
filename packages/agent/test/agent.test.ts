@@ -23,6 +23,9 @@ describe("agent task bundles", () => {
       }
     });
     expect(bundle.purpose).toContain("Codex");
+    expect(bundle.prompt).toContain("CodeDecay agent task bundle");
+    expect(bundle.prompt).toContain("Current CodeDecay risk is High");
+    expect(bundle.prompt).toContain("did not call an LLM");
     expect(bundle.evidence.changedFiles).toEqual([{ path: "src/api/imu.ts", status: "modified" }]);
     expect(bundle.evidence.weakTestFindings[0]?.ruleId).toBe("mocked-changed-source");
     expect(bundle.suggestedChecks).toEqual([
@@ -48,6 +51,8 @@ describe("agent task bundles", () => {
 
     expect(markdown).toContain("## CodeDecay Agent Task Bundle");
     expect(markdown).toContain("Give this bundle to a user-owned coding agent");
+    expect(markdown).toContain("### Copy-Paste Prompt");
+    expect(markdown).toContain("You are helping fix a pull request using a CodeDecay agent task bundle.");
     expect(markdown).toContain("### Tool Evidence");
     expect(markdown).toContain("### Tasks To Complete");
     expect(markdown).toContain("LLM/model called by CodeDecay: no");
@@ -59,6 +64,7 @@ describe("agent task bundles", () => {
     const parsed = JSON.parse(json);
 
     expect(parsed.mode).toBe("agent-task-bundle");
+    expect(parsed.prompt).toContain("Current CodeDecay risk is High");
     expect(parsed.instructions).toContain("Do not assume the PR is safe just because tests pass.");
   });
 });

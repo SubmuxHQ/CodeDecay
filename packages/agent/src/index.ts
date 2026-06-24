@@ -16,6 +16,7 @@ export interface AgentTaskBundle {
   generatedAt: string;
   purpose: string;
   summary: AgentTaskSummary;
+  prompt: string;
   instructions: string[];
   evidence: AgentEvidence;
   tasks: RedteamFixTask[];
@@ -100,6 +101,17 @@ const DEFAULT_LIMITS = [
 ];
 
 export function createAgentTaskBundle(report: RedteamReport): AgentTaskBundle {
+  const summary: AgentTaskSummary = {
+    riskLevel: report.summary.riskLevel,
+    mergeRiskScore: report.summary.mergeRiskScore,
+    decayScore: report.summary.decayScore,
+    changedFiles: report.summary.changedFiles,
+    impactedAreas: report.summary.impactedAreas,
+    weakTestFindings: report.summary.weakTestFindings,
+    testProofStatus: report.summary.testProofStatus,
+    edgeCases: report.summary.edgeCases,
+    fixTasks: report.summary.fixTasks
+  };
   const evidence: AgentEvidence = {
     changedFiles: report.analysis.changedFiles.map((file) => ({
       path: file.path,
@@ -124,17 +136,8 @@ export function createAgentTaskBundle(report: RedteamReport): AgentTaskBundle {
     generatedAt: report.generatedAt,
     purpose:
       "Give this bundle to a user-owned coding agent such as Codex, Claude Code, Cursor, or another local agent to fix overlooked PR risks.",
-    summary: {
-      riskLevel: report.summary.riskLevel,
-      mergeRiskScore: report.summary.mergeRiskScore,
-      decayScore: report.summary.decayScore,
-      changedFiles: report.summary.changedFiles,
-      impactedAreas: report.summary.impactedAreas,
-      weakTestFindings: report.summary.weakTestFindings,
-      testProofStatus: report.summary.testProofStatus,
-      edgeCases: report.summary.edgeCases,
-      fixTasks: report.summary.fixTasks
-    },
+    summary,
+    prompt: createPortableAgentPrompt(summary),
     instructions: [...DEFAULT_INSTRUCTIONS],
     evidence,
     tasks: [...report.fixTasks],
@@ -183,6 +186,7 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
   ];
 
   appendList(lines, bundle.instructions);
+  appendPrompt(lines, bundle.prompt);
   appendEvidence(lines, bundle.evidence);
   appendTasks(lines, bundle.tasks);
   appendChecks(lines, bundle.suggestedChecks);
@@ -190,6 +194,28 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
   appendSafety(lines, bundle);
 
   return `${lines.join("\n")}\n`;
+}
+
+function createPortableAgentPrompt(summary: AgentTaskSummary): string {
+  return [
+    "You are helping fix a pull request using a CodeDecay agent task bundle.",
+    "Treat the bundle as local tool evidence, not as a guarantee that the PR is safe.",
+    `Current CodeDecay risk is ${formatRisk(summary.riskLevel)} with merge risk ${summary.mergeRiskScore}/100 and decay risk ${summary.decayScore}/100.`,
+    `The bundle reports ${summary.changedFiles} changed files, ${summary.impactedAreas} impacted areas, ${summary.weakTestFindings} weak-test findings, ${summary.edgeCases} edge cases, and ${summary.fixTasks} fix tasks.`,
+    "Your job:",
+    "1. Start with high-risk impacted areas and weak or missing test proof.",
+    "2. Identify what real API, UI, database, job, config, or downstream behavior could break.",
+    "3. Add or improve tests that exercise the real behavior path instead of only mocked or copied implementation logic.",
+    "4. Cover the listed edge cases and any additional edge cases supported by the evidence.",
+    "5. Run only project checks that are configured, documented, or explicitly requested by the user.",
+    "6. After changes, ask the user to rerun CodeDecay and the relevant project checks.",
+    "Do not treat your own answer as proof. Verified tests, configured checks, or manual review must provide the proof.",
+    "CodeDecay did not call an LLM, execute commands, send telemetry, or depend on CodeDecayCloud to create this bundle."
+  ].join("\n");
+}
+
+function appendPrompt(lines: string[], prompt: string): void {
+  lines.push("", "### Copy-Paste Prompt", "", "```text", prompt, "```");
 }
 
 function collectSuggestedChecks(

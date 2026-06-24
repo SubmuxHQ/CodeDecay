@@ -14,6 +14,7 @@ npx codedecay agent --cwd ../my-repo --format json --output codedecay-agent.json
 
 The bundle includes:
 
+- a copy-paste prompt for any user-owned coding agent
 - impacted areas and changed files
 - weak-test and missing-test proof signals
 - edge cases to check
@@ -25,12 +26,13 @@ The bundle includes:
 ## How To Use
 
 1. Run `codedecay agent`.
-2. Give the Markdown or JSON output to your agent.
-3. Ask the agent to complete the listed tasks with real tests and behavior
+2. Copy the prompt from the `Copy-Paste Prompt` section.
+3. Give the prompt and Markdown or JSON output to your agent.
+4. Ask the agent to complete the listed tasks with real tests and behavior
    checks.
-4. Run CodeDecay again.
+5. Run CodeDecay again.
 
-Example prompt:
+Example prompt style:
 
 ```text
 Use this CodeDecay agent task bundle as tool evidence.
