@@ -252,7 +252,7 @@ export function runSuggestEdgeCasesTool(serverOptions: StartMcpServerOptions, in
   return JSON.stringify(
     {
       recommendedChecks: report.recommendedTests,
-      edgeCases: suggestEdgeCases(report.impactedAreas)
+      edgeCases: suggestEdgeCases(report)
     },
     null,
     2
@@ -683,10 +683,10 @@ function elapsed(startedAt: number): number {
   return Date.now() - startedAt;
 }
 
-function suggestEdgeCases(areas: ImpactedArea[]): string[] {
+function suggestEdgeCases(report: CodeDecayReport): string[] {
   const suggestions = new Set<string>();
 
-  for (const area of areas) {
+  for (const area of report.impactedAreas) {
     if (area.kind === "api") {
       suggestions.add("Exercise the real API route with malformed, missing, and boundary-value payloads.");
       suggestions.add("Check auth, validation, and downstream consumers through the route, not only helper functions.");
@@ -711,6 +711,10 @@ function suggestEdgeCases(areas: ImpactedArea[]): string[] {
       suggestions.add("Run build/start commands in a clean environment to catch config or packaging regressions.");
       suggestions.add("Verify CI and production-like environment variables still resolve correctly.");
     }
+  }
+
+  for (const recommendation of report.recommendedTests) {
+    suggestions.add(recommendation);
   }
 
   if (suggestions.size === 0) {

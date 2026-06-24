@@ -37,6 +37,7 @@ describe("redteam report", () => {
       changedTestFiles: ["src/auth/session.test.ts"]
     });
     expect(report.edgeCases).toContain("Check missing, expired, malformed, and privilege-escalation credentials.");
+    expect(report.edgeCases).toContain("Add an API-level session regression test");
     expect(report.configuredChecks).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ kind: "test", command: "pnpm test", willRun: false }),
@@ -110,6 +111,7 @@ describe("redteam report", () => {
     expect(markdown).toContain("### Agent Skills");
     expect(markdown).toContain("### Likely Impacted Routes And APIs");
     expect(markdown).toContain("High `GET /api/session` (Next.js API route)");
+    expect(markdown).toContain("Add an API-level session regression test");
     expect(markdown).toContain("### Tool Adapter Plans");
     expect(markdown).toContain("Playwright");
     expect(markdown).toContain("Schemathesis");
