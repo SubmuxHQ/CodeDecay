@@ -1,7 +1,7 @@
 # Configuration
 
-CodeDecay can load repo-local configuration for future red-team orchestration,
-tool adapters, and real behavior probes.
+CodeDecay can load repo-local configuration for red-team orchestration, tool
+adapter plans, and real behavior probes.
 
 Configuration is optional. If no config file exists, CodeDecay uses safe
 defaults and does not run project commands.
@@ -39,6 +39,16 @@ probes:
     command: curl -f http://localhost:3000/api/users
     timeoutMs: 5000
 
+toolAdapters:
+  playwright: true
+  stryker:
+    command: pnpm exec stryker run
+  schemathesis:
+    schema: docs/openapi.yaml
+    baseUrl: http://127.0.0.1:3000
+  pact:
+    command: pnpm run test:pact
+
 safety:
   commandTimeoutMs: 120000
   allowCommands: false
@@ -57,6 +67,8 @@ Current behavior:
 
 - `codedecay analyze` does not require config.
 - `codedecay config` only loads and prints config.
+- `codedecay redteam` lists configured tool adapters as planned local checks,
+  but does not run them.
 - `codedecay execute` runs only commands and probes from config, and only when
   `safety.allowCommands` is true.
 - `codedecay differential` runs only configured probes on temporary base/head
@@ -69,6 +81,9 @@ Current behavior:
 Execution uses this config as its allowlisted command source. See
 [Execution probes](execution.md) and
 [Differential behavior checks](differential.md).
+
+Tool adapters are also configured here. See [Tool adapters](tool-adapters.md)
+for Playwright, StrykerJS, Schemathesis, and Pact adapter details.
 
 Read [LLM providers](llm-providers.md) for the optional local/BYOK model
 adapter direction.

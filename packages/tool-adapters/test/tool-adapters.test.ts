@@ -2,7 +2,9 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import type { CodeDecayConfig } from "@submuxhq/codedecay-config";
 import {
+  createConfiguredToolHarnesses,
   createPactHarness,
   createPlaywrightHarness,
   createSchemathesisHarness,
@@ -445,6 +447,60 @@ describe("createPactHarness", () => {
   });
 });
 
+describe("createConfiguredToolHarnesses", () => {
+  it("creates enabled harnesses from CodeDecay config", async () => {
+    const config = createConfig();
+    config.safety.allowCommands = false;
+    config.toolAdapters = {
+      playwright: {
+        enabled: true
+      },
+      stryker: {
+        enabled: true,
+        command: "pnpm exec stryker run --mutate src/**/*.ts",
+        timeoutMs: 300000
+      },
+      schemathesis: {
+        enabled: true,
+        schema: "docs/openapi.yaml",
+        baseUrl: "http://127.0.0.1:4000"
+      },
+      pact: {
+        enabled: false
+      }
+    };
+
+    const configured = createConfiguredToolHarnesses(config);
+
+    expect(configured.map((item) => [item.kind, item.name, item.command, item.timeoutMs])).toEqual([
+      ["playwright", "Playwright", "pnpm exec playwright test", undefined],
+      ["stryker", "StrykerJS", "pnpm exec stryker run --mutate src/**/*.ts", 300000],
+      ["schemathesis", "Schemathesis", "st run docs/openapi.yaml --url http://127.0.0.1:4000", undefined]
+    ]);
+
+    const plan = await configured[0]?.harness.plan({ cwd: createTempDir(), evidence: [] });
+    expect(plan?.requiresApproval).toBe(true);
+  });
+
+  it("marks harness plans approved when configured commands are allowed", async () => {
+    const config = createConfig();
+    config.safety.allowCommands = true;
+    config.toolAdapters = {
+      pact: {
+        enabled: true,
+        command: "pnpm run pact:verify"
+      }
+    };
+
+    const [configured] = createConfiguredToolHarnesses(config);
+
+    expect(configured?.kind).toBe("pact");
+    expect(configured?.command).toBe("pnpm run pact:verify");
+    const plan = await configured?.harness.plan({ cwd: createTempDir(), evidence: [] });
+    expect(plan?.requiresApproval).toBe(false);
+  });
+});
+
 function createTempDir(): string {
   const root = join(tmpdir(), `codedecay-tool-adapters-${process.pid}-${tempRoots.length}`);
   rmSync(root, { recursive: true, force: true });
@@ -455,4 +511,25 @@ function createTempDir(): string {
 
 function writeFile(root: string, path: string, contents: string): void {
   writeFileSync(join(root, path), contents, "utf8");
+}
+
+function createConfig(): CodeDecayConfig {
+  return {
+    version: 1,
+    commands: {
+      test: [],
+      build: [],
+      start: []
+    },
+    probes: [],
+    safety: {
+      commandTimeoutMs: 120000,
+      allowCommands: false
+    },
+    llm: {
+      provider: "disabled",
+      timeoutMs: 30000
+    },
+    toolAdapters: {}
+  };
 }

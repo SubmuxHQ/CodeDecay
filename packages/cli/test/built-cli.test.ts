@@ -97,6 +97,10 @@ describe("built codedecay CLI", () => {
         "safety:",
         "  allowCommands: true",
         "  commandTimeoutMs: 1000",
+        "toolAdapters:",
+        "  playwright: true",
+        "  pact:",
+        "    command: pnpm run pact:verify",
         ""
       ].join("\n")
     );
@@ -116,6 +120,22 @@ describe("built codedecay CLI", () => {
     });
     expect(report.configuredChecks).toEqual(
       expect.arrayContaining([expect.objectContaining({ kind: "test", willRun: false })])
+    );
+    expect(report.toolAdapterPlans).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "playwright",
+          command: "pnpm exec playwright test",
+          willRun: false,
+          requiresApproval: false
+        }),
+        expect.objectContaining({
+          kind: "pact",
+          command: "pnpm run pact:verify",
+          willRun: false,
+          requiresApproval: false
+        })
+      ])
     );
     expect(report.skills).toEqual([
       expect.objectContaining({

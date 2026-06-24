@@ -1,3 +1,8 @@
+import type {
+  CodeDecayCommandToolAdapter,
+  CodeDecayConfig,
+  CodeDecaySchemathesisToolAdapter
+} from "@submuxhq/codedecay-config";
 import { runConfiguredCommand, type CommandExecutionResult } from "@submuxhq/codedecay-execution";
 import {
   createEvidence,
@@ -44,6 +49,16 @@ export interface PactHarnessOptions {
   allowCommands?: boolean | undefined;
   allowUnsafeCommands?: boolean | undefined;
   outputLimit?: number | undefined;
+}
+
+export type ConfiguredToolAdapterKind = "playwright" | "stryker" | "schemathesis" | "pact";
+
+export interface ConfiguredToolHarness {
+  kind: ConfiguredToolAdapterKind;
+  name: string;
+  command: string;
+  timeoutMs?: number | undefined;
+  harness: CodeDecayHarness;
 }
 
 const PLAYWRIGHT_HARNESS_NAME = "playwright";
@@ -204,6 +219,126 @@ export function createPactHarness(options: PactHarnessOptions = {}): CodeDecayHa
         summary: `${PACT_HARNESS_NAME} produced ${evidence.length} evidence item(s).`
       })
   };
+}
+
+export function createConfiguredToolHarnesses(config: CodeDecayConfig): ConfiguredToolHarness[] {
+  const configured: ConfiguredToolHarness[] = [];
+
+  if (config.toolAdapters.playwright?.enabled) {
+    configured.push(
+      createConfiguredCommandHarness({
+        kind: "playwright",
+        name: "Playwright",
+        adapter: config.toolAdapters.playwright,
+        defaultCommand: DEFAULT_PLAYWRIGHT_COMMAND,
+        create: createPlaywrightHarness,
+        allowCommands: config.safety.allowCommands
+      })
+    );
+  }
+
+  if (config.toolAdapters.stryker?.enabled) {
+    configured.push(
+      createConfiguredCommandHarness({
+        kind: "stryker",
+        name: "StrykerJS",
+        adapter: config.toolAdapters.stryker,
+        defaultCommand: DEFAULT_STRYKER_COMMAND,
+        create: createStrykerHarness,
+        allowCommands: config.safety.allowCommands
+      })
+    );
+  }
+
+  if (config.toolAdapters.schemathesis?.enabled) {
+    configured.push(createConfiguredSchemathesisHarness(config.toolAdapters.schemathesis, config.safety.allowCommands));
+  }
+
+  if (config.toolAdapters.pact?.enabled) {
+    configured.push(
+      createConfiguredCommandHarness({
+        kind: "pact",
+        name: "Pact",
+        adapter: config.toolAdapters.pact,
+        defaultCommand: DEFAULT_PACT_COMMAND,
+        create: createPactHarness,
+        allowCommands: config.safety.allowCommands
+      })
+    );
+  }
+
+  return configured;
+}
+
+function createConfiguredCommandHarness(input: {
+  kind: ConfiguredToolAdapterKind;
+  name: string;
+  adapter: CodeDecayCommandToolAdapter;
+  defaultCommand: string;
+  create: (options: { command: string; timeoutMs?: number | undefined; allowCommands: boolean }) => CodeDecayHarness;
+  allowCommands: boolean;
+}): ConfiguredToolHarness {
+  const command = input.adapter.command ?? input.defaultCommand;
+  const harnessOptions: { command: string; timeoutMs?: number | undefined; allowCommands: boolean } = {
+    command,
+    allowCommands: input.allowCommands
+  };
+
+  if (input.adapter.timeoutMs !== undefined) {
+    harnessOptions.timeoutMs = input.adapter.timeoutMs;
+  }
+
+  const configured: ConfiguredToolHarness = {
+    kind: input.kind,
+    name: input.name,
+    command,
+    harness: input.create(harnessOptions)
+  };
+
+  if (input.adapter.timeoutMs !== undefined) {
+    configured.timeoutMs = input.adapter.timeoutMs;
+  }
+
+  return configured;
+}
+
+function createConfiguredSchemathesisHarness(
+  adapter: CodeDecaySchemathesisToolAdapter,
+  allowCommands: boolean
+): ConfiguredToolHarness {
+  const options: SchemathesisHarnessOptions = {
+    allowCommands
+  };
+
+  if (adapter.command !== undefined) {
+    options.command = adapter.command;
+  }
+
+  if (adapter.schema !== undefined) {
+    options.schema = adapter.schema;
+  }
+
+  if (adapter.baseUrl !== undefined) {
+    options.baseUrl = adapter.baseUrl;
+  }
+
+  if (adapter.timeoutMs !== undefined) {
+    options.timeoutMs = adapter.timeoutMs;
+  }
+
+  const command = resolveSchemathesisCommand(options);
+  const configured: ConfiguredToolHarness = {
+    kind: "schemathesis",
+    name: "Schemathesis",
+    command,
+    harness: createSchemathesisHarness(options)
+  };
+
+  if (adapter.timeoutMs !== undefined) {
+    configured.timeoutMs = adapter.timeoutMs;
+  }
+
+  return configured;
 }
 
 function createPlaywrightPlan(

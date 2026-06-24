@@ -25,6 +25,7 @@ describe("redteam report", () => {
       weakTestFindings: 1,
       testProofStatus: "weak",
       configuredChecks: 2,
+      toolAdapters: 3,
       skills: 1
     });
     expect(Object.values(report.safety).filter((value) => value === false)).toHaveLength(4);
@@ -41,6 +42,28 @@ describe("redteam report", () => {
         expect.objectContaining({ kind: "probe", command: "node probe.js", willRun: false })
       ])
     );
+    expect(report.toolAdapterPlans).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "playwright",
+          command: "pnpm exec playwright test",
+          willRun: false,
+          requiresApproval: false
+        }),
+        expect.objectContaining({
+          kind: "schemathesis",
+          command: "st run docs/openapi.yaml --url http://127.0.0.1:4000",
+          willRun: false,
+          requiresApproval: false
+        }),
+        expect.objectContaining({
+          kind: "pact",
+          command: "pnpm run pact:verify",
+          willRun: false,
+          requiresApproval: false
+        })
+      ])
+    );
     expect(report.skills).toEqual([
       {
         id: "pr-red-team",
@@ -54,6 +77,7 @@ describe("redteam report", () => {
       expect.arrayContaining([
         "Verify invariant: Auth fails closed",
         "Re-check past regression: Anonymous admin",
+        "Consider running Playwright harness",
         "Review with skill: PR Red-Team Skill"
       ])
     );
@@ -77,6 +101,9 @@ describe("redteam report", () => {
     expect(markdown).toContain("### Test Proof Audit");
     expect(markdown).toContain("**Status:** Weak");
     expect(markdown).toContain("### Agent Skills");
+    expect(markdown).toContain("### Tool Adapter Plans");
+    expect(markdown).toContain("Playwright");
+    expect(markdown).toContain("Schemathesis");
     expect(markdown).toContain("PR Red-Team Skill");
     expect(markdown).toContain("Commands executed: no");
     expect(markdown).toContain("LLM/model called: no");
@@ -173,6 +200,23 @@ function createFixtureConfig(): CodeDecayConfig {
     llm: {
       provider: "disabled",
       timeoutMs: 30000
+    },
+    toolAdapters: {
+      playwright: {
+        enabled: true
+      },
+      stryker: {
+        enabled: false
+      },
+      schemathesis: {
+        enabled: true,
+        schema: "docs/openapi.yaml",
+        baseUrl: "http://127.0.0.1:4000"
+      },
+      pact: {
+        enabled: true,
+        command: "pnpm run pact:verify"
+      }
     }
   };
 }

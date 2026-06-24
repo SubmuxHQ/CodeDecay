@@ -34,7 +34,8 @@ describe("loadCodeDecayConfig", () => {
       llm: {
         provider: "disabled",
         timeoutMs: 30_000
-      }
+      },
+      toolAdapters: {}
     });
   });
 
@@ -62,6 +63,16 @@ describe("loadCodeDecayConfig", () => {
         "  model: qwen2.5-coder",
         "  endpoint: http://127.0.0.1:11434",
         "  timeoutMs: 20000",
+        "toolAdapters:",
+        "  playwright: true",
+        "  stryker:",
+        "    command: pnpm exec stryker run",
+        "    timeoutMs: 300000",
+        "  schemathesis:",
+        "    schema: docs/openapi.yaml",
+        "    baseUrl: http://127.0.0.1:4000",
+        "  pact:",
+        "    enabled: false",
         ""
       ].join("\n")
     );
@@ -92,6 +103,24 @@ describe("loadCodeDecayConfig", () => {
         model: "qwen2.5-coder",
         endpoint: "http://127.0.0.1:11434",
         timeoutMs: 20000
+      },
+      toolAdapters: {
+        playwright: {
+          enabled: true
+        },
+        stryker: {
+          enabled: true,
+          command: "pnpm exec stryker run",
+          timeoutMs: 300000
+        },
+        schemathesis: {
+          enabled: true,
+          schema: "docs/openapi.yaml",
+          baseUrl: "http://127.0.0.1:4000"
+        },
+        pact: {
+          enabled: false
+        }
       }
     });
   });
@@ -128,6 +157,20 @@ describe("loadCodeDecayConfig", () => {
     writeFile(root, ".codedecay/config.yml", "version: 1\nllm:\n  provider: hosted\n");
 
     expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(/llm.provider must be disabled or ollama/);
+  });
+
+  it("fails clearly for invalid tool adapter config", () => {
+    const root = createTempDir();
+    writeFile(root, ".codedecay/config.yml", "version: 1\ntoolAdapters:\n  playwright:\n    command: ''\n");
+
+    expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(/toolAdapters.playwright.command must be a non-empty string/);
+  });
+
+  it("fails clearly for invalid tool adapter timeouts", () => {
+    const root = createTempDir();
+    writeFile(root, ".codedecay/config.yml", "version: 1\ntoolAdapters:\n  pact:\n    timeoutMs: 0\n");
+
+    expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(/toolAdapters.pact.timeoutMs must be a positive integer/);
   });
 });
 

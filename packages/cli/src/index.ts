@@ -1416,9 +1416,16 @@ function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig): string {
     `| Endpoint | ${config.llm.endpoint ? `\`${config.llm.endpoint}\`` : "none"} |`,
     `| Timeout | ${config.llm.timeoutMs}ms |`,
     "",
-    "### Probes",
+    "### Tool Adapters",
     ""
   ];
+
+  appendConfigToolAdapters(lines, config.toolAdapters);
+
+  lines.push(
+    "### Probes",
+    ""
+  );
 
   if (config.probes.length === 0) {
     lines.push("No probes configured.", "");
@@ -1434,6 +1441,44 @@ function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig): string {
   lines.push("");
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendConfigToolAdapters(
+  lines: string[],
+  toolAdapters: LoadedCodeDecayConfig["config"]["toolAdapters"]
+): void {
+  const rows = [
+    formatConfigToolAdapter("Playwright", toolAdapters.playwright),
+    formatConfigToolAdapter("StrykerJS", toolAdapters.stryker),
+    formatConfigToolAdapter("Schemathesis", toolAdapters.schemathesis),
+    formatConfigToolAdapter("Pact", toolAdapters.pact)
+  ].filter((row): row is string => row !== undefined);
+
+  if (rows.length === 0) {
+    lines.push("No tool adapters configured.", "");
+    return;
+  }
+
+  lines.push("| Adapter | Enabled | Command/details | Timeout |", "| --- | --- | --- | ---: |", ...rows, "");
+}
+
+function formatConfigToolAdapter(
+  name: string,
+  adapter: LoadedCodeDecayConfig["config"]["toolAdapters"][keyof LoadedCodeDecayConfig["config"]["toolAdapters"]]
+): string | undefined {
+  if (!adapter) {
+    return undefined;
+  }
+
+  const details = [
+    adapter.command ? `command: \`${adapter.command}\`` : "command: default",
+    "schema" in adapter && adapter.schema ? `schema: \`${adapter.schema}\`` : undefined,
+    "baseUrl" in adapter && adapter.baseUrl ? `baseUrl: \`${adapter.baseUrl}\`` : undefined
+  ]
+    .filter((item): item is string => item !== undefined)
+    .join("<br>");
+
+  return `| ${name} | ${adapter.enabled ? "yes" : "no"} | ${details} | ${adapter.timeoutMs ? `${adapter.timeoutMs}ms` : "default"} |`;
 }
 
 function formatCommandList(commands: string[]): string {

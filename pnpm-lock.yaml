@@ -160,6 +160,9 @@ importers:
       '@submuxhq/codedecay-test-audit':
         specifier: workspace:*
         version: link:../test-audit
+      '@submuxhq/codedecay-tool-adapters':
+        specifier: workspace:*
+        version: link:../tool-adapters
 
   packages/report:
     dependencies:
@@ -177,6 +180,9 @@ importers:
 
   packages/tool-adapters:
     dependencies:
+      '@submuxhq/codedecay-config':
+        specifier: workspace:*
+        version: link:../config
       '@submuxhq/codedecay-execution':
         specifier: workspace:*
         version: link:../execution

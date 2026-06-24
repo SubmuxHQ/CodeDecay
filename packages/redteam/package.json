@@ -16,7 +16,8 @@
     "@submuxhq/codedecay-core": "workspace:*",
     "@submuxhq/codedecay-memory": "workspace:*",
     "@submuxhq/codedecay-skills": "workspace:*",
-    "@submuxhq/codedecay-test-audit": "workspace:*"
+    "@submuxhq/codedecay-test-audit": "workspace:*",
+    "@submuxhq/codedecay-tool-adapters": "workspace:*"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean --tsconfig ../../tsconfig.base.json"

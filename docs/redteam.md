@@ -37,6 +37,8 @@ Exit codes:
 - local memory summary from `.codedecay/memory.json`
 - repo-local agent skill summaries from `.agents/skills/*/SKILL.md`
 - configured test/build/start/probe commands that are available but not run
+- configured Playwright, StrykerJS, Schemathesis, and Pact tool adapters that
+  are planned but not run
 - fix tasks for your coding agent
 - explicit safety flags showing that commands and models were not called
 
@@ -59,10 +61,10 @@ See [Agent skills](skills.md) for the local skill file format.
 
 ## Safety Model
 
-`codedecay redteam` lists configured checks from CodeDecay config, but it does
-not execute them. Command execution remains explicit through
-`codedecay execute` and `codedecay differential`, and those commands still
-require `safety.allowCommands: true`.
+`codedecay redteam` lists configured checks and tool adapter plans from
+CodeDecay config, but it does not execute them. Command execution remains
+explicit through `codedecay execute` and `codedecay differential`, and those
+commands still require `safety.allowCommands: true`.
 
 Model use is also opt-in. The redteam MVP does not call Ollama, LiteLLM, cloud
 models, or any hosted CodeDecay service.

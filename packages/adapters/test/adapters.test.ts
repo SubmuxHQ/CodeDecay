@@ -170,7 +170,8 @@ function createConfig(input: { allowCommands: boolean }): CodeDecayConfig {
     llm: {
       provider: "disabled",
       timeoutMs: 30_000
-    }
+    },
+    toolAdapters: {}
   };
 }
 

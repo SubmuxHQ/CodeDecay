@@ -12,6 +12,7 @@
     }
   },
   "dependencies": {
+    "@submuxhq/codedecay-config": "workspace:*",
     "@submuxhq/codedecay-execution": "workspace:*",
     "@submuxhq/codedecay-harness": "workspace:*"
   },

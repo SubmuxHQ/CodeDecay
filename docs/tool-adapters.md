@@ -11,6 +11,31 @@ The first adapters are:
 - Schemathesis for OpenAPI/GraphQL API fuzzing evidence.
 - Pact for contract-testing evidence.
 
+## Configuring Adapters
+
+Adapters are configured in CodeDecay config. `codedecay redteam` lists adapter
+plans but does not run them.
+
+```yaml
+version: 1
+
+toolAdapters:
+  playwright: true
+  stryker:
+    command: pnpm exec stryker run
+  schemathesis:
+    schema: docs/openapi.yaml
+    baseUrl: http://127.0.0.1:3000
+  pact:
+    command: pnpm run test:pact
+
+safety:
+  allowCommands: false
+```
+
+Set `safety.allowCommands: true` only for explicit execution commands. Redteam
+reports remain report-only even when adapter plans are configured.
+
 ## Playwright Harness
 
 The Playwright harness is a private internal package API for now:

@@ -8,6 +8,7 @@ export interface CodeDecayConfig {
   probes: CodeDecayProbe[];
   safety: CodeDecaySafety;
   llm: CodeDecayLlmConfig;
+  toolAdapters: CodeDecayToolAdapters;
 }
 
 export interface CodeDecayCommands {
@@ -32,6 +33,24 @@ export interface CodeDecayLlmConfig {
   model?: string | undefined;
   endpoint?: string | undefined;
   timeoutMs: number;
+}
+
+export interface CodeDecayToolAdapters {
+  playwright?: CodeDecayCommandToolAdapter | undefined;
+  stryker?: CodeDecayCommandToolAdapter | undefined;
+  schemathesis?: CodeDecaySchemathesisToolAdapter | undefined;
+  pact?: CodeDecayCommandToolAdapter | undefined;
+}
+
+export interface CodeDecayCommandToolAdapter {
+  enabled: boolean;
+  command?: string | undefined;
+  timeoutMs?: number | undefined;
+}
+
+export interface CodeDecaySchemathesisToolAdapter extends CodeDecayCommandToolAdapter {
+  schema?: string | undefined;
+  baseUrl?: string | undefined;
 }
 
 export interface LoadedCodeDecayConfig {
@@ -65,7 +84,8 @@ export const DEFAULT_CODEDECAY_CONFIG: CodeDecayConfig = {
   llm: {
     provider: "disabled",
     timeoutMs: 30_000
-  }
+  },
+  toolAdapters: {}
 };
 
 export function loadCodeDecayConfig(options: LoadCodeDecayConfigOptions): LoadedCodeDecayConfig {
@@ -119,13 +139,15 @@ function normalizeConfig(value: unknown, sourcePath: string): CodeDecayConfig {
   const probes = normalizeProbes(value.probes, sourcePath);
   const safety = normalizeSafety(value.safety, sourcePath);
   const llm = normalizeLlm(value.llm, sourcePath);
+  const toolAdapters = normalizeToolAdapters(value.toolAdapters, sourcePath);
 
   return {
     version: 1,
     commands,
     probes,
     safety,
-    llm
+    llm,
+    toolAdapters
   };
 }
 
@@ -262,6 +284,100 @@ function normalizeLlm(value: unknown, sourcePath: string): CodeDecayLlmConfig {
   return llmConfig;
 }
 
+function normalizeToolAdapters(value: unknown, sourcePath: string): CodeDecayToolAdapters {
+  if (value === undefined) {
+    return {};
+  }
+
+  if (!isPlainObject(value)) {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: toolAdapters must be an object.`);
+  }
+
+  const adapters: CodeDecayToolAdapters = {};
+  const playwright = normalizeCommandToolAdapter(value.playwright, "toolAdapters.playwright", sourcePath);
+  const stryker = normalizeCommandToolAdapter(value.stryker, "toolAdapters.stryker", sourcePath);
+  const schemathesis = normalizeSchemathesisToolAdapter(value.schemathesis, sourcePath);
+  const pact = normalizeCommandToolAdapter(value.pact, "toolAdapters.pact", sourcePath);
+
+  if (playwright) {
+    adapters.playwright = playwright;
+  }
+
+  if (stryker) {
+    adapters.stryker = stryker;
+  }
+
+  if (schemathesis) {
+    adapters.schemathesis = schemathesis;
+  }
+
+  if (pact) {
+    adapters.pact = pact;
+  }
+
+  return adapters;
+}
+
+function normalizeCommandToolAdapter(
+  value: unknown,
+  field: string,
+  sourcePath: string
+): CodeDecayCommandToolAdapter | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === "boolean") {
+    return {
+      enabled: value
+    };
+  }
+
+  if (!isPlainObject(value)) {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be a boolean or object.`);
+  }
+
+  const adapter: CodeDecayCommandToolAdapter = {
+    enabled: value.enabled === undefined ? true : normalizeBoolean(value.enabled, `${field}.enabled`, sourcePath)
+  };
+
+  if (value.command !== undefined) {
+    adapter.command = normalizeNonEmptyString(value.command, `${field}.command`, sourcePath);
+  }
+
+  if (value.timeoutMs !== undefined) {
+    adapter.timeoutMs = normalizePositiveInteger(value.timeoutMs, `${field}.timeoutMs`, sourcePath);
+  }
+
+  return adapter;
+}
+
+function normalizeSchemathesisToolAdapter(
+  value: unknown,
+  sourcePath: string
+): CodeDecaySchemathesisToolAdapter | undefined {
+  const adapter = normalizeCommandToolAdapter(value, "toolAdapters.schemathesis", sourcePath);
+  if (!adapter || typeof value === "boolean") {
+    return adapter;
+  }
+
+  if (!isPlainObject(value)) {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: toolAdapters.schemathesis must be a boolean or object.`);
+  }
+
+  const schemathesis: CodeDecaySchemathesisToolAdapter = { ...adapter };
+
+  if (value.schema !== undefined) {
+    schemathesis.schema = normalizeNonEmptyString(value.schema, "toolAdapters.schemathesis.schema", sourcePath);
+  }
+
+  if (value.baseUrl !== undefined) {
+    schemathesis.baseUrl = normalizeNonEmptyString(value.baseUrl, "toolAdapters.schemathesis.baseUrl", sourcePath);
+  }
+
+  return schemathesis;
+}
+
 function normalizePositiveInteger(value: unknown, field: string, sourcePath: string): number {
   if (typeof value === "number" && Number.isInteger(value) && value > 0) {
     return value;
@@ -278,13 +394,22 @@ function normalizeBoolean(value: unknown, field: string, sourcePath: string): bo
   throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be a boolean.`);
 }
 
+function normalizeNonEmptyString(value: unknown, field: string, sourcePath: string): string {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value;
+  }
+
+  throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be a non-empty string.`);
+}
+
 function cloneConfig(config: CodeDecayConfig): CodeDecayConfig {
   return {
     version: config.version,
     commands: cloneCommands(config.commands),
     probes: config.probes.map((probe) => ({ ...probe })),
     safety: { ...config.safety },
-    llm: { ...config.llm }
+    llm: { ...config.llm },
+    toolAdapters: cloneToolAdapters(config.toolAdapters)
   };
 }
 
@@ -294,6 +419,28 @@ function cloneCommands(commands: CodeDecayCommands): CodeDecayCommands {
     build: [...commands.build],
     start: [...commands.start]
   };
+}
+
+function cloneToolAdapters(toolAdapters: CodeDecayToolAdapters): CodeDecayToolAdapters {
+  const cloned: CodeDecayToolAdapters = {};
+
+  if (toolAdapters.playwright) {
+    cloned.playwright = { ...toolAdapters.playwright };
+  }
+
+  if (toolAdapters.stryker) {
+    cloned.stryker = { ...toolAdapters.stryker };
+  }
+
+  if (toolAdapters.schemathesis) {
+    cloned.schemathesis = { ...toolAdapters.schemathesis };
+  }
+
+  if (toolAdapters.pact) {
+    cloned.pact = { ...toolAdapters.pact };
+  }
+
+  return cloned;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

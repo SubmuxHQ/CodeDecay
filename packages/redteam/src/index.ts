@@ -15,11 +15,12 @@ import {
   weakTestRuleIds as testAuditWeakTestRuleIds,
   type TestProofAudit
 } from "@submuxhq/codedecay-test-audit";
+import { createConfiguredToolHarnesses, type ConfiguredToolAdapterKind } from "@submuxhq/codedecay-tool-adapters";
 
 export type RedteamFormat = "json" | "markdown";
 export type RedteamMode = "deterministic";
 export type RedteamCheckKind = "test" | "build" | "start" | "probe";
-export type RedteamTaskSource = "finding" | "weak-test" | "edge-case" | "configured-check" | "memory";
+export type RedteamTaskSource = "finding" | "weak-test" | "edge-case" | "configured-check" | "tool-adapter" | "memory";
 
 export interface RedteamReportInput {
   analysisReport: CodeDecayReport;
@@ -44,6 +45,7 @@ export interface RedteamReport {
   weakTestFindings: Finding[];
   edgeCases: string[];
   configuredChecks: RedteamConfiguredCheck[];
+  toolAdapterPlans: RedteamToolAdapterPlan[];
   memory: RedteamMemorySummary;
   skills: RedteamSkillSummary[];
   fixTasks: RedteamFixTask[];
@@ -61,6 +63,7 @@ export interface RedteamSummary {
   testProofStatus: TestProofAudit["status"];
   edgeCases: number;
   configuredChecks: number;
+  toolAdapters: number;
   skills: number;
   fixTasks: number;
 }
@@ -70,6 +73,16 @@ export interface RedteamConfiguredCheck {
   name: string;
   command: string;
   willRun: false;
+  timeoutMs?: number | undefined;
+}
+
+export interface RedteamToolAdapterPlan {
+  kind: ConfiguredToolAdapterKind;
+  name: string;
+  command: string;
+  capabilities: string[];
+  willRun: false;
+  requiresApproval: boolean;
   timeoutMs?: number | undefined;
 }
 
@@ -138,6 +151,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
   const weakTestFindings = testAudit.weakTestFindings;
   const edgeCases = suggestEdgeCases(input.analysisReport.impactedAreas);
   const configuredChecks = collectConfiguredChecks(input.config);
+  const toolAdapterPlans = collectToolAdapterPlans(input.config);
   const memory = summarizeMemory(input.memory, input.memorySource);
   const skills = summarizeSkills(input.skills);
   const fixTasks = createFixTasks({
@@ -145,6 +159,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
     weakTestFindings,
     edgeCases,
     configuredChecks,
+    toolAdapterPlans,
     memory: input.memory,
     skills
   });
@@ -165,6 +180,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
       testProofStatus: testAudit.status,
       edgeCases: edgeCases.length,
       configuredChecks: configuredChecks.length,
+      toolAdapters: toolAdapterPlans.length,
       skills: skills.length,
       fixTasks: fixTasks.length
     },
@@ -173,6 +189,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
     weakTestFindings,
     edgeCases,
     configuredChecks,
+    toolAdapterPlans,
     memory,
     skills,
     fixTasks,
@@ -183,7 +200,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
       cloudDependency: false,
       notes: [
         "codedecay redteam is report-only in this MVP.",
-        "No configured commands, probes, LLM providers, hosted services, or memory providers are executed.",
+        "No configured commands, probes, tool adapters, LLM providers, hosted services, or memory providers are executed.",
         "Use codedecay execute or codedecay differential explicitly when you want configured local checks to run."
       ]
     }
@@ -224,6 +241,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
     `| Weak-test findings | ${report.summary.weakTestFindings} |`,
     `| Edge cases suggested | ${report.summary.edgeCases} |`,
     `| Configured checks listed | ${report.summary.configuredChecks} |`,
+    `| Tool adapters planned | ${report.summary.toolAdapters} |`,
     ""
   ];
 
@@ -231,6 +249,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
   appendTestAudit(lines, report.testAudit);
   appendEdgeCases(lines, report.edgeCases);
   appendConfiguredChecks(lines, report.configuredChecks);
+  appendToolAdapterPlans(lines, report.toolAdapterPlans);
   appendFixTasks(lines, report.fixTasks);
   appendMemorySummary(lines, report.memory);
   appendSkills(lines, report.skills);
@@ -257,6 +276,25 @@ function collectConfiguredChecks(config: CodeDecayConfig): RedteamConfiguredChec
     ...config.commands.start.map((command, index) => createConfiguredCheck("start", `Start command ${index + 1}`, command)),
     ...config.probes.map((probe) => createConfiguredCheck("probe", probe.name, probe.command, probe.timeoutMs))
   ];
+}
+
+function collectToolAdapterPlans(config: CodeDecayConfig): RedteamToolAdapterPlan[] {
+  return createConfiguredToolHarnesses(config).map((configured) => {
+    const plan: RedteamToolAdapterPlan = {
+      kind: configured.kind,
+      name: configured.name,
+      command: configured.command,
+      capabilities: [...configured.harness.capabilities],
+      willRun: false,
+      requiresApproval: !config.safety.allowCommands
+    };
+
+    if (configured.timeoutMs !== undefined) {
+      plan.timeoutMs = configured.timeoutMs;
+    }
+
+    return plan;
+  });
 }
 
 function createConfiguredCheck(
@@ -326,6 +364,7 @@ function createFixTasks(input: {
   weakTestFindings: Finding[];
   edgeCases: string[];
   configuredChecks: RedteamConfiguredCheck[];
+  toolAdapterPlans: RedteamToolAdapterPlan[];
   memory: CodeDecayMemory;
   skills: RedteamSkillSummary[];
 }): RedteamFixTask[] {
@@ -361,6 +400,15 @@ function createFixTasks(input: {
       priority: input.analysisReport.summary.riskLevel === "high" ? "medium" : "low",
       source: "configured-check",
       detail: `${check.name}: ${check.command}`
+    });
+  }
+
+  for (const adapter of input.toolAdapterPlans.slice(0, 8)) {
+    tasks.push({
+      title: `Consider running ${adapter.name} harness`,
+      priority: input.analysisReport.summary.riskLevel === "high" ? "medium" : "low",
+      source: "tool-adapter",
+      detail: `${adapter.kind}: ${adapter.command}`
     });
   }
 
@@ -489,6 +537,20 @@ function appendConfiguredChecks(lines: string[], checks: RedteamConfiguredCheck[
 
   for (const check of checks.slice(0, 12)) {
     lines.push(`- **${check.name}** (${check.kind}, not run): \`${check.command}\``);
+  }
+  lines.push("");
+}
+
+function appendToolAdapterPlans(lines: string[], plans: RedteamToolAdapterPlan[]): void {
+  lines.push("### Tool Adapter Plans", "");
+  if (plans.length === 0) {
+    lines.push("No Playwright, StrykerJS, Schemathesis, or Pact tool adapters are configured.", "");
+    return;
+  }
+
+  for (const plan of plans.slice(0, 12)) {
+    const approval = plan.requiresApproval ? "requires command approval" : "command approval configured";
+    lines.push(`- **${plan.name}** (${plan.kind}, not run, ${approval}): \`${plan.command}\``);
   }
   lines.push("");
 }

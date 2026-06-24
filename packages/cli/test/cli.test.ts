@@ -167,7 +167,8 @@ describe("codedecay config CLI contract", () => {
         llm: {
           provider: "disabled",
           timeoutMs: 30000
-        }
+        },
+        toolAdapters: {}
       }
     });
   });
@@ -183,6 +184,11 @@ describe("codedecay config CLI contract", () => {
         "commands:",
         "  test: pnpm test",
         "  build: pnpm build",
+        "toolAdapters:",
+        "  playwright: true",
+        "  schemathesis:",
+        "    schema: docs/openapi.yaml",
+        "    baseUrl: http://127.0.0.1:4000",
         "safety:",
         "  commandTimeoutMs: 45000",
         ""
@@ -198,6 +204,9 @@ describe("codedecay config CLI contract", () => {
     expect(result.stdout).toContain("45000ms");
     expect(result.stdout).toContain("### LLM");
     expect(result.stdout).toContain("| Provider | disabled |");
+    expect(result.stdout).toContain("### Tool Adapters");
+    expect(result.stdout).toContain("| Playwright | yes | command: default | default |");
+    expect(result.stdout).toContain("schema: `docs/openapi.yaml`");
   });
 
   it("fails clearly for invalid config files", async () => {
@@ -306,7 +315,8 @@ describe("codedecay redteam CLI contract", () => {
     const repo = createHighRiskRepo();
     writeExecutionConfig(repo, {
       allowCommands: true,
-      testCommand: "node -e \"require('fs').writeFileSync('codedecay-ran.txt','yes')\""
+      testCommand: "node -e \"require('fs').writeFileSync('codedecay-ran.txt','yes')\"",
+      toolAdapters: true
     });
     writeFile(repo, ".agents/skills/pr-red-team/SKILL.md", "# PR Red-Team Skill\n\nFind missed PR risks.\n");
 
@@ -330,12 +340,28 @@ describe("codedecay redteam CLI contract", () => {
     expect(report.configuredChecks).toEqual(
       expect.arrayContaining([expect.objectContaining({ kind: "test", willRun: false })])
     );
+    expect(report.toolAdapterPlans).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "playwright",
+          willRun: false,
+          requiresApproval: false
+        }),
+        expect.objectContaining({
+          kind: "schemathesis",
+          command: "st run docs/openapi.yaml --url http://127.0.0.1:4000",
+          willRun: false,
+          requiresApproval: false
+        })
+      ])
+    );
     expect(existsSync(join(repo, "codedecay-ran.txt"))).toBe(false);
 
     const markdown = await run(["redteam", "--format", "markdown"], repo);
     expect(markdown.exitCode).toBe(0);
     expect(markdown.stdout).toContain("## CodeDecay Redteam Report");
     expect(markdown.stdout).toContain("### What Could Break");
+    expect(markdown.stdout).toContain("### Tool Adapter Plans");
     expect(markdown.stdout).toContain("### Tasks For Your Coding Agent");
     expect(markdown.stdout).toContain("LLM/model called: no");
   });
@@ -720,6 +746,7 @@ function writeExecutionConfig(
     buildCommand?: string | undefined;
     startCommand?: string | undefined;
     probeCommand?: string | undefined;
+    toolAdapters?: boolean | undefined;
   }
 ): void {
   const lines = ["version: 1"];
@@ -743,6 +770,16 @@ function writeExecutionConfig(
     lines.push("  - name: smoke probe", `    command: ${input.probeCommand}`, "    timeoutMs: 1000");
   } else {
     lines.push("probes: []");
+  }
+
+  if (input.toolAdapters) {
+    lines.push(
+      "toolAdapters:",
+      "  playwright: true",
+      "  schemathesis:",
+      "    schema: docs/openapi.yaml",
+      "    baseUrl: http://127.0.0.1:4000"
+    );
   }
 
   lines.push("safety:", "  commandTimeoutMs: 1000", `  allowCommands: ${input.allowCommands}`, "");
