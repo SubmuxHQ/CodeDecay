@@ -24,6 +24,7 @@
     "@submuxhq/codedecay-redteam": "workspace:*",
     "@submuxhq/codedecay-report": "workspace:*",
     "@submuxhq/codedecay-skills": "workspace:*",
+    "@submuxhq/codedecay-test-audit": "workspace:*",
     "@submuxhq/codedecay-tool-adapters": "workspace:*",
     "zod": "^4.0.0"
   },

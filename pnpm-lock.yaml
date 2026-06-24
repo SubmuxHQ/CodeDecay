@@ -151,6 +151,9 @@ importers:
       '@submuxhq/codedecay-skills':
         specifier: workspace:*
         version: link:../skills
+      '@submuxhq/codedecay-test-audit':
+        specifier: workspace:*
+        version: link:../test-audit
       '@submuxhq/codedecay-tool-adapters':
         specifier: workspace:*
         version: link:../tool-adapters

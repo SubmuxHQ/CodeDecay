@@ -18,6 +18,7 @@ import { applyMemoryContext, loadCodeDecayMemory, type LoadedCodeDecayMemory } f
 import { createRedteamReport, renderRedteamReport, type RedteamReport } from "@submuxhq/codedecay-redteam";
 import { renderMarkdownReport } from "@submuxhq/codedecay-report";
 import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
+import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
 import { createConfiguredToolHarnesses, type ConfiguredToolAdapterKind } from "@submuxhq/codedecay-tool-adapters";
 
 export interface StartMcpServerOptions {
@@ -99,17 +100,6 @@ interface McpExecutionSafety {
   notes: string[];
 }
 
-const WEAK_TEST_RULES = new Set([
-  "test-without-assertions",
-  "snapshot-only-test",
-  "mocked-changed-source",
-  "unrelated-test-change",
-  "copied-implementation-in-test",
-  "happy-path-only-test",
-  "heavy-mocking",
-  "test-bloat"
-]);
-
 export async function startMcpServer(options: StartMcpServerOptions): Promise<void> {
   const server = createCodeDecayMcpServer(options);
   const transport = new StdioServerTransport();
@@ -147,7 +137,7 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
 
   server.tool(
     "audit_tests",
-    "Return weak-test findings such as no assertions, snapshot-only tests, mocked changed source, unrelated tests, and copied implementation logic.",
+    "Return missing-test and weak-test proof findings such as no changed tests, no assertions, snapshot-only tests, mocked changed source, unrelated tests, and copied implementation logic.",
     {
       cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
       base: z.string().optional().describe("Base git ref or SHA."),
@@ -236,11 +226,19 @@ export function runImpactMapTool(serverOptions: StartMcpServerOptions, input: Mc
 
 export function runAuditTestsTool(serverOptions: StartMcpServerOptions, input: McpToolInput): string {
   const report = createReport(serverOptions, input);
-  const findings = report.findings.filter((finding) => WEAK_TEST_RULES.has(finding.ruleId));
+  const audit = createTestProofAudit(report);
+  const findings = [...audit.missingTestFindings, ...audit.weakTestFindings];
+
   return JSON.stringify(
     {
+      status: audit.status,
+      summary: audit.summary,
+      changedSourceFiles: audit.changedSourceFiles,
+      changedTestFiles: audit.changedTestFiles,
+      missingTestFindings: audit.missingTestFindings,
+      weakTestFindings: audit.weakTestFindings,
       findings,
-      recommendedChecks: report.recommendedTests.filter((check) => isTestAuditRecommendation(check))
+      recommendedChecks: audit.recommendedChecks
     },
     null,
     2
@@ -722,10 +720,6 @@ function suggestEdgeCases(report: CodeDecayReport): string[] {
   }
 
   return [...suggestions].sort((left, right) => left.localeCompare(right));
-}
-
-function isTestAuditRecommendation(check: string): boolean {
-  return /assertion|snapshot|integration|real-module|public API|negative|edge-case|exercise/i.test(check);
 }
 
 async function textResult(value: string | Promise<string>): Promise<{ content: Array<{ type: "text"; text: string }> }> {

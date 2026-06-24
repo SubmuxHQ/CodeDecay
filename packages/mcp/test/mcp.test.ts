@@ -103,8 +103,32 @@ describe("CodeDecay MCP tools", () => {
 
     const output = JSON.parse(runAuditTestsTool({ cwd: repo }, {}));
 
+    expect(output.status).toBe("weak");
+    expect(output.missingTestFindings).toEqual([]);
+    expect(output.weakTestFindings.map((finding: { ruleId: string }) => finding.ruleId)).toContain(
+      "test-without-assertions"
+    );
     expect(output.findings.map((finding: { ruleId: string }) => finding.ruleId)).toContain("test-without-assertions");
-    expect(output.recommendedChecks).toContain("Add real assertions to src/auth/session.test.ts");
+    expect(output.recommendedChecks).toContain("Add meaningful assertions to src/auth/session.test.ts.");
+  });
+
+  it("returns missing-test audit findings", () => {
+    const repo = createMissingTestRepo();
+
+    const output = JSON.parse(runAuditTestsTool({ cwd: repo }, {}));
+
+    expect(output.status).toBe("missing");
+    expect(output.missingTestFindings.map((finding: { ruleId: string }) => finding.ruleId)).toContain(
+      "missing-nearby-tests"
+    );
+    expect(output.weakTestFindings).toEqual([]);
+    expect(output.findings.map((finding: { ruleId: string }) => finding.ruleId)).toContain("missing-nearby-tests");
+    expect(output.recommendedChecks).toEqual(
+      expect.arrayContaining([
+        "Add or run tests that exercise src/api/users.ts through its public behavior path.",
+        "Add or run tests covering src/api/users.ts"
+      ])
+    );
   });
 
   it("returns deterministic edge-case suggestions", () => {
@@ -345,6 +369,16 @@ function createWeakTestRepo(): string {
     "src/auth/session.test.ts",
     ["import { validateSession } from './session';", "test('validates session', () => {", "  validateSession('token');", "});", ""].join("\n")
   );
+
+  return repo;
+}
+
+function createMissingTestRepo(): string {
+  const repo = createRepo({
+    "src/api/users.ts": "export function listUsers() { return []; }\n"
+  });
+
+  writeFile(repo, "src/api/users.ts", "export function listUsers() { return [{ id: 'admin', role: 'admin' }]; }\n");
 
   return repo;
 }
