@@ -17,13 +17,25 @@ body:
       description: Where did you hit the problem?
       options:
         - CLI
-        - GitHub Action
-        - JS/TS analyzer
-        - Report output
-        - Git integration
-        - Packaging or release metadata
         - Core scoring or rules
+        - JS/TS analyzer
+        - Git integration
+        - Report output
+        - Config
+        - Adapters or tool adapters
+        - Safe execution
+        - Test audit
+        - Redteam reports
+        - Agent task bundles
+        - MCP server
+        - Memory
+        - LLM providers
+        - GitHub Action
+        - GitHub App
+        - Examples
+        - Packaging or release
         - Documentation
+        - Dev experience
         - Other
     validations:
       required: true
