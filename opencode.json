@@ -1,0 +1,9 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "codedecay": {
+      "type": "local",
+      "command": ["node", "packages/cli/dist/index.js", "mcp"]
+    }
+  }
+}

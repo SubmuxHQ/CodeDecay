@@ -12,10 +12,24 @@ preserve these project constraints:
 ## Development
 
 ```bash
-pnpm install
-pnpm build
-pnpm test
+./.codedecay/setup.local.sh
 ```
+
+CodeDecay does not require a local database, seed data, cloud account, API key,
+LLM key, or model call for normal OSS development.
+
+For manual validation:
+
+```bash
+pnpm install
+pnpm run lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+See [Developing CodeDecay](DEVELOPMENT.md) for local setup, agent resources,
+and optional CodeDecay config/memory examples.
 
 ## Project Layout
 
@@ -25,6 +39,7 @@ pnpm test
 - `packages/report`: JSON, Markdown, and SARIF report rendering.
 - `packages/cli`: bundled `codedecay` CLI.
 - `packages/github-action`: composite GitHub Action wrapper.
+- `packages/github-app`: optional hosted GitHub App service.
 - `docs`: public documentation.
 
 ## Good First Contributions

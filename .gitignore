@@ -5,3 +5,5 @@ coverage/
 .DS_Store
 *.log
 codedecay.sarif
+.codedecay/local/
+.codedecay/*.local.json

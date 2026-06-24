@@ -116,6 +116,44 @@ Use the current stack:
 - binary: `codedecay`
 - JSON, Markdown, and SARIF reports
 
+## Local Contributor Setup
+
+Use the repo-local setup script before major work:
+
+```bash
+./.codedecay/setup.local.sh
+```
+
+The setup script checks prerequisites, installs dependencies, runs validation,
+and writes `.codedecay/local/state.json`.
+
+CodeDecay currently does not require:
+
+- local databases
+- seed data
+- Docker services
+- cloud accounts
+- API keys
+- LLM or model credentials
+
+Shared agent resources live in `.agents/`:
+
+- `.agents/commands/ci-check.md`
+- `.agents/commands/create-pr.md`
+- `.agents/commands/local-setup.md`
+- `.agents/commands/redteam-pr.md`
+- `.agents/skills/pr-red-team/SKILL.md`
+- `.agents/skills/test-quality-review/SKILL.md`
+- `.agents/skills/github-app-review/SKILL.md`
+
+Optional local MCP pointers are provided in `.mcp.json` and `.codex/config.toml`.
+Claude command and skill pointers live in `.claude/commands` and
+`.claude/skills`. Cursor reads `.cursor/rules/codedecay.mdc` and
+`.cursor/mcp.json`. OpenCode can use `opencode.json`.
+
+Run `pnpm build` before starting the local MCP server because these configs use
+`packages/cli/dist/index.js`.
+
 Future integrations should prefer existing open-source tools:
 
 - MCP for agent/tool integration
