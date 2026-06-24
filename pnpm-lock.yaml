@@ -32,6 +32,9 @@ importers:
       '@submuxhq/codedecay-core':
         specifier: workspace:*
         version: link:../core
+      '@submuxhq/codedecay-execution':
+        specifier: workspace:*
+        version: link:../execution
 
   packages/analyzer-js:
     dependencies:
@@ -61,6 +64,8 @@ importers:
         version: 2.9.0
 
   packages/core: {}
+
+  packages/execution: {}
 
   packages/git:
     dependencies:
