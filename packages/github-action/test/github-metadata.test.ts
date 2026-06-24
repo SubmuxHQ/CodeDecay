@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { parse } from "yaml";
 import { describe, expect, it } from "vitest";
 
@@ -37,5 +37,18 @@ describe("GitHub repository metadata", () => {
     const labeler = parse(readFileSync(".github/labeler.yml", "utf8")) as Record<string, unknown>;
 
     expect(Object.keys(labeler)).not.toEqual(expect.arrayContaining(["area:agent", "area:mcp", "area:report"]));
+  });
+
+  it("uses structured issue forms without duplicate legacy markdown templates", () => {
+    const issueTemplates = readdirSync(".github/ISSUE_TEMPLATE").sort();
+
+    expect(issueTemplates).toEqual([
+      "bug_report.yml",
+      "config.yml",
+      "documentation.yml",
+      "feature_request.yml",
+      "question.yml"
+    ]);
+    expect(issueTemplates).not.toEqual(expect.arrayContaining(["bug_report.md", "feature_request.md"]));
   });
 });
