@@ -37,6 +37,18 @@ npx codedecay analyze --format markdown
 npx codedecay analyze --cwd ../my-repo --format markdown
 ```
 
+## Generate A Redteam Report
+
+Use `redteam` when you want one report for yourself or your coding agent that
+summarizes what the PR could break, weak-test evidence, missing edge cases, and
+fix tasks.
+
+```bash
+npx codedecay redteam --base main --head HEAD --format markdown
+```
+
+The current redteam MVP is report-only. It does not run commands or call an LLM.
+
 ## Write SARIF
 
 ```bash

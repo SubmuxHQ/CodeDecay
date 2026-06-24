@@ -134,6 +134,18 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/redteam:
+    dependencies:
+      '@submuxhq/codedecay-config':
+        specifier: workspace:*
+        version: link:../config
+      '@submuxhq/codedecay-core':
+        specifier: workspace:*
+        version: link:../core
+      '@submuxhq/codedecay-memory':
+        specifier: workspace:*
+        version: link:../memory
+
   packages/report:
     dependencies:
       '@submuxhq/codedecay-core':

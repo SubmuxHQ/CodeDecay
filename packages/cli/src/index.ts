@@ -19,6 +19,7 @@ import {
 } from "@submuxhq/codedecay-core";
 import { createGitWorktree, getGitChangedFiles, getRepoRoot, removeGitWorktree } from "@submuxhq/codedecay-git";
 import { applyMemoryContext, loadCodeDecayMemory, type LoadedCodeDecayMemory } from "@submuxhq/codedecay-memory";
+import { createRedteamReport, renderRedteamReport, type RedteamFormat } from "@submuxhq/codedecay-redteam";
 import { renderReport, type ReportFormat } from "@submuxhq/codedecay-report";
 
 interface AnalyzeOptions {
@@ -56,6 +57,15 @@ interface DifferentialOptions {
   cwd?: string | undefined;
   format: ConfigFormat;
   output?: string | undefined;
+}
+
+interface RedteamOptions {
+  base?: string | undefined;
+  head?: string | undefined;
+  cwd?: string | undefined;
+  format: RedteamFormat;
+  output?: string | undefined;
+  failOn?: RiskLevel | undefined;
 }
 
 interface ExecutionReport {
@@ -132,6 +142,18 @@ interface CliRuntime {
   stderr?: (text: string) => void;
 }
 
+interface CliCommandContext {
+  args: string[];
+  runtime: CliRuntime;
+  runtimeCwd: string;
+}
+
+interface CliAnalysisContext {
+  report: ReturnType<typeof createAnalysisReport>;
+  loadedMemory: LoadedCodeDecayMemory;
+}
+
+type CliCommandHandler = (context: CliCommandContext) => Promise<void> | void;
 type ConfigFormat = "json" | "markdown";
 
 const VALID_FORMATS = new Set<ReportFormat>(["json", "markdown", "sarif"]);
@@ -145,6 +167,16 @@ class CliExit extends Error {
 }
 
 class HelpRequested extends Error {}
+
+const COMMAND_HANDLERS: Record<string, CliCommandHandler> = {
+  analyze: runAnalyzeCommand,
+  config: runConfigCommand,
+  differential: runDifferentialCommand,
+  execute: runExecuteCommand,
+  mcp: runMcpCommand,
+  memory: runMemoryCommand,
+  redteam: runRedteamCommand
+};
 
 if (isDirectRun()) {
   runCli(process.argv.slice(2)).then((exitCode) => {
@@ -180,90 +212,131 @@ async function run(args: string[], runtime: CliRuntime): Promise<void | number> 
     return;
   }
 
-  const runtimeCwd = runtime.cwd ?? process.cwd();
-
-  if (command === "config") {
-    const options = parseConfigArgs(commandArgs);
-    const cwd = resolve(runtimeCwd, options.cwd ?? ".");
-    const loadedConfig = loadCodeDecayConfig({ cwd });
-    write(runtime.stdout, renderConfig(loadedConfig, options.format));
-    return;
-  }
-
-  if (command === "mcp") {
-    const options = parseMcpArgs(commandArgs);
-    const cwd = resolve(runtimeCwd, options.cwd ?? ".");
-    const { startMcpServer } = await import("@submuxhq/codedecay-mcp");
-    await startMcpServer({ cwd });
-    return;
-  }
-
-  if (command === "memory") {
-    const options = parseMemoryArgs(commandArgs);
-    const cwd = resolve(runtimeCwd, options.cwd ?? ".");
-    const rootDir = getRepoRootForCli(cwd, { format: "markdown" });
-    const loadedMemory = loadCodeDecayMemory(rootDir);
-    write(runtime.stdout, renderMemory(loadedMemory, options.format));
-    return;
-  }
-
-  if (command === "execute") {
-    const options = parseExecuteArgs(commandArgs);
-    const cwd = resolve(runtimeCwd, options.cwd ?? ".");
-    const loadedConfig = loadCodeDecayConfig({ cwd });
-    const report = await createExecutionReport(cwd, loadedConfig);
-    const rendered = renderExecutionReport(report, options.format);
-
-    if (options.output) {
-      writeOutput(cwd, options.output, rendered);
-    } else {
-      write(runtime.stdout, rendered);
-    }
-
-    if (isExecutionFailure(report.summary.status)) {
-      throw new CliExit(1);
-    }
-
-    return;
-  }
-
-  if (command === "differential") {
-    const options = parseDifferentialArgs(commandArgs);
-    const cwd = resolve(runtimeCwd, options.cwd ?? ".");
-    const refs = requireDifferentialRefs(options);
-    const rootDir = getRepoRootForCli(cwd, { base: refs.base, head: refs.head, format: "markdown" });
-    const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
-    let report: DifferentialReport;
-
-    try {
-      report = await createDifferentialReport(rootDir, refs, loadedConfig);
-    } catch (error: unknown) {
-      throw formatGitErrorForCli(error, rootDir, { base: refs.base, head: refs.head, format: "markdown" });
-    }
-
-    const rendered = renderDifferentialReport(report, options.format);
-    if (options.output) {
-      writeOutput(cwd, options.output, rendered);
-    } else {
-      write(runtime.stdout, rendered);
-    }
-
-    if (isDifferentialFailure(report.summary.status)) {
-      throw new CliExit(1);
-    }
-
-    return;
-  }
-
-  if (command !== "analyze") {
+  const handler = COMMAND_HANDLERS[command];
+  if (!handler) {
     throw new Error(`Unknown command: ${command}`);
   }
 
-  const options = parseAnalyzeArgs(commandArgs);
-  const cwd = resolve(runtimeCwd, options.cwd ?? ".");
-  const rootDir = getRepoRootForCli(cwd, options);
-  const changedFiles = getChangedFilesForCli(rootDir, options);
+  await handler({
+    args: commandArgs,
+    runtime,
+    runtimeCwd: runtime.cwd ?? process.cwd()
+  });
+}
 
+function runConfigCommand(context: CliCommandContext): void {
+  const options = parseConfigArgs(context.args);
+  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
+  const loadedConfig = loadCodeDecayConfig({ cwd });
+  write(context.runtime.stdout, renderConfig(loadedConfig, options.format));
+}
+
+async function runMcpCommand(context: CliCommandContext): Promise<void> {
+  const options = parseMcpArgs(context.args);
+  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
+  const { startMcpServer } = await import("@submuxhq/codedecay-mcp");
+  await startMcpServer({ cwd });
+}
+
+function runMemoryCommand(context: CliCommandContext): void {
+  const options = parseMemoryArgs(context.args);
+  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
+  const rootDir = getRepoRootForCli(cwd, { format: "markdown" });
+  const loadedMemory = loadCodeDecayMemory(rootDir);
+  write(context.runtime.stdout, renderMemory(loadedMemory, options.format));
+}
+
+async function runExecuteCommand(context: CliCommandContext): Promise<void> {
+  const options = parseExecuteArgs(context.args);
+  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
+  const loadedConfig = loadCodeDecayConfig({ cwd });
+  const report = await createExecutionReport(cwd, loadedConfig);
+  const rendered = renderExecutionReport(report, options.format);
+
+  writeCliOutput({
+    cwd,
+    output: options.output,
+    rendered,
+    runtime: context.runtime
+  });
+
+  if (isExecutionFailure(report.summary.status)) {
+    throw new CliExit(1);
+  }
+}
+
+async function runDifferentialCommand(context: CliCommandContext): Promise<void> {
+  const options = parseDifferentialArgs(context.args);
+  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
+  const refs = requireDifferentialRefs(options);
+  const rootDir = getRepoRootForCli(cwd, { base: refs.base, head: refs.head, format: "markdown" });
+  const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
+  let report: DifferentialReport;
+
+  try {
+    report = await createDifferentialReport(rootDir, refs, loadedConfig);
+  } catch (error: unknown) {
+    throw formatGitErrorForCli(error, rootDir, { base: refs.base, head: refs.head, format: "markdown" });
+  }
+
+  writeCliOutput({
+    cwd,
+    output: options.output,
+    rendered: renderDifferentialReport(report, options.format),
+    runtime: context.runtime
+  });
+
+  if (isDifferentialFailure(report.summary.status)) {
+    throw new CliExit(1);
+  }
+}
+
+function runRedteamCommand(context: CliCommandContext): void {
+  const options = parseRedteamArgs(context.args);
+  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
+  const rootDir = getRepoRootForCli(cwd, options);
+  const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
+  const analysis = createAnalysisContextForCli(rootDir, options);
+  const report = createRedteamReport({
+    analysisReport: analysis.report,
+    config: loadedConfig.config,
+    configSource: loadedConfig.sourcePath,
+    memory: analysis.loadedMemory.memory,
+    memorySource: analysis.loadedMemory.sourcePath
+  });
+
+  writeCliOutput({
+    cwd,
+    output: options.output,
+    rendered: renderRedteamReport(report, options.format),
+    runtime: context.runtime
+  });
+
+  if (options.failOn && shouldFailForRisk(report.summary.riskLevel, options.failOn)) {
+    throw new CliExit(1);
+  }
+}
+
+function runAnalyzeCommand(context: CliCommandContext): void {
+  const options = parseAnalyzeArgs(context.args);
+  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
+  const rootDir = getRepoRootForCli(cwd, options);
+  const { report } = createAnalysisContextForCli(rootDir, options);
+
+  writeCliOutput({
+    cwd,
+    output: options.output,
+    rendered: renderReport(report, options.format),
+    runtime: context.runtime
+  });
+
+  if (options.failOn && shouldFailForRisk(report.summary.riskLevel, options.failOn)) {
+    throw new CliExit(1);
+  }
+}
+
+function createAnalysisContextForCli(rootDir: string, options: AnalyzeOptions): CliAnalysisContext {
+  const changedFiles = getChangedFilesForCli(rootDir, options);
   const analyzerResult = analyzeJsProject({
     rootDir,
     changedFiles
@@ -276,23 +349,15 @@ async function run(args: string[], runtime: CliRuntime): Promise<void | number> 
     analyzerResult
   });
 
-  const report = createAnalysisReport({
-    base: options.base,
-    head: options.head,
-    changedFiles,
-    analyzerResult: analyzerResultWithMemory
-  });
-
-  const rendered = renderReport(report, options.format);
-  if (options.output) {
-    writeOutput(cwd, options.output, rendered);
-  } else {
-    write(runtime.stdout, rendered);
-  }
-
-  if (options.failOn && shouldFailForRisk(report.summary.riskLevel, options.failOn)) {
-    throw new CliExit(1);
-  }
+  return {
+    loadedMemory,
+    report: createAnalysisReport({
+      base: options.base,
+      head: options.head,
+      changedFiles,
+      analyzerResult: analyzerResultWithMemory
+    })
+  };
 }
 
 function parseConfigArgs(args: string[]): ConfigOptions {
@@ -546,6 +611,94 @@ function parseDifferentialArgs(args: string[]): DifferentialOptions {
   return options;
 }
 
+function parseRedteamArgs(args: string[]): RedteamOptions {
+  const options: RedteamOptions = {
+    format: "markdown"
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (!arg) {
+      continue;
+    }
+
+    if (arg === "--help" || arg === "-h") {
+      throw new HelpRequested();
+    }
+
+    if (arg.startsWith("--cwd=")) {
+      options.cwd = arg.slice("--cwd=".length);
+      continue;
+    }
+
+    if (arg === "--cwd") {
+      options.cwd = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--format=")) {
+      options.format = parseRedteamFormat(arg.slice("--format=".length));
+      continue;
+    }
+
+    if (arg === "--format") {
+      options.format = parseRedteamFormat(requireValue(args, index, arg));
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--base=")) {
+      options.base = arg.slice("--base=".length);
+      continue;
+    }
+
+    if (arg === "--base") {
+      options.base = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--head=")) {
+      options.head = arg.slice("--head=".length);
+      continue;
+    }
+
+    if (arg === "--head") {
+      options.head = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--output=")) {
+      options.output = arg.slice("--output=".length);
+      continue;
+    }
+
+    if (arg === "--output") {
+      options.output = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--fail-on=")) {
+      options.failOn = parseRiskLevel(arg.slice("--fail-on=".length));
+      continue;
+    }
+
+    if (arg === "--fail-on") {
+      options.failOn = parseRiskLevel(requireValue(args, index, arg));
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`Unknown option: ${arg}`);
+  }
+
+  return options;
+}
+
 function parseAnalyzeArgs(args: string[]): AnalyzeOptions {
   const options: AnalyzeOptions = {
     format: "markdown"
@@ -650,6 +803,14 @@ function parseConfigFormat(value: string): ConfigFormat {
   throw new Error(`Invalid config format "${value}". Expected json or markdown.`);
 }
 
+function parseRedteamFormat(value: string): RedteamFormat {
+  if (VALID_CONFIG_FORMATS.has(value as RedteamFormat)) {
+    return value as RedteamFormat;
+  }
+
+  throw new Error(`Invalid redteam format "${value}". Expected json or markdown.`);
+}
+
 function parseRiskLevel(value: string): RiskLevel {
   if (VALID_RISK_LEVELS.has(value as RiskLevel)) {
     return value as RiskLevel;
@@ -678,6 +839,20 @@ function writeOutput(cwd: string, path: string, contents: string): void {
   mkdirSync(outputDir, { recursive: true });
 
   writeFileSync(outputPath, contents, "utf8");
+}
+
+function writeCliOutput(input: {
+  cwd: string;
+  output?: string | undefined;
+  rendered: string;
+  runtime: CliRuntime;
+}): void {
+  if (input.output) {
+    writeOutput(input.cwd, input.output, input.rendered);
+    return;
+  }
+
+  write(input.runtime.stdout, input.rendered);
 }
 
 function renderConfig(loadedConfig: LoadedCodeDecayConfig, format: ConfigFormat): string {
@@ -1322,6 +1497,7 @@ Usage:
   codedecay memory [options]
   codedecay execute [options]
   codedecay differential [options]
+  codedecay redteam [options]
   codedecay mcp [options]
 
 Options:
@@ -1353,6 +1529,14 @@ Differential Options:
   --format <format>          json or markdown (default: markdown)
   --output <path>            Write differential report to a file instead of stdout
 
+Redteam Options:
+  --base <ref>               Base git ref to compare from
+  --head <ref>               Head git ref to compare to
+  --cwd <path>               Repository working directory (default: current directory)
+  --format <format>          json or markdown (default: markdown)
+  --output <path>            Write redteam report to a file instead of stdout
+  --fail-on <level>          Exit non-zero on low, medium, or high risk
+
 MCP Options:
   --cwd <path>               Repository working directory exposed to MCP tools
 
@@ -1365,6 +1549,7 @@ Examples:
   codedecay memory --cwd ../my-repo --format markdown
   codedecay execute --cwd ../my-repo --format markdown
   codedecay differential --base main --head HEAD --format markdown
+  codedecay redteam --base main --head HEAD --format markdown
   codedecay mcp --cwd ../my-repo
 `);
 }

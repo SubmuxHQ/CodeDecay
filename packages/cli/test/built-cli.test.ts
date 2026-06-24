@@ -84,6 +84,44 @@ describe("built codedecay CLI", () => {
     expect(invalidRef.stderr).toContain('CodeDecay failed: Could not resolve git ref "definitely-missing-ref".');
   });
 
+  it("runs redteam reports from the built CLI without executing configured commands", () => {
+    const repo = createMediumRiskRepo();
+    writeFile(
+      repo,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "commands:",
+        "  test:",
+        "    - node -e \"require('fs').writeFileSync('codedecay-ran.txt','yes')\"",
+        "safety:",
+        "  allowCommands: true",
+        "  commandTimeoutMs: 1000",
+        ""
+      ].join("\n")
+    );
+
+    const json = runBuilt(["redteam", "--cwd", repo, "--format", "json"]);
+    const report = JSON.parse(json.stdout);
+
+    expect(json.status).toBe(0);
+    expect(report).toMatchObject({
+      tool: "CodeDecay",
+      mode: "deterministic",
+      safety: {
+        commandsExecuted: false,
+        llmCalled: false
+      }
+    });
+    expect(report.configuredChecks).toEqual(
+      expect.arrayContaining([expect.objectContaining({ kind: "test", willRun: false })])
+    );
+    expect(existsSync(join(repo, "codedecay-ran.txt"))).toBe(false);
+
+    expect(runBuilt(["redteam", "--cwd", repo, "--fail-on", "high"]).status).toBe(0);
+    expect(runBuilt(["redteam", "--cwd", repo, "--fail-on", "medium"]).status).toBe(1);
+  });
+
   it("prints loaded config from the built CLI", () => {
     const repo = createLowRiskRepo();
     writeFile(

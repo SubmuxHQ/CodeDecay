@@ -18,6 +18,7 @@ export default defineConfig({
       "@submuxhq/codedecay-llm": fromRoot("./packages/llm/src/index.ts"),
       "@submuxhq/codedecay-mcp": fromRoot("./packages/mcp/src/index.ts"),
       "@submuxhq/codedecay-memory": fromRoot("./packages/memory/src/index.ts"),
+      "@submuxhq/codedecay-redteam": fromRoot("./packages/redteam/src/index.ts"),
       "@submuxhq/codedecay-git": fromRoot("./packages/git/src/index.ts"),
       "@submuxhq/codedecay-analyzer-js": fromRoot("./packages/analyzer-js/src/index.ts"),
       "@submuxhq/codedecay-report": fromRoot("./packages/report/src/index.ts")

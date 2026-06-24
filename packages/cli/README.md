@@ -20,6 +20,7 @@ npx codedecay config --cwd ../my-repo --format markdown
 npx codedecay memory --cwd ../my-repo --format markdown
 npx codedecay execute --cwd ../my-repo --format markdown
 npx codedecay differential --cwd ../my-repo --base main --head HEAD --format markdown
+npx codedecay redteam --cwd ../my-repo --base main --head HEAD --format markdown
 npx codedecay mcp --cwd ../my-repo
 ```
 

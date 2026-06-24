@@ -1,0 +1,64 @@
+# Redteam Reports
+
+`codedecay redteam` packages local PR safety evidence into a report that a
+developer or their own coding agent can use before merge.
+
+It asks:
+
+```text
+What could this PR break, and are the tests actually proving it will not?
+```
+
+The command is report-only in the current MVP. It does not run configured
+commands, does not call an LLM, does not require API keys, does not send
+telemetry, and does not depend on CodeDecayCloud.
+
+## Run
+
+```bash
+npx codedecay redteam --base main --head HEAD --format markdown
+npx codedecay redteam --cwd ../my-repo --format json
+npx codedecay redteam --format markdown --output codedecay-redteam.md
+```
+
+Exit codes:
+
+- `0`: report generated and risk is below `--fail-on`, if provided.
+- `1`: report generated and risk meets `--fail-on`.
+- `2`: CLI/internal error, such as invalid git refs or invalid config.
+
+## What The Report Includes
+
+- changed files and impacted product/system areas
+- merge-risk and decay-risk scores
+- weak-test findings from deterministic test-audit rules
+- deterministic missing edge-case checklist
+- local memory summary from `.codedecay/memory.json`
+- configured test/build/start/probe commands that are available but not run
+- fix tasks for your coding agent
+- explicit safety flags showing that commands and models were not called
+
+## Agent-Agnostic Workflow
+
+CodeDecay does not replace Codex, Claude Code, Cursor, Pi, OpenCode, desktop
+agents, or internal agents. Use it to give those tools better evidence.
+
+Suggested workflow:
+
+1. Run `codedecay redteam --format markdown`.
+2. Paste or attach the report to your coding agent.
+3. Ask the agent to fix the high-risk findings and add real checks for the
+   missing edge cases.
+4. Run `codedecay analyze`, `codedecay execute`, or `codedecay differential`
+   explicitly when you want static analysis, configured checks, or base/head
+   behavior probes.
+
+## Safety Model
+
+`codedecay redteam` lists configured checks from CodeDecay config, but it does
+not execute them. Command execution remains explicit through
+`codedecay execute` and `codedecay differential`, and those commands still
+require `safety.allowCommands: true`.
+
+Model use is also opt-in. The redteam MVP does not call Ollama, LiteLLM, cloud
+models, or any hosted CodeDecay service.

@@ -301,6 +301,95 @@ describe("codedecay memory CLI contract", () => {
   });
 });
 
+describe("codedecay redteam CLI contract", () => {
+  it("renders deterministic JSON and markdown redteam reports", async () => {
+    const repo = createHighRiskRepo();
+    writeExecutionConfig(repo, {
+      allowCommands: true,
+      testCommand: "node -e \"require('fs').writeFileSync('codedecay-ran.txt','yes')\""
+    });
+
+    const json = await run(["redteam", "--format", "json"], repo);
+    const report = JSON.parse(json.stdout);
+
+    expect(json.exitCode).toBe(0);
+    expect(json.stderr).toBe("");
+    expect(report.tool).toBe("CodeDecay");
+    expect(report.mode).toBe("deterministic");
+    expect(report.summary.riskLevel).toBe("high");
+    expect(Object.values(report.safety).filter((value) => value === false)).toHaveLength(4);
+    expect(report.edgeCases).toContain("Check missing, expired, malformed, and privilege-escalation credentials.");
+    expect(report.configuredChecks).toEqual(
+      expect.arrayContaining([expect.objectContaining({ kind: "test", willRun: false })])
+    );
+    expect(existsSync(join(repo, "codedecay-ran.txt"))).toBe(false);
+
+    const markdown = await run(["redteam", "--format", "markdown"], repo);
+    expect(markdown.exitCode).toBe(0);
+    expect(markdown.stdout).toContain("## CodeDecay Redteam Report");
+    expect(markdown.stdout).toContain("### What Could Break");
+    expect(markdown.stdout).toContain("### Tasks For Your Coding Agent");
+    expect(markdown.stdout).toContain("LLM/model called: no");
+  });
+
+  it("uses --cwd and writes relative --output paths from that cwd", async () => {
+    const repo = createMediumRiskRepo();
+    const outsideCwd = createTempDir();
+
+    const result = await run(["redteam", "--cwd", repo, "--format", "json", "--output", "codedecay-redteam.json"], outsideCwd);
+    const outputPath = join(repo, "codedecay-redteam.json");
+    const report = JSON.parse(readFileSync(outputPath, "utf8"));
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("");
+    expect(report.changedFiles).toBeUndefined();
+    expect(report.analysis.changedFiles.map((file: { path: string }) => file.path)).toContain("src/api/users.ts");
+    expect(report.summary.riskLevel).toBe("medium");
+  });
+
+  it("uses base/head refs and fail-on thresholds", async () => {
+    const repo = createRepo({
+      "src/api/users.ts": "export function handler() { return Response.json({ ok: true }); }\n"
+    });
+    const base = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+    writeFile(
+      repo,
+      "src/api/users.ts",
+      [
+        "export function handler(req: Request) {",
+        "  if (req.method === \"POST\") return Response.json({ ok: true });",
+        "  return Response.json({ ok: false });",
+        "}",
+        ""
+      ].join("\n")
+    );
+    git(repo, ["add", "."]);
+    git(repo, ["commit", "-m", "change api"]);
+    const head = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+
+    const pass = await run(["redteam", "--base", base, "--head", head, "--fail-on", "high"], repo);
+    const fail = await run(["redteam", "--base", base, "--head", head, "--fail-on", "medium"], repo);
+    const json = await run(["redteam", "--base", base, "--head", head, "--format", "json"], repo);
+    const report = JSON.parse(json.stdout);
+
+    expect(pass.exitCode).toBe(0);
+    expect(fail.exitCode).toBe(1);
+    expect(report.base).toBe(base);
+    expect(report.head).toBe(head);
+    expect(report.analysis.changedFiles.map((file: { path: string }) => file.path)).toContain("src/api/users.ts");
+  });
+
+  it("fails clearly for redteam git errors without emitting a low-risk report", async () => {
+    const repo = createLowRiskRepo();
+
+    const result = await run(["redteam", "--base", "definitely-missing-ref", "--head", "HEAD", "--format", "json"], repo);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain('CodeDecay failed: Could not resolve git ref "definitely-missing-ref".');
+  });
+});
+
 describe("codedecay execute CLI contract", () => {
   it("skips configured commands unless safety.allowCommands is true", async () => {
     const repo = createLowRiskRepo();
