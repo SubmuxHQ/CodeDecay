@@ -2,7 +2,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createPlaywrightHarness } from "../src/index";
+import { createPlaywrightHarness, createStrykerHarness } from "../src/index";
 
 const tempRoots: string[] = [];
 
@@ -92,6 +92,107 @@ describe("createPlaywrightHarness", () => {
   it("blocks unsafe commands through the shared execution policy", async () => {
     const repo = createTempDir();
     const harness = createPlaywrightHarness({
+      command: "rm -rf ./tmp",
+      allowCommands: true,
+      timeoutMs: 1000
+    });
+
+    const plan = await harness.plan({ cwd: repo, evidence: [] });
+    const result = await harness.run(plan, { cwd: repo });
+
+    expect(result.status).toBe("skipped");
+    expect(result.failure?.mode).toBe("unsafe-command");
+    expect(result.evidence[0]).toMatchObject({
+      severity: "high",
+      command: "rm -rf ./tmp"
+    });
+    expect(result.evidence[0]?.metadata).toMatchObject({
+      status: "blocked",
+      blockedReason: "recursive or forced file deletion"
+    });
+  });
+});
+
+describe("createStrykerHarness", () => {
+  it("plans a StrykerJS mutation check", async () => {
+    const harness = createStrykerHarness();
+    const plan = await harness.plan({
+      cwd: createTempDir(),
+      evidence: []
+    });
+
+    expect(harness.name).toBe("stryker");
+    expect(harness.capabilities).toEqual(["mutation-testing", "test-execution", "execution"]);
+    expect(plan).toMatchObject({
+      harnessName: "stryker",
+      requiresApproval: true
+    });
+    expect(plan.steps[0]?.description).toContain("pnpm exec stryker run");
+  });
+
+  it("skips by default when command execution is not explicitly allowed", async () => {
+    const harness = createStrykerHarness({ command: "node -e \"console.log('should not run')\"" });
+    const plan = await harness.plan({ cwd: createTempDir(), evidence: [] });
+    const result = await harness.run(plan, { cwd: createTempDir() });
+
+    expect(result.status).toBe("skipped");
+    expect(result.failure?.mode).toBe("command-denied");
+    expect(result.evidence[0]).toMatchObject({
+      kind: "mutation",
+      severity: "info",
+      command: "node -e \"console.log('should not run')\""
+    });
+  });
+
+  it("returns passed evidence for successful configured commands", async () => {
+    const repo = createTempDir();
+    const harness = createStrykerHarness({
+      command: "node stryker-pass.js",
+      allowCommands: true,
+      timeoutMs: 1000
+    });
+    writeFile(repo, "stryker-pass.js", "console.log('mutation score 100');\n");
+
+    const plan = await harness.plan({ cwd: repo, evidence: [] });
+    const result = await harness.run(plan, { cwd: repo });
+
+    expect(plan.requiresApproval).toBe(false);
+    expect(result.status).toBe("passed");
+    expect(result.evidence[0]?.summary).toBe("StrykerJS mutation checks passed.");
+    expect(result.evidence[0]?.metadata).toMatchObject({
+      status: "passed",
+      stdout: "mutation score 100"
+    });
+  });
+
+  it("returns failed evidence for nonzero configured commands", async () => {
+    const repo = createTempDir();
+    const harness = createStrykerHarness({
+      command: "node stryker-fail.js",
+      allowCommands: true,
+      timeoutMs: 1000
+    });
+    writeFile(repo, "stryker-fail.js", "console.error('mutation score too low'); process.exit(9);\n");
+
+    const plan = await harness.plan({ cwd: repo, evidence: [] });
+    const result = await harness.run(plan, { cwd: repo });
+
+    expect(result.status).toBe("failed");
+    expect(result.failure?.mode).toBe("nonzero-exit");
+    expect(result.evidence[0]).toMatchObject({
+      severity: "high",
+      command: "node stryker-fail.js"
+    });
+    expect(result.evidence[0]?.metadata).toMatchObject({
+      status: "failed",
+      exitCode: 9,
+      stderr: "mutation score too low"
+    });
+  });
+
+  it("blocks unsafe commands through the shared execution policy", async () => {
+    const repo = createTempDir();
+    const harness = createStrykerHarness({
       command: "rm -rf ./tmp",
       allowCommands: true,
       timeoutMs: 1000
