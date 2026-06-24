@@ -31,7 +31,8 @@ Exit codes:
 
 - changed files and impacted product/system areas
 - merge-risk and decay-risk scores
-- weak-test findings from deterministic test-audit rules
+- test proof audit status: `missing`, `weak`, `present`, or `not_applicable`
+- weak-test and missing-test findings from deterministic test-audit rules
 - deterministic missing edge-case checklist
 - local memory summary from `.codedecay/memory.json`
 - repo-local agent skill summaries from `.agents/skills/*/SKILL.md`

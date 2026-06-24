@@ -73,7 +73,7 @@ describe("CodeDecay MCP tools", () => {
     const output = runRedteamReportTool({ cwd: repo }, { format: "markdown" });
 
     expect(output).toContain("## CodeDecay Redteam Report");
-    expect(output).toContain("### Test Reality Check");
+    expect(output).toContain("### Test Proof Audit");
     expect(output).toContain("Changed test has no assertions");
     expect(output).toContain("LLM/model called: no");
   });
@@ -95,6 +95,7 @@ describe("CodeDecay MCP tools", () => {
     expect(output.weakTestFindings.map((finding: { ruleId: string }) => finding.ruleId)).toContain(
       "test-without-assertions"
     );
+    expect(output.testAudit.status).toBe("weak");
     expect(output.skills).toEqual([
       expect.objectContaining({
         id: "pr-red-team",

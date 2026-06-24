@@ -157,6 +157,9 @@ importers:
       '@submuxhq/codedecay-skills':
         specifier: workspace:*
         version: link:../skills
+      '@submuxhq/codedecay-test-audit':
+        specifier: workspace:*
+        version: link:../test-audit
 
   packages/report:
     dependencies:
@@ -165,6 +168,12 @@ importers:
         version: link:../core
 
   packages/skills: {}
+
+  packages/test-audit:
+    dependencies:
+      '@submuxhq/codedecay-core':
+        specifier: workspace:*
+        version: link:../core
 
 packages:
 

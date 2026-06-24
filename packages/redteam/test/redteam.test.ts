@@ -23,11 +23,17 @@ describe("redteam report", () => {
       riskLevel: "medium",
       changedFiles: 2,
       weakTestFindings: 1,
+      testProofStatus: "weak",
       configuredChecks: 2,
       skills: 1
     });
     expect(Object.values(report.safety).filter((value) => value === false)).toHaveLength(4);
     expect(report.weakTestFindings.map((finding) => finding.ruleId)).toEqual(["test-without-assertions"]);
+    expect(report.testAudit).toMatchObject({
+      status: "weak",
+      changedSourceFiles: ["src/auth/session.ts"],
+      changedTestFiles: ["src/auth/session.test.ts"]
+    });
     expect(report.edgeCases).toContain("Check missing, expired, malformed, and privilege-escalation credentials.");
     expect(report.configuredChecks).toEqual(
       expect.arrayContaining([
@@ -68,7 +74,8 @@ describe("redteam report", () => {
 
     const markdown = renderRedteamReport(report, "markdown");
     expect(markdown).toContain("## CodeDecay Redteam Report");
-    expect(markdown).toContain("### Test Reality Check");
+    expect(markdown).toContain("### Test Proof Audit");
+    expect(markdown).toContain("**Status:** Weak");
     expect(markdown).toContain("### Agent Skills");
     expect(markdown).toContain("PR Red-Team Skill");
     expect(markdown).toContain("Commands executed: no");
