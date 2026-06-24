@@ -113,6 +113,8 @@ describe("CodeDecay MCP tools", () => {
 
     expect(output).toContain("## CodeDecay Agent Task Bundle");
     expect(output).toContain("### Instructions For The Agent");
+    expect(output).toContain("### Copy-Paste Prompt");
+    expect(output).toContain("You are helping fix a pull request using a CodeDecay agent task bundle.");
     expect(output).toContain("### Tool Evidence");
     expect(output).toContain("Changed test has no assertions");
     expect(output).toContain("LLM/model called by CodeDecay: no");
@@ -135,6 +137,8 @@ describe("CodeDecay MCP tools", () => {
         agentOutputTrusted: false
       }
     });
+    expect(output.prompt).toContain("CodeDecay agent task bundle");
+    expect(output.prompt).toContain("did not call an LLM");
     expect(output.evidence.weakTestFindings.map((finding: { ruleId: string }) => finding.ruleId)).toContain(
       "test-without-assertions"
     );
