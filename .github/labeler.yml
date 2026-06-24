@@ -14,6 +14,7 @@ documentation:
   - changed-files:
     - any-glob-to-any-file:
       - ".github/workflows/**"
+      - ".github/labeler.yml"
 
 "type: test":
   - changed-files:
@@ -33,6 +34,10 @@ documentation:
   - changed-files:
     - any-glob-to-any-file: "packages/analyzer-js/**"
 
+"area: config":
+  - changed-files:
+    - any-glob-to-any-file: "packages/config/**"
+
 "area: git":
   - changed-files:
     - any-glob-to-any-file: "packages/git/**"
@@ -41,9 +46,69 @@ documentation:
   - changed-files:
     - any-glob-to-any-file: "packages/report/**"
 
+"area: adapters":
+  - changed-files:
+    - any-glob-to-any-file:
+      - "packages/adapters/**"
+      - "packages/tool-adapters/**"
+
+"area: llm":
+  - changed-files:
+    - any-glob-to-any-file: "packages/llm/**"
+
+"area: test-audit":
+  - changed-files:
+    - any-glob-to-any-file: "packages/test-audit/**"
+
+"area: mcp":
+  - changed-files:
+    - any-glob-to-any-file: "packages/mcp/**"
+
+"area: execution":
+  - changed-files:
+    - any-glob-to-any-file: "packages/execution/**"
+
+"area: memory":
+  - changed-files:
+    - any-glob-to-any-file: "packages/memory/**"
+
+"area: github-app":
+  - changed-files:
+    - any-glob-to-any-file: "packages/github-app/**"
+
+"area: harness":
+  - changed-files:
+    - any-glob-to-any-file: "packages/harness/**"
+
+"area: redteam":
+  - changed-files:
+    - any-glob-to-any-file: "packages/redteam/**"
+
+"area:agent":
+  - changed-files:
+    - any-glob-to-any-file: "packages/agent/**"
+
 "area: github-action":
   - changed-files:
     - any-glob-to-any-file: "packages/github-action/**"
+
+examples:
+  - changed-files:
+    - any-glob-to-any-file: "examples/**"
+
+"area: dev-experience":
+  - changed-files:
+    - any-glob-to-any-file:
+      - ".agents/**"
+      - ".claude/**"
+      - ".codedecay/**"
+      - ".codex/**"
+      - ".cursor/**"
+      - ".mcp.json"
+      - "AGENTS.md"
+      - "CLAUDE.md"
+      - "DEVELOPMENT.md"
+      - "opencode.json"
 
 "area: packaging":
   - changed-files:
