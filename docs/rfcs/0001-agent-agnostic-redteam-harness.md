@@ -242,7 +242,7 @@ MVP:
 - disabled provider
 - OpenAI-compatible provider shape for later Ollama/LiteLLM support
 
-### `packages/mcp-server`
+### `packages/mcp`
 
 Purpose: expose CodeDecay as tools to MCP-compatible agents.
 
@@ -267,7 +267,7 @@ Safety:
 
 MVP:
 
-- extend the current MCP package instead of creating a parallel server
+- extend the current MCP package instead of creating a parallel server package
 - expose `redteam_plan`, `redteam_run`, `impact_map`, and `test_audit`
 
 ### `packages/skills`
