@@ -95,6 +95,10 @@ nearby tests, CodeDecay produces a report like this:
 - High **Database and schema** (database): `prisma/schema.prisma`
 - Medium **Build and runtime configuration** (config): `vite.config.ts`
 
+### Likely Impacted Routes And APIs
+
+- Medium `/dashboard` (Next.js UI route): `app/dashboard/page.tsx`
+
 ### High Risk Findings
 
 - **Risky source changes without changed tests**
@@ -109,9 +113,10 @@ nearby tests, CodeDecay produces a report like this:
 - `Add or run tests covering src/auth/session.ts`
 ```
 
-Read the report in this order: overall risk, likely impacted areas, high-risk
-findings, then recommended checks. Full Markdown, JSON, and SARIF examples are
-available in [Sample reports](docs/sample-reports/README.md).
+Read the report in this order: overall risk, likely impacted areas, likely
+impacted routes/APIs, high-risk findings, then recommended checks. Full
+Markdown, JSON, and SARIF examples are available in
+[Sample reports](docs/sample-reports/README.md).
 
 ## GitHub Action
 

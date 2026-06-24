@@ -63,6 +63,18 @@ export function renderMarkdownReport(report: CodeDecayReport): string {
     lines.push("");
   }
 
+  if (report.impactedRoutes && report.impactedRoutes.length > 0) {
+    lines.push("### Likely Impacted Routes And APIs", "");
+    for (const route of report.impactedRoutes) {
+      const methods = route.methods.length > 0 ? `${route.methods.join(", ")} ` : "";
+      const label = routeLabel(route.framework, route.kind);
+      lines.push(
+        `- ${riskBadge(route.risk)} \`${methods}${route.route}\` (${label}): ${route.files.map((file) => `\`${file}\``).join(", ")}`
+      );
+    }
+    lines.push("");
+  }
+
   appendFindings(lines, "High Risk Findings", highFindings);
   appendFindings(lines, "Medium Risk Findings", mediumFindings);
   appendFindings(lines, "Low Risk Findings", lowFindings);
@@ -149,6 +161,25 @@ export function renderSarifReport(report: CodeDecayReport): string {
     null,
     2
   )}\n`;
+}
+
+function routeLabel(framework: string, kind: string): string {
+  const frameworkLabel =
+    framework === "nextjs" ? "Next.js" : framework === "express" ? "Express" : framework === "fastify" ? "Fastify" : "Node";
+
+  if (kind === "api-route") {
+    return `${frameworkLabel} API route`;
+  }
+
+  if (kind === "ui-route") {
+    return `${frameworkLabel} UI route`;
+  }
+
+  if (kind === "middleware") {
+    return `${frameworkLabel} middleware`;
+  }
+
+  return `${frameworkLabel} route handler`;
 }
 
 function appendFindings(lines: string[], title: string, findings: Finding[]): void {

@@ -80,6 +80,40 @@ describe("codedecay analyze CLI contract", () => {
     expect(report.summary.riskLevel).toBe("medium");
   });
 
+  it("reports framework-aware route and API impacts", async () => {
+    const repo = createNextRouteRiskRepo();
+
+    const json = await run(["analyze", "--format", "json"], repo);
+    const report = JSON.parse(json.stdout);
+
+    expect(json.exitCode).toBe(0);
+    expect(report.impactedRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          framework: "nextjs",
+          kind: "api-route",
+          route: "/api/users",
+          methods: ["GET", "POST"],
+          risk: "high"
+        }),
+        expect.objectContaining({
+          framework: "nextjs",
+          kind: "ui-route",
+          route: "/dashboard",
+          methods: [],
+          risk: "medium"
+        })
+      ])
+    );
+
+    const markdown = await run(["analyze", "--format", "markdown"], repo);
+
+    expect(markdown.exitCode).toBe(0);
+    expect(markdown.stdout).toContain("### Likely Impacted Routes And APIs");
+    expect(markdown.stdout).toContain("High `GET, POST /api/users` (Next.js API route)");
+    expect(markdown.stdout).toContain("Medium `/dashboard` (Next.js UI route)");
+  });
+
   it("returns correct exit codes for --fail-on thresholds", async () => {
     const lowRepo = createLowRiskRepo();
     await expectExit(["analyze", "--fail-on", "high"], lowRepo, 0);
@@ -937,6 +971,30 @@ function createHighRiskRepo(): string {
   writeFile(repo, "src/api/users.ts", "export function handler() { return false; }\n");
   writeFile(repo, "src/auth/session.ts", "export function session(token?: string) { if (!token) return null; return true; }\n");
   writeFile(repo, "src/db/schema.prisma", "model User { id String @id email String }\n");
+
+  return repo;
+}
+
+function createNextRouteRiskRepo(): string {
+  const repo = createRepo({
+    "src/app/api/users/route.ts": "export async function GET() { return Response.json([]); }\n",
+    "src/app/dashboard/page.tsx": "export default function Page() { return <main />; }\n"
+  });
+
+  writeFile(
+    repo,
+    "src/app/api/users/route.ts",
+    [
+      "export async function GET() {",
+      "  return Response.json([]);",
+      "}",
+      "export async function POST() {",
+      "  return Response.json({ ok: true });",
+      "}",
+      ""
+    ].join("\n")
+  );
+  writeFile(repo, "src/app/dashboard/page.tsx", "export default function Page() { return <main>Changed</main>; }\n");
 
   return repo;
 }

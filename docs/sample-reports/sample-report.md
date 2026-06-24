@@ -29,6 +29,10 @@
 - Medium **Build and runtime configuration** (config): `vite.config.ts`
 - Medium **UI route** (ui): `app/dashboard/page.tsx`
 
+### Likely Impacted Routes And APIs
+
+- Medium `/dashboard` (Next.js UI route): `app/dashboard/page.tsx`
+
 ### High Risk Findings
 
 - **Risky source changes without changed tests** (`app/dashboard/page.tsx:2`): This PR changes risky source areas but does not change any obvious test files.

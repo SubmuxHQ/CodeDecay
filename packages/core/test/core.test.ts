@@ -47,6 +47,18 @@ describe("createAnalysisReport", () => {
           files: ["src/auth/session.ts"]
         }
       ],
+      impactedRoutes: [
+        {
+          framework: "express",
+          kind: "route-handler",
+          route: "/api/session",
+          methods: ["GET"],
+          files: ["src/auth/session.ts"],
+          risk: "high",
+          reasons: ["Express route handler changed"],
+          recommendedTests: ["src/auth/session.test.ts"]
+        }
+      ],
       findings: [
         {
           ruleId: "risky-auth-change",
@@ -81,6 +93,18 @@ describe("createAnalysisReport", () => {
     expect(report.summary.mergeRiskScore).toBeGreaterThan(0);
     expect(report.summary.decayScore).toBeGreaterThan(0);
     expect(report.summary.findingCounts.high).toBe(1);
+    expect(report.impactedRoutes).toEqual([
+      {
+        framework: "express",
+        kind: "route-handler",
+        route: "/api/session",
+        methods: ["GET"],
+        files: ["src/auth/session.ts"],
+        risk: "high",
+        reasons: ["Express route handler changed"],
+        recommendedTests: ["src/auth/session.test.ts"]
+      }
+    ]);
     expect(report.recommendedTests).toEqual(["src/auth/session.test.ts"]);
   });
 });
