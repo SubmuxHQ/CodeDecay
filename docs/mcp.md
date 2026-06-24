@@ -43,10 +43,11 @@ runs CodeDecay locally and passes the repository path with `--cwd`.
   including impacted areas, weak-test findings, edge cases, configured checks,
   memory summary, fix tasks, and safety flags.
 - `agent_task_bundle`: returns a deterministic task bundle that Codex, Claude
-  Code, Cursor, desktop agents, or other MCP-compatible agents can use to fix
-  PR risks. It packages a copy-paste prompt, tool evidence, weak-test signals,
-  edge cases, suggested checks, skills, and fix tasks. It accepts an optional
-  `profile` value: `generic`, `codex`, `claude-code`, `cursor`, or `desktop`.
+  Code, Cursor, Pi, OpenCode, desktop agents, or other MCP-compatible agents can
+  use to fix PR risks. It packages a copy-paste prompt, tool evidence, weak-test
+  signals, edge cases, suggested checks, skills, and fix tasks. It accepts an
+  optional `profile` value: `generic`, `codex`, `claude-code`, `cursor`, `pi`,
+  `opencode`, or `desktop`.
 - `execute_configured_checks`: runs configured CodeDecay commands, probes, and
   enabled tool adapters. It requires `confirmExecution: true` and
   `safety.allowCommands: true`.
@@ -74,10 +75,10 @@ skill content.
 CodeDecay evidence as `codedecay agent`, and it does not call the MCP client,
 Codex, Claude, Cursor, Ollama, cloud models, or CodeDecayCloud. The receiving
 agent should treat the bundle as tool evidence plus instructions. The included
-prompt is portable across Codex, Claude Code, Cursor, desktop agents, and other
-MCP clients. The optional `profile` only changes handoff wording; it does not
-call or authenticate with that agent. Any proposed fix still needs verification
-with tests or configured checks.
+prompt is portable across Codex, Claude Code, Cursor, Pi, OpenCode, desktop
+agents, and other MCP clients. The optional `profile` only changes handoff
+wording; it does not call or authenticate with that agent. Any proposed fix
+still needs verification with tests or configured checks.
 
 `execute_configured_checks` is the only MCP tool that can execute local commands.
 It never accepts command text from MCP input. It can only run commands from

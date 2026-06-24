@@ -200,15 +200,21 @@ describe("built codedecay CLI", () => {
   it("supports agent handoff profiles from the built CLI", () => {
     const repo = createMediumRiskRepo();
 
-    const result = runBuilt(["agent", "--cwd", repo, "--profile", "desktop", "--format", "json"]);
+    const result = runBuilt(["agent", "--cwd", repo, "--profile", "opencode", "--format", "json"]);
     const bundle = JSON.parse(result.stdout);
 
     expect(result.status).toBe(0);
     expect(bundle.agentProfile).toMatchObject({
-      id: "desktop",
-      name: "Desktop/local agent"
+      id: "opencode",
+      name: "OpenCode"
     });
-    expect(bundle.prompt).toContain("Target agent profile: Desktop/local agent");
+    expect(bundle.prompt).toContain("Target agent profile: OpenCode");
+
+    const help = runBuilt(["--help"]);
+
+    expect(help.status).toBe(0);
+    expect(help.stdout).toContain("--profile <profile>");
+    expect(help.stdout).toContain("generic, codex, claude-code, cursor, pi, opencode, desktop");
   });
 
   it("prints loaded config from the built CLI", () => {

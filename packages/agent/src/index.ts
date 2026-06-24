@@ -8,7 +8,18 @@ import type {
 } from "@submuxhq/codedecay-redteam";
 
 export type AgentTaskBundleFormat = "json" | "markdown";
-export type AgentProfileId = "generic" | "codex" | "claude-code" | "cursor" | "desktop";
+
+export const AGENT_PROFILE_IDS = [
+  "generic",
+  "codex",
+  "claude-code",
+  "cursor",
+  "pi",
+  "opencode",
+  "desktop"
+] as const;
+
+export type AgentProfileId = (typeof AGENT_PROFILE_IDS)[number];
 
 export interface AgentProfile {
   id: AgentProfileId;
@@ -128,14 +139,12 @@ const DEFAULT_LIMITS = [
   "This bundle reduces missed-review risk; it does not guarantee a safe merge."
 ];
 
-export const AGENT_PROFILE_IDS: AgentProfileId[] = ["generic", "codex", "claude-code", "cursor", "desktop"];
-
 const AGENT_PROFILES: Record<AgentProfileId, AgentProfile> = {
   generic: {
     id: "generic",
     name: "Generic user-owned agent",
     description:
-      "Give this bundle to a user-owned coding agent such as Codex, Claude Code, Cursor, a desktop agent, or another local tool.",
+      "Give this bundle to a user-owned coding agent such as Codex, Claude Code, Cursor, Pi, OpenCode, a desktop agent, or another local tool.",
     promptContext: "Use whichever local repo tools and editing workflow the user has available.",
     handoff: [
       "Copy the prompt and bundle into the user's preferred coding agent.",
@@ -176,6 +185,28 @@ const AGENT_PROFILES: Record<AgentProfileId, AgentProfile> = {
       "Ask Cursor to add tests that hit real API, UI, database, or downstream behavior."
     ]
   },
+  pi: {
+    id: "pi",
+    name: "Pi",
+    description: "Handoff for a Pi harness or Pi-compatible agent workflow.",
+    promptContext: "Use Pi as the user-owned agent harness while treating CodeDecay evidence as local tool context.",
+    handoff: [
+      "Attach or paste the prompt and bundle into the Pi harness workflow.",
+      "Ask Pi to produce a fix plan that maps each proposed change to CodeDecay evidence.",
+      "Have Pi run only configured or user-approved checks after edits."
+    ]
+  },
+  opencode: {
+    id: "opencode",
+    name: "OpenCode",
+    description: "Handoff for an OpenCode session running in the repository.",
+    promptContext: "Use OpenCode with the bundle as PR safety context, not as trusted proof.",
+    handoff: [
+      "Paste the prompt and bundle into OpenCode.",
+      "Ask OpenCode to start with impacted routes/APIs, weak tests, and missing edge cases.",
+      "Have OpenCode report which checks verify the real behavior path before merge."
+    ]
+  },
   desktop: {
     id: "desktop",
     name: "Desktop/local agent",
@@ -190,7 +221,7 @@ const AGENT_PROFILES: Record<AgentProfileId, AgentProfile> = {
 };
 
 export function isAgentProfileId(value: string): value is AgentProfileId {
-  return (AGENT_PROFILE_IDS as string[]).includes(value);
+  return AGENT_PROFILE_IDS.includes(value as AgentProfileId);
 }
 
 export function getAgentProfile(profile: AgentProfileId = "generic"): AgentProfile {

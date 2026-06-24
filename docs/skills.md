@@ -7,8 +7,8 @@ CodeDecay can load repo-local agent skills from:
 ```
 
 Skills are portable review instructions for the developer or their own agent.
-They can help Codex, Claude Code, Cursor, MCP clients, desktop agents, or
-internal company agents ask better PR-safety questions.
+They can help Codex, Claude Code, Cursor, Pi, OpenCode, MCP clients, desktop
+agents, or internal company agents ask better PR-safety questions.
 
 CodeDecay treats skill files as local, untrusted context:
 

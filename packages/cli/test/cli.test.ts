@@ -621,12 +621,32 @@ describe("codedecay agent CLI contract", () => {
     expect(cursor.stdout).toContain("### Agent Handoff");
     expect(cursor.stdout).toContain("Cursor");
 
+    const pi = await run(["agent", "--profile", "pi", "--format", "json"], repo);
+    const piBundle = JSON.parse(pi.stdout);
+
+    expect(pi.exitCode).toBe(0);
+    expect(piBundle.agentProfile).toMatchObject({
+      id: "pi",
+      name: "Pi"
+    });
+    expect(piBundle.prompt).toContain("Target agent profile: Pi");
+
+    const opencode = await run(["agent", "--profile=opencode", "--format", "json"], repo);
+    const opencodeBundle = JSON.parse(opencode.stdout);
+
+    expect(opencode.exitCode).toBe(0);
+    expect(opencodeBundle.agentProfile).toMatchObject({
+      id: "opencode",
+      name: "OpenCode"
+    });
+    expect(opencodeBundle.prompt).toContain("Target agent profile: OpenCode");
+
     const invalid = await run(["agent", "--profile", "unknown-agent", "--format", "json"], repo);
 
     expect(invalid.exitCode).toBe(2);
     expect(invalid.stdout).toBe("");
     expect(invalid.stderr).toContain(
-      "CodeDecay failed: Invalid agent profile \"unknown-agent\". Expected generic, codex, claude-code, cursor, desktop."
+      "CodeDecay failed: Invalid agent profile \"unknown-agent\". Expected generic, codex, claude-code, cursor, pi, opencode, desktop."
     );
   });
 

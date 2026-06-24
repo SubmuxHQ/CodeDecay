@@ -116,6 +116,8 @@ describe("agent task bundles", () => {
       "codex",
       "claude-code",
       "cursor",
+      "pi",
+      "opencode",
       "desktop"
     ]);
     expect(bundle.agentProfile).toMatchObject({
@@ -131,6 +133,34 @@ describe("agent task bundles", () => {
       telemetrySent: false,
       cloudDependency: false
     });
+  });
+
+  it("creates Pi and OpenCode handoff guidance without calling those agents", () => {
+    const piBundle = createAgentTaskBundle(createFixtureReport(), { profile: "pi" });
+    const opencodeBundle = createAgentTaskBundle(createFixtureReport(), { profile: "opencode" });
+
+    expect(piBundle.agentProfile).toMatchObject({
+      id: "pi",
+      name: "Pi"
+    });
+    expect(piBundle.prompt).toContain("Target agent profile: Pi");
+    expect(piBundle.agentProfile.handoff).toContain(
+      "Attach or paste the prompt and bundle into the Pi harness workflow."
+    );
+    expect(opencodeBundle.agentProfile).toMatchObject({
+      id: "opencode",
+      name: "OpenCode"
+    });
+    expect(opencodeBundle.prompt).toContain("Target agent profile: OpenCode");
+    expect(opencodeBundle.agentProfile.handoff).toContain("Paste the prompt and bundle into OpenCode.");
+    expect(piBundle.safety).toMatchObject({
+      llmCalled: false,
+      commandsExecuted: false,
+      telemetrySent: false,
+      cloudDependency: false,
+      agentOutputTrusted: false
+    });
+    expect(opencodeBundle.safety).toMatchObject(piBundle.safety);
   });
 });
 

@@ -211,11 +211,12 @@ describe("CodeDecay MCP tools", () => {
     expect(output).toContain("LLM/model called by CodeDecay: no");
   });
 
-  it("returns a JSON agent task bundle for MCP agents", () => {
+  it("returns JSON agent task bundles for MCP agent profiles", () => {
     const repo = createWeakTestRepo();
     writeFile(repo, ".agents/skills/pr-red-team/SKILL.md", "# PR Red-Team Skill\n\nFind missed PR risks.\n");
 
-    const output = JSON.parse(runAgentTaskBundleTool({ cwd: repo }, { format: "json", profile: "claude-code" }));
+    const output = JSON.parse(runAgentTaskBundleTool({ cwd: repo }, { format: "json", profile: "opencode" }));
+    const piOutput = JSON.parse(runAgentTaskBundleTool({ cwd: repo }, { format: "json", profile: "pi" }));
 
     expect(output).toMatchObject({
       tool: "CodeDecay",
@@ -230,10 +231,15 @@ describe("CodeDecay MCP tools", () => {
     });
     expect(output.prompt).toContain("CodeDecay agent task bundle");
     expect(output.agentProfile).toMatchObject({
-      id: "claude-code",
-      name: "Claude Code"
+      id: "opencode",
+      name: "OpenCode"
     });
-    expect(output.prompt).toContain("Target agent profile: Claude Code");
+    expect(output.prompt).toContain("Target agent profile: OpenCode");
+    expect(piOutput.agentProfile).toMatchObject({
+      id: "pi",
+      name: "Pi"
+    });
+    expect(piOutput.prompt).toContain("Target agent profile: Pi");
     expect(output.prompt).toContain("did not call an LLM");
     expect(output.evidence.weakTestFindings.map((finding: { ruleId: string }) => finding.ruleId)).toContain(
       "test-without-assertions"

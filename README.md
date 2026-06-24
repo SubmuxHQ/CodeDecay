@@ -3,8 +3,8 @@
 CodeDecay is an open-source, local-first PR safety harness for AI-assisted
 development.
 
-It helps teams using Codex, Claude Code, Cursor, desktop agents, or other
-AI-assisted workflows find what a coding agent may have missed before merge:
+It helps teams using Codex, Claude Code, Cursor, Pi, OpenCode, desktop agents,
+or other AI-assisted workflows find what a coding agent may have missed before merge:
 impacted files, routes, APIs, modules, missing tests, weak proof, duplicated
 logic, complexity growth, fragile abstractions, and maintainability decay.
 
@@ -61,8 +61,8 @@ Options:
 - `--head <ref>`: head git ref to compare to.
 - `--cwd <path>`: repository working directory to analyze.
 - `--format json|markdown|sarif`: report format.
-- `--profile generic|codex|claude-code|cursor|desktop`: agent handoff profile
-  for `codedecay agent`.
+- `--profile generic|codex|claude-code|cursor|pi|opencode|desktop`: agent
+  handoff profile for `codedecay agent`.
 - `--output <path>`: write report to a file instead of stdout.
 - `--fail-on low|medium|high`: exit non-zero when the PR reaches this risk
   level or higher.
