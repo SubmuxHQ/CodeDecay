@@ -1,11 +1,21 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  CODEDECAY_VERSION,
   createAnalysisReport,
   riskLevelFromScore,
   shouldFailForRisk,
   type AnalyzerResult,
   type FileChange
 } from "../src/index";
+
+describe("CODEDECAY_VERSION", () => {
+  it("matches the published CLI package version", () => {
+    const packageJson = JSON.parse(readFileSync("packages/cli/package.json", "utf8")) as { version: string };
+
+    expect(CODEDECAY_VERSION).toBe(packageJson.version);
+  });
+});
 
 describe("riskLevelFromScore", () => {
   it("maps low, medium, and high thresholds", () => {

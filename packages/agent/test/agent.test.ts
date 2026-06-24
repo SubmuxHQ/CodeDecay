@@ -137,7 +137,7 @@ describe("agent task bundles", () => {
 function createFixtureReport(): RedteamReport {
   return {
     tool: "CodeDecay",
-    version: "0.1.3",
+    version: "0.1.4",
     generatedAt: "2026-06-24T00:00:00.000Z",
     mode: "deterministic",
     summary: {
@@ -163,7 +163,7 @@ function createFixtureReport(): RedteamReport {
     },
     analysis: {
       tool: "CodeDecay",
-      version: "0.1.3",
+      version: "0.1.4",
       generatedAt: "2026-06-24T00:00:00.000Z",
       changedFiles: [
         {
