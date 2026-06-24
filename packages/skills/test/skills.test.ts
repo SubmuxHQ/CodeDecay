@@ -119,6 +119,42 @@ describe("agent platform pointers", () => {
   });
 });
 
+describe("agent architecture guide", () => {
+  it("documents current packages instead of stale future package names", () => {
+    const guide = readFileSync(join(process.cwd(), "AGENTS.md"), "utf8");
+    const packageNames = [
+      "adapters",
+      "agent",
+      "analyzer-js",
+      "cli",
+      "config",
+      "core",
+      "execution",
+      "git",
+      "github-action",
+      "github-app",
+      "harness",
+      "llm",
+      "mcp",
+      "memory",
+      "redteam",
+      "report",
+      "skills",
+      "test-audit",
+      "tool-adapters"
+    ];
+
+    for (const packageName of packageNames) {
+      expect(guide).toContain(`### packages/${packageName}`);
+    }
+
+    expect(guide).toContain("codedecay redteam");
+    expect(guide).toContain("codedecay agent");
+    expect(guide).not.toContain("Future packages may include");
+    expect(guide).not.toContain("mcp-server");
+  });
+});
+
 function createTempDir(): string {
   const root = join(tmpdir(), `codedecay-skills-${process.pid}-${tempRoots.length}`);
   rmSync(root, { recursive: true, force: true });
