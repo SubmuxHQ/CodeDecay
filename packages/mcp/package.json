@@ -14,6 +14,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@submuxhq/codedecay-adapters": "workspace:*",
+    "@submuxhq/codedecay-agent": "workspace:*",
     "@submuxhq/codedecay-analyzer-js": "workspace:*",
     "@submuxhq/codedecay-config": "workspace:*",
     "@submuxhq/codedecay-core": "workspace:*",
