@@ -49,6 +49,40 @@ npx codedecay redteam --base main --head HEAD --format markdown
 
 The current redteam MVP is report-only. It does not run commands or call an LLM.
 
+## Hand Evidence To Your Agent
+
+Use `agent` when you want Codex, Claude Code, Cursor, a desktop agent, or
+another user-owned agent to act on CodeDecay's findings.
+
+```bash
+npx codedecay agent --base main --head HEAD --format markdown --output codedecay-agent.md
+```
+
+Then give `codedecay-agent.md` to your agent and ask it to:
+
+- fix high-risk findings first,
+- add tests that exercise real API, UI, database, or downstream behavior,
+- cover the missing edge cases listed by CodeDecay,
+- run the relevant project checks,
+- rerun CodeDecay after changes.
+
+The agent bundle is local evidence plus instructions. CodeDecay does not call
+Codex, Claude, Cursor, Ollama, cloud models, or CodeDecayCloud while creating
+it.
+
+## Recommended Local Loop
+
+```bash
+npx codedecay analyze --base main --head HEAD --format markdown
+npx codedecay redteam --base main --head HEAD --format markdown --output codedecay-redteam.md
+npx codedecay agent --base main --head HEAD --format markdown --output codedecay-agent.md
+```
+
+Use the redteam report to understand the PR risk. Use the agent bundle to give
+your own coding agent the evidence, missing checks, and fix tasks it should
+work through. After the agent changes code, run your project checks and run
+CodeDecay again.
+
 ## Write SARIF
 
 ```bash
