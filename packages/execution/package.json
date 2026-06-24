@@ -1,5 +1,5 @@
 {
-  "name": "@submuxhq/codedecay-adapters",
+  "name": "@submuxhq/codedecay-execution",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,11 +10,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     }
-  },
-  "dependencies": {
-    "@submuxhq/codedecay-config": "workspace:*",
-    "@submuxhq/codedecay-core": "workspace:*",
-    "@submuxhq/codedecay-execution": "workspace:*"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean --tsconfig ../../tsconfig.base.json"

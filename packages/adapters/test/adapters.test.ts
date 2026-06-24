@@ -115,6 +115,23 @@ describe("adapter runner", () => {
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("Command execution is disabled");
   });
+
+  it("blocks destructive configured command adapters through the execution policy", async () => {
+    const adapter = createCommandAdapter({
+      id: "unsafe-command",
+      name: "Unsafe command",
+      command: "rm -rf ./dist",
+      requiresCommandAllowlist: true
+    });
+
+    const result = await runOne(adapter, createContext({ allowCommands: true }));
+
+    expect(result).toMatchObject({
+      status: "skipped",
+      stdout: "",
+      error: "Command was blocked by CodeDecay safety policy: recursive or forced file deletion."
+    });
+  });
 });
 
 async function runOne(
