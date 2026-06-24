@@ -116,6 +116,26 @@ describe("CodeDecay MCP tools", () => {
     expect(output.recommendedChecks).toContain("Add real assertions to src/auth/session.test.ts");
   });
 
+  it("includes route/API proof recommendations in MCP edge-case suggestions", () => {
+    const repo = createRouteImpactRepo();
+
+    const output = JSON.parse(runSuggestEdgeCasesTool({ cwd: repo }, {}));
+
+    expect(output.edgeCases).toEqual(
+      expect.arrayContaining([
+        "Add or run tests covering src/app/api/users/route.ts",
+        "Add or run tests covering src/app/dashboard/page.tsx",
+        "Exercise the real API route with malformed, missing, and boundary-value payloads."
+      ])
+    );
+    expect(output.recommendedChecks).toEqual(
+      expect.arrayContaining([
+        "Add or run tests covering src/app/api/users/route.ts",
+        "Add or run tests covering src/app/dashboard/page.tsx"
+      ])
+    );
+  });
+
   it("returns a markdown redteam report for MCP agents", () => {
     const repo = createWeakTestRepo();
 

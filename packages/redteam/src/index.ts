@@ -151,7 +151,7 @@ const EDGE_CASES_BY_AREA: Partial<Record<ImpactedArea["kind"], string[]>> = {
 export function createRedteamReport(input: RedteamReportInput): RedteamReport {
   const testAudit = createTestProofAudit(input.analysisReport);
   const weakTestFindings = testAudit.weakTestFindings;
-  const edgeCases = suggestEdgeCases(input.analysisReport.impactedAreas);
+  const edgeCases = suggestEdgeCases(input.analysisReport);
   const configuredChecks = collectConfiguredChecks(input.config);
   const toolAdapterPlans = collectToolAdapterPlans(input.config);
   const memory = summarizeMemory(input.memory, input.memorySource);
@@ -348,13 +348,17 @@ function summarizeSkills(loadedSkills: LoadedCodeDecaySkills | undefined): Redte
   }));
 }
 
-function suggestEdgeCases(areas: ImpactedArea[]): string[] {
+function suggestEdgeCases(report: CodeDecayReport): string[] {
   const suggestions = new Set<string>();
 
-  for (const area of areas) {
+  for (const area of report.impactedAreas) {
     for (const suggestion of EDGE_CASES_BY_AREA[area.kind] ?? []) {
       suggestions.add(suggestion);
     }
+  }
+
+  for (const recommendation of report.recommendedTests) {
+    suggestions.add(recommendation);
   }
 
   if (suggestions.size === 0) {
