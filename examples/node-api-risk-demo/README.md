@@ -45,6 +45,7 @@ git commit -m "baseline Node API example"
 node scripts/materialize.mjs risky
 node ../../packages/cli/dist/index.js analyze --cwd . --format markdown
 node ../../packages/cli/dist/index.js redteam --cwd . --format markdown
+node ../../packages/cli/dist/index.js agent --cwd . --format markdown
 ```
 
 After CodeDecay is installed from npm, use `npx codedecay` instead of the local
@@ -78,6 +79,18 @@ Expected result for the risky scenario:
 The failing contract smoke is intentional. It catches that the risky PR makes
 exports available to any authenticated user and changes the default user role to
 `ADMIN`.
+
+## Hand The Bundle To Your Agent
+
+Use the agent bundle when you want Codex, Claude Code, Cursor, or another
+user-owned coding agent to fix the risky PR with tool evidence:
+
+```sh
+node ../../packages/cli/dist/index.js agent --cwd . --format markdown --output codedecay-agent.md
+```
+
+The bundle is report-only. CodeDecay does not execute commands, call an LLM,
+send telemetry, or require CodeDecayCloud while creating it.
 
 ## Expected Summary
 

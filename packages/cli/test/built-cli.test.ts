@@ -292,7 +292,7 @@ describe("built codedecay CLI", () => {
     });
   });
 
-  it("runs the Node API example redteam and execute workflow from the built CLI", () => {
+  it("runs the Node API example redteam, agent, and execute workflow from the built CLI", () => {
     const repo = createNodeApiExampleRepo();
 
     const redteam = runBuilt(["redteam", "--cwd", repo, "--format", "json"]);
@@ -314,6 +314,28 @@ describe("built codedecay CLI", () => {
         })
       ])
     );
+
+    const agent = runBuilt(["agent", "--cwd", repo, "--format", "json"]);
+    const agentBundle = JSON.parse(agent.stdout);
+
+    expect(agent.status).toBe(0);
+    expect(agentBundle).toMatchObject({
+      tool: "CodeDecay",
+      mode: "agent-task-bundle",
+      summary: {
+        riskLevel: "high"
+      },
+      safety: {
+        commandsExecuted: false,
+        llmCalled: false,
+        telemetrySent: false,
+        cloudDependency: false
+      }
+    });
+    expect(agentBundle.evidence.impactedAreas.map((area: { kind: string }) => area.kind)).toEqual(
+      expect.arrayContaining(["api", "auth", "database", "config"])
+    );
+    expect(agentBundle.tasks.length).toBeGreaterThan(0);
 
     const execute = runBuilt(["execute", "--cwd", repo, "--format", "json"]);
     const executeReport = JSON.parse(execute.stdout);
@@ -352,6 +374,41 @@ describe("built codedecay CLI", () => {
             })
           ])
         })
+      ])
+    );
+  });
+
+  it("runs the Next.js example analyze and agent workflow from the built CLI", () => {
+    const repo = createNextjsExampleRepo();
+
+    const analyze = runBuilt(["analyze", "--cwd", repo, "--format", "json"]);
+    const analysisReport = JSON.parse(analyze.stdout);
+
+    expect(analyze.status).toBe(0);
+    expect(analysisReport.summary.riskLevel).toBe("high");
+    expect(analysisReport.impactedAreas.map((area: { kind: string }) => area.kind)).toEqual(
+      expect.arrayContaining(["api", "auth", "database", "config", "ui"])
+    );
+
+    const agent = runBuilt(["agent", "--cwd", repo, "--format", "json"]);
+    const agentBundle = JSON.parse(agent.stdout);
+
+    expect(agent.status).toBe(0);
+    expect(agentBundle).toMatchObject({
+      tool: "CodeDecay",
+      mode: "agent-task-bundle",
+      summary: {
+        riskLevel: "high"
+      },
+      safety: {
+        commandsExecuted: false,
+        llmCalled: false
+      }
+    });
+    expect(agentBundle.evidence.edgeCases).toEqual(
+      expect.arrayContaining([
+        "Exercise the real API route with malformed, missing, and boundary-value payloads.",
+        "Check loading, empty, error, and permission-denied UI states."
       ])
     );
   });
@@ -475,6 +532,29 @@ function createNodeApiExampleRepo(): string {
   git(repo, ["config", "user.name", "CodeDecay Example"]);
   git(repo, ["add", "."]);
   git(repo, ["commit", "-m", "baseline Node API example"]);
+
+  execFileSync("node", ["scripts/materialize.mjs", "risky"], {
+    cwd: repo,
+    stdio: "ignore"
+  });
+
+  return repo;
+}
+
+function createNextjsExampleRepo(): string {
+  const root = createTempDir();
+  const repo = join(root, "nextjs-risk-demo");
+  cpSync(join(repoRoot, "examples/nextjs-risk-demo"), repo, { recursive: true });
+
+  execFileSync("node", ["scripts/materialize.mjs", "baseline"], {
+    cwd: repo,
+    stdio: "ignore"
+  });
+  git(repo, ["init", "-b", "main"]);
+  git(repo, ["config", "user.email", "codedecay@example.com"]);
+  git(repo, ["config", "user.name", "CodeDecay Example"]);
+  git(repo, ["add", "."]);
+  git(repo, ["commit", "-m", "baseline Next.js example"]);
 
   execFileSync("node", ["scripts/materialize.mjs", "risky"], {
     cwd: repo,

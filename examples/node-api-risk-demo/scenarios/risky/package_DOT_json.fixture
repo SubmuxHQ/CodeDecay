@@ -7,6 +7,7 @@
     "test": "echo \"tests temporarily disabled\"",
     "codedecay:analyze": "codedecay analyze --cwd . --format markdown",
     "codedecay:redteam": "codedecay redteam --cwd . --format markdown",
+    "codedecay:agent": "codedecay agent --cwd . --format markdown",
     "codedecay:execute": "codedecay execute --cwd . --format markdown"
   },
   "dependencies": {
