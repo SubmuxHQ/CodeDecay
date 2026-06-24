@@ -155,6 +155,7 @@ git@github.com:SubmuxHQ/codedecay.git
 - [LLM providers](docs/llm-providers.md)
 - [MCP server](docs/mcp.md)
 - [GitHub Action](docs/github-action.md)
+- [GitHub App](docs/github-app.md)
 - [Sample reports](docs/sample-reports/README.md)
 - [Scoring model](docs/scoring.md)
 - [Framework-aware impact map proposal](docs/proposals/framework-aware-impact-map.md)

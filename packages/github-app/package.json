@@ -1,0 +1,20 @@
+{
+  "name": "@submuxhq/codedecay-github-app",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Hosted GitHub App service for CodeDecay pull request analysis",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/server.js",
+  "dependencies": {
+    "@submuxhq/codedecay-analyzer-js": "workspace:*",
+    "@submuxhq/codedecay-core": "workspace:*",
+    "@submuxhq/codedecay-git": "workspace:*",
+    "@submuxhq/codedecay-report": "workspace:*",
+    "probot": "^14.3.2"
+  },
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "start": "node dist/server.js"
+  }
+}
