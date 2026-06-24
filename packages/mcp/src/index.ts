@@ -2,9 +2,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
+import { loadCodeDecayConfig, type LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import { createAnalysisReport, type CodeDecayReport, type ImpactedArea } from "@submuxhq/codedecay-core";
 import { getGitChangedFiles, getRepoRoot } from "@submuxhq/codedecay-git";
-import { applyMemoryContext, loadCodeDecayMemory } from "@submuxhq/codedecay-memory";
+import { applyMemoryContext, loadCodeDecayMemory, type LoadedCodeDecayMemory } from "@submuxhq/codedecay-memory";
+import { createRedteamReport, renderRedteamReport, type RedteamReport } from "@submuxhq/codedecay-redteam";
 import { renderMarkdownReport } from "@submuxhq/codedecay-report";
 
 export interface StartMcpServerOptions {
@@ -19,6 +21,13 @@ export interface McpToolInput {
 
 export interface AnalyzePrToolInput extends McpToolInput {
   format?: "markdown" | "json" | undefined;
+}
+
+interface McpAnalysisContext {
+  rootDir: string;
+  loadedConfig: LoadedCodeDecayConfig;
+  loadedMemory: LoadedCodeDecayMemory;
+  report: CodeDecayReport;
 }
 
 const WEAK_TEST_RULES = new Set([
@@ -89,6 +98,18 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
     async (input) => textResult(runSuggestEdgeCasesTool(options, input))
   );
 
+  server.tool(
+    "redteam_report",
+    "Return a deterministic CodeDecay redteam report for an MCP-compatible agent. Report-only: does not execute commands or call models.",
+    {
+      cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
+      base: z.string().optional().describe("Base git ref or SHA."),
+      head: z.string().optional().describe("Head git ref or SHA."),
+      format: z.enum(["markdown", "json"]).optional().describe("Response format.")
+    },
+    async (input) => textResult(runRedteamReportTool(options, input))
+  );
+
   return server;
 }
 
@@ -138,7 +159,24 @@ export function runSuggestEdgeCasesTool(serverOptions: StartMcpServerOptions, in
   );
 }
 
+export function runRedteamReportTool(serverOptions: StartMcpServerOptions, input: AnalyzePrToolInput): string {
+  const context = createAnalysisContext(serverOptions, input);
+  const report: RedteamReport = createRedteamReport({
+    analysisReport: context.report,
+    config: context.loadedConfig.config,
+    configSource: context.loadedConfig.sourcePath,
+    memory: context.loadedMemory.memory,
+    memorySource: context.loadedMemory.sourcePath
+  });
+
+  return renderRedteamReport(report, input.format ?? "markdown");
+}
+
 function createReport(serverOptions: StartMcpServerOptions, input: McpToolInput): CodeDecayReport {
+  return createAnalysisContext(serverOptions, input).report;
+}
+
+function createAnalysisContext(serverOptions: StartMcpServerOptions, input: McpToolInput): McpAnalysisContext {
   const cwd = input.cwd ?? serverOptions.cwd;
   const rootDir = getRepoRoot(cwd);
   const changedFiles = getGitChangedFiles({
@@ -147,6 +185,7 @@ function createReport(serverOptions: StartMcpServerOptions, input: McpToolInput)
     head: input.head
   });
 
+  const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
   const analyzerResult = analyzeJsProject({
     rootDir,
     changedFiles
@@ -159,12 +198,17 @@ function createReport(serverOptions: StartMcpServerOptions, input: McpToolInput)
     analyzerResult
   });
 
-  return createAnalysisReport({
-    base: input.base,
-    head: input.head,
-    changedFiles,
-    analyzerResult: analyzerResultWithMemory
-  });
+  return {
+    rootDir,
+    loadedConfig,
+    loadedMemory,
+    report: createAnalysisReport({
+      base: input.base,
+      head: input.head,
+      changedFiles,
+      analyzerResult: analyzerResultWithMemory
+    })
+  };
 }
 
 function suggestEdgeCases(areas: ImpactedArea[]): string[] {
