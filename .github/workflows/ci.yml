@@ -42,3 +42,6 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Package dry-run
+        run: pnpm --filter @submux/codedecay pack --dry-run

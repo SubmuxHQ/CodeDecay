@@ -112,6 +112,32 @@ describe("GitHub repository metadata", () => {
     }
     expect(template).toContain("Closes #");
   });
+
+  it("runs the full release validation command set in CI", () => {
+    const workflow = parse(readFileSync(".github/workflows/ci.yml", "utf8")) as {
+      jobs: {
+        validate: {
+          steps: Array<{ run?: string | undefined }>;
+        };
+      };
+    };
+
+    const commands = workflow.jobs.validate.steps.map((step) => step.run).filter(Boolean);
+
+    expect(commands).toEqual(
+      expect.arrayContaining([
+        "pnpm install --frozen-lockfile",
+        "pnpm run lint",
+        "pnpm typecheck",
+        "pnpm test",
+        "pnpm build",
+        "pnpm --filter @submux/codedecay pack --dry-run"
+      ])
+    );
+    expect(commands.indexOf("pnpm --filter @submux/codedecay pack --dry-run")).toBeGreaterThan(
+      commands.indexOf("pnpm build")
+    );
+  });
 });
 
 function readIssueAreaOptions(path: string): string[] {
