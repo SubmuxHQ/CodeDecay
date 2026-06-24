@@ -485,6 +485,142 @@ describe("codedecay execute CLI contract", () => {
     ]);
   });
 
+  it("skips configured tool adapters unless safety.allowCommands is true", async () => {
+    const repo = createLowRiskRepo();
+    writeFile(
+      repo,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "commands: {}",
+        "probes: []",
+        "toolAdapters:",
+        "  playwright:",
+        "    command: node playwright-should-not-run.js",
+        "safety:",
+        "  allowCommands: false",
+        "  commandTimeoutMs: 1000",
+        ""
+      ].join("\n")
+    );
+    writeFile(repo, "playwright-should-not-run.js", "require('fs').writeFileSync('adapter-ran.txt', 'yes');\n");
+
+    const result = await run(["execute", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(report.summary).toMatchObject({
+      status: "skipped",
+      total: 1,
+      skipped: 1
+    });
+    expect(report.results).toEqual([]);
+    expect(report.toolAdapters[0]).toMatchObject({
+      kind: "playwright",
+      command: "node playwright-should-not-run.js",
+      status: "skipped"
+    });
+    expect(report.toolAdapters[0].evidence[0]).toMatchObject({
+      kind: "browser-flow",
+      severity: "info"
+    });
+    expect(existsSync(join(repo, "adapter-ran.txt"))).toBe(false);
+  });
+
+  it("runs configured tool adapters and returns normalized evidence", async () => {
+    const repo = createLowRiskRepo();
+    writeFile(repo, "playwright-pass.js", "console.log('browser flow ok');\n");
+    writeFile(
+      repo,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "commands: {}",
+        "probes: []",
+        "toolAdapters:",
+        "  playwright:",
+        "    command: node playwright-pass.js",
+        "safety:",
+        "  allowCommands: true",
+        "  commandTimeoutMs: 1000",
+        ""
+      ].join("\n")
+    );
+
+    const result = await run(["execute", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(report.summary).toMatchObject({
+      status: "passed",
+      total: 1,
+      passed: 1
+    });
+    expect(report.toolAdapters[0]).toMatchObject({
+      kind: "playwright",
+      command: "node playwright-pass.js",
+      status: "passed",
+      summary: "Playwright checks passed."
+    });
+    expect(report.toolAdapters[0].evidence[0]).toMatchObject({
+      kind: "browser-flow",
+      severity: "info",
+      metadata: {
+        status: "passed",
+        stdout: "browser flow ok"
+      }
+    });
+
+    const markdown = await run(["execute", "--format", "markdown"], repo);
+    expect(markdown.exitCode).toBe(0);
+    expect(markdown.stdout).toContain("### Tool Adapter Results");
+    expect(markdown.stdout).toContain("Playwright");
+    expect(markdown.stdout).toContain("browser-flow");
+  });
+
+  it("returns exit 1 and reports failures from configured tool adapters", async () => {
+    const repo = createLowRiskRepo();
+    writeFile(repo, "pact-fail.js", "console.error('contract mismatch'); process.exit(15);\n");
+    writeFile(
+      repo,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "commands: {}",
+        "probes: []",
+        "toolAdapters:",
+        "  pact:",
+        "    command: node pact-fail.js",
+        "safety:",
+        "  allowCommands: true",
+        "  commandTimeoutMs: 1000",
+        ""
+      ].join("\n")
+    );
+
+    const result = await run(["execute", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(report.summary).toMatchObject({
+      status: "failed",
+      total: 1,
+      failed: 1
+    });
+    expect(report.toolAdapters[0]).toMatchObject({
+      kind: "pact",
+      command: "node pact-fail.js",
+      status: "failed",
+      failure: {
+        mode: "nonzero-exit"
+      }
+    });
+    expect(report.toolAdapters[0].evidence[0]).toMatchObject({
+      kind: "contract",
+      severity: "high"
+    });
+  });
+
   it("returns exit 1 and reports failures from configured commands", async () => {
     const repo = createLowRiskRepo();
     writeExecutionConfig(repo, {

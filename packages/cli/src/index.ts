@@ -18,10 +18,12 @@ import {
   type RiskLevel
 } from "@submuxhq/codedecay-core";
 import { createGitWorktree, getGitChangedFiles, getRepoRoot, removeGitWorktree } from "@submuxhq/codedecay-git";
+import type { Evidence, HarnessFailure } from "@submuxhq/codedecay-harness";
 import { applyMemoryContext, loadCodeDecayMemory, type LoadedCodeDecayMemory } from "@submuxhq/codedecay-memory";
 import { createRedteamReport, renderRedteamReport, type RedteamFormat } from "@submuxhq/codedecay-redteam";
 import { renderReport, type ReportFormat } from "@submuxhq/codedecay-report";
 import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
+import { createConfiguredToolHarnesses, type ConfiguredToolAdapterKind } from "@submuxhq/codedecay-tool-adapters";
 
 interface AnalyzeOptions {
   base?: string | undefined;
@@ -76,6 +78,7 @@ interface ExecutionReport {
   configSource?: string | undefined;
   summary: ExecutionSummary;
   results: ExecutionResult[];
+  toolAdapters: ExecutionToolAdapterResult[];
 }
 
 interface ExecutionSummary {
@@ -92,6 +95,18 @@ interface ExecutionSummary {
 interface ExecutionResult extends AdapterResult {
   kind: ConfiguredCommandKind;
   command: string;
+}
+
+interface ExecutionToolAdapterResult {
+  kind: ConfiguredToolAdapterKind;
+  name: string;
+  command: string;
+  status: AdapterStatus;
+  durationMs: number;
+  summary: string;
+  evidence: Evidence[];
+  timeoutMs?: number | undefined;
+  failure?: HarnessFailure | undefined;
 }
 
 type DifferentialStatus = "passed" | "changed" | "skipped" | "failed";
@@ -913,12 +928,15 @@ async function createExecutionReport(rootDir: string, loadedConfig: LoadedCodeDe
     });
   }
 
+  const toolAdapterResults = await runConfiguredToolAdapters(rootDir, loadedConfig);
+
   const report: ExecutionReport = {
     tool: "CodeDecay",
     version: CODEDECAY_VERSION,
     generatedAt: new Date().toISOString(),
-    summary: createExecutionSummary(adapterResults, elapsed(startedAt)),
-    results: adapterResults
+    summary: createExecutionSummary(adapterResults, toolAdapterResults, elapsed(startedAt)),
+    results: adapterResults,
+    toolAdapters: toolAdapterResults
   };
 
   if (loadedConfig.sourcePath) {
@@ -928,16 +946,59 @@ async function createExecutionReport(rootDir: string, loadedConfig: LoadedCodeDe
   return report;
 }
 
-function createExecutionSummary(results: ExecutionResult[], durationMs: number): ExecutionSummary {
-  const passed = countStatus(results, "passed");
-  const failed = countStatus(results, "failed");
-  const skipped = countStatus(results, "skipped");
-  const timedOut = countStatus(results, "timed_out");
-  const errors = countStatus(results, "error");
+async function runConfiguredToolAdapters(
+  rootDir: string,
+  loadedConfig: LoadedCodeDecayConfig
+): Promise<ExecutionToolAdapterResult[]> {
+  const configuredToolAdapters = createConfiguredToolHarnesses(loadedConfig.config);
+  const results: ExecutionToolAdapterResult[] = [];
+
+  for (const configured of configuredToolAdapters) {
+    const plan = await configured.harness.plan({
+      cwd: rootDir,
+      evidence: []
+    });
+    const context = configured.timeoutMs === undefined ? { cwd: rootDir } : { cwd: rootDir, timeoutMs: configured.timeoutMs };
+    const result = await configured.harness.run(plan, context);
+    const mapped: ExecutionToolAdapterResult = {
+      kind: configured.kind,
+      name: configured.name,
+      command: configured.command,
+      status: result.status,
+      durationMs: result.durationMs,
+      summary: result.summary ?? result.failure?.message ?? `${configured.name} produced ${result.evidence.length} evidence item(s).`,
+      evidence: result.evidence
+    };
+
+    if (configured.timeoutMs !== undefined) {
+      mapped.timeoutMs = configured.timeoutMs;
+    }
+
+    if (result.failure) {
+      mapped.failure = result.failure;
+    }
+
+    results.push(mapped);
+  }
+
+  return results;
+}
+
+function createExecutionSummary(
+  results: ExecutionResult[],
+  toolAdapters: ExecutionToolAdapterResult[],
+  durationMs: number
+): ExecutionSummary {
+  const allResults = [...results, ...toolAdapters];
+  const passed = countStatus(allResults, "passed");
+  const failed = countStatus(allResults, "failed");
+  const skipped = countStatus(allResults, "skipped");
+  const timedOut = countStatus(allResults, "timed_out");
+  const errors = countStatus(allResults, "error");
 
   return {
-    status: executionStatus(results, { failed, timedOut, errors }),
-    total: results.length,
+    status: executionStatus(allResults, { failed, timedOut, errors }),
+    total: allResults.length,
     passed,
     failed,
     skipped,
@@ -948,7 +1009,7 @@ function createExecutionSummary(results: ExecutionResult[], durationMs: number):
 }
 
 function executionStatus(
-  results: ExecutionResult[],
+  results: Array<{ status: AdapterStatus }>,
   counts: Pick<ExecutionSummary, "failed" | "timedOut" | "errors">
 ): AdapterStatus {
   if (counts.errors > 0) {
@@ -997,27 +1058,46 @@ function renderExecutionMarkdown(report: ExecutionReport): string {
     ""
   ];
 
-  if (report.results.length === 0) {
-    lines.push("No configured commands or probes found.", "");
+  if (report.results.length === 0 && report.toolAdapters.length === 0) {
+    lines.push("No configured commands, probes, or tool adapters found.", "");
     return `${lines.join("\n")}\n`;
   }
 
-  lines.push("### Results", "");
-  for (const result of report.results) {
-    lines.push(
-      `- **${result.name}** (${result.kind}) ${formatStatus(result.status)} in ${result.durationMs}ms: \`${result.command}\``
-    );
+  if (report.results.length > 0) {
+    lines.push("### Results", "");
+    for (const result of report.results) {
+      lines.push(
+        `- **${result.name}** (${result.kind}) ${formatStatus(result.status)} in ${result.durationMs}ms: \`${result.command}\``
+      );
 
-    if (result.exitCode !== undefined) {
-      lines.push(`  - Exit code: ${result.exitCode}`);
+      if (result.exitCode !== undefined) {
+        lines.push(`  - Exit code: ${result.exitCode}`);
+      }
+
+      if (result.error) {
+        lines.push(`  - Error: ${result.error}`);
+      }
+
+      appendOutputBlock(lines, "stdout", result.stdout);
+      appendOutputBlock(lines, "stderr", result.stderr);
     }
+    lines.push("");
+  }
 
-    if (result.error) {
-      lines.push(`  - Error: ${result.error}`);
+  if (report.toolAdapters.length > 0) {
+    lines.push("### Tool Adapter Results", "");
+    for (const result of report.toolAdapters) {
+      lines.push(
+        `- **${result.name}** (${result.kind}) ${formatStatus(result.status)} in ${result.durationMs}ms: \`${result.command}\``
+      );
+
+      if (result.failure) {
+        lines.push(`  - Failure: ${result.failure.mode}: ${result.failure.message}`);
+      }
+
+      appendToolEvidence(lines, result.evidence);
     }
-
-    appendOutputBlock(lines, "stdout", result.stdout);
-    appendOutputBlock(lines, "stderr", result.stderr);
+    lines.push("");
   }
 
   lines.push(
@@ -1029,6 +1109,21 @@ function renderExecutionMarkdown(report: ExecutionReport): string {
   );
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendToolEvidence(lines: string[], evidence: Evidence[]): void {
+  if (evidence.length === 0) {
+    return;
+  }
+
+  lines.push("  - Evidence:");
+  for (const item of evidence.slice(0, 5)) {
+    lines.push(`    - ${formatEvidenceSeverity(item.severity)} ${item.kind}: ${item.summary}`);
+  }
+}
+
+function formatEvidenceSeverity(severity: Evidence["severity"]): string {
+  return `${severity.charAt(0).toUpperCase()}${severity.slice(1)}`;
 }
 
 function appendOutputBlock(lines: string[], label: string, output: string): void {
@@ -1054,7 +1149,7 @@ function trimLongOutput(output: string): string {
   return `${output.slice(output.length - limit)}\n[output truncated to last ${limit} characters]`;
 }
 
-function countStatus(results: ExecutionResult[], status: AdapterStatus): number {
+function countStatus(results: Array<{ status: AdapterStatus }>, status: AdapterStatus): number {
   return results.filter((result) => result.status === status).length;
 }
 

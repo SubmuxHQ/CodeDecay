@@ -1,11 +1,11 @@
 # Execution Probes
 
-CodeDecay can run explicitly configured project commands and behavior probes
-with `codedecay execute`.
+CodeDecay can run explicitly configured project commands, behavior probes, and
+tool adapters with `codedecay execute`.
 
 Execution is opt-in. By default, CodeDecay does not run project commands. A repo
-must set `safety.allowCommands: true` in CodeDecay config before commands or
-probes execute.
+must set `safety.allowCommands: true` in CodeDecay config before commands,
+probes, or tool adapters execute.
 
 ## Run
 
@@ -39,6 +39,17 @@ probes:
     command: curl -f http://localhost:3000/api/users
     timeoutMs: 5000
 
+toolAdapters:
+  playwright:
+    command: pnpm exec playwright test
+  stryker:
+    command: pnpm exec stryker run
+  schemathesis:
+    schema: docs/openapi.yaml
+    baseUrl: http://127.0.0.1:3000
+  pact:
+    command: pnpm run test:pact
+
 safety:
   commandTimeoutMs: 120000
   allowCommands: true
@@ -50,9 +61,15 @@ CodeDecay supports these configured command groups:
 - `commands.build`
 - `commands.start`
 - `probes`
+- `toolAdapters.playwright`
+- `toolAdapters.stryker`
+- `toolAdapters.schemathesis`
+- `toolAdapters.pact`
 
 Each command runs from the configured `--cwd` directory. Probe-level
-`timeoutMs` overrides the global `safety.commandTimeoutMs`.
+`timeoutMs` overrides the global `safety.commandTimeoutMs`. Tool adapters use
+their own configured command and timeout, then return normalized tool evidence
+separately from raw command/probe results.
 
 ## Safety Rules
 
@@ -61,6 +78,7 @@ Each command runs from the configured `--cwd` directory. Probe-level
   or remote services.
 - Command execution is disabled unless `safety.allowCommands` is true.
 - Command output is captured locally in the execution report.
+- Tool adapter evidence is reported separately from AI suggestions.
 - No telemetry, API keys, cloud services, LLMs, or model calls are required.
 
 `commands.start` should use a short-lived smoke command or a low timeout unless
