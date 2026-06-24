@@ -49,6 +49,7 @@ npx codedecay config --format markdown
 npx codedecay execute --format markdown
 npx codedecay differential --base main --head HEAD --format markdown
 npx codedecay redteam --base main --head HEAD --format markdown
+npx codedecay agent --base main --head HEAD --format markdown
 ```
 
 Options:
@@ -158,6 +159,7 @@ git@github.com:SubmuxHQ/codedecay.git
 - [Execution probes](docs/execution.md)
 - [Differential behavior checks](docs/differential.md)
 - [Redteam reports](docs/redteam.md)
+- [Agent task bundles](docs/agent.md)
 - [LLM providers](docs/llm-providers.md)
 - [MCP server](docs/mcp.md)
 - [GitHub Action](docs/github-action.md)

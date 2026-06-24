@@ -36,6 +36,15 @@ importers:
         specifier: workspace:*
         version: link:../execution
 
+  packages/agent:
+    dependencies:
+      '@submuxhq/codedecay-core':
+        specifier: workspace:*
+        version: link:../core
+      '@submuxhq/codedecay-redteam':
+        specifier: workspace:*
+        version: link:../redteam
+
   packages/analyzer-js:
     dependencies:
       '@babel/parser':

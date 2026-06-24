@@ -9,6 +9,7 @@
     "baseUrl": ".",
     "paths": {
       "@submuxhq/codedecay-core": ["packages/core/src/index.ts"],
+      "@submuxhq/codedecay-agent": ["packages/agent/src/index.ts"],
       "@submuxhq/codedecay-config": ["packages/config/src/index.ts"],
       "@submuxhq/codedecay-adapters": ["packages/adapters/src/index.ts"],
       "@submuxhq/codedecay-execution": ["packages/execution/src/index.ts"],

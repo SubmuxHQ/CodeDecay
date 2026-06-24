@@ -424,6 +424,107 @@ describe("codedecay redteam CLI contract", () => {
   });
 });
 
+describe("codedecay agent CLI contract", () => {
+  it("renders deterministic JSON and markdown agent task bundles", async () => {
+    const repo = createHighRiskRepo();
+    writeExecutionConfig(repo, {
+      allowCommands: true,
+      testCommand: "node -e \"require('fs').writeFileSync('codedecay-ran.txt','yes')\"",
+      toolAdapters: true
+    });
+    writeFile(repo, ".agents/skills/pr-red-team/SKILL.md", "# PR Red-Team Skill\n\nFind missed PR risks.\n");
+
+    const json = await run(["agent", "--format", "json"], repo);
+    const bundle = JSON.parse(json.stdout);
+
+    expect(json.exitCode).toBe(0);
+    expect(json.stderr).toBe("");
+    expect(bundle).toMatchObject({
+      tool: "CodeDecay",
+      mode: "agent-task-bundle",
+      summary: {
+        riskLevel: "high"
+      },
+      safety: {
+        llmCalled: false,
+        commandsExecuted: false,
+        telemetrySent: false,
+        cloudDependency: false,
+        agentOutputTrusted: false
+      }
+    });
+    expect(bundle.purpose).toContain("Codex");
+    expect(bundle.evidence.impactedAreas.map((area: { kind: string }) => area.kind)).toEqual(
+      expect.arrayContaining(["api", "auth"])
+    );
+    expect(bundle.suggestedChecks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: "configured-command",
+          command: "node -e \"require('fs').writeFileSync('codedecay-ran.txt','yes')\"",
+          willRun: false
+        }),
+        expect.objectContaining({
+          source: "tool-adapter",
+          kind: "playwright",
+          willRun: false
+        })
+      ])
+    );
+    expect(existsSync(join(repo, "codedecay-ran.txt"))).toBe(false);
+
+    const markdown = await run(["agent", "--format", "markdown"], repo);
+    expect(markdown.exitCode).toBe(0);
+    expect(markdown.stdout).toContain("## CodeDecay Agent Task Bundle");
+    expect(markdown.stdout).toContain("### Instructions For The Agent");
+    expect(markdown.stdout).toContain("### Tool Evidence");
+    expect(markdown.stdout).toContain("### Safety And Limits");
+    expect(markdown.stdout).toContain("LLM/model called by CodeDecay: no");
+  });
+
+  it("uses --cwd and writes relative --output paths from that cwd", async () => {
+    const repo = createMediumRiskRepo();
+    const outsideCwd = createTempDir();
+
+    const result = await run(["agent", "--cwd", repo, "--format", "json", "--output", "codedecay-agent.json"], outsideCwd);
+    const outputPath = join(repo, "codedecay-agent.json");
+    const bundle = JSON.parse(readFileSync(outputPath, "utf8"));
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("");
+    expect(bundle.mode).toBe("agent-task-bundle");
+    expect(bundle.evidence.changedFiles.map((file: { path: string }) => file.path)).toContain("src/api/users.ts");
+    expect(bundle.summary.riskLevel).toBe("medium");
+  });
+
+  it("uses base/head refs", async () => {
+    const repo = createRepo({
+      "src/api/users.ts": "export function handler() { return Response.json({ ok: true }); }\n"
+    });
+    const base = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+    writeFile(repo, "src/api/users.ts", "export function handler() { return Response.json({ ok: false }); }\n");
+    git(repo, ["add", "."]);
+    git(repo, ["commit", "-m", "change api"]);
+    const head = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+
+    const result = await run(["agent", "--base", base, "--head", head, "--format", "json"], repo);
+    const bundle = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(bundle.evidence.changedFiles.map((file: { path: string }) => file.path)).toContain("src/api/users.ts");
+  });
+
+  it("fails clearly for agent git errors without emitting a bundle", async () => {
+    const repo = createLowRiskRepo();
+
+    const result = await run(["agent", "--base", "definitely-missing-ref", "--head", "HEAD", "--format", "json"], repo);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain('CodeDecay failed: Could not resolve git ref "definitely-missing-ref".');
+  });
+});
+
 describe("codedecay execute CLI contract", () => {
   it("skips configured commands unless safety.allowCommands is true", async () => {
     const repo = createLowRiskRepo();

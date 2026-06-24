@@ -11,6 +11,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@submuxhq/codedecay-core": fromRoot("./packages/core/src/index.ts"),
+      "@submuxhq/codedecay-agent": fromRoot("./packages/agent/src/index.ts"),
       "@submuxhq/codedecay-config": fromRoot("./packages/config/src/index.ts"),
       "@submuxhq/codedecay-adapters": fromRoot("./packages/adapters/src/index.ts"),
       "@submuxhq/codedecay-execution": fromRoot("./packages/execution/src/index.ts"),
