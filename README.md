@@ -56,14 +56,31 @@ is treated as suggestions, not trusted proof.
 
 ## Install
 
+Use the package manager your repository already uses:
+
 ```bash
 npm install -D @submux/codedecay
+pnpm add -D @submux/codedecay
+bun add -d @submux/codedecay
+yarn add -D @submux/codedecay
 ```
 
-Run it with `npx codedecay` or add it to an npm script.
+For a no-install smoke test:
 
 ```bash
-npx codedecay --help
+npx -y @submux/codedecay --help
+```
+
+After a local install, run it with `npx codedecay`, `pnpm codedecay`,
+`bunx codedecay`, or add `codedecay` to a package script.
+
+Do not run `npm install` inside a Bun, pnpm, or Yarn workspace that uses
+`workspace:*` dependencies. npm may fail before CodeDecay is installed. In Bun
+repos with `minimumReleaseAge`, a fresh CodeDecay release may also be blocked by
+repo policy; for local evaluation you can override it explicitly:
+
+```bash
+bun add -d @submux/codedecay --minimum-release-age 0
 ```
 
 For source checkout development:
