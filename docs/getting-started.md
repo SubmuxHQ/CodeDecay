@@ -9,16 +9,16 @@ model calls.
 Use the package manager your repository already uses:
 
 ```bash
-npm install -D @submux/codedecay
-pnpm add -D @submux/codedecay
-bun add -d @submux/codedecay
-yarn add -D @submux/codedecay
+npm install -D @submuxhq/codedecay
+pnpm add -D @submuxhq/codedecay
+bun add -d @submuxhq/codedecay
+yarn add -D @submuxhq/codedecay
 ```
 
 For a no-install smoke test:
 
 ```bash
-npx -y @submux/codedecay --help
+npx -y @submuxhq/codedecay --help
 ```
 
 After a local install, run CodeDecay with `npx codedecay`, `pnpm codedecay`,
@@ -30,7 +30,7 @@ repos with `minimumReleaseAge`, a fresh CodeDecay release may also be blocked by
 repo policy; for local evaluation you can override it explicitly:
 
 ```bash
-bun add -d @submux/codedecay --minimum-release-age 0
+bun add -d @submuxhq/codedecay --minimum-release-age 0
 ```
 
 ## Analyze A PR Diff

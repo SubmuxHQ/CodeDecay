@@ -25,7 +25,7 @@
 - [ ] `pnpm typecheck`
 - [ ] `pnpm test`
 - [ ] `pnpm build`
-- [ ] `pnpm --filter @submux/codedecay pack --dry-run`
+- [ ] `pnpm --filter @submuxhq/codedecay pack --dry-run`
 - [ ] Added or updated tests for behavior changes
 - [ ] Updated docs for user-facing changes
 - [ ] Ran a relevant CodeDecay self-check when useful

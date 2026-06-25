@@ -12,7 +12,7 @@ opt-in and limited to commands already present in CodeDecay config.
 ## Run Locally
 
 ```bash
-npx @submux/codedecay mcp --cwd /path/to/repo
+npx @submuxhq/codedecay mcp --cwd /path/to/repo
 ```
 
 ## Example MCP Client Config
@@ -25,7 +25,7 @@ runs CodeDecay locally and passes the repository path with `--cwd`.
   "mcpServers": {
     "codedecay": {
       "command": "npx",
-      "args": ["-y", "@submux/codedecay", "mcp", "--cwd", "/path/to/repo"]
+      "args": ["-y", "@submuxhq/codedecay", "mcp", "--cwd", "/path/to/repo"]
     }
   }
 }

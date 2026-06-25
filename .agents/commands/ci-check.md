@@ -22,7 +22,7 @@ Use this before pushing or opening a PR.
 3. For CLI/package changes, also run:
 
    ```bash
-   pnpm --filter @submux/codedecay pack --dry-run
+   pnpm --filter @submuxhq/codedecay pack --dry-run
    ```
 
 4. For GitHub App changes, also run:

@@ -43,7 +43,7 @@ runs:
         cd "$ACTION_ROOT"
         corepack enable
         pnpm install --frozen-lockfile
-        pnpm --filter @submux/codedecay build
+        pnpm --filter @submuxhq/codedecay build
 
     - name: "Write CodeDecay summary"
       shell: "bash"

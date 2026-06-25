@@ -245,7 +245,7 @@ const VALID_FORMATS = new Set<ReportFormat>(["json", "markdown", "sarif"]);
 const VALID_CONFIG_FORMATS = new Set<ConfigFormat>(["json", "markdown"]);
 const VALID_RISK_LEVELS = new Set<RiskLevel>(["low", "medium", "high"]);
 const VALID_PACKAGE_MANAGERS = new Set<PackageManager>(["npm", "pnpm", "yarn", "bun"]);
-const PACKAGE_NAME = "@submux/codedecay";
+const PACKAGE_NAME = "@submuxhq/codedecay";
 const COMMAND_ORDER = ["analyze", "redteam", "agent", "config", "memory", "execute", "differential", "mcp"] as const;
 const UTILITY_COMMAND_ORDER = ["help", "man", "update", "uninstall", "version"] as const;
 const ROOT_FLAG_ALIASES = ["--help", "-h", "--version", "-V"] as const;
@@ -435,7 +435,7 @@ const HELP_DOCS: Record<string, CommandDoc> = {
     summary: "Print or apply the recommended CLI upgrade command.",
     usage: ["codedecay update [options]"],
     description: [
-      "Detect the repository package manager and print the safest upgrade command for `@submux/codedecay`. By default this is a dry run."
+      "Detect the repository package manager and print the safest upgrade command for `@submuxhq/codedecay`. By default this is a dry run."
     ],
     options: [
       { flag: "--cwd <path>", description: "Working directory used for package-manager detection" },
@@ -456,7 +456,7 @@ const HELP_DOCS: Record<string, CommandDoc> = {
     summary: "Print or apply the recommended uninstall and cleanup plan.",
     usage: ["codedecay uninstall [options]"],
     description: [
-      "Detect the repository package manager and print the safest removal command for `@submux/codedecay`. Optionally purge repo-local CodeDecay state and generated artifacts."
+      "Detect the repository package manager and print the safest removal command for `@submuxhq/codedecay`. Optionally purge repo-local CodeDecay state and generated artifacts."
     ],
     options: [
       { flag: "--cwd <path>", description: "Working directory used for package-manager detection" },

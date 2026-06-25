@@ -47,7 +47,7 @@ pnpm run lint
 pnpm typecheck
 pnpm test
 pnpm build
-pnpm --filter @submux/codedecay pack --dry-run
+pnpm --filter @submuxhq/codedecay pack --dry-run
 ```
 
 Run the built CLI:

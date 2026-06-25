@@ -45,7 +45,7 @@
   "architecture": [
     {
       "title": "Private internal packages",
-      "note": "Only @submux/codedecay is published; @submuxhq/* packages are internal workspace packages."
+      "note": "Only @submuxhq/codedecay is published; @submuxhq/* packages are internal workspace packages."
     }
   ],
   "regressions": []

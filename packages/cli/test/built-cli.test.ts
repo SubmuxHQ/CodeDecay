@@ -9,7 +9,7 @@ const cliPath = join(repoRoot, "packages/cli/dist/index.js");
 const tempRoots: string[] = [];
 
 beforeAll(() => {
-  execFileSync("pnpm", ["--filter", "@submux/codedecay", "build"], {
+  execFileSync("pnpm", ["--filter", "@submuxhq/codedecay", "build"], {
     cwd: repoRoot,
     stdio: "ignore"
   });
@@ -249,7 +249,7 @@ describe("built codedecay CLI", () => {
     const update = runBuilt(["update", "--cwd", cwd]);
     expect(update.status).toBe(0);
     expect(update.stdout).toContain("Package manager: pnpm (package.json#packageManager)");
-    expect(update.stdout).toContain("pnpm add -D @submux/codedecay@latest");
+    expect(update.stdout).toContain("pnpm add -D @submuxhq/codedecay@latest");
 
     const uninstallHelp = runBuilt(["help", "uninstall"]);
     expect(uninstallHelp.status).toBe(0);
@@ -259,7 +259,7 @@ describe("built codedecay CLI", () => {
     writeFile(cwd, "codedecay-redteam.md", "# report\n");
     const uninstall = runBuilt(["uninstall", "--cwd", cwd, "--purge-local"]);
     expect(uninstall.status).toBe(0);
-    expect(uninstall.stdout).toContain("pnpm remove @submux/codedecay");
+    expect(uninstall.stdout).toContain("pnpm remove @submuxhq/codedecay");
     expect(uninstall.stdout).toContain(".codedecay");
   });
 
@@ -545,7 +545,7 @@ describe("built codedecay CLI", () => {
     for (const packagePath of examplePackagePaths) {
       const packageJson = JSON.parse(readFileSync(join(repoRoot, packagePath), "utf8"));
 
-      expect(packageJson.devDependencies?.["@submux/codedecay"]).toBeUndefined();
+      expect(packageJson.devDependencies?.["@submuxhq/codedecay"]).toBeUndefined();
       expect(JSON.stringify(packageJson.scripts)).toContain("node ../../packages/cli/dist/index.js");
     }
   });

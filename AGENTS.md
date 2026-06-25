@@ -112,7 +112,7 @@ Use the current stack:
 - tsup
 - vitest
 - GitHub Actions
-- CLI package: `@submux/codedecay`
+- CLI package: `@submuxhq/codedecay`
 - binary: `codedecay`
 - JSON, Markdown, and SARIF reports
 
@@ -711,7 +711,7 @@ pnpm build
 For package/CLI changes, also run:
 
 ```bash
-pnpm --filter @submux/codedecay pack --dry-run
+pnpm --filter @submuxhq/codedecay pack --dry-run
 ```
 
 For built CLI behavior, test the built artifact:
@@ -808,7 +808,7 @@ Before release:
 Package:
 
 ```txt
-@submux/codedecay
+@submuxhq/codedecay
 ```
 
 Binary:

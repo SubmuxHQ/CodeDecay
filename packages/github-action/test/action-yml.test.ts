@@ -45,7 +45,7 @@ describe("GitHub Action metadata", () => {
   it("builds the scoped npm package", () => {
     const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
 
-    expect(actionYaml).toContain("pnpm --filter @submux/codedecay build");
+    expect(actionYaml).toContain("pnpm --filter @submuxhq/codedecay build");
     expect(actionYaml).not.toContain("pnpm --filter codedecay build");
   });
 

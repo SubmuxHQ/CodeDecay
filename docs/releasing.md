@@ -3,24 +3,16 @@
 CodeDecay publishes one npm package for v1:
 
 ```text
-@submux/codedecay
+@submuxhq/codedecay
 ```
 
 The package source is `packages/cli`, and the installed binary remains
 `codedecay`.
 
-CodeDecay also publishes an optional GitHub Packages npm mirror under the
-GitHub repository owner namespace:
-
-```text
-@submuxhq/codedecay
-```
-
-The GitHub Packages name is intentionally different from the npmjs name.
-GitHub Packages scopes packages by GitHub user or organization owner, and this
-repository is owned by `SubmuxHQ`. Keep the npmjs package as
-`@submux/codedecay`; use `@submuxhq/codedecay` only for the GitHub Packages
-mirror.
+CodeDecay also publishes an optional GitHub Packages npm mirror with the same
+package name. GitHub Packages scopes packages by GitHub user or organization
+owner, and this repository is owned by `SubmuxHQ`, so `@submuxhq/codedecay`
+works for both npmjs and the GitHub Packages mirror.
 
 ## Patch Release Checklist
 
@@ -41,14 +33,14 @@ pnpm run lint
 pnpm typecheck
 pnpm test
 pnpm build
-pnpm --filter @submux/codedecay pack --dry-run
+pnpm --filter @submuxhq/codedecay pack --dry-run
 ```
 
 Inspect the tarball before publishing:
 
 ```bash
-pnpm --filter @submux/codedecay pack
-tar -tzf submux-codedecay-<version>.tgz
+pnpm --filter @submuxhq/codedecay pack
+tar -tzf submuxhq-codedecay-<version>.tgz
 ```
 
 The tarball must include:
@@ -64,7 +56,7 @@ package/dist/index.d.ts
 Publish the scoped package with public access:
 
 ```bash
-pnpm --filter @submux/codedecay publish --access public
+pnpm --filter @submuxhq/codedecay publish --access public
 ```
 
 If npm requires a one-time password in a non-interactive shell, publish from the
@@ -80,7 +72,7 @@ After publishing, verify the public install path:
 ```bash
 tmpdir=$(mktemp -d)
 cd "$tmpdir"
-npm install @submux/codedecay@<version>
+npm install @submuxhq/codedecay@<version>
 node_modules/.bin/codedecay --help
 ```
 
@@ -90,7 +82,7 @@ in sync:
 ```bash
 git show --no-patch --decorate --oneline v<version>
 gh release view v<version>
-npm view @submux/codedecay version dist-tags --json
+npm view @submuxhq/codedecay version dist-tags --json
 ```
 
 The package version, npm `latest` dist-tag, Git tag, and GitHub release should
@@ -98,9 +90,9 @@ all refer to the same released version before the release is considered done.
 
 ## GitHub Packages Mirror
 
-The GitHub Packages mirror is published from the same built CLI package, but the
-staged package metadata changes the package name to `@submuxhq/codedecay` and
-sets the registry to `https://npm.pkg.github.com`.
+The GitHub Packages mirror is published from the same built CLI package. The
+staged package metadata keeps the package name as `@submuxhq/codedecay` and sets
+the registry to `https://npm.pkg.github.com`.
 
 Prepare the mirror package locally after `pnpm build:packages`:
 
@@ -147,9 +139,9 @@ npm install -D @submuxhq/codedecay
 ```
 
 GitHub Packages may require authentication for installs depending on package
-visibility and access settings. The public npmjs package remains the default
-recommended install path:
+visibility and access settings. The public npmjs package uses the same package
+name and remains the default recommended install path:
 
 ```bash
-npm install -D @submux/codedecay
+npm install -D @submuxhq/codedecay
 ```

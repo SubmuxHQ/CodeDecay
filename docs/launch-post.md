@@ -7,5 +7,5 @@ calls, no telemetry.
 Install:
 
 ```bash
-npm install -D @submux/codedecay
+npm install -D @submuxhq/codedecay
 ```

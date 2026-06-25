@@ -1,7 +1,7 @@
 # CodeDecay
 
 [![CI](https://github.com/SubmuxHQ/CodeDecay/actions/workflows/ci.yml/badge.svg)](https://github.com/SubmuxHQ/CodeDecay/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@submux/codedecay?label=npm)](https://www.npmjs.com/package/@submux/codedecay)
+[![npm](https://img.shields.io/npm/v/@submuxhq/codedecay?label=npm)](https://www.npmjs.com/package/@submuxhq/codedecay)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 Find what your coding agent missed before merge.
@@ -57,7 +57,7 @@ is treated as suggestions, not trusted proof.
 ## Install
 
 ```bash
-npm install -D @submux/codedecay
+npm install -D @submuxhq/codedecay
 ```
 
 Run it with `npx codedecay` or add it to an npm script.
@@ -251,7 +251,7 @@ while creating it.
 CodeDecay can run as a local Model Context Protocol server:
 
 ```bash
-npx @submux/codedecay mcp --cwd /path/to/repo
+npx @submuxhq/codedecay mcp --cwd /path/to/repo
 ```
 
 Example client config:
@@ -261,7 +261,7 @@ Example client config:
   "mcpServers": {
     "codedecay": {
       "command": "npx",
-      "args": ["-y", "@submux/codedecay", "mcp", "--cwd", "/path/to/repo"]
+      "args": ["-y", "@submuxhq/codedecay", "mcp", "--cwd", "/path/to/repo"]
     }
   }
 }
@@ -341,7 +341,7 @@ packages/
   config/           .codedecay config loading and normalization
   execution/        safe configured command execution
   git/              git diff and path normalization
-  cli/              published @submux/codedecay package
+  cli/              published @submuxhq/codedecay package
   github-action/    composite GitHub Action
   github-app/       GitHub App server path
   harness/          harness interfaces and evidence schema
@@ -413,7 +413,7 @@ pnpm run lint
 pnpm typecheck
 pnpm test
 pnpm build
-pnpm --filter @submux/codedecay pack --dry-run
+pnpm --filter @submuxhq/codedecay pack --dry-run
 ```
 
 Read:

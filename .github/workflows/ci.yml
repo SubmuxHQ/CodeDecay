@@ -43,4 +43,4 @@ jobs:
         run: pnpm build
 
       - name: Package dry-run
-        run: pnpm --filter @submux/codedecay pack --dry-run
+        run: pnpm --filter @submuxhq/codedecay pack --dry-run

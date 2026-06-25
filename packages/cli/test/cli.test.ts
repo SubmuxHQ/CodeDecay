@@ -243,7 +243,7 @@ describe("codedecay CLI discovery commands", () => {
     const update = await run(["update"], cwd);
     expect(update.exitCode).toBe(0);
     expect(update.stdout).toContain("Package manager: pnpm (package.json#packageManager)");
-    expect(update.stdout).toContain("pnpm add -D @submux/codedecay@latest");
+    expect(update.stdout).toContain("pnpm add -D @submuxhq/codedecay@latest");
     expect(update.stdout).toContain('Run "codedecay update --apply" to execute it automatically.');
   });
 
@@ -258,7 +258,7 @@ describe("codedecay CLI discovery commands", () => {
           private: true,
           packageManager: "pnpm@11.8.0",
           devDependencies: {
-            "@submux/codedecay": currentCliVersion()
+            "@submuxhq/codedecay": currentCliVersion()
           }
         },
         null,
@@ -273,7 +273,7 @@ describe("codedecay CLI discovery commands", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("Package manager: pnpm (package.json#packageManager)");
     expect(result.stdout).toContain(`Package entry: devDependencies (${currentCliVersion()})`);
-    expect(result.stdout).toContain("pnpm remove @submux/codedecay");
+    expect(result.stdout).toContain("pnpm remove @submuxhq/codedecay");
     expect(result.stdout).toContain(".codedecay");
     expect(result.stdout).toContain("codedecay-redteam.md");
     expect(result.stdout).toContain("does not rewrite CI workflows");

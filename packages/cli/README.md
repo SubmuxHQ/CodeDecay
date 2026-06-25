@@ -12,7 +12,7 @@ Optional LLM, agent, memory, and tool integrations are user-owned and explicit.
 ## Install
 
 ```bash
-npm install -D @submux/codedecay
+npm install -D @submuxhq/codedecay
 ```
 
 Run with:
