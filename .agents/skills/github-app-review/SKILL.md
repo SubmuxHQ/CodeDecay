@@ -1,3 +1,8 @@
+---
+name: github-app-review
+description: Use when reviewing changes under packages/github-app or docs/github-app.md to verify deterministic GitHub App safety boundaries, required checks, and validation.
+---
+
 # GitHub App Review Skill
 
 Use this skill for changes under `packages/github-app` or `docs/github-app.md`.

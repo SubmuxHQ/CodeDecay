@@ -953,8 +953,28 @@ function baselineFiles() {
       null,
       2
     ),
-    ".agents/skills/pr-red-team/SKILL.md": "# PR Red-Team Skill\n\nFind missed user-facing regressions before merge.\n",
-    ".agents/skills/test-quality-review/SKILL.md": "# Test Quality Review Skill\n\nQuestion tests that only prove mocks.\n",
+    ".agents/skills/pr-red-team/SKILL.md": [
+      "---",
+      "name: pr-red-team",
+      "description: Use when reviewing CodeDecay pull requests or running a red-team review with CodeDecay to find regression risk, missing tests, and hidden merge blockers before merge.",
+      "---",
+      "",
+      "# PR Red-Team Skill",
+      "",
+      "Find missed user-facing regressions before merge.",
+      ""
+    ].join("\n"),
+    ".agents/skills/test-quality-review/SKILL.md": [
+      "---",
+      "name: test-quality-review",
+      "description: Use when a pull request adds or changes tests, or when CodeDecay reports missing tests, to identify weak tests that do not prove real behavior.",
+      "---",
+      "",
+      "# Test Quality Review Skill",
+      "",
+      "Question tests that only prove mocks.",
+      ""
+    ].join("\n"),
     "src/lib/behavior-state.json": JSON.stringify(
       {
         mode: "baseline",

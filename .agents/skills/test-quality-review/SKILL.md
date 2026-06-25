@@ -1,3 +1,8 @@
+---
+name: test-quality-review
+description: Use when a pull request adds or changes tests, or when CodeDecay reports missing tests, to identify weak tests that do not prove real behavior.
+---
+
 # Test Quality Review Skill
 
 Use this skill when a PR adds or changes tests, or when CodeDecay reports missing

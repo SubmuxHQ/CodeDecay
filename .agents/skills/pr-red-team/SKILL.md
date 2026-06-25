@@ -1,3 +1,8 @@
+---
+name: pr-red-team
+description: Use when reviewing CodeDecay pull requests or running a red-team review with CodeDecay to find regression risk, missing tests, and hidden merge blockers before merge.
+---
+
 # PR Red-Team Skill
 
 Use this skill when reviewing CodeDecay changes or reviewing another repository
