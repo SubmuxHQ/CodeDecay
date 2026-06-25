@@ -1,0 +1,73 @@
+name: Publish GitHub Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Release tag or git ref to publish from."
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: workflow
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          path: source
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.8.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: source/pnpm-lock.yaml
+          registry-url: https://npm.pkg.github.com
+          scope: "@submuxhq"
+
+      - name: Install dependencies
+        working-directory: source
+        run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        working-directory: source
+        run: pnpm build:packages
+
+      - name: Prepare GitHub Packages mirror
+        run: node workflow/scripts/prepare-github-packages-package.mjs --source-root source --out "$RUNNER_TEMP/codedecay-github-packages"
+
+      - name: Inspect package
+        working-directory: ${{ runner.temp }}/codedecay-github-packages
+        run: npm pack --dry-run
+
+      - name: Publish package
+        working-directory: ${{ runner.temp }}/codedecay-github-packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          package_name="@submuxhq/codedecay"
+
+          if npm view "$package_name@$version" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+            echo "$package_name@$version already exists on GitHub Packages. Skipping publish."
+            exit 0
+          fi
+
+          npm publish --registry=https://npm.pkg.github.com

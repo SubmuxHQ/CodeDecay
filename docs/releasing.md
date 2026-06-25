@@ -9,6 +9,19 @@ CodeDecay publishes one npm package for v1:
 The package source is `packages/cli`, and the installed binary remains
 `codedecay`.
 
+CodeDecay also publishes an optional GitHub Packages npm mirror under the
+GitHub repository owner namespace:
+
+```text
+@submuxhq/codedecay
+```
+
+The GitHub Packages name is intentionally different from the npmjs name.
+GitHub Packages scopes packages by GitHub user or organization owner, and this
+repository is owned by `SubmuxHQ`. Keep the npmjs package as
+`@submux/codedecay`; use `@submuxhq/codedecay` only for the GitHub Packages
+mirror.
+
 ## Patch Release Checklist
 
 Before opening the release PR, bump the published version in:
@@ -82,3 +95,61 @@ npm view @submux/codedecay version dist-tags --json
 
 The package version, npm `latest` dist-tag, Git tag, and GitHub release should
 all refer to the same released version before the release is considered done.
+
+## GitHub Packages Mirror
+
+The GitHub Packages mirror is published from the same built CLI package, but the
+staged package metadata changes the package name to `@submuxhq/codedecay` and
+sets the registry to `https://npm.pkg.github.com`.
+
+Prepare the mirror package locally after `pnpm build:packages`:
+
+```bash
+pnpm package:github --out /tmp/codedecay-ghpkg
+cd /tmp/codedecay-ghpkg
+npm pack --dry-run
+```
+
+The dry run should include:
+
+```text
+package/LICENSE
+package/README.md
+package/package.json
+package/dist/index.js
+package/dist/index.d.ts
+```
+
+Publish through the `Publish GitHub Packages` workflow. It uses the repository
+`GITHUB_TOKEN` with `packages: write` permission and skips publishing if the
+same mirror version already exists.
+
+Use the exact release tag as the workflow `ref`. Do not publish from `main`
+after unreleased commits have landed, because that can create a GitHub Packages
+version whose contents differ from the npmjs package with the same version.
+
+Manual dispatch:
+
+```bash
+gh workflow run publish-github-packages.yml -f ref=v<version>
+```
+
+Install from GitHub Packages by adding the GitHub owner scope to `.npmrc`:
+
+```text
+@submuxhq:registry=https://npm.pkg.github.com
+```
+
+Then install:
+
+```bash
+npm install -D @submuxhq/codedecay
+```
+
+GitHub Packages may require authentication for installs depending on package
+visibility and access settings. The public npmjs package remains the default
+recommended install path:
+
+```bash
+npm install -D @submux/codedecay
+```

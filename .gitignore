@@ -6,6 +6,7 @@ coverage/
 *.log
 codedecay.sarif
 .codedecay/local/
+.codedecay/github-packages/
 .codedecay/*.local.json
 docs/.vitepress/cache/
 docs/.vitepress/dist/
