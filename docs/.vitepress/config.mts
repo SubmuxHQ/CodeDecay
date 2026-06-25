@@ -60,6 +60,7 @@ export default defineConfig({
           { text: "Execution Probes", link: "/execution" },
           { text: "Differential Checks", link: "/differential" },
           { text: "Test Audit", link: "/test-audit" },
+          { text: "PR Safety Evals", link: "/evals/first-efficacy-report" },
           { text: "Tool Adapters", link: "/tool-adapters" },
           { text: "Agent Skills", link: "/skills" },
           { text: "Local Repo Memory", link: "/memory" },
