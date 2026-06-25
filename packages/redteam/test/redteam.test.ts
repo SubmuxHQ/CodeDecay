@@ -39,6 +39,10 @@ describe("redteam report", () => {
     });
     expect(report.edgeCases).toContain("Check missing, expired, malformed, and privilege-escalation credentials.");
     expect(report.edgeCases).toContain("Add an API-level session regression test");
+    expect(report.edgeCases).toContain(
+      "Run or strengthen src/auth/session.test.ts with negative, malformed, boundary, or integration coverage."
+    );
+    expect(report.edgeCases).not.toContain("src/auth/session.test.ts");
     expect(report.configuredChecks).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ kind: "test", command: "pnpm test", willRun: false }),
@@ -78,6 +82,9 @@ describe("redteam report", () => {
     ]);
     expect(report.fixTasks.map((task) => task.title)).toEqual(
       expect.arrayContaining([
+        "Add auth negative-path proof",
+        "Exercise the real API boundary",
+        "Strengthen test proof",
         "Verify invariant: Auth fails closed",
         "Re-check past regression: Anonymous admin",
         "Consider running Playwright harness",
@@ -255,7 +262,7 @@ function createFixtureAnalyzerResult(): AnalyzerResult {
         line: 3
       }
     ],
-    recommendedTests: ["Add assertion for missing token session handling"]
+    recommendedTests: ["Add assertion for missing token session handling", "src/auth/session.test.ts"]
   };
 }
 

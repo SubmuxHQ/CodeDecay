@@ -81,6 +81,33 @@ describe("createTestProofAudit", () => {
     expect(audit.status).toBe("present");
     expect(audit.summary).toContain("Changed tests are present");
     expect(audit.weakTestFindings).toEqual([]);
+    expect(audit.recommendedChecks).toContain(
+      "Run or strengthen src/auth/session.test.ts with assertions, negative cases, and real-boundary coverage."
+    );
+    expect(audit.recommendedChecks).not.toContain("src/auth/session.test.ts");
+  });
+
+  it("does not treat package names containing test as test files", () => {
+    const audit = createTestProofAudit(
+      createReport({
+        changedFiles: [
+          sourceChange("packages/test-audit/src/index.ts"),
+          testChange("packages/test-audit/test/index.test.ts"),
+          testChange("packages/test-audit/__tests__/fixture.ts")
+        ],
+        analyzerResult: {
+          impactedAreas: [],
+          findings: [],
+          recommendedTests: []
+        }
+      })
+    );
+
+    expect(audit.changedSourceFiles).toContain("packages/test-audit/src/index.ts");
+    expect(audit.changedTestFiles).toEqual([
+      "packages/test-audit/__tests__/fixture.ts",
+      "packages/test-audit/test/index.test.ts"
+    ]);
   });
 
   it("marks docs-only changes as not applicable", () => {

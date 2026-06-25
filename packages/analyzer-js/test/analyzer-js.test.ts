@@ -100,6 +100,38 @@ describe("analyzeJsProject", () => {
     expect(result.recommendedTests).toContain("Add or run tests covering src/lib/formatter.ts");
   });
 
+  it("does not treat package names containing test as test files", () => {
+    const rootDir = createTempProject({
+      "packages/test-audit/src/index.ts": "export function audit() { return true; }\n",
+      "packages/test-audit/test/index.test.ts": "import { audit } from '../src/index';\n",
+      "packages/test-audit/__tests__/fixture.ts": "export const ok = true;\n"
+    });
+
+    const result = analyzeJsProject({
+      rootDir,
+      changedFiles: [
+        change("packages/test-audit/src/index.ts", "export function audit() { return false; }"),
+        change("packages/test-audit/test/index.test.ts", "test('audit', () => {});"),
+        change("packages/test-audit/__tests__/fixture.ts", "test('fixture', () => {});")
+      ]
+    });
+
+    expect(result.impactedAreas).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "source", files: ["packages/test-audit/src/index.ts"] }),
+        expect.objectContaining({ kind: "test", files: ["packages/test-audit/test/index.test.ts"] }),
+        expect.objectContaining({ kind: "test", files: ["packages/test-audit/__tests__/fixture.ts"] })
+      ])
+    );
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ ruleId: "risky-source-change", file: "packages/test-audit/src/index.ts" }),
+        expect.objectContaining({ ruleId: "risky-test-change", file: "packages/test-audit/test/index.test.ts" }),
+        expect.objectContaining({ ruleId: "risky-test-change", file: "packages/test-audit/__tests__/fixture.ts" })
+      ])
+    );
+  });
+
   it("detects UI route, database/schema, and config changes", () => {
     const changedFiles: FileChange[] = [
       change("app/dashboard/page.tsx", "export default function Page() { return <main />; }"),

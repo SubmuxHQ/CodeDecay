@@ -149,6 +149,29 @@ const EDGE_CASES_BY_AREA: Partial<Record<ImpactedArea["kind"], string[]>> = {
   test: ["Check whether changed tests exercise real production boundaries or only mocked helper logic."]
 };
 
+const EDGE_CASE_TASK_RULES: Array<{ title: string; keywords: string[] }> = [
+  {
+    title: "Add auth negative-path proof",
+    keywords: ["auth", "credential", "privilege", "denied"]
+  },
+  {
+    title: "Exercise the real API boundary",
+    keywords: ["api", "route", "payload"]
+  },
+  {
+    title: "Verify database and schema behavior",
+    keywords: ["schema", "database", "migration", "record"]
+  },
+  {
+    title: "Verify runtime configuration behavior",
+    keywords: ["config", "environment", "build", "start"]
+  },
+  {
+    title: "Strengthen test proof",
+    keywords: ["test", "coverage", "assertion", "mock"]
+  }
+];
+
 export function createRedteamReport(input: RedteamReportInput): RedteamReport {
   const testAudit = createTestProofAudit(input.analysisReport);
   const weakTestFindings = testAudit.weakTestFindings;
@@ -361,7 +384,7 @@ function suggestEdgeCases(report: CodeDecayReport): string[] {
   }
 
   for (const recommendation of report.recommendedTests) {
-    suggestions.add(recommendation);
+    suggestions.add(normalizeEdgeCaseRecommendation(recommendation));
   }
 
   if (suggestions.size === 0) {
@@ -369,6 +392,23 @@ function suggestEdgeCases(report: CodeDecayReport): string[] {
   }
 
   return [...suggestions].sort((left, right) => left.localeCompare(right));
+}
+
+function normalizeEdgeCaseRecommendation(recommendation: string): string {
+  const trimmed = recommendation.trim();
+  if (isPathLikeRecommendation(trimmed)) {
+    return `Run or strengthen ${trimmed} with negative, malformed, boundary, or integration coverage.`;
+  }
+
+  return trimmed;
+}
+
+function isPathLikeRecommendation(value: string): boolean {
+  return (
+    /^[a-z0-9._/-]+\.[a-z0-9]+$/i.test(value) &&
+    !/\s/.test(value) &&
+    /[/\\]/.test(value)
+  );
 }
 
 function createFixTasks(input: {
@@ -399,7 +439,7 @@ function createFixTasks(input: {
 
   for (const edgeCase of input.edgeCases.slice(0, 8)) {
     tasks.push({
-      title: "Add or run an edge-case check",
+      title: edgeCaseTaskTitle(edgeCase),
       priority: edgeCasePriority(input.analysisReport.impactedAreas),
       source: "edge-case",
       detail: edgeCase
@@ -452,6 +492,18 @@ function createFixTasks(input: {
   }
 
   return dedupeTasks(tasks).slice(0, 20);
+}
+
+function edgeCaseTaskTitle(edgeCase: string): string {
+  const lower = edgeCase.toLowerCase();
+
+  for (const rule of EDGE_CASE_TASK_RULES) {
+    if (rule.keywords.some((keyword) => lower.includes(keyword))) {
+      return rule.title;
+    }
+  }
+
+  return "Add concrete edge-case proof";
 }
 
 function edgeCasePriority(areas: ImpactedArea[]): RiskLevel {

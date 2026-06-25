@@ -49,7 +49,9 @@ Expected evidence:
 - Pass: Redteam report contains expected weak-test evidence
 - Pass: Redteam report contains expected missing-test evidence
 - Pass: Redteam report suggests edge cases
+- Pass: Redteam edge cases are actionable
 - Pass: Redteam report creates fix tasks
+- Pass: Redteam fix tasks are actionable
 
 ### Config/database runtime regression missed by normal tests
 
@@ -80,7 +82,9 @@ Expected evidence:
 - Pass: Redteam report contains expected weak-test evidence
 - Pass: Redteam report contains expected missing-test evidence
 - Pass: Redteam report suggests edge cases
+- Pass: Redteam edge cases are actionable
 - Pass: Redteam report creates fix tasks
+- Pass: Redteam fix tasks are actionable
 
 ## Safety boundaries
 

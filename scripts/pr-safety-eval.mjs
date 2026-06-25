@@ -494,11 +494,31 @@ function evaluateScenario(scenario, analysis, redteam, commands) {
       detail: "Expected deterministic edge cases for impacted areas."
     }),
     assertCondition({
+      name: "Redteam edge cases are actionable",
+      passed: redteam.edgeCases.every((edgeCase) => !isBarePathOnly(edgeCase) && hasActionVerb(edgeCase)),
+      detail: "Expected edge cases to describe behavior to run, verify, exercise, check, add, or strengthen."
+    }),
+    assertCondition({
       name: "Redteam report creates fix tasks",
       passed: Array.isArray(redteam.fixTasks) && redteam.fixTasks.length > 0,
       detail: "Expected fix tasks that a user-owned agent can act on."
+    }),
+    assertCondition({
+      name: "Redteam fix tasks are actionable",
+      passed: redteam.fixTasks
+        .filter((task) => task.source === "edge-case")
+        .every((task) => task.title !== "Add or run an edge-case check" && hasActionVerb(task.detail)),
+      detail: "Expected edge-case fix tasks to have specific titles and action-oriented details."
     })
   ];
+}
+
+function isBarePathOnly(value) {
+  return /^[a-z0-9._/-]+\.[a-z0-9]+$/i.test(value.trim()) && !/\s/.test(value.trim()) && /[/\\]/.test(value);
+}
+
+function hasActionVerb(value) {
+  return /\b(add|check|exercise|run|verify|strengthen|replace|confirm)\b/i.test(value);
 }
 
 function assertIncludesAll({ name, actual, expected }) {

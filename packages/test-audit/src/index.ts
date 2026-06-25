@@ -13,7 +13,8 @@ export interface TestProofAudit {
   recommendedChecks: string[];
 }
 
-const TEST_FILE_PATTERN = /(^|[./_-])(test|spec|e2e|integration)([./_-]|$)/i;
+const TEST_DIR_NAMES = new Set(["test", "tests", "spec", "specs", "e2e", "integration", "__tests__", "__specs__"]);
+const TEST_FILE_STEM_PATTERN = /(^|[._-])(test|spec|e2e|integration)([._-]|$)/i;
 const SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"]);
 const MISSING_TEST_RULES = new Set(["missing-nearby-tests"]);
 const WEAK_TEST_RULES = new Set([
@@ -128,7 +129,7 @@ function recommendStrongerChecks(input: {
     checks.push(strongerCheckForFinding(finding));
   }
 
-  checks.push(...input.report.recommendedTests.filter(isTestProofRecommendation));
+  checks.push(...input.report.recommendedTests.filter(isTestProofRecommendation).map(normalizeRecommendedCheck));
 
   if (input.status === "weak" && input.changedTestFiles.length > 0) {
     for (const file of input.changedTestFiles.slice(0, 4)) {
@@ -180,7 +181,15 @@ function isSourcePath(path: string): boolean {
 }
 
 function isTestPath(path: string): boolean {
-  return TEST_FILE_PATTERN.test(path);
+  const normalized = path.replaceAll("\\", "/").toLowerCase();
+  const segments = normalized.split("/").filter(Boolean);
+  const directorySegments = segments.slice(0, -1);
+  if (directorySegments.some((segment) => TEST_DIR_NAMES.has(segment))) {
+    return true;
+  }
+
+  const fileName = segments.at(-1) ?? normalized;
+  return TEST_FILE_STEM_PATTERN.test(stripExtension(fileName));
 }
 
 function isDocsPath(path: string): boolean {
@@ -192,6 +201,28 @@ function extensionOf(path: string): string {
   return match?.[0].toLowerCase() ?? "";
 }
 
+function stripExtension(path: string): string {
+  return path.replace(/\.[^.]+$/, "");
+}
+
 function isTestProofRecommendation(value: string): boolean {
   return /assertion|snapshot|integration|real-module|public API|negative|edge-case|exercise|test|spec|e2e/i.test(value);
+}
+
+function normalizeRecommendedCheck(value: string): string {
+  const trimmed = value.trim();
+  if (isPathLikeRecommendation(trimmed)) {
+    return `Run or strengthen ${trimmed} with assertions, negative cases, and real-boundary coverage.`;
+  }
+
+  return trimmed;
+}
+
+function isPathLikeRecommendation(value: string): boolean {
+  const hasNoWhitespace = value.split(/\s+/).length === 1;
+  const hasDirectorySeparator = value.includes("/") || value.includes("\\");
+  const hasFileExtension = /\.[a-z0-9]+$/i.test(value);
+  const hasOnlyPathCharacters = /^[a-z0-9._/-]+$/i.test(value);
+
+  return hasNoWhitespace && hasDirectorySeparator && hasFileExtension && hasOnlyPathCharacters;
 }
