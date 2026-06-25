@@ -74,6 +74,12 @@ pnpm build
 pnpm test
 ```
 
+Run the docs site locally:
+
+```bash
+pnpm docs:dev
+```
+
 ## Quickstart
 
 Analyze the current working tree:
@@ -339,6 +345,13 @@ docs/               user docs, RFCs, sample reports
 
 ## Documentation
 
+The repository includes a static docs viewer built with VitePress. It serves
+the same Markdown files for humans and generates agent-friendly outputs at
+`/llms.txt`, `/llms-full.txt`, and `/markdown/*.md` when deployed.
+
+- Local docs dev server: `pnpm docs:dev`
+- Static docs build: `pnpm docs:build`
+
 - [Getting started](docs/getting-started.md)
 - [Configuration](docs/configuration.md)
 - [Development setup](DEVELOPMENT.md)
@@ -354,7 +367,7 @@ docs/               user docs, RFCs, sample reports
 - [MCP server](docs/mcp.md)
 - [GitHub Action](docs/github-action.md)
 - [GitHub App](docs/github-app.md)
-- [Sample reports](docs/sample-reports/README.md)
+- [Sample reports](docs/sample-reports/index.md)
 - [Scoring model](docs/scoring.md)
 - [Framework-aware impact map proposal](docs/proposals/framework-aware-impact-map.md)
 - [Agent-agnostic redteam harness RFC](docs/rfcs/0001-agent-agnostic-redteam-harness.md)

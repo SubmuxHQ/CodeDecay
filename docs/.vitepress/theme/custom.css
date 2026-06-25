@@ -1,0 +1,72 @@
+@import "@fontsource/space-grotesk/400.css";
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/700.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+:root {
+  --vp-font-family-base: "Space Grotesk", system-ui, sans-serif;
+  --vp-font-family-mono: "IBM Plex Mono", monospace;
+  --vp-c-brand-1: #c95d12;
+  --vp-c-brand-2: #e07a24;
+  --vp-c-brand-3: #f0a13d;
+  --vp-c-brand-soft: rgba(201, 93, 18, 0.16);
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(130deg, #111827 0%, #c95d12 52%, #f0a13d 100%);
+  --vp-home-hero-image-background-image:
+    radial-gradient(circle at 22% 25%, rgba(201, 93, 18, 0.28), transparent 40%),
+    radial-gradient(circle at 78% 22%, rgba(17, 24, 39, 0.22), transparent 34%),
+    linear-gradient(180deg, rgba(255, 248, 240, 0.9), rgba(255, 255, 255, 0.96));
+  --vp-home-hero-image-filter: blur(56px);
+}
+
+.dark {
+  --vp-home-hero-name-background: linear-gradient(130deg, #f8fafc 0%, #f6a652 45%, #c95d12 100%);
+  --vp-home-hero-image-background-image:
+    radial-gradient(circle at 20% 20%, rgba(240, 161, 61, 0.22), transparent 40%),
+    radial-gradient(circle at 78% 24%, rgba(201, 93, 18, 0.22), transparent 38%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(2, 6, 23, 0.98));
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(201, 93, 18, 0.08), transparent 26%),
+    linear-gradient(180deg, rgba(255, 250, 244, 0.9), rgba(255, 255, 255, 1));
+}
+
+.dark body {
+  background:
+    radial-gradient(circle at top left, rgba(240, 161, 61, 0.09), transparent 24%),
+    linear-gradient(180deg, rgba(15, 23, 42, 1), rgba(2, 6, 23, 1));
+}
+
+.VPNavBarTitle .title {
+  letter-spacing: 0.02em;
+  font-weight: 700;
+}
+
+.VPButton.brand {
+  box-shadow: 0 12px 32px rgba(201, 93, 18, 0.22);
+}
+
+.VPFeature {
+  border: 1px solid rgba(201, 93, 18, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 247, 237, 0.96));
+}
+
+.dark .VPFeature {
+  border-color: rgba(240, 161, 61, 0.18);
+  background:
+    linear-gradient(180deg, rgba(30, 41, 59, 0.88), rgba(15, 23, 42, 0.94));
+}
+
+.VPDoc h1,
+.VPDoc h2,
+.VPDoc h3 {
+  letter-spacing: -0.02em;
+}
+
+.VPDoc .vp-doc a {
+  text-underline-offset: 0.18em;
+}

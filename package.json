@@ -7,15 +7,25 @@
   "type": "module",
   "packageManager": "pnpm@11.8.0",
   "scripts": {
-    "build": "pnpm -r build",
+    "build": "pnpm build:packages && pnpm docs:build",
+    "build:packages": "pnpm -r build",
+    "docs:prepare": "node scripts/generate-docs-artifacts.mjs",
+    "predocs:dev": "pnpm docs:prepare",
+    "docs:dev": "vitepress dev docs",
+    "predocs:build": "pnpm docs:prepare",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "lint": "tsc -p tsconfig.base.json --noEmit",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.base.json --noEmit"
   },
   "devDependencies": {
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/space-grotesk": "^5.2.7",
     "@types/node": "^24.0.0",
     "tsup": "^8.5.0",
     "typescript": "^5.8.3",
+    "vitepress": "^1.6.4",
     "vitest": "^3.2.4",
     "yaml": "^2.8.1"
   }

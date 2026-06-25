@@ -7,3 +7,8 @@ coverage/
 codedecay.sarif
 .codedecay/local/
 .codedecay/*.local.json
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+docs/public/llms.txt
+docs/public/llms-full.txt
+docs/public/markdown/

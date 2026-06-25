@@ -114,5 +114,5 @@ Risk levels:
 Use the example projects to see a realistic high-risk report before wiring
 CodeDecay into your own repository:
 
-- [Next.js risk demo](../examples/nextjs-risk-demo/README.md)
-- [Node API risk demo](../examples/node-api-risk-demo/README.md)
+- [Next.js risk demo](https://github.com/SubmuxHQ/CodeDecay/blob/main/examples/nextjs-risk-demo/README.md)
+- [Node API risk demo](https://github.com/SubmuxHQ/CodeDecay/blob/main/examples/node-api-risk-demo/README.md)
