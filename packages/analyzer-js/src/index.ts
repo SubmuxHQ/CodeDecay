@@ -50,6 +50,7 @@ const MOCK_PATTERN =
   /\b(jest\.mock|vi\.mock|sinon\.stub|sinon\.mock|mockResolvedValue|mockRejectedValue|mockReturnValue|mockImplementation|createMock|mockFn)\b/;
 const TEST_CASE_PATTERN = /\b(it|test|specify)\s*\(/;
 const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+const GENERIC_SOURCE_STEMS = new Set(["index", "main", "app", "page", "route", "layout", "config"]);
 
 export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
   const findings: Finding[] = [];
@@ -369,19 +370,19 @@ function findExportedHttpMethods(content: string): string[] {
 }
 
 function extractRouteObjectMethods(body: string): string[] {
-  const arrayMatch = /method\s*:\s*\[([\s\S]*?)\]/i.exec(body);
-  if (arrayMatch?.[1]) {
-    const methods = [...arrayMatch[1].matchAll(/['"`]([A-Za-z]+)['"`]/g)]
-      .map((match) => match[1]?.toUpperCase())
-      .filter((method): method is string => Boolean(method) && HTTP_METHODS.includes(method as HttpMethod));
-    if (methods.length > 0) {
-      return methods;
-    }
+  const methodValue = findObjectPropertyValue(body, "method");
+  if (!methodValue) {
+    return ["*"];
   }
 
-  const singleMatch = /method\s*:\s*['"`]([A-Za-z]+)['"`]/i.exec(body);
-  if (singleMatch?.[1] && HTTP_METHODS.includes(singleMatch[1].toUpperCase() as HttpMethod)) {
-    return [singleMatch[1].toUpperCase()];
+  if (methodValue.kind === "array") {
+    const methods = extractQuotedHttpMethods(methodValue.value);
+    return methods.length > 0 ? methods : ["*"];
+  }
+
+  const method = methodValue.value.toUpperCase();
+  if (HTTP_METHODS.includes(method as HttpMethod)) {
+    return [method];
   }
 
   return ["*"];
@@ -707,13 +708,14 @@ function referencesAnyChangedSource(
 function referencesSourceProfile(content: string, profile: SourceProfile): boolean {
   const normalized = content.replaceAll("\\", "/");
   const importPathWithoutSrc = profile.importPath.replace(/^src\//, "");
+  const hasMeaningfulStem = !GENERIC_SOURCE_STEMS.has(profile.stem.toLowerCase());
 
   return (
     normalized.includes(profile.path) ||
     normalized.includes(profile.importPath) ||
     normalized.includes(importPathWithoutSrc) ||
     normalized.includes(profile.basename) ||
-    new RegExp(`\\b${escapeRegExp(profile.stem)}\\b`, "i").test(normalized)
+    (hasMeaningfulStem && new RegExp(`\\b${escapeRegExp(profile.stem)}\\b`, "i").test(normalized))
   );
 }
 
@@ -1050,11 +1052,223 @@ function stripExtension(path: string): string {
 }
 
 function normalizeCodeLine(line: string): string {
-  return line
-    .trim()
-    .replace(/\/\/.*$/, "")
-    .replace(/\s+/g, " ")
-    .replace(/["'`][^"'`]*["'`]/g, "\"\"");
+  return replaceQuotedStrings(collapseWhitespace(stripLineComment(line.trim())));
+}
+
+function findObjectPropertyValue(
+  body: string,
+  propertyName: string
+): { kind: "array" | "string"; value: string } | undefined {
+  const lowerBody = body.toLowerCase();
+  const lowerPropertyName = propertyName.toLowerCase();
+  let searchFrom = 0;
+
+  while (searchFrom < body.length) {
+    const propertyIndex = lowerBody.indexOf(lowerPropertyName, searchFrom);
+    if (propertyIndex === -1) {
+      return undefined;
+    }
+
+    searchFrom = propertyIndex + lowerPropertyName.length;
+
+    if (isIdentifierCharacter(body.charAt(propertyIndex - 1)) || isIdentifierCharacter(body.charAt(searchFrom))) {
+      continue;
+    }
+
+    let cursor = skipWhitespace(body, searchFrom);
+    if (body[cursor] !== ":") {
+      continue;
+    }
+
+    cursor = skipWhitespace(body, cursor + 1);
+    const current = body[cursor];
+
+    if (current === "[") {
+      const end = findClosingArrayBracket(body, cursor);
+      if (end !== -1) {
+        return { kind: "array", value: body.slice(cursor + 1, end) };
+      }
+    }
+
+    if (isQuote(current)) {
+      const quoted = readQuotedValue(body, cursor);
+      if (quoted) {
+        return { kind: "string", value: quoted.value };
+      }
+    }
+  }
+
+  return undefined;
+}
+
+function extractQuotedHttpMethods(value: string): string[] {
+  const methods: string[] = [];
+  let cursor = 0;
+
+  while (cursor < value.length) {
+    if (!isQuote(value[cursor])) {
+      cursor += 1;
+      continue;
+    }
+
+    const quoted = readQuotedValue(value, cursor);
+    if (!quoted) {
+      cursor += 1;
+      continue;
+    }
+
+    const method = quoted.value.toUpperCase();
+    if (HTTP_METHODS.includes(method as HttpMethod)) {
+      methods.push(method);
+    }
+
+    cursor = quoted.endIndex + 1;
+  }
+
+  return dedupeStrings(methods);
+}
+
+function findClosingArrayBracket(value: string, startIndex: number): number {
+  let depth = 0;
+  let cursor = startIndex;
+
+  while (cursor < value.length) {
+    const current = value[cursor];
+    if (isQuote(current)) {
+      const quoted = readQuotedValue(value, cursor);
+      cursor = quoted ? quoted.endIndex + 1 : cursor + 1;
+      continue;
+    }
+
+    if (current === "[") {
+      depth += 1;
+    } else if (current === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        return cursor;
+      }
+    }
+
+    cursor += 1;
+  }
+
+  return -1;
+}
+
+function readQuotedValue(value: string, startIndex: number): { value: string; endIndex: number } | undefined {
+  const quote = value[startIndex];
+  if (!isQuote(quote)) {
+    return undefined;
+  }
+
+  let cursor = startIndex + 1;
+  let result = "";
+
+  while (cursor < value.length) {
+    const current = value[cursor];
+    if (current === "\\") {
+      if (cursor + 1 < value.length) {
+        result += value[cursor + 1];
+        cursor += 2;
+        continue;
+      }
+      break;
+    }
+
+    if (current === quote) {
+      return { value: result, endIndex: cursor };
+    }
+
+    result += current;
+    cursor += 1;
+  }
+
+  return undefined;
+}
+
+function stripLineComment(value: string): string {
+  const commentIndex = value.indexOf("//");
+  return commentIndex === -1 ? value : value.slice(0, commentIndex);
+}
+
+function collapseWhitespace(value: string): string {
+  const parts: string[] = [];
+  let previousWasWhitespace = false;
+
+  for (const char of value) {
+    if (isWhitespace(char)) {
+      if (!previousWasWhitespace && parts.length > 0) {
+        parts.push(" ");
+      }
+      previousWasWhitespace = true;
+      continue;
+    }
+
+    parts.push(char);
+    previousWasWhitespace = false;
+  }
+
+  if (parts.at(-1) === " ") {
+    parts.pop();
+  }
+
+  return parts.join("");
+}
+
+function replaceQuotedStrings(value: string): string {
+  const parts: string[] = [];
+  let cursor = 0;
+
+  while (cursor < value.length) {
+    if (!isQuote(value[cursor])) {
+      parts.push(value[cursor] ?? "");
+      cursor += 1;
+      continue;
+    }
+
+    const quoted = readQuotedValue(value, cursor);
+    if (!quoted) {
+      parts.push(value[cursor] ?? "");
+      cursor += 1;
+      continue;
+    }
+
+    parts.push("\"\"");
+    cursor = quoted.endIndex + 1;
+  }
+
+  return parts.join("");
+}
+
+function skipWhitespace(value: string, startIndex: number): number {
+  let cursor = startIndex;
+  while (cursor < value.length && isWhitespace(value[cursor])) {
+    cursor += 1;
+  }
+  return cursor;
+}
+
+function isIdentifierCharacter(value: string | undefined): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const code = value.charCodeAt(0);
+  return (
+    (code >= 48 && code <= 57) ||
+    (code >= 65 && code <= 90) ||
+    (code >= 97 && code <= 122) ||
+    value === "_" ||
+    value === "$"
+  );
+}
+
+function isQuote(value: string | undefined): boolean {
+  return value === "\"" || value === "'" || value === "`";
+}
+
+function isWhitespace(value: string | undefined): boolean {
+  return value === " " || value === "\t" || value === "\n" || value === "\r" || value === "\f" || value === "\v";
 }
 
 function firstLine(change: FileChange | undefined): number | undefined {

@@ -127,6 +127,35 @@ describe("llm providers", () => {
     });
   });
 
+  it("normalizes slash-heavy local endpoints before making requests", async () => {
+    const calls: Array<{ url: string; body: unknown }> = [];
+    const provider = createOllamaProvider({
+      model: "qwen2.5-coder",
+      endpoint: `http://127.0.0.1:11434${"/".repeat(10_000)}`,
+      fetch: async (url, init) => {
+        calls.push({
+          url,
+          body: JSON.parse(init.body)
+        });
+
+        return {
+          ok: true,
+          status: 200,
+          async text() {
+            return "";
+          },
+          async json() {
+            return { response: "{\"suggestions\":[]}" };
+          }
+        };
+      }
+    });
+
+    await provider.complete({ task: "Find edge cases" });
+
+    expect(calls[0]?.url).toBe("http://127.0.0.1:11434/api/generate");
+  });
+
   it("calls LiteLLM/OpenAI-compatible endpoints with chat completions and untrusted suggestions", async () => {
     const calls: Array<{ url: string; headers: Record<string, string>; body: unknown }> = [];
     const provider = createLiteLlmProvider({
