@@ -62,6 +62,21 @@ package/dist/index.js
 package/dist/index.d.ts
 ```
 
+Before publishing, run the installed-package smoke against the packed tarball:
+
+```bash
+pnpm demo:published-package --tarball ./submuxhq-codedecay-<version>.tgz --run-id v<version>-tarball-smoke
+```
+
+This creates a fresh temp install, materializes the Next.js and Node API demo
+repos, runs the installed `codedecay` binary, verifies JSON/Markdown/SARIF
+outputs, and writes logs under:
+
+```text
+.codedecay/local/published-package-demo/<run-id>/run.json
+.codedecay/local/published-package-demo/<run-id>/summary.md
+```
+
 Publish the scoped package with public access:
 
 ```bash
@@ -83,6 +98,12 @@ tmpdir=$(mktemp -d)
 cd "$tmpdir"
 npm install @submuxhq/codedecay@<version>
 node_modules/.bin/codedecay --help
+```
+
+After publishing, run the same smoke against the registry package:
+
+```bash
+pnpm demo:published-package --package @submuxhq/codedecay@<version> --run-id v<version>-published-smoke
 ```
 
 Create the GitHub release for the same tag and verify the release surfaces stay

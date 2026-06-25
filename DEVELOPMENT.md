@@ -66,6 +66,13 @@ Run the local end-user demo harness before changing broad CLI behavior:
 pnpm demo:end-user
 ```
 
+You can pass a stable run id with or without pnpm's argument separator:
+
+```bash
+pnpm demo:end-user --run-id local-dogfood
+pnpm demo:end-user -- --run-id local-dogfood
+```
+
 The harness builds the local CLI, creates isolated demo git repositories, runs
 the user-facing commands, starts a real MCP client smoke, simulates the GitHub
 Action runtime, and writes command logs to:
@@ -78,6 +85,22 @@ Action runtime, and writes command logs to:
 `run.json` includes commands, cwd, exit code, duration, stdout, stderr, parsed
 JSON when available, and output file metadata. Use it as the first reproduction
 artifact when filing follow-up bugs from dogfood runs.
+
+Run the published-package demo when you need to test CodeDecay like a new user
+would install it from npm or from a local tarball:
+
+```bash
+pnpm demo:published-package --package @submuxhq/codedecay@latest
+pnpm demo:published-package --tarball ./submuxhq-codedecay-<version>.tgz
+```
+
+This smoke creates a fresh tool install, materializes the Next.js and Node API
+example repos, runs the installed `codedecay` binary, and writes logs to:
+
+```text
+.codedecay/local/published-package-demo/<run-id>/run.json
+.codedecay/local/published-package-demo/<run-id>/summary.md
+```
 
 ## Optional CodeDecay config and memory
 
