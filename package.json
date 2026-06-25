@@ -18,6 +18,7 @@
     "docs:wiki:sync": "pnpm docs:prepare && node scripts/sync-github-wiki.mjs",
     "demo:end-user": "pnpm build:packages && node scripts/end-user-demo.mjs",
     "demo:published-package": "node scripts/published-package-demo.mjs",
+    "eval:pr-safety": "pnpm build:packages && node scripts/pr-safety-eval.mjs",
     "package:github": "node scripts/prepare-github-packages-package.mjs",
     "lint": "tsc -p tsconfig.base.json --noEmit",
     "test": "vitest run",
