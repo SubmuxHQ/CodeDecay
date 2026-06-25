@@ -173,7 +173,7 @@ function createOctokit(options: { comments?: Array<{ id: number; body: string }>
 function createReport(riskLevel: "low" | "medium" | "high"): CodeDecayReport {
   return {
     tool: "CodeDecay",
-    version: "0.1.4",
+    version: "0.1.5",
     generatedAt: "2026-06-24T00:00:00.000Z",
     base: "base-sha",
     head: "head-sha",
