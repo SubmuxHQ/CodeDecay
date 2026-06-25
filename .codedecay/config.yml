@@ -1,0 +1,34 @@
+version: 1
+
+commands:
+  test:
+    - pnpm test
+    - pnpm eval:pr-safety -- --run-id local-pr-safety-eval
+  build:
+    - pnpm build
+    - pnpm --filter @submuxhq/codedecay pack --dry-run
+  start: []
+
+probes:
+  - name: cli help
+    command: node packages/cli/dist/index.js --help
+    timeoutMs: 10000
+  - name: config context
+    command: node packages/cli/dist/index.js config --format markdown
+    timeoutMs: 10000
+  - name: memory context
+    command: node packages/cli/dist/index.js memory --format markdown
+    timeoutMs: 10000
+  - name: redteam self-check
+    command: node packages/cli/dist/index.js redteam --format markdown
+    timeoutMs: 30000
+
+safety:
+  commandTimeoutMs: 120000
+  allowCommands: false
+
+llm:
+  provider: disabled
+  timeoutMs: 30000
+
+toolAdapters: {}

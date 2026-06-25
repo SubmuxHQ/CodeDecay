@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "flows": [
+    {
+      "name": "Pull request redteam review",
+      "description": "A contributor opens a PR and CodeDecay reports what could break, whether tests prove the behavior, and what the agent should fix before merge.",
+      "areas": ["source", "test", "config"],
+      "checks": [
+        "Run codedecay redteam against the PR diff",
+        "Check weak or missing test proof",
+        "Review edge cases and agent fix tasks",
+        "Keep deterministic evidence separate from AI suggestions"
+      ]
+    },
+    {
+      "name": "CLI release smoke",
+      "description": "The published package and built CLI must work like a new user would install and run them.",
+      "files": ["packages/cli/*", "scripts/published-package-demo.mjs", "package.json", "packages/cli/package.json"],
+      "checks": [
+        "Run built CLI smoke tests",
+        "Run package dry-run",
+        "Run published-package or tarball demo before release"
+      ]
+    },
+    {
+      "name": "GitHub Action dogfood",
+      "description": "The local composite action must run on real PRs, write a useful summary, and preserve fail-on behavior.",
+      "files": [".github/workflows/*", "packages/github-action/*"],
+      "checks": [
+        "Verify action inputs match docs",
+        "Check cwd/output/fail-on behavior",
+        "Confirm CodeDecay dogfood check runs on the PR"
+      ]
+    },
+    {
+      "name": "PR safety efficacy benchmark",
+      "description": "Seeded regressions must prove CodeDecay catches weak tests, missing test proof, impacted areas, edge cases, and actionable fix tasks.",
+      "files": ["scripts/pr-safety-eval.mjs", "docs/evals/*", "packages/redteam/*", "packages/test-audit/*", "packages/analyzer-js/*"],
+      "checks": [
+        "Run pnpm eval:pr-safety",
+        "Confirm normal tests pass while behavior probes catch seeded regressions",
+        "Confirm edge cases and fix tasks are actionable"
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "name": "Full validation",
+      "command": "pnpm install && pnpm run lint && pnpm typecheck && pnpm test && pnpm build",
+      "areas": ["source", "test", "config"],
+      "description": "Baseline validation required before PR merge."
+    },
+    {
+      "name": "Package dry-run",
+      "command": "pnpm --filter @submuxhq/codedecay pack --dry-run",
+      "files": ["packages/cli/*", "package.json", "pnpm-lock.yaml"],
+      "description": "Verifies published package contents and npm metadata."
+    },
+    {
+      "name": "PR safety eval",
+      "command": "pnpm eval:pr-safety -- --run-id local-pr-safety-eval",
+      "files": ["scripts/pr-safety-eval.mjs", "packages/redteam/*", "packages/test-audit/*", "packages/analyzer-js/*"],
+      "description": "Runs seeded missed-regression scenarios."
+    }
+  ],
+  "invariants": [
+    {
+      "name": "No hidden cloud or model call",
+      "description": "The OSS CLI must remain useful without telemetry, API keys, hosted services, required LLM calls, or CodeDecayCloud.",
+      "areas": ["source", "config"],
+      "severity": "high"
+    },
+    {
+      "name": "Commands are explicit",
+      "description": "CodeDecay must not run project commands unless they are configured and safety.allowCommands is true.",
+      "areas": ["source", "config"],
+      "severity": "high"
+    },
+    {
+      "name": "Tool evidence is separate from AI suggestions",
+      "description": "Reports must not present agent/model suggestions as verified evidence unless backed by deterministic checks or command output.",
+      "areas": ["source", "docs"],
+      "severity": "high"
+    },
+    {
+      "name": "Output must be actionable",
+      "description": "Redteam reports and agent bundles should say what behavior to verify, which test proof is weak or missing, and what task a coding agent should perform.",
+      "areas": ["source", "test", "docs"],
+      "severity": "medium"
+    },
+    {
+      "name": "Package remains installable from npm",
+      "description": "The published package must include README, LICENSE, package.json, dist/index.js, and dist/index.d.ts without workspace-only dependency leaks.",
+      "files": ["packages/cli/package.json", "packages/cli/README.md", "package.json", "pnpm-lock.yaml"],
+      "severity": "high"
+    }
+  ],
+  "architecture": [
+    {
+      "title": "CLI is the published surface",
+      "note": "The public npm package is @submuxhq/codedecay and the binary is codedecay. Internal workspace packages are implementation details.",
+      "files": ["packages/cli/*", "package.json"]
+    },
+    {
+      "title": "Local-first redteam workflow",
+      "note": "codedecay redteam is deterministic and report-only by default. Command execution and LLM/provider use require explicit user configuration.",
+      "files": ["packages/redteam/*", "packages/execution/*", "packages/llm/*"]
+    },
+    {
+      "title": "Agent-owned workflow",
+      "note": "CodeDecay should produce evidence and task bundles that a user's own Codex, Claude Code, Cursor, OpenCode, Pi, desktop app, or MCP client can use.",
+      "files": ["packages/agent/*", "packages/mcp/*", ".agents/*"]
+    },
+    {
+      "title": "Evals protect the product promise",
+      "note": "The PR safety eval is the first regression harness for whether CodeDecay catches AI-overlooked PR risks, not just whether unit tests pass.",
+      "files": ["scripts/pr-safety-eval.mjs", "docs/evals/*"]
+    }
+  ],
+  "regressions": [
+    {
+      "title": "Package directory with test in name misclassified as test file",
+      "description": "packages/test-audit/src/index.ts was once treated as a test file because path matching used the whole path instead of segment/basename-aware test detection.",
+      "files": ["packages/analyzer-js/*", "packages/test-audit/*"],
+      "check": "Regression test: packages/test-audit/src/index.ts is source, while test/ and __tests__/ paths remain tests.",
+      "severity": "high"
+    },
+    {
+      "title": "Redteam output had non-actionable edge cases",
+      "description": "Edge-case output previously included bare file paths and repeated generic fix-task titles, which made agent handoff less useful.",
+      "files": ["packages/redteam/*", "packages/test-audit/*", "scripts/pr-safety-eval.mjs"],
+      "check": "Run pnpm eval:pr-safety and confirm edge cases and fix tasks are actionable.",
+      "severity": "high"
+    },
+    {
+      "title": "Published npm package leaked workspace protocol",
+      "description": "Published package installation failed when workspace protocol dependencies leaked into the npm package.",
+      "files": ["packages/cli/package.json", "package.json", "pnpm-lock.yaml"],
+      "check": "Install @submuxhq/codedecay in a fresh project and run codedecay --help.",
+      "severity": "high"
+    },
+    {
+      "title": "NPM tarball missed release hygiene files",
+      "description": "The package previously needed fixes to include README and LICENSE in the npm tarball.",
+      "files": ["packages/cli/package.json", "packages/cli/README.md", "packages/cli/LICENSE"],
+      "check": "Run pnpm --filter @submuxhq/codedecay pack --dry-run and inspect contents.",
+      "severity": "medium"
+    }
+  ]
+}

@@ -39,6 +39,9 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: PR safety efficacy eval
+        run: pnpm eval:pr-safety -- --run-id ci-pr-safety-eval
+
       - name: Build
         run: pnpm build
 

@@ -100,11 +100,12 @@ describe("GitHub repository metadata", () => {
       "`pnpm run lint`",
       "`pnpm typecheck`",
       "`pnpm test`",
+      "`pnpm eval:pr-safety -- --run-id local-pr-safety-eval`",
       "`pnpm build`",
       "`pnpm --filter @submuxhq/codedecay pack --dry-run`",
       "Added or updated tests for behavior changes",
       "Updated docs for user-facing changes",
-      "Ran a relevant CodeDecay self-check when useful"
+      "Included CodeDecay self-check evidence above, or explained why it is not applicable"
     ];
 
     for (const line of [...expectedRiskAreas, ...expectedValidation]) {
@@ -139,7 +140,7 @@ describe("GitHub repository metadata", () => {
     );
   });
 
-  it("dogfoods the local action with a fail-on gate", () => {
+  it("dogfoods the local action in report-only redteam mode", () => {
     const workflow = parse(readFileSync(".github/workflows/codedecay-dogfood.yml", "utf8")) as {
       jobs: {
         codedecay: {
@@ -158,9 +159,9 @@ describe("GitHub repository metadata", () => {
       base: "${{ github.event.pull_request.base.sha }}",
       head: "${{ github.event.pull_request.head.sha }}",
       cwd: ".",
-      format: "markdown",
-      "fail-on": "high"
+      format: "markdown"
     });
+    expect(actionStep?.with).not.toHaveProperty("fail-on");
   });
 });
 

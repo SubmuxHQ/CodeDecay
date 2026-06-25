@@ -183,10 +183,11 @@ jobs:
           head: ${{ github.event.pull_request.head.sha }}
           cwd: .
           format: markdown
-          fail-on: high
 ```
 
-The action writes a GitHub Step Summary and preserves CLI exit codes.
+The action writes a GitHub Step Summary. Use `mode: analyze` with
+`fail-on: high` for a hard deterministic CI gate, or add `fail-on` to `redteam`
+only when you want redteam risk scoring to block the workflow.
 
 See [GitHub Action docs](docs/github-action.md) for output paths, SARIF usage,
 and non-root `cwd` examples.

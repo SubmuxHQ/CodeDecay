@@ -16,6 +16,7 @@ Use this before pushing or opening a PR.
    pnpm run lint
    pnpm typecheck
    pnpm test
+   pnpm eval:pr-safety -- --run-id local-pr-safety-eval
    pnpm build
    ```
 
