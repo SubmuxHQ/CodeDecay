@@ -240,6 +240,53 @@ describe("analyzeJsProject", () => {
     );
   });
 
+  it("extracts Fastify route methods from separator-heavy route objects", () => {
+    const rootDir = createTempProject({
+      "server.ts": [
+        "fastify.route({",
+        `  method: [${"method:[".repeat(2000)} 'GET', 'POST'],`,
+        "  url: '/redos-safe',",
+        "  handler",
+        "});",
+        ""
+      ].join("\n")
+    });
+
+    const result = analyzeJsProject({
+      rootDir,
+      changedFiles: [change("server.ts", "fastify.route({ method: ['GET', 'POST'], url: '/redos-safe', handler });")]
+    });
+
+    expect(result.impactedRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          framework: "fastify",
+          route: "/redos-safe",
+          methods: ["GET", "POST"]
+        })
+      ])
+    );
+  });
+
+  it("normalizes slash-heavy changed lines without backtracking", () => {
+    const repeatedSlashes = "/".repeat(10_000);
+    const repeatedQuotedValues = Array.from({ length: 250 }, (_, index) => `const value${index} = "${repeatedSlashes}";`).join("\n");
+    const rootDir = createTempProject({
+      "src/api/slash-a.ts": `${repeatedQuotedValues}\nexport const a = true;\n`,
+      "src/api/slash-b.ts": `${repeatedQuotedValues}\nexport const b = true;\n`
+    });
+
+    const result = analyzeJsProject({
+      rootDir,
+      changedFiles: [
+        change("src/api/slash-a.ts", `const value = "${repeatedSlashes}"; // ${repeatedSlashes}`),
+        change("src/api/slash-b.ts", `const value = "${repeatedSlashes}"; // ${repeatedSlashes}`)
+      ]
+    });
+
+    expect(result.findings.map((finding) => finding.ruleId)).toContain("missing-nearby-tests");
+  });
+
   it("flags broad unrelated changes", () => {
     const changedFiles = [
       "apps/web/src/page.ts",
@@ -312,6 +359,35 @@ describe("analyzeJsProject", () => {
     expect(result.findings.map((finding) => finding.ruleId)).toEqual(
       expect.arrayContaining(["test-bloat", "heavy-mocking"])
     );
+  });
+
+  it("does not treat generic index variables in mocks as changed source mocks", () => {
+    const changedFiles: FileChange[] = [
+      {
+        path: "packages/analyzer-js/src/index.ts",
+        status: "modified",
+        additions: 10,
+        deletions: 0,
+        addedLines: [{ line: 1, content: "export function analyze() { return true; }" }]
+      },
+      {
+        path: "packages/analyzer-js/test/analyzer-js.test.ts",
+        status: "modified",
+        additions: 12,
+        deletions: 0,
+        addedLines: Array.from({ length: 12 }, (_, index) => ({
+          line: index + 1,
+          content: `vi.mock("./dependency-${index}", () => ({}));`
+        }))
+      }
+    ];
+
+    const result = analyzeJsProject({
+      rootDir: fixtureRoot,
+      changedFiles
+    });
+
+    expect(result.findings.map((finding) => finding.ruleId)).not.toContain("mocked-changed-source");
   });
 
   it("flags fragile abstractions", () => {

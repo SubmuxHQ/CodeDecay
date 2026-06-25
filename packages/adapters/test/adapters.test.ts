@@ -100,6 +100,26 @@ describe("adapter runner", () => {
     expect(configured.map((item) => item.adapter.id)).toEqual(["test-1", "build-1", "start-1", "probe-users-api"]);
   });
 
+  it("creates stable probe ids from separator-heavy names", async () => {
+    const config = createConfig({ allowCommands: true });
+    config.probes = [
+      {
+        name: `${"-".repeat(5000)}Users API${"---".repeat(5000)}Health`,
+        command: "node -e \"console.log('probe')\"",
+        timeoutMs: 500
+      },
+      {
+        name: "---",
+        command: "node -e \"console.log('fallback')\"",
+        timeoutMs: 500
+      }
+    ];
+
+    const configured = createConfiguredCommandAdapters(config);
+
+    expect(configured.map((item) => item.adapter.id)).toEqual(["probe-users-api-health", "probe-2"]);
+  });
+
   it("keeps configured command adapters disabled unless safety.allowCommands is true", async () => {
     const config = createConfig({ allowCommands: false });
     config.commands.test = ["node -e \"console.log('should not run')\""];
