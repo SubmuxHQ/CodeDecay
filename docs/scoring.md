@@ -36,6 +36,11 @@ Signals include:
 - `40-69`: medium
 - `70-100`: high
 
+Scores are capped by the highest relevant finding severity. A report with only
+low-severity merge-risk findings stays low, even if many low findings are
+present. A report with only medium-severity merge-risk findings stays at most
+medium. High risk requires high-severity evidence.
+
 The v1 scoring model is deterministic. The same diff should produce the same
 score.
 

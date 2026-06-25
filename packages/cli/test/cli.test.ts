@@ -131,6 +131,23 @@ describe("codedecay analyze CLI contract", () => {
     await expectExit(["analyze", "--fail-on", "low"], highRepo, 1);
   });
 
+  it("does not fail the high gate for broad low-severity docs/source/test changes", async () => {
+    const repo = createBroadLowOnlyRepo();
+    const result = await run(["analyze", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(report.summary).toMatchObject({
+      mergeRiskScore: 39,
+      riskLevel: "low"
+    });
+    expect(report.summary.findingCounts.low).toBeGreaterThanOrEqual(12);
+
+    await expectExit(["analyze", "--fail-on", "high"], repo, 0);
+    await expectExit(["analyze", "--fail-on", "medium"], repo, 0);
+    await expectExit(["analyze", "--fail-on", "low"], repo, 1);
+  });
+
   it("fails clearly for invalid base/head refs", async () => {
     const repo = createLowRiskRepo();
 
@@ -1033,6 +1050,35 @@ function createLowRiskRepo(): string {
   });
 
   writeFile(repo, "README.md", "# Project\nDocs change.\n");
+  return repo;
+}
+
+function createBroadLowOnlyRepo(): string {
+  const repo = createRepo({
+    "README.md": "# Project\n"
+  });
+
+  const files = [
+    "docs/agent.md",
+    "docs/getting-started.md",
+    "docs/mcp.md",
+    "docs/reports.md",
+    "docs/scoring.md",
+    "docs/examples/sample-report.md",
+    "docs/examples/json-report.md",
+    "docs/examples/sarif-report.md",
+    "docs/examples/action-output.md",
+    "docs/examples/redteam-report.md",
+    "docs/examples/agent-handoff.md",
+    "packages/agent/src/profile.ts",
+    "packages/harness/src/registry.ts",
+    "packages/memory/src/local.ts"
+  ];
+
+  for (const file of files) {
+    writeFile(repo, file, `export const fixture = ${JSON.stringify(file)};\n`);
+  }
+
   return repo;
 }
 

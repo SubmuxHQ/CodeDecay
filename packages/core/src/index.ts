@@ -245,11 +245,36 @@ function calculateScore(
 
   const fileSpreadScore = Math.min(12, Math.max(0, changedFiles.length - 5) * 2);
 
-  return clampScore(findingScore + changeSizeScore + fileSpreadScore);
+  return capScoreByHighestSeverity(clampScore(findingScore + changeSizeScore + fileSpreadScore), relevantFindings);
 }
 
 function clampScore(score: number): number {
   return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function capScoreByHighestSeverity(score: number, findings: Finding[]): number {
+  const highestSeverity = highestFindingSeverity(findings);
+  if (highestSeverity === "low") {
+    return Math.min(score, 39);
+  }
+
+  if (highestSeverity === "medium") {
+    return Math.min(score, 69);
+  }
+
+  return score;
+}
+
+function highestFindingSeverity(findings: Finding[]): RiskLevel | undefined {
+  let highest: RiskLevel | undefined;
+
+  for (const finding of findings) {
+    if (!highest || compareRiskLevels(finding.severity, highest) > 0) {
+      highest = finding.severity;
+    }
+  }
+
+  return highest;
 }
 
 function mergeImpactedAreas(areas: ImpactedArea[]): ImpactedArea[] {

@@ -6,7 +6,8 @@ import {
   riskLevelFromScore,
   shouldFailForRisk,
   type AnalyzerResult,
-  type FileChange
+  type FileChange,
+  type Finding
 } from "../src/index";
 
 describe("CODEDECAY_VERSION", () => {
@@ -152,4 +153,84 @@ describe("createAnalysisReport", () => {
     expect(report.impactedRoutes?.[0]?.recommendedTests).toEqual(["Add API route coverage for POST /api/users"]);
     expect(report.recommendedTests).toEqual(["Add API route coverage for POST /api/users"]);
   });
+
+  it("caps merge risk at low when all merge-risk findings are low severity", () => {
+    const changedFiles = createSyntheticChanges(16);
+    const findings = createSyntheticFindings(16, "low");
+
+    const report = createAnalysisReport({
+      changedFiles,
+      analyzerResult: {
+        impactedAreas: [],
+        findings,
+        recommendedTests: []
+      },
+      generatedAt: "2026-06-22T00:00:00.000Z"
+    });
+
+    expect(report.summary.mergeRiskScore).toBe(39);
+    expect(report.summary.riskLevel).toBe("low");
+    expect(shouldFailForRisk(report.summary.riskLevel, "high")).toBe(false);
+  });
+
+  it("caps merge risk at medium when all merge-risk findings are medium severity", () => {
+    const changedFiles = createSyntheticChanges(8);
+    const findings = createSyntheticFindings(8, "medium");
+
+    const report = createAnalysisReport({
+      changedFiles,
+      analyzerResult: {
+        impactedAreas: [],
+        findings,
+        recommendedTests: []
+      },
+      generatedAt: "2026-06-22T00:00:00.000Z"
+    });
+
+    expect(report.summary.mergeRiskScore).toBe(69);
+    expect(report.summary.riskLevel).toBe("medium");
+    expect(shouldFailForRisk(report.summary.riskLevel, "high")).toBe(false);
+    expect(shouldFailForRisk(report.summary.riskLevel, "medium")).toBe(true);
+  });
+
+  it("allows high merge risk when high-severity findings are present", () => {
+    const changedFiles = createSyntheticChanges(3);
+    const findings = createSyntheticFindings(3, "high");
+
+    const report = createAnalysisReport({
+      changedFiles,
+      analyzerResult: {
+        impactedAreas: [],
+        findings,
+        recommendedTests: []
+      },
+      generatedAt: "2026-06-22T00:00:00.000Z"
+    });
+
+    expect(report.summary.mergeRiskScore).toBeGreaterThanOrEqual(70);
+    expect(report.summary.riskLevel).toBe("high");
+    expect(shouldFailForRisk(report.summary.riskLevel, "high")).toBe(true);
+  });
 });
+
+function createSyntheticChanges(count: number): FileChange[] {
+  return Array.from({ length: count }, (_, index) => ({
+    path: `src/file-${index}.ts`,
+    status: "modified",
+    additions: 4,
+    deletions: 1,
+    addedLines: [{ line: 1, content: `export const value${index} = true;` }]
+  }));
+}
+
+function createSyntheticFindings(count: number, severity: Finding["severity"]): Finding[] {
+  return Array.from({ length: count }, (_, index) => ({
+    ruleId: `synthetic-${severity}-${index}`,
+    title: "Synthetic finding",
+    description: "Synthetic scoring fixture.",
+    severity,
+    category: "regression",
+    file: `src/file-${index}.ts`,
+    line: 1
+  }));
+}
