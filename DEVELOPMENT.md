@@ -67,7 +67,8 @@ pnpm demo:end-user
 ```
 
 The harness builds the local CLI, creates isolated demo git repositories, runs
-the user-facing commands, and writes command logs to:
+the user-facing commands, starts a real MCP client smoke, simulates the GitHub
+Action runtime, and writes command logs to:
 
 ```text
 .codedecay/local/end-user-demo/<run-id>/run.json
