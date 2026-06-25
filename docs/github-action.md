@@ -57,7 +57,9 @@ can be added by the workflow using GitHub's code scanning upload action.
 
 ## Redteam And Agent Modes
 
-The action can also run report-only redteam and agent bundle modes:
+The action can also run report-only redteam and agent bundle modes. Redteam
+mode is useful as a Step Summary because it includes impact, memory, edge cases,
+and fix tasks for a user-owned agent:
 
 ```yaml
 - uses: SubmuxHQ/CodeDecay/packages/github-action@v0
@@ -67,7 +69,6 @@ The action can also run report-only redteam and agent bundle modes:
     head: ${{ github.event.pull_request.head.sha }}
     cwd: .
     format: markdown
-    fail-on: high
 ```
 
 ```yaml
@@ -87,5 +88,8 @@ expose command-executing modes. `format: sarif` is supported only with
 mode produces a task bundle for a user-owned coding agent and does not gate the
 workflow by risk level.
 
-The CodeDecay repository dogfoods this local action before release to verify the
-same workflow users run in pull requests.
+Use `fail-on` with `analyze` when you want a deterministic CI gate. You can also
+add `fail-on` to `redteam` if your repository wants strict risk-score gating.
+The CodeDecay repository dogfoods `redteam` report-only so the Step Summary is
+always available while lint, typecheck, tests, build, package dry-run, and the
+PR safety efficacy eval remain the hard validation gates.

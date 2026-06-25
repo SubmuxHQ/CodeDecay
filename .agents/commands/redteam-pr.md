@@ -25,11 +25,17 @@ Use this to review a PR like a cautious senior engineer.
    ```
 
 5. Read `codedecay-redteam.md`.
-6. Use the `Copy-Paste Prompt` section from `codedecay-agent.md` with the
+6. If the change touches redteam, test-audit, analyzer, eval, CLI, release, or dogfood behavior, run the efficacy benchmark:
+
+   ```bash
+   pnpm eval:pr-safety -- --run-id local-pr-safety-eval
+   ```
+
+7. Use the `Copy-Paste Prompt` section from `codedecay-agent.md` with the
    current user-owned agent if the PR needs fixes.
-7. Apply `.agents/skills/pr-red-team/SKILL.md`.
-8. Apply `.agents/skills/test-quality-review/SKILL.md` when tests changed.
-9. Summarize:
+8. Apply `.agents/skills/pr-red-team/SKILL.md`.
+9. Apply `.agents/skills/test-quality-review/SKILL.md` when tests changed.
+10. Summarize:
 
    - what could break,
    - impacted user/API flows,

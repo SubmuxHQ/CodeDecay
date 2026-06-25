@@ -19,16 +19,28 @@
 - [ ] Docs, examples, contributor setup, or agentic development resources
 - [ ] Packaging, release metadata, or published tarball contents
 
+## CodeDecay Self-Check
+
+<!-- For meaningful changes, run CodeDecay or explain why it is not applicable. Prefer the redteam workflow in .agents/commands/redteam-pr.md. -->
+
+- Command:
+- Risk level:
+- Impacted areas/routes:
+- Weak or missing test proof:
+- Edge cases/fix tasks addressed:
+- Not applicable reason:
+
 ## Validation
 
 - [ ] `pnpm run lint`
 - [ ] `pnpm typecheck`
 - [ ] `pnpm test`
+- [ ] `pnpm eval:pr-safety -- --run-id local-pr-safety-eval`
 - [ ] `pnpm build`
 - [ ] `pnpm --filter @submuxhq/codedecay pack --dry-run`
 - [ ] Added or updated tests for behavior changes
 - [ ] Updated docs for user-facing changes
-- [ ] Ran a relevant CodeDecay self-check when useful
+- [ ] Included CodeDecay self-check evidence above, or explained why it is not applicable
 
 ## Related
 
