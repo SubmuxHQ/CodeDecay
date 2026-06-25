@@ -27,7 +27,7 @@ export default defineConfig({
   ],
   themeConfig: {
     logo: {
-      src: `${base}mark.svg`,
+      src: "/mark.svg",
       alt: "CodeDecay"
     },
     nav: [
@@ -35,7 +35,7 @@ export default defineConfig({
       { text: "GitHub Action", link: "/github-action" },
       { text: "Redteam", link: "/redteam" },
       { text: "MCP", link: "/mcp" },
-      { text: "AI Bundle", link: "/llms.txt" }
+      { text: "AI Bundle", link: `${base}llms.txt` }
     ],
     sidebar: [
       {

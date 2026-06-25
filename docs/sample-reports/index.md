@@ -33,8 +33,8 @@ Look at these sections first:
 
 For automation and integrations:
 
-- <a href="/sample-reports/sample-report.json">sample-report.json</a> is the stable machine-readable report.
-- <a href="/sample-reports/sample-report.sarif">sample-report.sarif</a> is the code-scanning-oriented report.
+- <a href="./sample-report.json">sample-report.json</a> is the stable machine-readable report.
+- <a href="./sample-report.sarif">sample-report.sarif</a> is the code-scanning-oriented report.
 
 CodeDecay generated these reports locally without telemetry, API keys, LLMs, or
 model calls.

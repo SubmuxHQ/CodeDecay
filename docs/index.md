@@ -14,10 +14,10 @@ hero:
       link: /github-action
     - theme: alt
       text: Read llms.txt
-      link: /llms.txt
+      link: ./llms.txt
     - theme: alt
       text: Read llms-full.txt
-      link: /llms-full.txt
+      link: ./llms-full.txt
 
 features:
   - title: Human-first docs
@@ -48,6 +48,6 @@ features:
 
 - [`/llms.txt`](/llms.txt): compact map of the docs site
 - [`/llms-full.txt`](/llms-full.txt): one bundled Markdown context file
-- <a href="/markdown/getting-started.md"><code>/markdown/getting-started.md</code></a>: per-page raw Markdown endpoints for direct retrieval
+- <a href="./markdown/getting-started.md"><code>/markdown/getting-started.md</code></a>: per-page raw Markdown endpoints for direct retrieval
 
 These endpoints are generated from the same source files as the docs site, so humans and agents read the same content instead of drifting copies.
