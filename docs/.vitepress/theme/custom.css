@@ -77,17 +77,45 @@ body {
 
 .dark .VPNavBar,
 .dark .VPLocalNav,
+.dark .VPNavBar .wrapper,
+.dark .VPNavBar .container,
+.dark .VPLocalNav .container {
+  background-color: var(--vp-nav-bg-color);
+}
+
 .dark .VPSidebar,
-.dark .VPDocAsideOutline,
-.dark .vp-doc div[class*="language-"],
+.dark .VPDocAsideOutline .content,
 .dark .vp-code-group .tabs {
+  background-color: var(--vp-c-bg-alt);
+}
+
+.dark .vp-doc div[class*="language-"] {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.dark .VPDoc .content-container {
+  box-shadow: none;
+}
+
+.VPNavBar .container,
+.VPLocalNav .container {
+  max-width: none;
+  width: 100%;
+}
+
+.VPNavBar .wrapper,
+.VPLocalNav .container {
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.dark .VPNavBarTitle .title,
+.dark .VPNavBarSearch .DocSearch-Button {
   background-color: transparent;
 }
 
-.dark .VPDoc .content-container,
-.dark .VPDocAsideOutline .content,
-.dark .vp-doc div[class*="language-"] {
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+.dark .VPNavBar {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .VPDoc h1,
