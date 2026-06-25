@@ -41,7 +41,8 @@ interface TestAuditResult {
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
 
 const SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"]);
-const TEST_FILE_PATTERN = /(^|[./_-])(test|spec|e2e|integration)([./_-]|$)/i;
+const TEST_DIR_NAMES = new Set(["test", "tests", "spec", "specs", "e2e", "integration", "__tests__", "__specs__"]);
+const TEST_FILE_STEM_PATTERN = /(^|[._-])(test|spec|e2e|integration)([._-]|$)/i;
 const IGNORED_DIRS = new Set([".git", "node_modules", "dist", "coverage", ".next", "build"]);
 const ASSERTION_PATTERN =
   /\b(expect|assert|strictEqual|deepStrictEqual|ok)\s*\(|\bshould\(|\bto(Be|Equal|StrictEqual|Contain|Match|Have|Throw|BeTruthy|BeFalsy)\b/;
@@ -1044,7 +1045,15 @@ function isDocsPath(path: string): boolean {
 }
 
 function isTestPath(path: string): boolean {
-  return TEST_FILE_PATTERN.test(path) || /(__tests__|__specs__|tests?|specs?)(\/|$)/i.test(path);
+  const normalized = normalizePath(path).toLowerCase();
+  const segments = normalized.split("/").filter(Boolean);
+  const directorySegments = segments.slice(0, -1);
+  if (directorySegments.some((segment) => TEST_DIR_NAMES.has(segment))) {
+    return true;
+  }
+
+  const fileName = segments.at(-1) ?? normalized;
+  return TEST_FILE_STEM_PATTERN.test(stripExtension(fileName));
 }
 
 function stripExtension(path: string): string {
