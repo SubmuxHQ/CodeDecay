@@ -15,6 +15,7 @@
     "predocs:build": "pnpm docs:prepare",
     "docs:build": "vitepress build docs",
     "docs:preview": "vitepress preview docs",
+    "demo:end-user": "pnpm build:packages && node scripts/end-user-demo.mjs",
     "lint": "tsc -p tsconfig.base.json --noEmit",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.base.json --noEmit"

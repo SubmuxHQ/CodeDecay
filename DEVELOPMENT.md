@@ -58,6 +58,26 @@ node packages/cli/dist/index.js analyze --format markdown
 node packages/cli/dist/index.js config --format markdown
 ```
 
+## End-user dogfood demo
+
+Run the local end-user demo harness before changing broad CLI behavior:
+
+```bash
+pnpm demo:end-user
+```
+
+The harness builds the local CLI, creates isolated demo git repositories, runs
+the user-facing commands, and writes command logs to:
+
+```text
+.codedecay/local/end-user-demo/<run-id>/run.json
+.codedecay/local/end-user-demo/<run-id>/summary.md
+```
+
+`run.json` includes commands, cwd, exit code, duration, stdout, stderr, parsed
+JSON when available, and output file metadata. Use it as the first reproduction
+artifact when filing follow-up bugs from dogfood runs.
+
 ## Optional CodeDecay config and memory
 
 Examples live in:
