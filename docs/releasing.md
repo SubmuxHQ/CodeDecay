@@ -11,8 +11,17 @@ The package source is `packages/cli`, and the installed binary remains
 
 CodeDecay also publishes an optional GitHub Packages npm mirror with the same
 package name. GitHub Packages scopes packages by GitHub user or organization
-owner, and this repository is owned by `SubmuxHQ`, so `@submuxhq/codedecay`
-works for both npmjs and the GitHub Packages mirror.
+owner, and this repository is owned by `SubmuxHQ`, so every release from v0.2.0
+onward uses `@submuxhq/codedecay` for both npmjs and the GitHub Packages mirror.
+
+npmjs is the default public install path for users:
+
+```bash
+npm install -D @submuxhq/codedecay
+```
+
+GitHub Packages is an authenticated mirror for GitHub-based workflows and
+requires registry authentication for installs.
 
 ## Patch Release Checklist
 
@@ -90,9 +99,12 @@ all refer to the same released version before the release is considered done.
 
 ## GitHub Packages Mirror
 
-The GitHub Packages mirror is published from the same built CLI package. The
-staged package metadata keeps the package name as `@submuxhq/codedecay` and sets
-the registry to `https://npm.pkg.github.com`.
+The GitHub Packages mirror is published from the same built CLI package. It uses
+the same package name, `@submuxhq/codedecay`, and sets the registry to
+`https://npm.pkg.github.com`.
+
+Use npmjs for public end-user installs. Use GitHub Packages only when a workflow
+or organization policy specifically needs a GitHub-hosted package mirror.
 
 Prepare the mirror package locally after `pnpm build:packages`:
 
@@ -126,21 +138,28 @@ Manual dispatch:
 gh workflow run publish-github-packages.yml -f ref=v<version>
 ```
 
-Install from GitHub Packages by adding the GitHub owner scope to `.npmrc`:
+Install from GitHub Packages by adding the GitHub owner scope and an
+authenticated token to `.npmrc`:
 
 ```text
 @submuxhq:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=<classic-pat-with-read:packages>
 ```
 
 Then install:
 
 ```bash
-npm install -D @submuxhq/codedecay
+npm install -D @submuxhq/codedecay@<version>
+node_modules/.bin/codedecay version
 ```
 
-GitHub Packages may require authentication for installs depending on package
-visibility and access settings. The public npmjs package uses the same package
-name and remains the default recommended install path:
+GitHub Packages requires a personal access token classic with `read:packages`
+for local installs. GitHub Actions can use `GITHUB_TOKEN` when the package is
+associated with this repository and the workflow has package access.
+
+If local verification fails with `403 permission_denied`, check the token scope
+before changing package metadata. The default public npmjs install path should
+still work without GitHub authentication:
 
 ```bash
 npm install -D @submuxhq/codedecay
