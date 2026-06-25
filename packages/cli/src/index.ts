@@ -229,6 +229,7 @@ const VALID_PACKAGE_MANAGERS = new Set<PackageManager>(["npm", "pnpm", "yarn", "
 const PACKAGE_NAME = "@submux/codedecay";
 const COMMAND_ORDER = ["analyze", "redteam", "agent", "config", "memory", "execute", "differential", "mcp"] as const;
 const UTILITY_COMMAND_ORDER = ["help", "man", "update", "version"] as const;
+const ROOT_FLAG_ALIASES = ["--help", "-h", "--version", "-V"] as const;
 
 class CliExit extends Error {
   constructor(readonly exitCode: number) {
@@ -536,7 +537,7 @@ async function run(args: string[], runtime: CliRuntime): Promise<void | number> 
 
   const handler = COMMAND_HANDLERS[command];
   if (!handler) {
-    throw new Error(`Unknown command: ${command}. Run "codedecay help" for available commands.`);
+    throwUnknownCommand(command);
   }
 
   await handler({
@@ -739,6 +740,121 @@ function createAnalysisContextForCli(rootDir: string, options: AnalyzeOptions): 
   };
 }
 
+function throwUnknownCommand(command: string): never {
+  const suggestion = suggestClosestToken(command, [...Object.keys(HELP_DOCS), ...ROOT_FLAG_ALIASES]);
+  const hint = suggestion ? ` Did you mean "${suggestion}"?` : "";
+  throw new Error(`Unknown command: ${command}.${hint} Run "codedecay help" for available commands.`);
+}
+
+function throwUnknownOption(arg: string, command: keyof typeof HELP_DOCS): never {
+  const suggestion = suggestClosestToken(arg, getKnownOptionFlags(command));
+  const hint = suggestion ? ` Did you mean "${suggestion}"?` : "";
+  throw new Error(`Unknown option for codedecay ${command}: ${arg}.${hint} Run "codedecay help ${command}" to see supported options.`);
+}
+
+function getKnownOptionFlags(command: keyof typeof HELP_DOCS): string[] {
+  const doc = resolveHelpTopic(command);
+  return [
+    ...new Set([
+      ...doc.options.map((option) => option.flag.split(" ", 1)[0] ?? option.flag),
+      "--help",
+      "-h"
+    ])
+  ];
+}
+
+function suggestClosestToken(input: string, candidates: string[]): string | undefined {
+  const normalizedInput = normalizeSuggestionToken(input);
+  if (!normalizedInput) {
+    return undefined;
+  }
+
+  let bestCandidate: string | undefined;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (const candidate of candidates) {
+    const normalizedCandidate = normalizeSuggestionToken(candidate);
+    if (!normalizedCandidate) {
+      continue;
+    }
+
+    if (normalizedCandidate === normalizedInput) {
+      return candidate;
+    }
+
+    const distance = levenshteinDistance(normalizedInput, normalizedCandidate);
+    const isPrefixMatch =
+      normalizedCandidate.startsWith(normalizedInput) || normalizedInput.startsWith(normalizedCandidate);
+
+    if (distance < bestDistance || (distance === bestDistance && isPrefixMatch)) {
+      bestCandidate = candidate;
+      bestDistance = distance;
+    }
+  }
+
+  if (!bestCandidate) {
+    return undefined;
+  }
+
+  const normalizedCandidate = normalizeSuggestionToken(bestCandidate);
+  const threshold = Math.max(1, Math.floor(Math.max(normalizedInput.length, normalizedCandidate.length) / 3));
+  const isPrefixMatch = normalizedCandidate.startsWith(normalizedInput) || normalizedInput.startsWith(normalizedCandidate);
+
+  return bestDistance <= threshold || isPrefixMatch ? bestCandidate : undefined;
+}
+
+function normalizeSuggestionToken(value: string): string {
+  let normalized = value.trim().toLowerCase();
+  normalized = normalized.split("=", 1)[0] ?? normalized;
+
+  if (normalized.startsWith("--")) {
+    normalized = normalized.slice(2);
+  } else if (normalized.startsWith("-")) {
+    normalized = normalized.slice(1);
+  }
+
+  return normalized.replace(/[^a-z0-9]/g, "");
+}
+
+function levenshteinDistance(left: string, right: string): number {
+  if (left === right) {
+    return 0;
+  }
+
+  if (left.length === 0) {
+    return right.length;
+  }
+
+  if (right.length === 0) {
+    return left.length;
+  }
+
+  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  const current = new Array<number>(right.length + 1).fill(0);
+
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    current[0] = leftIndex;
+
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      const substitutionCost = left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1;
+      const deletion = (current[rightIndex - 1] ?? 0) + 1;
+      const insertion = (previous[rightIndex] ?? 0) + 1;
+      const substitution = (previous[rightIndex - 1] ?? 0) + substitutionCost;
+      current[rightIndex] = Math.min(
+        deletion,
+        insertion,
+        substitution
+      );
+    }
+
+    for (let index = 0; index < previous.length; index += 1) {
+      previous[index] = current[index] ?? 0;
+    }
+  }
+
+  return previous[right.length] ?? 0;
+}
+
 function parseConfigArgs(args: string[]): ConfigOptions {
   const options: ConfigOptions = {
     format: "json"
@@ -777,7 +893,7 @@ function parseConfigArgs(args: string[]): ConfigOptions {
       continue;
     }
 
-    throw new Error(`Unknown option: ${arg}`);
+    throwUnknownOption(arg, "config");
   }
 
   return options;
@@ -808,7 +924,7 @@ function parseMcpArgs(args: string[]): McpOptions {
       continue;
     }
 
-    throw new Error(`Unknown option: ${arg}`);
+    throwUnknownOption(arg, "mcp");
   }
 
   return options;
@@ -857,7 +973,7 @@ function parseUpdateArgs(args: string[]): UpdateOptions {
       continue;
     }
 
-    throw new Error(`Unknown option: ${arg}`);
+    throwUnknownOption(arg, "update");
   }
 
   return options;
@@ -901,7 +1017,7 @@ function parseMemoryArgs(args: string[]): MemoryOptions {
       continue;
     }
 
-    throw new Error(`Unknown option: ${arg}`);
+    throwUnknownOption(arg, "memory");
   }
 
   return options;
@@ -956,7 +1072,7 @@ function parseExecuteArgs(args: string[]): ExecuteOptions {
       continue;
     }
 
-    throw new Error(`Unknown option: ${arg}`);
+    throwUnknownOption(arg, "execute");
   }
 
   return options;
@@ -1033,7 +1149,7 @@ function parseDifferentialArgs(args: string[]): DifferentialOptions {
       continue;
     }
 
-    throw new Error(`Unknown option: ${arg}`);
+    throwUnknownOption(arg, "differential");
   }
 
   return options;
@@ -1121,7 +1237,7 @@ function parseRedteamArgs(args: string[]): RedteamOptions {
       continue;
     }
 
-    throw new Error(`Unknown option: ${arg}`);
+    throwUnknownOption(arg, "redteam");
   }
 
   return options;
@@ -1210,7 +1326,7 @@ function parseAgentArgs(args: string[]): AgentOptions {
       continue;
     }
 
-    throw new Error(`Unknown option: ${arg}`);
+    throwUnknownOption(arg, "agent");
   }
 
   return options;
@@ -1298,7 +1414,7 @@ function parseAnalyzeArgs(args: string[]): AnalyzeOptions {
       continue;
     }
 
-    throw new Error(`Unknown option: ${arg}`);
+    throwUnknownOption(arg, "analyze");
   }
 
   return options;
@@ -2183,7 +2299,7 @@ function resolveHelpTopic(topic: string): CommandDoc {
     return doc;
   }
 
-  throw new Error(`Unknown command: ${topic}. Run "codedecay help" for available commands.`);
+  throwUnknownCommand(topic);
 }
 
 function renderRootHelp(): string {

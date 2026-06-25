@@ -252,6 +252,24 @@ describe("built codedecay CLI", () => {
     expect(update.stdout).toContain("pnpm add -D @submux/codedecay@latest");
   });
 
+  it("suggests similar commands and flags from the built CLI", () => {
+    const repo = createLowRiskRepo();
+
+    const command = runBuilt(["analyz"]);
+    expect(command.status).toBe(2);
+    expect(command.stdout).toBe("");
+    expect(command.stderr).toContain('Unknown command: analyz. Did you mean "analyze"?');
+    expect(command.stderr).toContain('Run "codedecay help" for available commands.');
+
+    const option = runBuilt(["analyze", "--failonn", "--cwd", repo]);
+    expect(option.status).toBe(2);
+    expect(option.stdout).toBe("");
+    expect(option.stderr).toContain(
+      'Unknown option for codedecay analyze: --failonn. Did you mean "--fail-on"?'
+    );
+    expect(option.stderr).toContain('Run "codedecay help analyze" to see supported options.');
+  });
+
   it("prints loaded config from the built CLI", () => {
     const repo = createLowRiskRepo();
     writeFile(

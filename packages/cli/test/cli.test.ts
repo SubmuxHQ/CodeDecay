@@ -246,6 +246,30 @@ describe("codedecay CLI discovery commands", () => {
     expect(update.stdout).toContain("pnpm add -D @submux/codedecay@latest");
     expect(update.stdout).toContain('Run "codedecay update --apply" to execute it automatically.');
   });
+
+  it("suggests the closest command for unknown command typos", async () => {
+    const cwd = createTempDir();
+
+    const result = await run(["analyz"], cwd);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain('CodeDecay failed: Unknown command: analyz. Did you mean "analyze"?');
+    expect(result.stderr).toContain('Run "codedecay help" for available commands.');
+  });
+
+  it("suggests the closest option for unknown flag typos", async () => {
+    const repo = createLowRiskRepo();
+
+    const result = await run(["analyze", "--failonn"], repo);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain(
+      'CodeDecay failed: Unknown option for codedecay analyze: --failonn. Did you mean "--fail-on"?'
+    );
+    expect(result.stderr).toContain('Run "codedecay help analyze" to see supported options.');
+  });
 });
 
 describe("codedecay config CLI contract", () => {
