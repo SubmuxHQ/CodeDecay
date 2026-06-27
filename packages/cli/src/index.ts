@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +18,7 @@ import {
   type AgentTaskBundleFormat
 } from "@submuxhq/codedecay-agent";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
-import { loadCodeDecayConfig, type LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
+import { loadCodeDecayConfig, type CodeDecayProductTarget, type LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import {
   CODEDECAY_VERSION,
   createAnalysisReport,
@@ -28,6 +28,7 @@ import {
   type RiskLevel,
   type TestEvidenceMode
 } from "@submuxhq/codedecay-core";
+import { checkCommandSafety, runConfiguredCommand, type CommandExecutionResult, type ExecutionStatus } from "@submuxhq/codedecay-execution";
 import { createGitWorktree, getGitChangedFiles, getRepoRoot, removeGitWorktree } from "@submuxhq/codedecay-git";
 import type { Evidence, HarnessFailure } from "@submuxhq/codedecay-harness";
 import { createLlmProvider, type LlmCompletion, type LlmSuggestion } from "@submuxhq/codedecay-llm";
@@ -116,6 +117,13 @@ interface ExecuteOptions {
   output?: string | undefined;
 }
 
+interface ProductOptions {
+  cwd?: string | undefined;
+  format: ConfigFormat;
+  output?: string | undefined;
+  target?: string | undefined;
+}
+
 interface DifferentialOptions {
   base?: string | undefined;
   head?: string | undefined;
@@ -177,6 +185,77 @@ interface ExecutionReport {
   summary: ExecutionSummary;
   results: ExecutionResult[];
   toolAdapters: ExecutionToolAdapterResult[];
+}
+
+interface ProductTargetReport {
+  tool: "CodeDecay";
+  version: string;
+  generatedAt: string;
+  configSource?: string | undefined;
+  summary: ProductTargetSummary;
+  targets: ProductTargetResult[];
+  safety: ProductTargetSafetySummary;
+}
+
+interface ProductTargetSummary {
+  status: ProductTargetStatus;
+  total: number;
+  ready: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  blocked: number;
+  timedOut: number;
+  durationMs: number;
+}
+
+type ProductTargetStatus = "passed" | "failed" | "skipped" | "blocked" | "timed_out";
+
+interface ProductTargetResult {
+  id: string;
+  status: ProductTargetStatus;
+  readiness: CodeDecayProductTarget["readiness"];
+  baseUrl?: string | undefined;
+  healthCheck?: string | undefined;
+  timeoutMs: number;
+  durationMs: number;
+  setup?: CommandExecutionResult | undefined;
+  start?: ProductStartResult | undefined;
+  health?: ProductHealthResult | undefined;
+  teardown?: CommandExecutionResult | undefined;
+  notes: string[];
+}
+
+interface ProductStartResult {
+  command: string;
+  status: "started" | "skipped" | "blocked" | "error";
+  durationMs: number;
+  stdout: string;
+  stderr: string;
+  pid?: number | undefined;
+  error?: string | undefined;
+  blockedReason?: string | undefined;
+}
+
+interface ManagedProductProcess extends ProductStartResult {
+  child?: ChildProcessWithoutNullStreams | undefined;
+}
+
+interface ProductHealthResult {
+  url: string;
+  status: ProductTargetStatus;
+  attempts: number;
+  durationMs: number;
+  httpStatus?: number | undefined;
+  error?: string | undefined;
+}
+
+interface ProductTargetSafetySummary {
+  commandsExecuted: boolean;
+  startupCommandsAllowed: boolean;
+  telemetrySent: false;
+  cloudDependency: false;
+  notes: string[];
 }
 
 interface ExecutionSummary {
@@ -362,7 +441,7 @@ const VALID_CONFIG_FORMATS = new Set<ConfigFormat>(["json", "markdown"]);
 const VALID_RISK_LEVELS = new Set<RiskLevel>(["low", "medium", "high"]);
 const VALID_PACKAGE_MANAGERS = new Set<PackageManager>(["npm", "pnpm", "yarn", "bun"]);
 const PACKAGE_NAME = "@submuxhq/codedecay";
-const COMMAND_ORDER = ["analyze", "snapshot", "redteam", "llm-review", "agent", "config", "memory", "memory-import", "memory-learn", "execute", "differential", "mcp"] as const;
+const COMMAND_ORDER = ["analyze", "snapshot", "redteam", "llm-review", "agent", "config", "memory", "memory-import", "memory-learn", "execute", "differential", "product", "mcp"] as const;
 const UTILITY_COMMAND_ORDER = ["help", "man", "update", "uninstall", "version"] as const;
 const ROOT_FLAG_ALIASES = ["--help", "-h", "--version", "-V"] as const;
 const CODEDECAY_PURGE_FILE_PATTERN = /^codedecay(?:[-_.][a-z0-9._-]+)?\.(?:json|md|sarif|txt)$/i;
@@ -598,6 +677,28 @@ const HELP_DOCS: Record<string, CommandDoc> = {
       "Differential exits non-zero when probe behavior changes or infrastructure failures occur."
     ]
   },
+  product: {
+    name: "product",
+    summary: "Check configured live app product targets.",
+    usage: ["codedecay product [options]"],
+    description: [
+      "Inspect configured product testing targets, optionally start local targets when commands are explicitly allowed, and poll their health checks or base URLs."
+    ],
+    options: [
+      { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
+      { flag: "--target <id>", description: "Run only one configured product target" },
+      { flag: "--format <format>", description: "json or markdown (default: markdown)" },
+      { flag: "--output <path>", description: "Write product target report to a file instead of stdout" }
+    ],
+    examples: [
+      "codedecay product --format markdown",
+      "codedecay product --target web --format json"
+    ],
+    notes: [
+      "Product target commands run only when they are configured and `safety.allowCommands` is true.",
+      "Existing `baseUrl` and preview URL targets are checked without starting commands."
+    ]
+  },
   mcp: {
     name: "mcp",
     summary: "Start the local MCP server.",
@@ -697,6 +798,7 @@ const COMMAND_HANDLERS: Record<string, CliCommandHandler> = {
   memory: runMemoryCommand,
   "memory-import": runMemoryImportCommand,
   "memory-learn": runMemoryLearnCommand,
+  product: runProductCommand,
   redteam: runRedteamCommand,
   snapshot: runSnapshotCommand
 };
@@ -996,6 +1098,24 @@ async function runExecuteCommand(context: CliCommandContext): Promise<void> {
   });
 
   if (isExecutionFailure(report.summary.status)) {
+    throw new CliExit(1);
+  }
+}
+
+async function runProductCommand(context: CliCommandContext): Promise<void> {
+  const options = parseProductArgs(context.args);
+  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
+  const loadedConfig = loadCodeDecayConfig({ cwd });
+  const report = await createProductTargetReport(cwd, loadedConfig, options);
+
+  writeCliOutput({
+    cwd,
+    output: options.output,
+    rendered: renderProductTargetReport(report, options.format),
+    runtime: context.runtime
+  });
+
+  if (isProductTargetFailure(report.summary.status)) {
     throw new CliExit(1);
   }
 }
@@ -1789,6 +1909,72 @@ function parseExecuteArgs(args: string[]): ExecuteOptions {
     }
 
     throwUnknownOption(arg, "execute");
+  }
+
+  return options;
+}
+
+function parseProductArgs(args: string[]): ProductOptions {
+  const options: ProductOptions = {
+    format: "markdown"
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (!arg) {
+      continue;
+    }
+
+    if (arg === "--help" || arg === "-h") {
+      throw new HelpRequested();
+    }
+
+    if (arg.startsWith("--cwd=")) {
+      options.cwd = arg.slice("--cwd=".length);
+      continue;
+    }
+
+    if (arg === "--cwd") {
+      options.cwd = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--target=")) {
+      options.target = arg.slice("--target=".length);
+      continue;
+    }
+
+    if (arg === "--target") {
+      options.target = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--format=")) {
+      options.format = parseConfigFormat(arg.slice("--format=".length));
+      continue;
+    }
+
+    if (arg === "--format") {
+      options.format = parseConfigFormat(requireValue(args, index, arg));
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--output=")) {
+      options.output = arg.slice("--output=".length);
+      continue;
+    }
+
+    if (arg === "--output") {
+      options.output = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    throwUnknownOption(arg, "product");
   }
 
   return options;
@@ -2995,6 +3181,546 @@ function formatStatus(status: AdapterStatus): string {
   }
 
   return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
+}
+
+async function createProductTargetReport(
+  rootDir: string,
+  loadedConfig: LoadedCodeDecayConfig,
+  options: ProductOptions
+): Promise<ProductTargetReport> {
+  const startedAt = Date.now();
+  const allTargets = Object.values(loadedConfig.config.productTesting.targets).sort((left, right) => left.id.localeCompare(right.id));
+  const targets = selectProductTargets(allTargets, options.target);
+  const results: ProductTargetResult[] = [];
+
+  for (const target of targets) {
+    results.push(await runProductTarget(rootDir, loadedConfig, target));
+  }
+
+  const report: ProductTargetReport = {
+    tool: "CodeDecay",
+    version: CODEDECAY_VERSION,
+    generatedAt: new Date().toISOString(),
+    summary: createProductTargetSummary(results, elapsed(startedAt)),
+    targets: results,
+    safety: {
+      commandsExecuted: results.some((result) => commandActuallyExecuted(result.setup) || commandActuallyExecuted(result.teardown) || result.start?.status === "started"),
+      startupCommandsAllowed: loadedConfig.config.safety.allowCommands,
+      telemetrySent: false,
+      cloudDependency: false,
+      notes: [
+        "Product target checks are explicit and local-first.",
+        "CodeDecay only runs configured product target commands when safety.allowCommands is true.",
+        "Existing baseUrl and preview URL targets can be health-checked without startup commands."
+      ]
+    }
+  };
+
+  if (loadedConfig.sourcePath) {
+    report.configSource = loadedConfig.sourcePath;
+  }
+
+  return report;
+}
+
+function selectProductTargets(targets: CodeDecayProductTarget[], requestedTarget: string | undefined): CodeDecayProductTarget[] {
+  if (!requestedTarget) {
+    return targets;
+  }
+
+  const target = targets.find((candidate) => candidate.id === requestedTarget);
+  if (!target) {
+    const available = targets.length > 0 ? targets.map((candidate) => candidate.id).join(", ") : "none";
+    throw new Error(`Unknown product target "${requestedTarget}". Available targets: ${available}.`);
+  }
+
+  return [target];
+}
+
+async function runProductTarget(
+  rootDir: string,
+  loadedConfig: LoadedCodeDecayConfig,
+  target: CodeDecayProductTarget
+): Promise<ProductTargetResult> {
+  const startedAt = Date.now();
+  const notes = [...target.readiness.notes];
+  let setup: CommandExecutionResult | undefined;
+  let startResult: ManagedProductProcess | undefined;
+  let health: ProductHealthResult | undefined;
+  let teardown: CommandExecutionResult | undefined;
+  let status: ProductTargetStatus = "skipped";
+  let shouldRunHealthCheck = true;
+
+  try {
+    if (target.authSetupCommand) {
+      setup = await runProductOneShotCommand(rootDir, loadedConfig, target.authSetupCommand, target.timeoutMs);
+      if (setup.status !== "passed") {
+        status = productStatusFromRequiredCommand(setup.status);
+        notes.push("Auth setup command did not pass; health checking was skipped.");
+        shouldRunHealthCheck = false;
+      }
+    }
+
+    if (shouldRunHealthCheck && target.startCommand) {
+      startResult = await startManagedProductProcess(rootDir, loadedConfig, target.startCommand, target.timeoutMs);
+      if (startResult.status !== "started") {
+        status = startResult.status === "blocked" ? "blocked" : "failed";
+        notes.push("Start command did not produce a managed running process; health checking was skipped.");
+        shouldRunHealthCheck = false;
+      }
+    }
+
+    if (shouldRunHealthCheck) {
+      const healthUrl = target.healthCheck ?? target.readiness.effectiveBaseUrl ?? target.baseUrl;
+      if (!healthUrl) {
+        status = target.readiness.status === "needs-command-approval" || target.readiness.status === "missing-preview-url" ? "blocked" : "skipped";
+        notes.push("No healthCheck, baseUrl, or resolved preview URL is available for product target polling.");
+        shouldRunHealthCheck = false;
+      } else {
+        health = await pollProductHealth(healthUrl, target.timeoutMs);
+        status = health.status;
+      }
+    }
+  } finally {
+    if (startResult?.child) {
+      await stopManagedProductProcess(startResult.child);
+    }
+
+    if (target.teardownCommand && (startResult?.status === "started" || setup?.status === "passed")) {
+      teardown = await runProductOneShotCommand(rootDir, loadedConfig, target.teardownCommand, target.timeoutMs);
+      if (teardown.status !== "passed" && !isProductTargetFailure(status)) {
+        status = productStatusFromRequiredCommand(teardown.status);
+        notes.push("Teardown command did not pass after product target execution.");
+      }
+    }
+  }
+
+  return createProductTargetResult(target, status, startedAt, notes, setup, startResult, health, teardown);
+}
+
+function createProductTargetResult(
+  target: CodeDecayProductTarget,
+  status: ProductTargetStatus,
+  startedAt: number,
+  notes: string[],
+  setup: CommandExecutionResult | undefined,
+  start: ManagedProductProcess | undefined,
+  health: ProductHealthResult | undefined,
+  teardown: CommandExecutionResult | undefined
+): ProductTargetResult {
+  const result: ProductTargetResult = {
+    id: target.id,
+    status,
+    readiness: target.readiness,
+    baseUrl: target.readiness.effectiveBaseUrl ?? target.baseUrl,
+    healthCheck: target.healthCheck,
+    timeoutMs: target.timeoutMs,
+    durationMs: elapsed(startedAt),
+    notes
+  };
+
+  if (setup) {
+    result.setup = setup;
+  }
+
+  if (start) {
+    const { child: _child, ...serializableStart } = start;
+    result.start = serializableStart;
+  }
+
+  if (health) {
+    result.health = health;
+  }
+
+  if (teardown) {
+    result.teardown = teardown;
+  }
+
+  return result;
+}
+
+async function runProductOneShotCommand(
+  rootDir: string,
+  loadedConfig: LoadedCodeDecayConfig,
+  command: string,
+  timeoutMs: number
+): Promise<CommandExecutionResult> {
+  return await runConfiguredCommand({
+    command,
+    cwd: rootDir,
+    timeoutMs,
+    safety: {
+      allowCommands: loadedConfig.config.safety.allowCommands
+    }
+  });
+}
+
+async function startManagedProductProcess(
+  rootDir: string,
+  loadedConfig: LoadedCodeDecayConfig,
+  command: string,
+  timeoutMs: number
+): Promise<ManagedProductProcess> {
+  const startedAt = Date.now();
+  if (!loadedConfig.config.safety.allowCommands) {
+    return {
+      command,
+      status: "blocked",
+      durationMs: 0,
+      stdout: "",
+      stderr: "Product target startup is disabled by config safety.allowCommands.",
+      blockedReason: "safety.allowCommands is false"
+    };
+  }
+
+  const safety = checkCommandSafety(command);
+  if (!safety.safe) {
+    const message = `Command was blocked by CodeDecay safety policy: ${safety.reason}.`;
+    return {
+      command,
+      status: "blocked",
+      durationMs: 0,
+      stdout: "",
+      stderr: message,
+      error: message,
+      blockedReason: safety.reason
+    };
+  }
+
+  let stdout = "";
+  let stderr = "";
+  let spawnError: Error | undefined;
+  const child = spawn(command, {
+    cwd: rootDir,
+    shell: true,
+    env: {
+      ...process.env,
+      CI: process.env.CI ?? "1"
+    }
+  });
+
+  child.stdout.on("data", (chunk: Buffer) => {
+    stdout = appendLimitedOutput(stdout, chunk.toString("utf8"), 16 * 1024);
+  });
+
+  child.stderr.on("data", (chunk: Buffer) => {
+    stderr = appendLimitedOutput(stderr, chunk.toString("utf8"), 16 * 1024);
+  });
+
+  child.on("error", (error) => {
+    spawnError = error;
+  });
+
+  await delay(Math.min(250, Math.max(50, Math.floor(timeoutMs / 10))));
+
+  if (spawnError) {
+    return {
+      command,
+      status: "error",
+      durationMs: elapsed(startedAt),
+      stdout,
+      stderr,
+      error: spawnError.message
+    };
+  }
+
+  if (child.exitCode !== null) {
+    return {
+      command,
+      status: "error",
+      durationMs: elapsed(startedAt),
+      stdout,
+      stderr,
+      error: `Start command exited early with code ${child.exitCode}.`
+    };
+  }
+
+  return {
+    command,
+    status: "started",
+    durationMs: elapsed(startedAt),
+    stdout,
+    stderr,
+    pid: child.pid,
+    child
+  };
+}
+
+async function stopManagedProductProcess(child: ChildProcessWithoutNullStreams): Promise<void> {
+  if (child.exitCode !== null || child.killed) {
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    const timeout = setTimeout(() => {
+      if (child.exitCode === null && !child.killed) {
+        child.kill("SIGKILL");
+      }
+      resolve();
+    }, 1000);
+
+    child.once("close", () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+
+    child.kill("SIGTERM");
+  });
+}
+
+async function pollProductHealth(url: string, timeoutMs: number): Promise<ProductHealthResult> {
+  const startedAt = Date.now();
+  const deadline = startedAt + timeoutMs;
+  let attempts = 0;
+  let lastStatus: number | undefined;
+  let lastError: string | undefined;
+
+  while (Date.now() <= deadline) {
+    attempts += 1;
+    const remainingMs = Math.max(1, deadline - Date.now());
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), Math.min(2500, remainingMs));
+
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal
+      });
+      lastStatus = response.status;
+
+      if (response.status >= 200 && response.status < 400) {
+        clearTimeout(timeout);
+        return {
+          url,
+          status: "passed",
+          attempts,
+          durationMs: elapsed(startedAt),
+          httpStatus: response.status
+        };
+      }
+
+      lastError = `Health check returned HTTP ${response.status}.`;
+    } catch (error: unknown) {
+      lastError = error instanceof Error ? error.message : String(error);
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    await delay(Math.min(500, Math.max(0, deadline - Date.now())));
+  }
+
+  return {
+    url,
+    status: "timed_out",
+    attempts,
+    durationMs: elapsed(startedAt),
+    httpStatus: lastStatus,
+    error: lastError ? `Timed out waiting for a healthy response: ${lastError}` : "Timed out waiting for a healthy response."
+  };
+}
+
+function createProductTargetSummary(results: ProductTargetResult[], durationMs: number): ProductTargetSummary {
+  const passed = countProductStatus(results, "passed");
+  const failed = countProductStatus(results, "failed");
+  const skipped = countProductStatus(results, "skipped");
+  const blocked = countProductStatus(results, "blocked");
+  const timedOut = countProductStatus(results, "timed_out");
+
+  return {
+    status: productTargetStatus(results, { failed, blocked, timedOut }),
+    total: results.length,
+    ready: results.filter((result) => result.readiness.status === "ready" || result.readiness.status === "command-required").length,
+    passed,
+    failed,
+    skipped,
+    blocked,
+    timedOut,
+    durationMs
+  };
+}
+
+function productTargetStatus(
+  results: ProductTargetResult[],
+  counts: Pick<ProductTargetSummary, "failed" | "blocked" | "timedOut">
+): ProductTargetStatus {
+  if (counts.timedOut > 0) {
+    return "timed_out";
+  }
+
+  if (counts.failed > 0) {
+    return "failed";
+  }
+
+  if (counts.blocked > 0) {
+    return "blocked";
+  }
+
+  if (results.length === 0 || results.every((result) => result.status === "skipped")) {
+    return "skipped";
+  }
+
+  return "passed";
+}
+
+function countProductStatus(results: ProductTargetResult[], status: ProductTargetStatus): number {
+  return results.filter((result) => result.status === status).length;
+}
+
+function productStatusFromRequiredCommand(status: ExecutionStatus): ProductTargetStatus {
+  if (status === "passed") {
+    return "passed";
+  }
+
+  if (status === "timed_out") {
+    return "timed_out";
+  }
+
+  if (status === "skipped" || status === "blocked") {
+    return "blocked";
+  }
+
+  return "failed";
+}
+
+function commandActuallyExecuted(result: CommandExecutionResult | undefined): boolean {
+  return result !== undefined && result.status !== "skipped" && result.status !== "blocked";
+}
+
+function isProductTargetFailure(status: ProductTargetStatus): boolean {
+  return status === "failed" || status === "blocked" || status === "timed_out";
+}
+
+function renderProductTargetReport(report: ProductTargetReport, format: ConfigFormat): string {
+  if (format === "json") {
+    return `${JSON.stringify(report, null, 2)}\n`;
+  }
+
+  return renderProductTargetMarkdown(report);
+}
+
+function renderProductTargetMarkdown(report: ProductTargetReport): string {
+  const lines = [
+    "## CodeDecay Product Target Report",
+    "",
+    `**Overall status:** ${formatProductStatus(report.summary.status)}`,
+    `**Config:** ${report.configSource ? `\`${report.configSource}\`` : "defaults (no config file found)"}`,
+    "",
+    "| Result | Count |",
+    "| --- | ---: |",
+    `| Total | ${report.summary.total} |`,
+    `| Ready | ${report.summary.ready} |`,
+    `| Passed | ${report.summary.passed} |`,
+    `| Failed | ${report.summary.failed} |`,
+    `| Blocked | ${report.summary.blocked} |`,
+    `| Timed out | ${report.summary.timedOut} |`,
+    `| Skipped | ${report.summary.skipped} |`,
+    `| Duration | ${report.summary.durationMs}ms |`,
+    ""
+  ];
+
+  if (report.targets.length === 0) {
+    lines.push("No product testing targets configured.", "");
+    return `${lines.join("\n")}\n`;
+  }
+
+  lines.push("### Targets", "");
+  for (const target of report.targets) {
+    lines.push(`- **${target.id}** ${formatProductStatus(target.status)} in ${target.durationMs}ms`);
+    lines.push(`  - Readiness: ${target.readiness.status} (${target.readiness.mode})`);
+    lines.push(`  - Base URL: ${target.baseUrl ? `\`${target.baseUrl}\`` : "none"}`);
+    lines.push(`  - Health check: ${target.healthCheck ? `\`${target.healthCheck}\`` : "none"}`);
+
+    if (target.setup) {
+      lines.push(`  - Setup: ${formatCommandExecutionStatus(target.setup.status)} \`${target.setup.command}\``);
+      appendOutputBlock(lines, "setup stdout", target.setup.stdout);
+      appendOutputBlock(lines, "setup stderr", target.setup.stderr);
+    }
+
+    if (target.start) {
+      lines.push(`  - Start: ${formatProductStartStatus(target.start.status)} \`${target.start.command}\``);
+      if (target.start.error) {
+        lines.push(`  - Start error: ${target.start.error}`);
+      }
+      appendOutputBlock(lines, "start stdout", target.start.stdout);
+      appendOutputBlock(lines, "start stderr", target.start.stderr);
+    }
+
+    if (target.health) {
+      lines.push(
+        `  - Health: ${formatProductStatus(target.health.status)} after ${target.health.attempts} attempt(s) at \`${target.health.url}\``
+      );
+      if (target.health.httpStatus !== undefined) {
+        lines.push(`  - HTTP status: ${target.health.httpStatus}`);
+      }
+      if (target.health.error) {
+        lines.push(`  - Health error: ${target.health.error}`);
+      }
+    }
+
+    if (target.teardown) {
+      lines.push(`  - Teardown: ${formatCommandExecutionStatus(target.teardown.status)} \`${target.teardown.command}\``);
+      appendOutputBlock(lines, "teardown stdout", target.teardown.stdout);
+      appendOutputBlock(lines, "teardown stderr", target.teardown.stderr);
+    }
+
+    for (const note of target.notes) {
+      lines.push(`  - Note: ${note}`);
+    }
+  }
+
+  lines.push(
+    "",
+    "### Safety",
+    "",
+    `- Commands executed: ${report.safety.commandsExecuted ? "yes" : "no"}`,
+    `- Startup commands allowed: ${report.safety.startupCommandsAllowed ? "yes" : "no"}`,
+    "- Telemetry sent: no",
+    "- Cloud dependency: no",
+    ""
+  );
+
+  for (const note of report.safety.notes) {
+    lines.push(`- ${note}`);
+  }
+  lines.push("");
+
+  return `${lines.join("\n")}\n`;
+}
+
+function formatProductStatus(status: ProductTargetStatus): string {
+  if (status === "timed_out") {
+    return "Timed out";
+  }
+
+  return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
+}
+
+function formatCommandExecutionStatus(status: ExecutionStatus): string {
+  if (status === "timed_out") {
+    return "Timed out";
+  }
+
+  return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
+}
+
+function formatProductStartStatus(status: ProductStartResult["status"]): string {
+  return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
+}
+
+function appendLimitedOutput(existing: string, next: string, limit: number): string {
+  const combined = `${existing}${next}`;
+  if (combined.length <= limit) {
+    return combined;
+  }
+
+  return combined.slice(combined.length - limit);
+}
+
+async function delay(ms: number): Promise<void> {
+  if (ms <= 0) {
+    return;
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function requireDifferentialRefs(options: DifferentialOptions): { base: string; head: string } {

@@ -33,6 +33,55 @@ productTesting:
 
 Config inspection never executes product target commands.
 
+## Run Product Target Checks
+
+Use `codedecay product` to verify configured live app targets.
+
+```bash
+npx codedecay product --format markdown
+npx codedecay product --target web --format json
+```
+
+The command performs only the steps declared in config:
+
+- run `authSetupCommand` if present,
+- start `startCommand` if present and commands are allowed,
+- poll `healthCheck`, resolved `previewUrlEnv`, or `baseUrl`,
+- stop the managed startup process,
+- run `teardownCommand` if configured.
+
+Targets with only `baseUrl` or `previewUrlEnv` can be checked without running
+commands. This is useful for already-running local apps and PR preview URLs.
+
+```yaml
+version: 1
+
+productTesting:
+  targets:
+    preview:
+      previewUrlEnv: VERCEL_URL
+      timeoutMs: 60000
+```
+
+Startup remains opt-in. If `startCommand` is configured but
+`safety.allowCommands` is false, `codedecay product` reports the target as
+blocked and does not run the command.
+
+```yaml
+version: 1
+
+productTesting:
+  targets:
+    local:
+      startCommand: pnpm dev
+      healthCheck: http://127.0.0.1:3000/api/health
+      teardownCommand: pnpm stop
+      timeoutMs: 60000
+
+safety:
+  allowCommands: true
+```
+
 ## Failure Bundle Schema
 
 Product verification failures are represented as versioned bundles on
@@ -75,8 +124,8 @@ of guessing from a dashboard screenshot.
 
 ## Current Limits
 
-This release defines the target model and failure evidence contract. It does not
-yet generate or run UI/API tests automatically.
+This release defines the target model, live health-check runner, and failure
+evidence contract. It does not yet generate UI/API tests automatically.
 
 The next implementation pieces are:
 

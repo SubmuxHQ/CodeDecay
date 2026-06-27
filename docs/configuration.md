@@ -87,8 +87,8 @@ API keys in CodeDecay config.
 
 ## Product Testing Targets
 
-`productTesting.targets` describes how future product-layer verification should
-reach a live app or preview deployment.
+`productTesting.targets` describes how product-layer verification should reach a
+live app or preview deployment.
 
 Targets are normalized by `codedecay config`, but config inspection never starts
 the app, runs setup commands, polls health checks, or performs teardown.
@@ -109,7 +109,7 @@ productTesting:
   targets:
     preview:
       previewUrlEnv: VERCEL_URL
-      healthCheck: https://preview.example.com/api/health
+      timeoutMs: 60000
 ```
 
 For local startup, commands remain explicit and gated by `safety.allowCommands`:
@@ -126,8 +126,19 @@ safety:
   allowCommands: false
 ```
 
-With `allowCommands: false`, CodeDecay reports that command approval is needed.
-It does not start the app during `config`, `analyze`, `redteam`, or `agent`.
+Run the configured targets explicitly with:
+
+```bash
+npx codedecay product --format markdown
+npx codedecay product --target local --format json
+```
+
+With `allowCommands: false`, CodeDecay reports that command approval is needed
+and does not start the app. With `allowCommands: true`, `codedecay product` can
+run `authSetupCommand`, start the app, poll the health URL, stop the managed
+process, and run `teardownCommand`.
+
+It never starts the app during `config`, `analyze`, `redteam`, or `agent`.
 
 ## Safety Model
 
@@ -148,6 +159,8 @@ Current behavior:
   `safety.allowCommands` is true.
 - `codedecay differential` runs only configured probes on temporary base/head
   worktrees, and only when `safety.allowCommands` is true.
+- `codedecay product` checks configured live app targets. It only runs setup,
+  startup, and teardown commands when `safety.allowCommands` is true.
 - missing config returns safe defaults.
 - no telemetry, API keys, LLM calls, or cloud services are used.
 - LLM use is disabled by default. LLM-backed commands must opt in

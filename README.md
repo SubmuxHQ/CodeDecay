@@ -131,6 +131,12 @@ npx codedecay llm-review --ping
 npx codedecay llm-review --base main --head HEAD --format markdown
 ```
 
+Check configured live app product targets:
+
+```bash
+npx codedecay product --format markdown
+```
+
 ## Commands
 
 | Command | Purpose |
@@ -146,6 +152,7 @@ npx codedecay llm-review --base main --head HEAD --format markdown
 | `codedecay memory-learn` | Learn local memory from CI, PR, and CodeDecay report signals. |
 | `codedecay execute` | Run explicitly configured local commands and OSS tool adapters. |
 | `codedecay differential` | Run configured probes on base and head and compare behavior. |
+| `codedecay product` | Check configured live app product targets with optional safe startup and teardown. |
 | `codedecay mcp` | Start a local MCP server for agent clients. |
 | `codedecay help` | Show root or per-command help. |
 | `codedecay man` | Show a longer manual page for a command. |
