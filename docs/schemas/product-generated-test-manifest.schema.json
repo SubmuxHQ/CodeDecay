@@ -15,7 +15,8 @@
   ],
   "anyOf": [
     { "required": ["sourceFlowMapPath"] },
-    { "required": ["sourceOpenApiSchemaPath"] }
+    { "required": ["sourceOpenApiSchemaPath"] },
+    { "required": ["sourceApiEndpoints"] }
   ],
   "properties": {
     "schemaVersion": {
@@ -39,6 +40,10 @@
       "minLength": 1
     },
     "sourceOpenApiSchemaPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sourceApiEndpoints": {
       "type": "string",
       "minLength": 1
     },
@@ -79,6 +84,12 @@
               "type": "integer",
               "minimum": 100,
               "maximum": 599
+            }
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
             }
           },
           "requestBody": true,

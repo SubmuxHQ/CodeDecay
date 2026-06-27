@@ -71,8 +71,20 @@ export interface CodeDecayProductTarget {
   authSetupCommand?: string | undefined;
   teardownCommand?: string | undefined;
   previewUrlEnv?: string | undefined;
+  apiEndpoints: CodeDecayProductApiEndpoint[];
   timeoutMs: number;
   readiness: CodeDecayProductTargetReadiness;
+}
+
+export type CodeDecayProductApiMethod = "GET" | "HEAD" | "OPTIONS" | "POST" | "PUT" | "PATCH" | "DELETE";
+
+export interface CodeDecayProductApiEndpoint {
+  id?: string | undefined;
+  method: CodeDecayProductApiMethod;
+  path: string;
+  expectedStatuses: number[];
+  headers?: Record<string, string> | undefined;
+  body?: unknown;
 }
 
 export type CodeDecayProductTargetReadinessStatus =
@@ -421,6 +433,7 @@ function normalizeProductTarget(
 
   const target: Omit<CodeDecayProductTarget, "readiness"> = {
     id,
+    apiEndpoints: normalizeProductApiEndpoints(value.apiEndpoints, `${field}.apiEndpoints`, sourcePath),
     timeoutMs:
       value.timeoutMs === undefined
         ? DEFAULT_PRODUCT_TARGET_TIMEOUT_MS
@@ -455,6 +468,47 @@ function normalizeProductTarget(
     ...target,
     readiness: createProductTargetReadiness(target, safety)
   };
+}
+
+function normalizeProductApiEndpoints(value: unknown, field: string, sourcePath: string): CodeDecayProductApiEndpoint[] {
+  if (value === undefined) {
+    return [];
+  }
+
+  if (!Array.isArray(value)) {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be an array.`);
+  }
+
+  return value.map((endpoint, index) => normalizeProductApiEndpoint(endpoint, `${field}[${index}]`, sourcePath));
+}
+
+function normalizeProductApiEndpoint(value: unknown, field: string, sourcePath: string): CodeDecayProductApiEndpoint {
+  if (!isPlainObject(value)) {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be an object.`);
+  }
+
+  const method = normalizeProductApiMethod(value.method, `${field}.method`, sourcePath);
+  const path = normalizeProductApiPath(value.path, `${field}.path`, sourcePath);
+  const expectedStatuses = normalizeProductApiExpectedStatuses(value.expectedStatuses, `${field}.expectedStatuses`, sourcePath);
+  const endpoint: CodeDecayProductApiEndpoint = {
+    method,
+    path,
+    expectedStatuses
+  };
+
+  if (value.id !== undefined) {
+    endpoint.id = normalizeNonEmptyString(value.id, `${field}.id`, sourcePath);
+  }
+
+  if (value.headers !== undefined) {
+    endpoint.headers = normalizeStringRecord(value.headers, `${field}.headers`, sourcePath);
+  }
+
+  if (value.body !== undefined) {
+    endpoint.body = value.body;
+  }
+
+  return endpoint;
 }
 
 function createProductTargetReadiness(
@@ -625,6 +679,59 @@ function normalizeBoolean(value: unknown, field: string, sourcePath: string): bo
   throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be a boolean.`);
 }
 
+function normalizeProductApiMethod(value: unknown, field: string, sourcePath: string): CodeDecayProductApiMethod {
+  const text = normalizeNonEmptyString(value, field, sourcePath).toUpperCase();
+  if (["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"].includes(text)) {
+    return text as CodeDecayProductApiMethod;
+  }
+
+  throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be one of GET, HEAD, OPTIONS, POST, PUT, PATCH, DELETE.`);
+}
+
+function normalizeProductApiPath(value: unknown, field: string, sourcePath: string): string {
+  const text = normalizeNonEmptyString(value, field, sourcePath);
+  if (text.startsWith("/") || /^https?:\/\//i.test(text)) {
+    return text;
+  }
+
+  throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be an absolute path or http/https URL.`);
+}
+
+function normalizeProductApiExpectedStatuses(value: unknown, field: string, sourcePath: string): number[] {
+  if (value === undefined) {
+    return [];
+  }
+
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be a non-empty array of HTTP status codes.`);
+  }
+
+  return value.map((status, index) => {
+    if (typeof status === "number" && Number.isInteger(status) && status >= 100 && status <= 599) {
+      return status;
+    }
+
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field}[${index}] must be an HTTP status code.`);
+  });
+}
+
+function normalizeStringRecord(value: unknown, field: string, sourcePath: string): Record<string, string> {
+  if (!isPlainObject(value)) {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be an object.`);
+  }
+
+  const record: Record<string, string> = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (typeof item !== "string") {
+      throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field}.${key} must be a string.`);
+    }
+
+    record[key] = item;
+  }
+
+  return record;
+}
+
 function normalizeNonEmptyString(value: unknown, field: string, sourcePath: string): string {
   if (typeof value === "string" && value.trim().length > 0) {
     return value;
@@ -716,6 +823,11 @@ function cloneProductTesting(productTesting: CodeDecayProductTestingConfig): Cod
         id,
         {
           ...target,
+          apiEndpoints: target.apiEndpoints.map((endpoint) => ({
+            ...endpoint,
+            expectedStatuses: [...endpoint.expectedStatuses],
+            headers: endpoint.headers ? { ...endpoint.headers } : undefined
+          })),
           readiness: {
             ...target.readiness,
             commandsRequired: [...target.readiness.commandsRequired],

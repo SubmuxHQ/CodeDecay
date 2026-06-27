@@ -214,6 +214,31 @@ common local filenames such as `openapi.yaml`, `docs/openapi.yaml`, or
 yet; provide a local schema file to keep generation deterministic and
 local-first.
 
+You can also define reviewable API scenarios directly on a product target:
+
+```yaml
+productTesting:
+  targets:
+    api:
+      baseUrl: http://127.0.0.1:3000
+      healthCheck: http://127.0.0.1:3000/health
+      apiEndpoints:
+        - id: list-users
+          method: GET
+          path: /api/users
+          expectedStatuses: [200, 401]
+          headers:
+            x-codedecay-scenario: list-users
+        - method: POST
+          path: /api/users
+          expectedStatuses: [201, 400]
+          body:
+            email: codedecay@example.com
+```
+
+Manual `apiEndpoints` and OpenAPI-generated operations can be used together.
+Endpoint `path` values may be absolute paths or full HTTP(S) URLs.
+
 Generated API tests are written under:
 
 ```text

@@ -1986,6 +1986,50 @@ describe("codedecay product CLI contract", () => {
     }
   });
 
+  it("generates API tests from manually configured endpoint lists", async () => {
+    const server = await startDemoApiServer();
+    const repo = createLowRiskRepo();
+    writeManualApiProductTargetConfig(repo, {
+      baseUrl: server.origin,
+      healthCheck: server.healthUrl,
+      allowCommands: false
+    });
+
+    try {
+      const result = await run(["product", "--target", "api", "--generate-api-tests", "--format", "json"], repo);
+      const report = JSON.parse(result.stdout);
+      const source = readFileSync(join(repo, ".codedecay/local/generated-api-tests/api/api.generated.spec.ts"), "utf8");
+      const manifest = JSON.parse(readFileSync(join(repo, ".codedecay/local/generated-api-tests/api/manifest.json"), "utf8"));
+
+      expect(result.exitCode).toBe(0);
+      expect(report.targets[0].generatedApiTests.tests).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "list-users",
+            method: "GET",
+            operationPath: "/api/users",
+            expectedStatuses: [200]
+          }),
+          expect.objectContaining({
+            method: "POST",
+            requestBody: {
+              email: "codedecay@example.com"
+            },
+            destructive: true
+          })
+        ])
+      );
+      expect(source).toContain("x-codedecay-scenario");
+      expect(source).toContain("codedecay@example.com");
+      expect(manifest).toMatchObject({
+        sourceApiEndpoints: "productTesting.targets.api.apiEndpoints",
+        testSourcePath: ".codedecay/local/generated-api-tests/api/api.generated.spec.ts"
+      });
+    } finally {
+      await server.close();
+    }
+  });
+
   it("runs generated API tests through the project-local Playwright CLI", async () => {
     const server = await startDemoApiServer();
     const repo = createLowRiskRepo();
@@ -2407,6 +2451,37 @@ function writeApiProductTargetConfig(repo: string, input: { baseUrl: string; hea
       `      baseUrl: ${input.baseUrl}`,
       `      healthCheck: ${input.healthCheck}`,
       "      timeoutMs: 2000",
+      "safety:",
+      `  allowCommands: ${input.allowCommands}`,
+      ""
+    ].join("\n")
+  );
+}
+
+function writeManualApiProductTargetConfig(repo: string, input: { baseUrl: string; healthCheck: string; allowCommands: boolean }): void {
+  writeFile(
+    repo,
+    ".codedecay/config.yml",
+    [
+      "version: 1",
+      "productTesting:",
+      "  targets:",
+      "    api:",
+      `      baseUrl: ${input.baseUrl}`,
+      `      healthCheck: ${input.healthCheck}`,
+      "      timeoutMs: 2000",
+      "      apiEndpoints:",
+      "        - id: list-users",
+      "          method: GET",
+      "          path: /api/users",
+      "          expectedStatuses: [200]",
+      "          headers:",
+      "            x-codedecay-scenario: list-users",
+      "        - method: POST",
+      "          path: /api/users",
+      "          expectedStatuses: [201, 400]",
+      "          body:",
+      "            email: codedecay@example.com",
       "safety:",
       `  allowCommands: ${input.allowCommands}`,
       ""

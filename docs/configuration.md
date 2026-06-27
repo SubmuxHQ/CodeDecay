@@ -126,6 +126,27 @@ safety:
   allowCommands: false
 ```
 
+For API verification without an OpenAPI file, configure endpoint scenarios on
+the target:
+
+```yaml
+productTesting:
+  targets:
+    api:
+      baseUrl: http://127.0.0.1:3000
+      healthCheck: http://127.0.0.1:3000/health
+      apiEndpoints:
+        - id: list-users
+          method: GET
+          path: /api/users
+          expectedStatuses: [200, 401]
+        - method: POST
+          path: /api/users
+          expectedStatuses: [201, 400]
+          body:
+            email: codedecay@example.com
+```
+
 Run the configured targets explicitly with:
 
 ```bash

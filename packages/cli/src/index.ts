@@ -19,7 +19,12 @@ import {
   type AgentTaskBundleFormat
 } from "@submuxhq/codedecay-agent";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
-import { loadCodeDecayConfig, type CodeDecayProductTarget, type LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
+import {
+  loadCodeDecayConfig,
+  type CodeDecayProductApiEndpoint,
+  type CodeDecayProductTarget,
+  type LoadedCodeDecayConfig
+} from "@submuxhq/codedecay-config";
 import {
   CODEDECAY_VERSION,
   createAnalysisReport,
@@ -299,6 +304,7 @@ interface ProductGeneratedTestCase {
   operationPath?: string | undefined;
   operationId?: string | undefined;
   expectedStatuses?: number[] | undefined;
+  headers?: Record<string, string> | undefined;
   requestBody?: unknown;
   destructive?: boolean | undefined;
   priority: "high" | "medium" | "low";
@@ -313,6 +319,7 @@ interface ProductGeneratedTestManifest {
   };
   sourceFlowMapPath?: string | undefined;
   sourceOpenApiSchemaPath?: string | undefined;
+  sourceApiEndpoints?: string | undefined;
   testSourcePath: string;
   reviewRequired: true;
   promoteByCopyingTo: string;
@@ -4685,7 +4692,7 @@ function generateProductApiTestsForTarget(
     "Mutating API methods are generated as skipped review cases unless --allow-destructive-actions is passed."
   ];
   const schema = resolveProductOpenApiSchema(rootDir, loadedConfig);
-  if (!schema.ok) {
+  if (!schema.ok && target.apiEndpoints.length === 0) {
     return {
       status: "blocked",
       tests: [],
@@ -4695,28 +4702,32 @@ function generateProductApiTestsForTarget(
     };
   }
 
-  let document: OpenApiDocument;
-  try {
-    document = YAML.parse(readFileSync(schema.schema.absolutePath, "utf8")) as OpenApiDocument;
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    return {
-      status: "failed",
-      tests: [],
-      durationMs: elapsed(startedAt),
-      error: `Could not read OpenAPI schema ${schema.schema.schemaPath}: ${message}`,
-      notes
-    };
-  }
+  let document: OpenApiDocument | undefined;
+  if (schema.ok) {
+    try {
+      document = YAML.parse(readFileSync(schema.schema.absolutePath, "utf8")) as OpenApiDocument;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        status: "failed",
+        tests: [],
+        durationMs: elapsed(startedAt),
+        error: `Could not read OpenAPI schema ${schema.schema.schemaPath}: ${message}`,
+        notes
+      };
+    }
 
-  if (!document || typeof document !== "object" || !document.paths || typeof document.paths !== "object") {
-    return {
-      status: "blocked",
-      tests: [],
-      durationMs: elapsed(startedAt),
-      error: `OpenAPI schema ${schema.schema.schemaPath} does not contain a usable paths object.`,
-      notes
-    };
+    if (!document || typeof document !== "object" || !document.paths || typeof document.paths !== "object") {
+      return {
+        status: "blocked",
+        tests: [],
+        durationMs: elapsed(startedAt),
+        error: `OpenAPI schema ${schema.schema.schemaPath} does not contain a usable paths object.`,
+        notes
+      };
+    }
+  } else if (target.apiEndpoints.length > 0) {
+    notes.push(schema.error);
   }
 
   const baseUrl = resolveProductApiBaseUrl(loadedConfig, target, health, document);
@@ -4731,20 +4742,26 @@ function generateProductApiTestsForTarget(
   }
 
   const impactedPaths = findImpactedProductPaths(rootDir);
-  const tests = createGeneratedProductApiTestCases(document, baseUrl, impactedPaths);
+  const tests = [
+    ...(document ? createGeneratedProductApiTestCases(document, baseUrl, impactedPaths) : []),
+    ...createConfiguredProductApiTestCases(target.apiEndpoints, baseUrl, impactedPaths)
+  ];
   if (tests.length === 0) {
     return {
       status: "blocked",
       tests: [],
       durationMs: elapsed(startedAt),
-      error: `OpenAPI schema ${schema.schema.schemaPath} did not contain supported HTTP operations.`,
+      error: schema.ok
+        ? `OpenAPI schema ${schema.schema.schemaPath} did not contain supported HTTP operations and no apiEndpoints are configured.`
+        : "No supported configured apiEndpoints were found.",
       notes
     };
   }
 
   const testSourcePath = join(".codedecay", "local", "generated-api-tests", sanitizeArtifactSegment(target.id), "api.generated.spec.ts");
   const manifestPath = join(".codedecay", "local", "generated-api-tests", sanitizeArtifactSegment(target.id), "manifest.json");
-  const source = renderGeneratedProductApiTestSource(target.id, baseUrl, schema.schema.schemaPath, tests, allowDestructiveActions);
+  const sourceLabel = schema.ok ? schema.schema.schemaPath : `productTesting.targets.${target.id}.apiEndpoints`;
+  const source = renderGeneratedProductApiTestSource(target.id, baseUrl, sourceLabel, tests, allowDestructiveActions);
   const manifest: ProductGeneratedTestManifest = {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
@@ -4752,7 +4769,8 @@ function generateProductApiTestsForTarget(
       id: target.id,
       baseUrl
     },
-    sourceOpenApiSchemaPath: schema.schema.schemaPath,
+    sourceOpenApiSchemaPath: schema.ok ? schema.schema.schemaPath : undefined,
+    sourceApiEndpoints: target.apiEndpoints.length > 0 ? `productTesting.targets.${target.id}.apiEndpoints` : undefined,
     testSourcePath,
     reviewRequired: true,
     promoteByCopyingTo: "tests/api/codedecay-api.spec.ts",
@@ -4768,7 +4786,11 @@ function generateProductApiTestsForTarget(
     manifestPath,
     tests,
     durationMs: elapsed(startedAt),
-    notes: [...notes, `OpenAPI schema: ${schema.schema.schemaPath} (${schema.schema.source}).`]
+    notes: [
+      ...notes,
+      ...(schema.ok ? [`OpenAPI schema: ${schema.schema.schemaPath} (${schema.schema.source}).`] : []),
+      ...(target.apiEndpoints.length > 0 ? [`Configured API endpoints: ${target.apiEndpoints.length}.`] : [])
+    ]
   };
 }
 
@@ -4889,7 +4911,7 @@ function resolveProductApiBaseUrl(
   loadedConfig: LoadedCodeDecayConfig,
   target: CodeDecayProductTarget,
   health: ProductHealthResult | undefined,
-  document: OpenApiDocument
+  document: OpenApiDocument | undefined
 ): string | undefined {
   const configured = target.readiness.effectiveBaseUrl ?? target.baseUrl ?? loadedConfig.config.toolAdapters.schemathesis?.baseUrl;
   if (configured) {
@@ -4903,7 +4925,7 @@ function resolveProductApiBaseUrl(
     }
   }
 
-  const serverUrl = document.servers?.find((server) => typeof server.url === "string" && /^https?:\/\//i.test(server.url))?.url;
+  const serverUrl = document?.servers?.find((server) => typeof server.url === "string" && /^https?:\/\//i.test(server.url))?.url;
   return serverUrl ? normalizeExploreUrl(serverUrl) : undefined;
 }
 
@@ -4946,6 +4968,35 @@ function createGeneratedProductApiTestCases(
         priority: priorityForPath(path, impactedPaths)
       });
     }
+  }
+
+  return tests.sort((left, right) => priorityRank(left.priority) - priorityRank(right.priority) || left.id.localeCompare(right.id));
+}
+
+function createConfiguredProductApiTestCases(
+  endpoints: CodeDecayProductApiEndpoint[],
+  baseUrl: string,
+  impactedPaths: Set<string>
+): ProductGeneratedTestCase[] {
+  const tests: ProductGeneratedTestCase[] = [];
+  const seen = new Set<string>();
+
+  for (const endpoint of endpoints) {
+    const destructive = !SAFE_PRODUCT_API_METHODS.has(endpoint.method);
+    const id = endpoint.id ?? generatedTestId("api", "configured", endpoint.method, endpoint.path);
+    addGeneratedTestCase(tests, seen, {
+      id,
+      title: `${endpoint.method} ${endpoint.path} returns a configured status`,
+      kind: "api-operation",
+      pageUrl: new URL(endpoint.path, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`).toString(),
+      method: endpoint.method,
+      operationPath: endpoint.path,
+      expectedStatuses: endpoint.expectedStatuses,
+      headers: endpoint.headers,
+      requestBody: endpoint.body,
+      destructive,
+      priority: priorityForPath(endpoint.path, impactedPaths)
+    });
   }
 
   return tests.sort((left, right) => priorityRank(left.priority) - priorityRank(right.priority) || left.id.localeCompare(right.id));
@@ -5002,7 +5053,10 @@ function appendGeneratedApiTestBody(lines: string[], testCase: ProductGeneratedT
   const operationPath = testCase.operationPath ?? new URL(testCase.pageUrl).pathname;
   const expectedStatuses = testCase.expectedStatuses ?? [];
   const requestBody = testCase.requestBody;
-  const headers = requestBody === undefined ? { accept: "application/json" } : { accept: "application/json", "content-type": "application/json" };
+  const headers =
+    requestBody === undefined
+      ? { accept: "application/json", ...(testCase.headers ?? {}) }
+      : { accept: "application/json", "content-type": "application/json", ...(testCase.headers ?? {}) };
   lines.push("    const response = await request.fetch(");
   lines.push(`      apiUrl(${JSON.stringify(operationPath)}),`);
   lines.push("      {");
@@ -6548,14 +6602,17 @@ function appendConfigProductTargets(
     return;
   }
 
-  lines.push("| Target | Readiness | Effective URL | Commands | Health check | Timeout |", "| --- | --- | --- | --- | --- | ---: |");
+  lines.push(
+    "| Target | Readiness | Effective URL | Commands | Health check | API endpoints | Timeout |",
+    "| --- | --- | --- | --- | --- | ---: | ---: |"
+  );
   for (const target of entries) {
     const effectiveUrl = target.readiness.effectiveBaseUrl ? `\`${target.readiness.effectiveBaseUrl}\`` : "none";
     const commands = target.readiness.commandsRequired.length > 0
       ? target.readiness.commandsRequired.map((command) => `\`${command}\``).join("<br>")
       : "none";
     lines.push(
-      `| ${target.id} | ${target.readiness.status} (${target.readiness.mode}) | ${effectiveUrl} | ${commands} | ${target.healthCheck ? `\`${target.healthCheck}\`` : "none"} | ${target.timeoutMs}ms |`
+      `| ${target.id} | ${target.readiness.status} (${target.readiness.mode}) | ${effectiveUrl} | ${commands} | ${target.healthCheck ? `\`${target.healthCheck}\`` : "none"} | ${target.apiEndpoints.length} | ${target.timeoutMs}ms |`
     );
   }
   lines.push("", "Config inspection does not execute product target commands.", "");

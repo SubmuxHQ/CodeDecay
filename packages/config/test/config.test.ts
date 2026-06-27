@@ -86,6 +86,18 @@ describe("loadCodeDecayConfig", () => {
         "      authSetupCommand: pnpm test:auth-seed",
         "      teardownCommand: pnpm stop",
         "      previewUrlEnv: VERCEL_URL",
+        "      apiEndpoints:",
+        "        - id: list-users",
+        "          method: get",
+        "          path: /api/users",
+        "          expectedStatuses: [200, 401]",
+        "          headers:",
+        "            x-test-suite: codedecay",
+        "        - method: POST",
+        "          path: /api/users",
+        "          expectedStatuses: [201, 400]",
+        "          body:",
+        "            email: codedecay@example.com",
         "      timeoutMs: 60000",
         ""
       ].join("\n")
@@ -147,6 +159,25 @@ describe("loadCodeDecayConfig", () => {
             authSetupCommand: "pnpm test:auth-seed",
             teardownCommand: "pnpm stop",
             previewUrlEnv: "VERCEL_URL",
+            apiEndpoints: [
+              {
+                id: "list-users",
+                method: "GET",
+                path: "/api/users",
+                expectedStatuses: [200, 401],
+                headers: {
+                  "x-test-suite": "codedecay"
+                }
+              },
+              {
+                method: "POST",
+                path: "/api/users",
+                expectedStatuses: [201, 400],
+                body: {
+                  email: "codedecay@example.com"
+                }
+              }
+            ],
             timeoutMs: 60000,
             readiness: {
               status: "ready",
