@@ -3350,6 +3350,9 @@ function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig): string {
 
   appendConfigToolAdapters(lines, config.toolAdapters);
 
+  lines.push("### Product Testing Targets", "");
+  appendConfigProductTargets(lines, config.productTesting.targets);
+
   lines.push(
     "### Probes",
     ""
@@ -3408,6 +3411,29 @@ function formatConfigToolAdapter(
     .join("<br>");
 
   return `| ${name} | ${adapter.enabled ? "yes" : "no"} | ${details} | ${adapter.timeoutMs ? `${adapter.timeoutMs}ms` : "default"} |`;
+}
+
+function appendConfigProductTargets(
+  lines: string[],
+  targets: LoadedCodeDecayConfig["config"]["productTesting"]["targets"]
+): void {
+  const entries = Object.values(targets);
+  if (entries.length === 0) {
+    lines.push("No product testing targets configured.", "");
+    return;
+  }
+
+  lines.push("| Target | Readiness | Effective URL | Commands | Health check | Timeout |", "| --- | --- | --- | --- | --- | ---: |");
+  for (const target of entries) {
+    const effectiveUrl = target.readiness.effectiveBaseUrl ? `\`${target.readiness.effectiveBaseUrl}\`` : "none";
+    const commands = target.readiness.commandsRequired.length > 0
+      ? target.readiness.commandsRequired.map((command) => `\`${command}\``).join("<br>")
+      : "none";
+    lines.push(
+      `| ${target.id} | ${target.readiness.status} (${target.readiness.mode}) | ${effectiveUrl} | ${commands} | ${target.healthCheck ? `\`${target.healthCheck}\`` : "none"} | ${target.timeoutMs}ms |`
+    );
+  }
+  lines.push("", "Config inspection does not execute product target commands.", "");
 }
 
 function formatCommandList(commands: string[]): string {

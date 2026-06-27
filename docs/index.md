@@ -39,6 +39,7 @@ features:
 - [Redteam Reports](/redteam): generate merge-safety reports for yourself or your coding agent
 - [Editor Workflows](/editor-workflows): surface JSON and SARIF findings in VS Code or other local tools before opening a PR
 - [Trend Snapshots](/trend-snapshots): persist repository health snapshots and compare them over time without a hosted dashboard
+- [Product Testing](/product-testing): configure live app targets and inspect UI/API failure bundles for agents and PRs
 - [Agent Task Bundles](/agent): hand deterministic evidence to Codex, Claude Code, Cursor, Pi, OpenCode, or desktop agents
 - [MCP Server](/mcp): expose CodeDecay as a local MCP tool for agent clients
 - [Release Policy](/release-policy): understand the current compatibility contract before wiring CodeDecay into CI

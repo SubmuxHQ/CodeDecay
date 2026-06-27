@@ -14,6 +14,7 @@ describe("agent task bundles", () => {
         impactedRoutes: 1,
         missingTestFindings: 0,
         weakTestFindings: 1,
+        productFailureBundles: 1,
         fixTasks: 2
       },
       safety: {
@@ -34,6 +35,7 @@ describe("agent task bundles", () => {
     expect(bundle.prompt).toContain("Current CodeDecay risk is High");
     expect(bundle.prompt).toContain("1 route/API impacts");
     expect(bundle.prompt).toContain("0 missing-test findings");
+    expect(bundle.prompt).toContain("1 product failure bundles");
     expect(bundle.prompt).toContain("Start with impacted routes/APIs when present");
     expect(bundle.instructions).toContain(
       "Start from impacted routes/APIs when present, then broad impacted areas and weak-test findings."
@@ -53,6 +55,11 @@ describe("agent task bundles", () => {
       }
     ]);
     expect(bundle.evidence.weakTestFindings[0]?.ruleId).toBe("mocked-changed-source");
+    expect(bundle.evidence.productFailureBundles[0]).toMatchObject({
+      id: "ui-imu-submit",
+      checkId: "ui.imu.submit",
+      priority: "high"
+    });
     expect(bundle.suggestedChecks).toEqual([
       {
         source: "configured-command",
@@ -78,6 +85,7 @@ describe("agent task bundles", () => {
     expect(markdown).toContain("Give this bundle to a user-owned coding agent");
     expect(markdown).toContain("Start from impacted routes/APIs when present");
     expect(markdown).toContain("| Missing-test findings | 0 |");
+    expect(markdown).toContain("| Product failure bundles | 1 |");
     expect(markdown).toContain("### Agent Handoff");
     expect(markdown).toContain("Generic user-owned agent");
     expect(markdown).toContain("### Copy-Paste Prompt");
@@ -85,6 +93,8 @@ describe("agent task bundles", () => {
     expect(markdown).toContain("### Tool Evidence");
     expect(markdown).toContain("Impacted routes and APIs:");
     expect(markdown).toContain("High `POST /api/imu` (Express route handler)");
+    expect(markdown).toContain("Product failure bundles:");
+    expect(markdown).toContain("IMU submit flow fails");
     expect(markdown).toContain("### Tasks To Complete");
     expect(markdown).toContain("LLM/model called by CodeDecay: no");
     expect(markdown).toContain("This bundle reduces missed-review risk; it does not guarantee a safe merge.");
@@ -98,6 +108,7 @@ describe("agent task bundles", () => {
     expect(parsed.agentProfile.id).toBe("generic");
     expect(parsed.prompt).toContain("Current CodeDecay risk is High");
     expect(parsed.summary.missingTestFindings).toBe(0);
+    expect(parsed.summary.productFailureBundles).toBe(1);
     expect(parsed.prompt).toContain("For each route/API impact");
     expect(parsed.instructions).toContain("Do not assume the PR is safe just because tests pass.");
     expect(parsed.evidence.impactedRoutes[0]).toMatchObject({
@@ -188,6 +199,7 @@ function createFixtureReport(): RedteamReport {
       edgeCases: 1,
       configuredChecks: 1,
       toolAdapters: 1,
+      productFailureBundles: 1,
       skills: 1,
       fixTasks: 2
     },
@@ -231,6 +243,39 @@ function createFixtureReport(): RedteamReport {
       ],
       findings: [],
       recommendedTests: [],
+      productFailureBundles: [
+        {
+          schemaVersion: 1,
+          id: "ui-imu-submit",
+          checkId: "ui.imu.submit",
+          checkKind: "ui",
+          priority: "high",
+          target: {
+            id: "web",
+            baseUrl: "http://127.0.0.1:3000"
+          },
+          title: "IMU submit flow fails",
+          summary: "Submitting an IMU reading no longer shows the success state.",
+          classification: "confirmed-regression",
+          failedStep: {
+            index: 3,
+            label: "Submit IMU reading",
+            status: "failed"
+          },
+          neighboringSteps: [],
+          artifacts: [
+            {
+              kind: "screenshot",
+              path: ".codedecay/artifacts/imu-submit.png"
+            }
+          ],
+          expected: "Success toast appears.",
+          actual: "The form stays pending.",
+          impactedFiles: ["src/api/imu.ts"],
+          suggestedFixTasks: ["Check IMU submit handler and API response shape."],
+          rerunCommand: "npx codedecay product run --check ui.imu.submit"
+        }
+      ],
       summary: {
         mergeRiskScore: 88,
         decayScore: 42,

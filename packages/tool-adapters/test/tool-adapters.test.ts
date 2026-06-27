@@ -625,6 +625,9 @@ function createConfig(): CodeDecayConfig {
       provider: "disabled",
       timeoutMs: 30000
     },
-    toolAdapters: {}
+    toolAdapters: {},
+    productTesting: {
+      targets: {}
+    }
   };
 }

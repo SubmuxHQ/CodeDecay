@@ -115,6 +115,69 @@ export interface TestEvidenceSummary {
   notes: string[];
 }
 
+export type ProductCheckKind = "ui" | "api" | "workflow";
+export type ProductFailureClassification =
+  | "confirmed-regression"
+  | "likely-flaky"
+  | "environment-failure"
+  | "auth-or-test-data-failure"
+  | "generated-test-weakness"
+  | "unknown";
+
+export interface ProductFailureTarget {
+  id: string;
+  environment?: string | undefined;
+  baseUrl?: string | undefined;
+}
+
+export interface ProductFailureStep {
+  index: number;
+  label: string;
+  status: "passed" | "failed" | "skipped";
+  expected?: string | undefined;
+  actual?: string | undefined;
+}
+
+export type ProductFailureArtifactKind =
+  | "screenshot"
+  | "trace"
+  | "video"
+  | "dom-snapshot"
+  | "console-log"
+  | "network-log"
+  | "test-source"
+  | "request-response-diff"
+  | "other";
+
+export interface ProductFailureArtifact {
+  kind: ProductFailureArtifactKind;
+  path?: string | undefined;
+  label?: string | undefined;
+  description?: string | undefined;
+}
+
+export interface ProductFailureBundle {
+  schemaVersion: 1;
+  id: string;
+  checkId: string;
+  checkKind: ProductCheckKind;
+  priority: RiskLevel;
+  target: ProductFailureTarget;
+  title: string;
+  summary: string;
+  classification: ProductFailureClassification;
+  classificationConfidence?: number | undefined;
+  failedStep: ProductFailureStep;
+  neighboringSteps: ProductFailureStep[];
+  artifacts: ProductFailureArtifact[];
+  expected: string;
+  actual: string;
+  impactedFiles: string[];
+  rootCauseHypothesis?: string | undefined;
+  suggestedFixTasks: string[];
+  rerunCommand: string;
+}
+
 export interface ReportSummary {
   mergeRiskScore: number;
   decayScore: number;
@@ -137,6 +200,7 @@ export interface CodeDecayReport {
   findings: Finding[];
   recommendedTests: string[];
   testEvidence?: TestEvidenceSummary | undefined;
+  productFailureBundles?: ProductFailureBundle[] | undefined;
 }
 
 const RISK_ORDER: Record<RiskLevel, number> = {
@@ -233,6 +297,7 @@ export function createAnalysisReport(input: {
   head?: string | undefined;
   changedFiles: FileChange[];
   analyzerResult: AnalyzerResult;
+  productFailureBundles?: ProductFailureBundle[] | undefined;
   generatedAt?: string | undefined;
 }): CodeDecayReport {
   const findings = sortFindings(input.analyzerResult.findings);
@@ -278,7 +343,32 @@ export function createAnalysisReport(input: {
     report.testEvidence = input.analyzerResult.testEvidence;
   }
 
+  if (input.productFailureBundles && input.productFailureBundles.length > 0) {
+    report.productFailureBundles = sortProductFailureBundles(input.productFailureBundles);
+  }
+
   return report;
+}
+
+function sortProductFailureBundles(bundles: ProductFailureBundle[]): ProductFailureBundle[] {
+  return [...bundles]
+    .map((bundle) => ({
+      ...bundle,
+      neighboringSteps: [...bundle.neighboringSteps].sort((left, right) => left.index - right.index),
+      artifacts: [...bundle.artifacts].sort((left, right) =>
+        `${left.kind}:${left.path ?? ""}:${left.label ?? ""}`.localeCompare(`${right.kind}:${right.path ?? ""}:${right.label ?? ""}`)
+      ),
+      impactedFiles: dedupeStrings(bundle.impactedFiles),
+      suggestedFixTasks: dedupeStrings(bundle.suggestedFixTasks)
+    }))
+    .sort((left, right) => {
+      const risk = compareRiskLevels(right.priority, left.priority);
+      if (risk !== 0) {
+        return risk;
+      }
+
+      return left.id.localeCompare(right.id);
+    });
 }
 
 function mergeImpactedRoutes(routes: ImpactedRoute[]): ImpactedRoute[] {

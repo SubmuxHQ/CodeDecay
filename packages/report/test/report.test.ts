@@ -130,7 +130,87 @@ const report: CodeDecayReport = {
       }
     ],
     notes: ["Runtime coverage artifacts were found, but some changed paths were not measured: src/app/dashboard/page.tsx."]
-  }
+  },
+  productFailureBundles: [
+    {
+      schemaVersion: 1,
+      id: "ui-login-failure",
+      checkId: "ui.login.success",
+      checkKind: "ui",
+      priority: "high",
+      target: {
+        id: "web",
+        environment: "preview",
+        baseUrl: "https://preview.example.test"
+      },
+      title: "Login flow fails on preview",
+      summary: "The browser reached the login form, but the authenticated dashboard never rendered.",
+      classification: "confirmed-regression",
+      classificationConfidence: 0.92,
+      failedStep: {
+        index: 3,
+        label: "Submit valid credentials",
+        status: "failed",
+        expected: "Dashboard heading is visible",
+        actual: "Login form remains visible"
+      },
+      neighboringSteps: [
+        {
+          index: 2,
+          label: "Fill valid credentials",
+          status: "passed"
+        }
+      ],
+      artifacts: [
+        {
+          kind: "screenshot",
+          path: ".codedecay/artifacts/login-failure.png",
+          label: "Failure screenshot"
+        },
+        {
+          kind: "test-source",
+          path: ".codedecay/artifacts/login.spec.ts"
+        }
+      ],
+      expected: "User lands on /dashboard after login.",
+      actual: "User remains on /login with no error message.",
+      impactedFiles: ["src/auth/session.ts", "src/app/login/page.tsx"],
+      rootCauseHypothesis: "The changed session helper may no longer persist the login cookie.",
+      suggestedFixTasks: ["Inspect session cookie persistence.", "Add a Playwright regression for successful login."],
+      rerunCommand: "npx codedecay product run --check ui.login.success"
+    },
+    {
+      schemaVersion: 1,
+      id: "api-session-failure",
+      checkId: "api.session.invalid-token",
+      checkKind: "api",
+      priority: "medium",
+      target: {
+        id: "api",
+        baseUrl: "https://preview.example.test"
+      },
+      title: "Invalid token API response changed",
+      summary: "The API returned a 500 instead of a stable 401 error response.",
+      classification: "confirmed-regression",
+      failedStep: {
+        index: 1,
+        label: "GET /api/session with invalid token",
+        status: "failed"
+      },
+      neighboringSteps: [],
+      artifacts: [
+        {
+          kind: "request-response-diff",
+          path: ".codedecay/artifacts/session.diff"
+        }
+      ],
+      expected: "401 JSON error response.",
+      actual: "500 HTML error response.",
+      impactedFiles: ["src/auth/session.ts"],
+      suggestedFixTasks: ["Restore explicit invalid-token handling."],
+      rerunCommand: "npx codedecay product run --check api.session.invalid-token"
+    }
+  ]
 };
 
 describe("reports", () => {
@@ -143,6 +223,11 @@ describe("reports", () => {
     expect(markdown).toContain("### Likely Impacted Routes And APIs");
     expect(markdown).toContain("### Merge Risk Breakdown");
     expect(markdown).toContain("### Test Evidence");
+    expect(markdown).toContain("### Product Failure Bundles");
+    expect(markdown).toContain("#### High Login flow fails on preview");
+    expect(markdown).toContain("- Classification: confirmed regression (92% confidence)");
+    expect(markdown).toContain("- Rerun: `npx codedecay product run --check ui.login.success`");
+    expect(markdown).toContain("request-response-diff");
     expect(markdown).toContain("High `GET /api/session` (Next.js API route)");
     expect(markdown).toContain("Medium `/dashboard` (Next.js UI route)");
     expect(markdown).toContain("- `src/auth/session.test.ts`");
@@ -167,6 +252,15 @@ describe("reports", () => {
         })
       ])
     );
+    expect(json.productFailureBundles[0]).toMatchObject({
+      schemaVersion: 1,
+      checkId: "ui.login.success",
+      checkKind: "ui",
+      priority: "high",
+      target: {
+        id: "web"
+      }
+    });
   });
 
   it("renders minimal sarif", () => {
@@ -177,5 +271,25 @@ describe("reports", () => {
     expect(sarif.runs[0].results[0].ruleId).toBe("risky-auth-change");
     expect(sarif.runs[0].results[0].locations[0].physicalLocation.region.startLine).toBe(3);
     expect(sarif.runs[0].properties.mergeRiskBreakdown.score).toBe(72);
+    expect(sarif.runs[0].results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "product-verification/ui/ui.login.success",
+          locations: [
+            expect.objectContaining({
+              physicalLocation: expect.objectContaining({
+                artifactLocation: {
+                  uri: "src/auth/session.ts"
+                }
+              })
+            })
+          ]
+        }),
+        expect.objectContaining({
+          ruleId: "product-verification/api/api.session.invalid-token"
+        })
+      ])
+    );
+    expect(sarif.runs[0].properties.productFailureBundles).toHaveLength(2);
   });
 });

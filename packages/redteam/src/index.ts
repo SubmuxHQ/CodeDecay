@@ -7,6 +7,7 @@ import {
   type Finding,
   type ImpactedArea,
   type ImpactedRoute,
+  type ProductFailureBundle,
   type RiskLevel
 } from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
@@ -21,7 +22,14 @@ import { createConfiguredToolHarnesses, type ConfiguredToolAdapterKind } from "@
 export type RedteamFormat = "json" | "markdown";
 export type RedteamMode = "deterministic";
 export type RedteamCheckKind = "test" | "build" | "start" | "probe";
-export type RedteamTaskSource = "finding" | "weak-test" | "edge-case" | "configured-check" | "tool-adapter" | "memory";
+export type RedteamTaskSource =
+  | "finding"
+  | "weak-test"
+  | "edge-case"
+  | "configured-check"
+  | "tool-adapter"
+  | "memory"
+  | "product-failure";
 
 export interface RedteamReportInput {
   analysisReport: CodeDecayReport;
@@ -67,6 +75,7 @@ export interface RedteamSummary {
   edgeCases: number;
   configuredChecks: number;
   toolAdapters: number;
+  productFailureBundles: number;
   skills: number;
   fixTasks: number;
 }
@@ -209,6 +218,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
       edgeCases: edgeCases.length,
       configuredChecks: configuredChecks.length,
       toolAdapters: toolAdapterPlans.length,
+      productFailureBundles: input.analysisReport.productFailureBundles?.length ?? 0,
       skills: skills.length,
       fixTasks: fixTasks.length
     },
@@ -272,12 +282,14 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
     `| Edge cases suggested | ${report.summary.edgeCases} |`,
     `| Configured checks listed | ${report.summary.configuredChecks} |`,
     `| Tool adapters planned | ${report.summary.toolAdapters} |`,
+    `| Product failure bundles | ${report.summary.productFailureBundles} |`,
     ""
   ];
 
   appendImpactedAreas(lines, report.analysis.impactedAreas);
   appendImpactedRoutes(lines, report.analysis.impactedRoutes ?? []);
   appendTestAudit(lines, report.testAudit);
+  appendProductFailures(lines, report.analysis.productFailureBundles ?? []);
   appendEdgeCases(lines, report.edgeCases);
   appendConfiguredChecks(lines, report.configuredChecks);
   appendToolAdapterPlans(lines, report.toolAdapterPlans);
@@ -464,6 +476,16 @@ function createFixTasks(input: {
     });
   }
 
+  for (const bundle of (input.analysisReport.productFailureBundles ?? []).slice(0, 8)) {
+    tasks.push({
+      title: `Fix product failure: ${bundle.title}`,
+      priority: bundle.priority,
+      source: "product-failure",
+      detail: `${bundle.summary} Rerun: ${bundle.rerunCommand}`,
+      file: bundle.impactedFiles[0]
+    });
+  }
+
   for (const invariant of input.memory.invariants.slice(0, 4)) {
     tasks.push({
       title: `Verify invariant: ${invariant.name}`,
@@ -605,6 +627,26 @@ function appendTestAudit(lines: string[], audit: TestProofAudit): void {
     }
   }
 
+  lines.push("");
+}
+
+function appendProductFailures(lines: string[], bundles: ProductFailureBundle[]): void {
+  if (bundles.length === 0) {
+    return;
+  }
+
+  lines.push("### Product Verification Failures", "");
+  for (const bundle of bundles.slice(0, 8)) {
+    const files = bundle.impactedFiles.length > 0 ? bundle.impactedFiles.map((file) => `\`${file}\``).join(", ") : "none";
+    lines.push(`- ${formatRisk(bundle.priority)} **${bundle.title}** (\`${bundle.checkId}\`, ${bundle.checkKind})`);
+    lines.push(`  - Target: \`${bundle.target.id}\`${bundle.target.baseUrl ? ` at \`${bundle.target.baseUrl}\`` : ""}`);
+    lines.push(`  - Classification: ${bundle.classification.replaceAll("-", " ")}`);
+    lines.push(`  - Failed step ${bundle.failedStep.index}: ${bundle.failedStep.label}`);
+    lines.push(`  - Expected: ${bundle.expected}`);
+    lines.push(`  - Actual: ${bundle.actual}`);
+    lines.push(`  - Impacted files: ${files}`);
+    lines.push(`  - Rerun: \`${bundle.rerunCommand}\``);
+  }
   lines.push("");
 }
 

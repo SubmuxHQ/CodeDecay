@@ -1,4 +1,11 @@
-import type { CodeDecayReport, Finding, RiskLevel, ScoreBreakdown, TestEvidenceSummary } from "@submuxhq/codedecay-core";
+import type {
+  CodeDecayReport,
+  Finding,
+  ProductFailureBundle,
+  RiskLevel,
+  ScoreBreakdown,
+  TestEvidenceSummary
+} from "@submuxhq/codedecay-core";
 
 export type ReportFormat = "json" | "markdown" | "sarif";
 
@@ -78,6 +85,7 @@ export function renderMarkdownReport(report: CodeDecayReport): string {
   appendScoreBreakdown(lines, "Merge Risk Breakdown", report.summary.mergeRiskBreakdown);
   appendScoreBreakdown(lines, "Decay Risk Breakdown", report.summary.decayBreakdown);
   appendTestEvidence(lines, report.testEvidence);
+  appendProductFailureBundles(lines, report.productFailureBundles);
 
   appendFindings(lines, "High Risk Findings", highFindings);
   appendFindings(lines, "Medium Risk Findings", mediumFindings);
@@ -102,7 +110,7 @@ export function renderMarkdownReport(report: CodeDecayReport): string {
 }
 
 export function renderSarifReport(report: CodeDecayReport): string {
-  const rules = [...new Map(report.findings.map((finding) => [finding.ruleId, finding])).values()].map(
+  const findingRules = [...new Map(report.findings.map((finding) => [finding.ruleId, finding])).values()].map(
     (finding) => ({
       id: finding.ruleId,
       name: finding.title,
@@ -117,8 +125,21 @@ export function renderSarifReport(report: CodeDecayReport): string {
       }
     })
   );
+  const productFailureRules = (report.productFailureBundles ?? []).map((bundle) => ({
+    id: productFailureRuleId(bundle),
+    name: bundle.title,
+    shortDescription: {
+      text: bundle.title
+    },
+    fullDescription: {
+      text: bundle.summary
+    },
+    defaultConfiguration: {
+      level: sarifLevel(bundle.priority)
+    }
+  }));
 
-  const results = report.findings.map((finding) => {
+  const findingResults = report.findings.map((finding) => {
     const result: Record<string, unknown> = {
       ruleId: finding.ruleId,
       level: sarifLevel(finding.severity),
@@ -144,6 +165,42 @@ export function renderSarifReport(report: CodeDecayReport): string {
 
     return result;
   });
+  const productFailureResults = (report.productFailureBundles ?? []).map((bundle) => {
+    const result: Record<string, unknown> = {
+      ruleId: productFailureRuleId(bundle),
+      level: sarifLevel(bundle.priority),
+      message: {
+        text: `${bundle.title}: ${bundle.summary} Rerun: ${bundle.rerunCommand}`
+      },
+      properties: {
+        productFailureBundleId: bundle.id,
+        checkId: bundle.checkId,
+        checkKind: bundle.checkKind,
+        classification: bundle.classification,
+        target: bundle.target,
+        failedStep: bundle.failedStep,
+        artifacts: bundle.artifacts
+      }
+    };
+
+    const primaryFile = bundle.impactedFiles[0];
+    if (primaryFile) {
+      result.locations = [
+        {
+          physicalLocation: {
+            artifactLocation: {
+              uri: primaryFile
+            },
+            region: {
+              startLine: 1
+            }
+          }
+        }
+      ];
+    }
+
+    return result;
+  });
 
   return `${JSON.stringify(
     {
@@ -155,16 +212,17 @@ export function renderSarifReport(report: CodeDecayReport): string {
             driver: {
               name: "CodeDecay",
               informationUri: "https://github.com/SubmuxHQ/CodeDecay",
-              rules
+              rules: [...findingRules, ...productFailureRules]
             }
           },
-          results,
+          results: [...findingResults, ...productFailureResults],
           properties: {
             mergeRiskScore: report.summary.mergeRiskScore,
             decayScore: report.summary.decayScore,
             mergeRiskBreakdown: report.summary.mergeRiskBreakdown,
             decayBreakdown: report.summary.decayBreakdown,
-            testEvidence: report.testEvidence
+            testEvidence: report.testEvidence,
+            productFailureBundles: report.productFailureBundles
           }
         }
       ]
@@ -280,6 +338,54 @@ function appendTestEvidence(lines: string[], testEvidence: TestEvidenceSummary |
   }
 
   lines.push("");
+}
+
+function appendProductFailureBundles(lines: string[], bundles: ProductFailureBundle[] | undefined): void {
+  if (!bundles || bundles.length === 0) {
+    return;
+  }
+
+  lines.push("### Product Failure Bundles", "");
+  for (const bundle of bundles.slice(0, 8)) {
+    const confidence =
+      bundle.classificationConfidence === undefined ? "" : ` (${Math.round(bundle.classificationConfidence * 100)}% confidence)`;
+    const files = bundle.impactedFiles.length > 0 ? bundle.impactedFiles.map((file) => `\`${file}\``).join(", ") : "none";
+    lines.push(`#### ${riskBadge(bundle.priority)} ${bundle.title}`, "");
+    lines.push(`- Bundle: \`${bundle.id}\``);
+    lines.push(`- Check: \`${bundle.checkId}\` (${bundle.checkKind})`);
+    lines.push(`- Target: \`${bundle.target.id}\`${bundle.target.baseUrl ? ` at \`${bundle.target.baseUrl}\`` : ""}`);
+    lines.push(`- Classification: ${bundle.classification.replaceAll("-", " ")}${confidence}`);
+    lines.push(`- Failed step ${bundle.failedStep.index}: ${bundle.failedStep.label}`);
+    lines.push(`- Expected: ${bundle.expected}`);
+    lines.push(`- Actual: ${bundle.actual}`);
+    lines.push(`- Impacted files: ${files}`);
+    if (bundle.rootCauseHypothesis) {
+      lines.push(`- Root-cause hypothesis: ${bundle.rootCauseHypothesis}`);
+    }
+    lines.push(`- Rerun: \`${bundle.rerunCommand}\``);
+
+    if (bundle.artifacts.length > 0) {
+      lines.push("- Artifacts:");
+      for (const artifact of bundle.artifacts.slice(0, 6)) {
+        const label = artifact.label ? `${artifact.label} ` : "";
+        const location = artifact.path ? `\`${artifact.path}\`` : artifact.description ?? "inline artifact";
+        lines.push(`- ${label}${artifact.kind}: ${location}`);
+      }
+    }
+
+    if (bundle.suggestedFixTasks.length > 0) {
+      lines.push("- Suggested fix tasks:");
+      for (const task of bundle.suggestedFixTasks.slice(0, 5)) {
+        lines.push(`- ${task}`);
+      }
+    }
+
+    lines.push("");
+  }
+}
+
+function productFailureRuleId(bundle: ProductFailureBundle): string {
+  return `product-verification/${bundle.checkKind}/${bundle.checkId}`;
 }
 
 function riskBadge(level: RiskLevel): string {

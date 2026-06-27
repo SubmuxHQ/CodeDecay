@@ -28,6 +28,7 @@ describe("redteam report", () => {
       testProofStatus: "weak",
       configuredChecks: 2,
       toolAdapters: 3,
+      productFailureBundles: 1,
       skills: 1
     });
     expect(Object.values(report.safety).filter((value) => value === false)).toHaveLength(4);
@@ -88,6 +89,7 @@ describe("redteam report", () => {
         "Verify invariant: Auth fails closed",
         "Re-check past regression: Anonymous admin",
         "Consider running Playwright harness",
+        "Fix product failure: Session API invalid-token regression",
         "Review with skill: PR Red-Team Skill"
       ])
     );
@@ -107,6 +109,7 @@ describe("redteam report", () => {
     expect(json.mode).toBe("deterministic");
     expect(json.summary.impactedRoutes).toBe(1);
     expect(json.summary.missingTestFindings).toBe(0);
+    expect(json.summary.productFailureBundles).toBe(1);
     expect(json.analysis.impactedRoutes[0]).toMatchObject({
       framework: "nextjs",
       kind: "api-route",
@@ -116,6 +119,9 @@ describe("redteam report", () => {
     const markdown = renderRedteamReport(report, "markdown");
     expect(markdown).toContain("## CodeDecay Redteam Report");
     expect(markdown).toContain("### Test Evidence Audit");
+    expect(markdown).toContain("### Product Verification Failures");
+    expect(markdown).toContain("Session API invalid-token regression");
+    expect(markdown).toContain("Rerun: `npx codedecay product run --check api.session.invalid-token`");
     expect(markdown).toContain("| Missing-test findings | 0 |");
     expect(markdown).toContain("**Status:** Weak");
     expect(markdown).toContain("### Agent Skills");
@@ -191,6 +197,39 @@ function createFixtureAnalysisReport() {
     head: "HEAD",
     changedFiles: createFixtureChangedFiles(),
     analyzerResult: createFixtureAnalyzerResult(),
+    productFailureBundles: [
+      {
+        schemaVersion: 1,
+        id: "api-session-invalid-token",
+        checkId: "api.session.invalid-token",
+        checkKind: "api",
+        priority: "high",
+        target: {
+          id: "api",
+          baseUrl: "http://127.0.0.1:3000"
+        },
+        title: "Session API invalid-token regression",
+        summary: "Invalid tokens now return 500 instead of 401.",
+        classification: "confirmed-regression",
+        failedStep: {
+          index: 1,
+          label: "GET /api/session with invalid token",
+          status: "failed"
+        },
+        neighboringSteps: [],
+        artifacts: [
+          {
+            kind: "request-response-diff",
+            path: ".codedecay/artifacts/api-session.diff"
+          }
+        ],
+        expected: "401 JSON error",
+        actual: "500 HTML error",
+        impactedFiles: ["src/auth/session.ts"],
+        suggestedFixTasks: ["Restore invalid-token handling."],
+        rerunCommand: "npx codedecay product run --check api.session.invalid-token"
+      }
+    ],
     generatedAt: "2026-01-01T00:00:00.000Z"
   });
 }
@@ -299,6 +338,9 @@ function createFixtureConfig(): CodeDecayConfig {
         enabled: true,
         command: "pnpm run pact:verify"
       }
+    },
+    productTesting: {
+      targets: {}
     }
   };
 }

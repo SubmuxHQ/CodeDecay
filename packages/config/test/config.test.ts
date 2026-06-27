@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -35,7 +35,10 @@ describe("loadCodeDecayConfig", () => {
         provider: "disabled",
         timeoutMs: 30_000
       },
-      toolAdapters: {}
+      toolAdapters: {},
+      productTesting: {
+        targets: {}
+      }
     });
   });
 
@@ -74,6 +77,16 @@ describe("loadCodeDecayConfig", () => {
         "    baseUrl: http://127.0.0.1:4000",
         "  pact:",
         "    enabled: false",
+        "productTesting:",
+        "  targets:",
+        "    web:",
+        "      baseUrl: http://127.0.0.1:3000",
+        "      startCommand: pnpm dev",
+        "      healthCheck: http://127.0.0.1:3000/api/health",
+        "      authSetupCommand: pnpm test:auth-seed",
+        "      teardownCommand: pnpm stop",
+        "      previewUrlEnv: VERCEL_URL",
+        "      timeoutMs: 60000",
         ""
       ].join("\n")
     );
@@ -123,7 +136,106 @@ describe("loadCodeDecayConfig", () => {
         pact: {
           enabled: false
         }
+      },
+      productTesting: {
+        targets: {
+          web: {
+            id: "web",
+            baseUrl: "http://127.0.0.1:3000",
+            startCommand: "pnpm dev",
+            healthCheck: "http://127.0.0.1:3000/api/health",
+            authSetupCommand: "pnpm test:auth-seed",
+            teardownCommand: "pnpm stop",
+            previewUrlEnv: "VERCEL_URL",
+            timeoutMs: 60000,
+            readiness: {
+              status: "ready",
+              mode: "base-url",
+              effectiveBaseUrl: "http://127.0.0.1:3000",
+              commandsRequired: ["pnpm test:auth-seed", "pnpm dev", "pnpm stop"],
+              commandsAllowed: true,
+              willRunCommands: false,
+              notes: [
+                "Config loading never executes product target commands.",
+                "Target can use an already-running app at baseUrl."
+              ]
+            }
+          }
+        }
       }
+    });
+  });
+
+  it("resolves preview product target URLs from environment without running commands", () => {
+    const root = createTempDir();
+    const marker = join(root, "should-not-exist");
+    const previousPreviewUrl = process.env.CODEDECAY_TEST_PREVIEW_URL;
+    process.env.CODEDECAY_TEST_PREVIEW_URL = "https://preview.example.test";
+    writeFile(
+      root,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "productTesting:",
+        "  targets:",
+        "    preview:",
+        "      previewUrlEnv: CODEDECAY_TEST_PREVIEW_URL",
+        `      startCommand: node -e \"require('fs').writeFileSync('${marker}', 'ran')\"`,
+        "      healthCheck: https://preview.example.test/health",
+        ""
+      ].join("\n")
+    );
+
+    try {
+      const loaded = loadCodeDecayConfig({ cwd: root });
+
+      expect(existsSync(marker)).toBe(false);
+      expect(loaded.config.productTesting.targets.preview).toMatchObject({
+        id: "preview",
+        previewUrlEnv: "CODEDECAY_TEST_PREVIEW_URL",
+        healthCheck: "https://preview.example.test/health",
+        timeoutMs: 60000,
+        readiness: {
+          status: "ready",
+          mode: "preview-url-env",
+          effectiveBaseUrl: "https://preview.example.test",
+          commandsAllowed: false,
+          willRunCommands: false
+        }
+      });
+    } finally {
+      if (previousPreviewUrl === undefined) {
+        delete process.env.CODEDECAY_TEST_PREVIEW_URL;
+      } else {
+        process.env.CODEDECAY_TEST_PREVIEW_URL = previousPreviewUrl;
+      }
+    }
+  });
+
+  it("marks start-command product targets as needing command approval when commands are disallowed", () => {
+    const root = createTempDir();
+    writeFile(
+      root,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "productTesting:",
+        "  targets:",
+        "    local:",
+        "      startCommand: pnpm dev",
+        "      healthCheck: http://127.0.0.1:3000/health",
+        ""
+      ].join("\n")
+    );
+
+    const loaded = loadCodeDecayConfig({ cwd: root });
+
+    expect(loaded.config.productTesting.targets.local?.readiness).toMatchObject({
+      status: "needs-command-approval",
+      mode: "start-command",
+      commandsRequired: ["pnpm dev"],
+      commandsAllowed: false,
+      willRunCommands: false
     });
   });
 
@@ -208,6 +320,13 @@ describe("loadCodeDecayConfig", () => {
     writeFile(root, ".codedecay/config.yml", "version: 1\ntoolAdapters:\n  stryker:\n    reportPath: ''\n");
 
     expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(/toolAdapters.stryker.reportPath must be a non-empty string/);
+  });
+
+  it("fails clearly for invalid product target URLs", () => {
+    const root = createTempDir();
+    writeFile(root, ".codedecay/config.yml", "version: 1\nproductTesting:\n  targets:\n    web:\n      baseUrl: localhost:3000\n");
+
+    expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(/productTesting.targets.web.baseUrl must be an http or https URL/);
   });
 });
 

@@ -9,6 +9,7 @@ export interface CodeDecayConfig {
   safety: CodeDecaySafety;
   llm: CodeDecayLlmConfig;
   toolAdapters: CodeDecayToolAdapters;
+  productTesting: CodeDecayProductTestingConfig;
 }
 
 export interface CodeDecayCommands {
@@ -58,6 +59,39 @@ export interface CodeDecayStrykerToolAdapter extends CodeDecayCommandToolAdapter
   reportPath?: string | undefined;
 }
 
+export interface CodeDecayProductTestingConfig {
+  targets: Record<string, CodeDecayProductTarget>;
+}
+
+export interface CodeDecayProductTarget {
+  id: string;
+  baseUrl?: string | undefined;
+  startCommand?: string | undefined;
+  healthCheck?: string | undefined;
+  authSetupCommand?: string | undefined;
+  teardownCommand?: string | undefined;
+  previewUrlEnv?: string | undefined;
+  timeoutMs: number;
+  readiness: CodeDecayProductTargetReadiness;
+}
+
+export type CodeDecayProductTargetReadinessStatus =
+  | "ready"
+  | "command-required"
+  | "needs-command-approval"
+  | "missing-preview-url"
+  | "unresolved";
+
+export interface CodeDecayProductTargetReadiness {
+  status: CodeDecayProductTargetReadinessStatus;
+  mode: "base-url" | "preview-url-env" | "start-command" | "unresolved";
+  effectiveBaseUrl?: string | undefined;
+  commandsRequired: string[];
+  commandsAllowed: boolean;
+  willRunCommands: false;
+  notes: string[];
+}
+
 export interface LoadedCodeDecayConfig {
   config: CodeDecayConfig;
   sourcePath?: string | undefined;
@@ -90,8 +124,13 @@ export const DEFAULT_CODEDECAY_CONFIG: CodeDecayConfig = {
     provider: "disabled",
     timeoutMs: 30_000
   },
-  toolAdapters: {}
+  toolAdapters: {},
+  productTesting: {
+    targets: {}
+  }
 };
+
+const DEFAULT_PRODUCT_TARGET_TIMEOUT_MS = 60_000;
 
 export function loadCodeDecayConfig(options: LoadCodeDecayConfigOptions): LoadedCodeDecayConfig {
   const sourcePath = findCodeDecayConfig(options.cwd);
@@ -145,6 +184,7 @@ function normalizeConfig(value: unknown, sourcePath: string): CodeDecayConfig {
   const safety = normalizeSafety(value.safety, sourcePath);
   const llm = normalizeLlm(value.llm, sourcePath);
   const toolAdapters = normalizeToolAdapters(value.toolAdapters, sourcePath);
+  const productTesting = normalizeProductTesting(value.productTesting, safety, sourcePath);
 
   return {
     version: 1,
@@ -152,7 +192,8 @@ function normalizeConfig(value: unknown, sourcePath: string): CodeDecayConfig {
     probes,
     safety,
     llm,
-    toolAdapters
+    toolAdapters,
+    productTesting
   };
 }
 
@@ -330,6 +371,162 @@ function normalizeToolAdapters(value: unknown, sourcePath: string): CodeDecayToo
   return adapters;
 }
 
+function normalizeProductTesting(
+  value: unknown,
+  safety: CodeDecaySafety,
+  sourcePath: string
+): CodeDecayProductTestingConfig {
+  if (value === undefined) {
+    return cloneProductTesting(DEFAULT_CODEDECAY_CONFIG.productTesting);
+  }
+
+  if (!isPlainObject(value)) {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: productTesting must be an object.`);
+  }
+
+  if (value.targets === undefined) {
+    return {
+      targets: {}
+    };
+  }
+
+  if (!isPlainObject(value.targets)) {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: productTesting.targets must be an object.`);
+  }
+
+  const targets: Record<string, CodeDecayProductTarget> = {};
+  for (const id of Object.keys(value.targets).sort((left, right) => left.localeCompare(right))) {
+    if (id.trim().length === 0) {
+      throw new Error(`Invalid CodeDecay config at ${sourcePath}: productTesting.targets contains an empty target id.`);
+    }
+
+    targets[id] = normalizeProductTarget(id, value.targets[id], safety, sourcePath);
+  }
+
+  return {
+    targets
+  };
+}
+
+function normalizeProductTarget(
+  id: string,
+  value: unknown,
+  safety: CodeDecaySafety,
+  sourcePath: string
+): CodeDecayProductTarget {
+  const field = `productTesting.targets.${id}`;
+  if (!isPlainObject(value)) {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be an object.`);
+  }
+
+  const target: Omit<CodeDecayProductTarget, "readiness"> = {
+    id,
+    timeoutMs:
+      value.timeoutMs === undefined
+        ? DEFAULT_PRODUCT_TARGET_TIMEOUT_MS
+        : normalizePositiveInteger(value.timeoutMs, `${field}.timeoutMs`, sourcePath)
+  };
+
+  if (value.baseUrl !== undefined) {
+    target.baseUrl = normalizeUrlString(value.baseUrl, `${field}.baseUrl`, sourcePath);
+  }
+
+  if (value.startCommand !== undefined) {
+    target.startCommand = normalizeNonEmptyString(value.startCommand, `${field}.startCommand`, sourcePath);
+  }
+
+  if (value.healthCheck !== undefined) {
+    target.healthCheck = normalizeUrlString(value.healthCheck, `${field}.healthCheck`, sourcePath);
+  }
+
+  if (value.authSetupCommand !== undefined) {
+    target.authSetupCommand = normalizeNonEmptyString(value.authSetupCommand, `${field}.authSetupCommand`, sourcePath);
+  }
+
+  if (value.teardownCommand !== undefined) {
+    target.teardownCommand = normalizeNonEmptyString(value.teardownCommand, `${field}.teardownCommand`, sourcePath);
+  }
+
+  if (value.previewUrlEnv !== undefined) {
+    target.previewUrlEnv = normalizeEnvironmentVariableName(value.previewUrlEnv, `${field}.previewUrlEnv`, sourcePath);
+  }
+
+  return {
+    ...target,
+    readiness: createProductTargetReadiness(target, safety)
+  };
+}
+
+function createProductTargetReadiness(
+  target: Omit<CodeDecayProductTarget, "readiness">,
+  safety: CodeDecaySafety
+): CodeDecayProductTargetReadiness {
+  const commandsRequired = [
+    target.authSetupCommand,
+    target.startCommand,
+    target.teardownCommand
+  ].filter((command): command is string => command !== undefined);
+  const resolvedPreviewUrl = target.previewUrlEnv ? process.env[target.previewUrlEnv] : undefined;
+  const effectiveBaseUrl = target.baseUrl ?? (resolvedPreviewUrl ? normalizeRuntimeUrl(resolvedPreviewUrl) : undefined);
+  const notes: string[] = ["Config loading never executes product target commands."];
+
+  if (effectiveBaseUrl) {
+    if (target.baseUrl) {
+      notes.push("Target can use an already-running app at baseUrl.");
+    } else if (target.previewUrlEnv) {
+      notes.push(`Target resolved preview URL from ${target.previewUrlEnv}.`);
+    }
+
+    return {
+      status: "ready",
+      mode: target.baseUrl ? "base-url" : "preview-url-env",
+      effectiveBaseUrl,
+      commandsRequired,
+      commandsAllowed: safety.allowCommands,
+      willRunCommands: false,
+      notes
+    };
+  }
+
+  if (target.previewUrlEnv) {
+    notes.push(`Environment variable ${target.previewUrlEnv} is not set or is not a valid URL.`);
+    return {
+      status: "missing-preview-url",
+      mode: "preview-url-env",
+      commandsRequired,
+      commandsAllowed: safety.allowCommands,
+      willRunCommands: false,
+      notes
+    };
+  }
+
+  if (target.startCommand) {
+    notes.push(
+      safety.allowCommands
+        ? "Target requires explicit execution to start the app before verification."
+        : "Target start command is configured but safety.allowCommands is false."
+    );
+    return {
+      status: safety.allowCommands ? "command-required" : "needs-command-approval",
+      mode: "start-command",
+      commandsRequired,
+      commandsAllowed: safety.allowCommands,
+      willRunCommands: false,
+      notes
+    };
+  }
+
+  notes.push("Target needs baseUrl, previewUrlEnv, or startCommand before product verification can run.");
+  return {
+    status: "unresolved",
+    mode: "unresolved",
+    commandsRequired,
+    commandsAllowed: safety.allowCommands,
+    willRunCommands: false,
+    notes
+  };
+}
+
 function normalizeCommandToolAdapter(
   value: unknown,
   field: string,
@@ -436,6 +633,40 @@ function normalizeNonEmptyString(value: unknown, field: string, sourcePath: stri
   throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be a non-empty string.`);
 }
 
+function normalizeUrlString(value: unknown, field: string, sourcePath: string): string {
+  const text = normalizeNonEmptyString(value, field, sourcePath);
+  try {
+    const url = new URL(text);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      throw new Error("unsupported protocol");
+    }
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be an http or https URL.`);
+  }
+}
+
+function normalizeRuntimeUrl(value: string): string | undefined {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return undefined;
+    }
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeEnvironmentVariableName(value: unknown, field: string, sourcePath: string): string {
+  const text = normalizeNonEmptyString(value, field, sourcePath);
+  if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(text)) {
+    return text;
+  }
+
+  throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be a valid environment variable name.`);
+}
+
 function cloneConfig(config: CodeDecayConfig): CodeDecayConfig {
   return {
     version: config.version,
@@ -443,7 +674,8 @@ function cloneConfig(config: CodeDecayConfig): CodeDecayConfig {
     probes: config.probes.map((probe) => ({ ...probe })),
     safety: { ...config.safety },
     llm: { ...config.llm },
-    toolAdapters: cloneToolAdapters(config.toolAdapters)
+    toolAdapters: cloneToolAdapters(config.toolAdapters),
+    productTesting: cloneProductTesting(config.productTesting)
   };
 }
 
@@ -475,6 +707,24 @@ function cloneToolAdapters(toolAdapters: CodeDecayToolAdapters): CodeDecayToolAd
   }
 
   return cloned;
+}
+
+function cloneProductTesting(productTesting: CodeDecayProductTestingConfig): CodeDecayProductTestingConfig {
+  return {
+    targets: Object.fromEntries(
+      Object.entries(productTesting.targets).map(([id, target]) => [
+        id,
+        {
+          ...target,
+          readiness: {
+            ...target.readiness,
+            commandsRequired: [...target.readiness.commandsRequired],
+            notes: [...target.readiness.notes]
+          }
+        }
+      ])
+    )
+  };
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

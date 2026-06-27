@@ -191,7 +191,10 @@ function createConfig(input: { allowCommands: boolean }): CodeDecayConfig {
       provider: "disabled",
       timeoutMs: 30_000
     },
-    toolAdapters: {}
+    toolAdapters: {},
+    productTesting: {
+      targets: {}
+    }
   };
 }
 

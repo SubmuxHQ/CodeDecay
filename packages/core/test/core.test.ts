@@ -156,6 +156,107 @@ describe("createAnalysisReport", () => {
     expect(report.recommendedTests).toEqual(["Add API route coverage for POST /api/users"]);
   });
 
+  it("sorts product failure bundles and normalizes nested evidence", () => {
+    const report = createAnalysisReport({
+      changedFiles: [
+        {
+          path: "src/app/login/page.tsx",
+          status: "modified",
+          additions: 5,
+          deletions: 1,
+          addedLines: [{ line: 7, content: "return <LoginForm />;" }]
+        }
+      ],
+      analyzerResult: {
+        impactedAreas: [],
+        findings: [],
+        recommendedTests: []
+      },
+      productFailureBundles: [
+        {
+          schemaVersion: 1,
+          id: "api-session",
+          checkId: "api.session.invalid-token",
+          checkKind: "api",
+          priority: "medium",
+          target: {
+            id: "api",
+            baseUrl: "https://preview.example.test"
+          },
+          title: "Invalid token API response changed",
+          summary: "The API returned the wrong status.",
+          classification: "confirmed-regression",
+          failedStep: {
+            index: 2,
+            label: "Call API",
+            status: "failed"
+          },
+          neighboringSteps: [],
+          artifacts: [],
+          expected: "401",
+          actual: "500",
+          impactedFiles: ["src/auth/session.ts"],
+          suggestedFixTasks: ["Restore invalid-token handling."],
+          rerunCommand: "npx codedecay product run --check api.session.invalid-token"
+        },
+        {
+          schemaVersion: 1,
+          id: "ui-login",
+          checkId: "ui.login.success",
+          checkKind: "ui",
+          priority: "high",
+          target: {
+            id: "web",
+            baseUrl: "https://preview.example.test"
+          },
+          title: "Login flow fails",
+          summary: "The dashboard never renders.",
+          classification: "confirmed-regression",
+          classificationConfidence: 0.9,
+          failedStep: {
+            index: 3,
+            label: "Submit credentials",
+            status: "failed"
+          },
+          neighboringSteps: [
+            {
+              index: 2,
+              label: "Fill password",
+              status: "passed"
+            },
+            {
+              index: 1,
+              label: "Open login",
+              status: "passed"
+            }
+          ],
+          artifacts: [
+            {
+              kind: "test-source",
+              path: ".codedecay/artifacts/login.spec.ts"
+            },
+            {
+              kind: "screenshot",
+              path: ".codedecay/artifacts/login.png"
+            }
+          ],
+          expected: "Dashboard",
+          actual: "Login form",
+          impactedFiles: ["src/app/login/page.tsx", "src/app/login/page.tsx"],
+          rootCauseHypothesis: "The submit handler no longer redirects.",
+          suggestedFixTasks: ["Add login regression.", "Add login regression."],
+          rerunCommand: "npx codedecay product run --check ui.login.success"
+        }
+      ],
+      generatedAt: "2026-06-22T00:00:00.000Z"
+    });
+
+    expect(report.productFailureBundles?.map((bundle) => bundle.id)).toEqual(["ui-login", "api-session"]);
+    expect(report.productFailureBundles?.[0]?.neighboringSteps.map((step) => step.index)).toEqual([1, 2]);
+    expect(report.productFailureBundles?.[0]?.impactedFiles).toEqual(["src/app/login/page.tsx"]);
+    expect(report.productFailureBundles?.[0]?.suggestedFixTasks).toEqual(["Add login regression."]);
+  });
+
   it("caps merge risk at low when all merge-risk findings are low severity", () => {
     const changedFiles = createSyntheticChanges(16);
     const findings = createSyntheticFindings(16, "low", "risky-auth-change");

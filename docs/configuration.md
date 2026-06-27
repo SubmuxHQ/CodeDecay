@@ -1,7 +1,7 @@
 # Configuration
 
 CodeDecay can load repo-local configuration for red-team orchestration, tool
-adapter plans, and real behavior probes.
+adapter plans, real behavior probes, and product testing targets.
 
 Configuration is optional. If no config file exists, CodeDecay uses safe
 defaults and does not run project commands.
@@ -50,6 +50,17 @@ toolAdapters:
   pact:
     command: pnpm run test:pact
 
+productTesting:
+  targets:
+    web:
+      baseUrl: http://127.0.0.1:3000
+      startCommand: pnpm dev
+      healthCheck: http://127.0.0.1:3000/api/health
+      authSetupCommand: pnpm test:auth-seed
+      teardownCommand: pnpm stop
+      previewUrlEnv: VERCEL_URL
+      timeoutMs: 60000
+
 safety:
   commandTimeoutMs: 120000
   allowCommands: false
@@ -74,6 +85,50 @@ llm:
 Use `apiKeyEnv` to point at an environment variable name. Do not store literal
 API keys in CodeDecay config.
 
+## Product Testing Targets
+
+`productTesting.targets` describes how future product-layer verification should
+reach a live app or preview deployment.
+
+Targets are normalized by `codedecay config`, but config inspection never starts
+the app, runs setup commands, polls health checks, or performs teardown.
+
+```yaml
+productTesting:
+  targets:
+    web:
+      baseUrl: http://127.0.0.1:3000
+      healthCheck: http://127.0.0.1:3000/api/health
+      timeoutMs: 60000
+```
+
+For CI previews, use an environment variable:
+
+```yaml
+productTesting:
+  targets:
+    preview:
+      previewUrlEnv: VERCEL_URL
+      healthCheck: https://preview.example.com/api/health
+```
+
+For local startup, commands remain explicit and gated by `safety.allowCommands`:
+
+```yaml
+productTesting:
+  targets:
+    local:
+      startCommand: pnpm dev
+      healthCheck: http://127.0.0.1:3000/api/health
+      teardownCommand: pnpm stop
+
+safety:
+  allowCommands: false
+```
+
+With `allowCommands: false`, CodeDecay reports that command approval is needed.
+It does not start the app during `config`, `analyze`, `redteam`, or `agent`.
+
 ## Safety Model
 
 Config files make project commands explicit. CodeDecay should not guess commands
@@ -83,6 +138,8 @@ Current behavior:
 
 - `codedecay analyze` does not require config.
 - `codedecay config` only loads and prints config.
+- `codedecay config` can show product target readiness without running target
+  commands.
 - `codedecay llm-review` is the explicit opt-in path that can call the
   configured user-owned LLM provider.
 - `codedecay redteam` lists configured tool adapters as planned local checks,
@@ -102,5 +159,8 @@ Execution uses this config as its allowlisted command source. See
 
 Tool adapters are also configured here. See [Tool adapters](tool-adapters.md)
 for Playwright, StrykerJS, Schemathesis, and Pact adapter details.
+
+Read [Product Testing](product-testing.md) for the failure bundle schema and the
+roadmap toward local-first UI/API verification.
 
 Read [LLM providers](llm-providers.md) for optional local/BYOK model adapters.

@@ -340,7 +340,10 @@ describe("codedecay config CLI contract", () => {
           provider: "disabled",
           timeoutMs: 30000
         },
-        toolAdapters: {}
+        toolAdapters: {},
+        productTesting: {
+          targets: {}
+        }
       }
     });
   });
@@ -361,6 +364,12 @@ describe("codedecay config CLI contract", () => {
         "  schemathesis:",
         "    schema: docs/openapi.yaml",
         "    baseUrl: http://127.0.0.1:4000",
+        "productTesting:",
+        "  targets:",
+        "    web:",
+        "      baseUrl: http://127.0.0.1:3000",
+        "      healthCheck: http://127.0.0.1:3000/api/health",
+        "      timeoutMs: 60000",
         "llm:",
         "  provider: litellm",
         "  model: gpt-4.1-mini",
@@ -385,6 +394,9 @@ describe("codedecay config CLI contract", () => {
     expect(result.stdout).toContain("### Tool Adapters");
     expect(result.stdout).toContain("| Playwright | yes | command: default | default |");
     expect(result.stdout).toContain("schema: `docs/openapi.yaml`");
+    expect(result.stdout).toContain("### Product Testing Targets");
+    expect(result.stdout).toContain("| web | ready (base-url) | `http://127.0.0.1:3000`");
+    expect(result.stdout).toContain("Config inspection does not execute product target commands.");
   });
 
   it("fails clearly for invalid config files", async () => {

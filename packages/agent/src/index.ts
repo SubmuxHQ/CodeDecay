@@ -1,4 +1,4 @@
-import type { ImpactedRoute, RiskLevel } from "@submuxhq/codedecay-core";
+import type { ImpactedRoute, ProductFailureBundle, RiskLevel } from "@submuxhq/codedecay-core";
 import type {
   RedteamConfiguredCheck,
   RedteamFixTask,
@@ -62,6 +62,7 @@ export interface AgentTaskSummary {
   weakTestFindings: number;
   testProofStatus: string;
   edgeCases: number;
+  productFailureBundles: number;
   fixTasks: number;
 }
 
@@ -72,6 +73,7 @@ export interface AgentEvidence {
   weakTestFindings: AgentFindingEvidence[];
   missingTestFindings: AgentFindingEvidence[];
   edgeCases: string[];
+  productFailureBundles: ProductFailureBundle[];
   memory: RedteamReport["memory"];
 }
 
@@ -250,6 +252,7 @@ export function createAgentTaskBundle(report: RedteamReport, options: CreateAgen
     weakTestFindings: report.summary.weakTestFindings,
     testProofStatus: report.summary.testProofStatus,
     edgeCases: report.summary.edgeCases,
+    productFailureBundles: report.summary.productFailureBundles,
     fixTasks: report.summary.fixTasks
   };
   const evidence: AgentEvidence = {
@@ -276,6 +279,7 @@ export function createAgentTaskBundle(report: RedteamReport, options: CreateAgen
     weakTestFindings: report.weakTestFindings.map(findingEvidence),
     missingTestFindings: report.testAudit.missingTestFindings.map(findingEvidence),
     edgeCases: [...report.edgeCases],
+    productFailureBundles: report.analysis.productFailureBundles ? [...report.analysis.productFailureBundles] : [],
     memory: report.memory
   };
 
@@ -331,6 +335,7 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
     `| Weak-test findings | ${bundle.summary.weakTestFindings} |`,
     `| Test proof status | ${bundle.summary.testProofStatus} |`,
     `| Edge cases | ${bundle.summary.edgeCases} |`,
+    `| Product failure bundles | ${bundle.summary.productFailureBundles} |`,
     `| Fix tasks | ${bundle.summary.fixTasks} |`,
     "",
     "### Instructions For The Agent",
@@ -355,7 +360,7 @@ function createPortableAgentPrompt(summary: AgentTaskSummary, profile: AgentProf
     "Treat the bundle as local tool evidence, not as a guarantee that the PR is safe.",
     `Target agent profile: ${profile.name}. ${profile.promptContext}`,
     `Current CodeDecay risk is ${formatRisk(summary.riskLevel)} with merge risk ${summary.mergeRiskScore}/100 and decay risk ${summary.decayScore}/100.`,
-    `The bundle reports ${summary.changedFiles} changed files, ${summary.impactedAreas} impacted areas, ${summary.impactedRoutes} route/API impacts, ${summary.missingTestFindings} missing-test findings, ${summary.weakTestFindings} weak-test findings, ${summary.edgeCases} edge cases, and ${summary.fixTasks} fix tasks.`,
+    `The bundle reports ${summary.changedFiles} changed files, ${summary.impactedAreas} impacted areas, ${summary.impactedRoutes} route/API impacts, ${summary.missingTestFindings} missing-test findings, ${summary.weakTestFindings} weak-test findings, ${summary.edgeCases} edge cases, ${summary.productFailureBundles} product failure bundles, and ${summary.fixTasks} fix tasks.`,
     "Your job:",
     "1. Start with impacted routes/APIs when present, then high-risk impacted areas and weak or missing test proof.",
     "2. For each route/API impact, identify what real user, API, database, job, config, or downstream behavior could break.",
@@ -463,6 +468,21 @@ function appendEvidence(lines: string[], evidence: AgentEvidence): void {
 
   lines.push("", "Edge cases to check:");
   appendList(lines, evidence.edgeCases);
+
+  lines.push("", "Product failure bundles:");
+  if (evidence.productFailureBundles.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const bundle of evidence.productFailureBundles.slice(0, 8)) {
+      const files = bundle.impactedFiles.length > 0 ? bundle.impactedFiles.map((file) => `\`${file}\``).join(", ") : "none";
+      lines.push(`- ${formatRisk(bundle.priority)} **${bundle.title}** (\`${bundle.checkId}\`, ${bundle.checkKind})`);
+      lines.push(`  - Target: \`${bundle.target.id}\`${bundle.target.baseUrl ? ` at \`${bundle.target.baseUrl}\`` : ""}`);
+      lines.push(`  - Failed step ${bundle.failedStep.index}: ${bundle.failedStep.label}`);
+      lines.push(`  - Classification: ${bundle.classification.replaceAll("-", " ")}`);
+      lines.push(`  - Impacted files: ${files}`);
+      lines.push(`  - Rerun: \`${bundle.rerunCommand}\``);
+    }
+  }
 }
 
 function appendTasks(lines: string[], tasks: RedteamFixTask[]): void {

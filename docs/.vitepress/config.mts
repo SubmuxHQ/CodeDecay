@@ -63,6 +63,7 @@ export default defineConfig({
           { text: "GitHub App", link: "/github-app" },
           { text: "Execution Probes", link: "/execution" },
           { text: "Differential Checks", link: "/differential" },
+          { text: "Product Testing", link: "/product-testing" },
           { text: "Test Audit", link: "/test-audit" },
           { text: "PR Safety Evals", link: "/evals/first-efficacy-report" },
           { text: "Tool Adapters", link: "/tool-adapters" },
