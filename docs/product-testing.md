@@ -306,7 +306,8 @@ Each bundle includes:
 - root-cause hypothesis when available,
 - suggested fix tasks,
 - exact rerun command,
-- failure classification.
+- failure classification,
+- classification confidence and evidence.
 
 Failure classifications are:
 
@@ -316,6 +317,17 @@ Failure classifications are:
 - `auth-or-test-data-failure`
 - `generated-test-weakness`
 - `unknown`
+
+Generated test failures include bounded repeated-run evidence when CodeDecay can
+target a single generated check. If the first run fails and the targeted rerun
+passes, the failure is classified as `likely-flaky`. If setup, preview URL,
+health, browser, auth, or fixture setup fails before product behavior can be
+proven, the bundle is classified separately from a product regression.
+
+Auto-healing is review-only. CodeDecay may suggest locator, wait/assertion,
+auth setup, fixture, or expected-behavior review tasks, but it does not rewrite
+generated tests or update expected behavior unless a user applies a reviewed
+change.
 
 ## Agent And PR Output
 
@@ -330,11 +342,10 @@ of guessing from a dashboard screenshot.
 
 This release defines the target model, live health-check runner, Playwright flow
 map explorer, generated UI regression tests, generated OpenAPI/API request
-tests, and failure evidence contract.
+tests, failure evidence contract, product memory learning, MCP run/rerun tools,
+and deterministic failure classification.
 
 The next implementation pieces are:
 
-- MCP run-fix-rerun tools,
-- retained product-test memory,
-- flake/setup/real-regression classification,
 - PR preview verification and scheduled monitoring.
+- product verification history dashboard.

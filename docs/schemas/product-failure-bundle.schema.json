@@ -83,6 +83,13 @@
       "minimum": 0,
       "maximum": 1
     },
+    "classificationEvidence": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
     "failedStep": {
       "$ref": "#/$defs/step"
     },

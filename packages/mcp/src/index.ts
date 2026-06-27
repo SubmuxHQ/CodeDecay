@@ -1160,9 +1160,17 @@ function appendProductFailureBundleMarkdown(lines: string[], failures: ProductFa
   for (const failure of failures) {
     lines.push(`- ${formatPriority(failure.priority)} **${failure.title}** (\`${failure.checkId}\`, ${failure.checkKind})`);
     lines.push(`  - Target: \`${failure.target.id}\`${failure.target.baseUrl ? ` at \`${failure.target.baseUrl}\`` : ""}`);
-    lines.push(`  - Classification: ${failure.classification}`);
+    lines.push(
+      `  - Classification: ${failure.classification}${failure.classificationConfidence !== undefined ? ` (${Math.round(failure.classificationConfidence * 100)}% confidence)` : ""}`
+    );
+    for (const evidence of failure.classificationEvidence ?? []) {
+      lines.push(`  - Evidence: ${evidence}`);
+    }
     lines.push(`  - Expected: ${failure.expected}`);
     lines.push(`  - Actual: ${failure.actual}`);
+    for (const task of failure.suggestedFixTasks) {
+      lines.push(`  - Repair task: ${task}`);
+    }
     lines.push(`  - Rerun: \`${failure.rerunCommand}\``);
   }
   lines.push("");

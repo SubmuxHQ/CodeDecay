@@ -33,6 +33,7 @@ import {
   riskLevelFromScore,
   shouldFailForRisk,
   type CodeDecayReport,
+  type ProductFailureClassification,
   type ProductFailureBundle,
   type RiskLevel,
   type TestEvidenceMode
@@ -352,6 +353,11 @@ interface ProductGeneratedTestFailure {
   title: string;
   failingStep: string;
   error: string;
+  retryEvidence?: ProductGeneratedTestRetryEvidence | undefined;
+  classification?: ProductFailureClassification | undefined;
+  classificationConfidence?: number | undefined;
+  classificationEvidence?: string[] | undefined;
+  suggestedFixTasks?: string[] | undefined;
   request?: ProductGeneratedTestFailureRequest | undefined;
   expected?: string | undefined;
   actual?: string | undefined;
@@ -359,6 +365,15 @@ interface ProductGeneratedTestFailure {
   testSourcePath: string;
   testSource: string;
   rerunCommand: string;
+}
+
+interface ProductGeneratedTestRetryEvidence {
+  attempts: number;
+  passed: number;
+  failed: number;
+  command?: string | undefined;
+  conclusion: "passed-on-rerun" | "failed-on-rerun" | "not-rerun";
+  error?: string | undefined;
 }
 
 interface ProductGeneratedTestFailureRequest {
@@ -5379,21 +5394,143 @@ async function runGeneratedProductTests(
           })
         ]
       : parsed.failures;
+  const failures = failed
+    ? await attachGeneratedFailureRetryEvidence({
+        failures: fallbackFailures,
+        generatedTests,
+        testSource,
+        target,
+        rootDir,
+        loadedConfig,
+        rerunFlag
+      })
+    : fallbackFailures;
 
   return {
     status: failed ? "failed" : "passed",
     command: command.command,
     durationMs: elapsed(startedAt),
     passed: parsed.passed,
-    failed: failed ? Math.max(parsed.failed, fallbackFailures.length) : parsed.failed,
+    failed: failed ? Math.max(parsed.failed, failures.length) : parsed.failed,
     skipped: parsed.skipped,
-    failures: fallbackFailures,
+    failures,
     stdout: execution.stdout,
     stderr: execution.stderr,
     exitCode: execution.exitCode,
     error: failed ? execution.error : undefined,
     notes
   };
+}
+
+async function attachGeneratedFailureRetryEvidence(input: {
+  failures: ProductGeneratedTestFailure[];
+  generatedTests: ProductGeneratedTestsResult;
+  testSource: string;
+  target: CodeDecayProductTarget;
+  rootDir: string;
+  loadedConfig: LoadedCodeDecayConfig;
+  rerunFlag: "--run-generated-tests" | "--run-generated-api-tests";
+}): Promise<ProductGeneratedTestFailure[]> {
+  const retryLimit = 3;
+  const annotated: ProductGeneratedTestFailure[] = [];
+  let retried = 0;
+
+  for (const failure of input.failures) {
+    const testCase = generatedTestCaseForFailure(input.generatedTests, failure);
+    if (!testCase) {
+      annotated.push({
+        ...failure,
+        retryEvidence: {
+          attempts: 1,
+          passed: 0,
+          failed: 1,
+          conclusion: "not-rerun",
+          error: "No generated test id or title matched this failure."
+        }
+      });
+      continue;
+    }
+
+    if (retried >= retryLimit) {
+      annotated.push({
+        ...failure,
+        retryEvidence: {
+          attempts: 1,
+          passed: 0,
+          failed: 1,
+          conclusion: "not-rerun",
+          error: `Retry evidence cap reached after ${retryLimit} failed generated checks.`
+        }
+      });
+      continue;
+    }
+
+    const retryCommand = resolveProjectPlaywrightTestCommand(input.rootDir, input.generatedTests.sourcePath ?? "", testCase.title);
+    if (!retryCommand.ok) {
+      annotated.push({
+        ...failure,
+        retryEvidence: {
+          attempts: 1,
+          passed: 0,
+          failed: 1,
+          conclusion: "not-rerun",
+          error: retryCommand.error
+        }
+      });
+      continue;
+    }
+
+    retried += 1;
+    const execution = await runConfiguredCommand({
+      command: retryCommand.command,
+      cwd: input.rootDir,
+      timeoutMs: input.target.timeoutMs,
+      env: {
+        CODEDECAY_PRODUCT_BASE_URL: generatedProductBaseUrl(input.rootDir, input.generatedTests)
+      },
+      safety: {
+        allowCommands: input.loadedConfig.config.safety.allowCommands
+      }
+    });
+    const parsed = parsePlaywrightTestRun({
+      stdout: execution.stdout,
+      generatedTests: input.generatedTests,
+      testSource: input.testSource,
+      target: input.target,
+      rootDir: input.rootDir,
+      rerunFlag: input.rerunFlag
+    });
+    const rerunPassed = execution.status === "passed" && parsed.failed === 0;
+    const rerunError =
+      execution.error ??
+      parsed.failures[0]?.error ??
+      (execution.stderr.trim() || (rerunPassed ? undefined : `Targeted generated test rerun exited with status ${execution.status}.`));
+
+    annotated.push({
+      ...failure,
+      retryEvidence: {
+        attempts: 2,
+        passed: rerunPassed ? 1 : 0,
+        failed: rerunPassed ? 1 : 2,
+        command: retryCommand.command,
+        conclusion: rerunPassed ? "passed-on-rerun" : "failed-on-rerun",
+        error: rerunError
+      }
+    });
+  }
+
+  return annotated;
+}
+
+function generatedTestCaseForFailure(
+  generatedTests: ProductGeneratedTestsResult,
+  failure: ProductGeneratedTestFailure
+): ProductGeneratedTestCase | undefined {
+  if (failure.testId) {
+    return generatedTests.tests.find((test) => test.id === failure.testId);
+  }
+
+  return generatedTests.tests.find((test) => test.title === failure.title || failure.title.includes(test.title));
 }
 
 function createGeneratedProductTestCases(flowMap: ProductFlowMap, impactedPaths: Set<string>): ProductGeneratedTestCase[] {
@@ -6200,6 +6337,7 @@ function renderProductTargetMarkdown(report: ProductTargetReport): string {
         if (failure.actual) {
           lines.push(`  - Actual: ${failure.actual}`);
         }
+        appendGeneratedFailureMetadata(lines, failure);
         if (failure.impactedFiles && failure.impactedFiles.length > 0) {
           lines.push(`  - Impacted files: ${failure.impactedFiles.map((file) => `\`${file}\``).join(", ")}`);
         }
@@ -6254,6 +6392,7 @@ function renderProductTargetMarkdown(report: ProductTargetReport): string {
         if (failure.actual) {
           lines.push(`  - Actual: ${failure.actual}`);
         }
+        appendGeneratedFailureMetadata(lines, failure);
         if (failure.impactedFiles && failure.impactedFiles.length > 0) {
           lines.push(`  - Impacted files: ${failure.impactedFiles.map((file) => `\`${file}\``).join(", ")}`);
         }
@@ -6296,6 +6435,30 @@ function renderProductTargetMarkdown(report: ProductTargetReport): string {
   lines.push("");
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendGeneratedFailureMetadata(lines: string[], failure: ProductGeneratedTestFailure): void {
+  if (failure.retryEvidence) {
+    lines.push(
+      `  - Repeat evidence: ${failure.retryEvidence.conclusion} (${failure.retryEvidence.passed} passed, ${failure.retryEvidence.failed} failed across ${failure.retryEvidence.attempts} attempt(s))`
+    );
+    if (failure.retryEvidence.error) {
+      lines.push(`  - Repeat evidence error: ${failure.retryEvidence.error}`);
+    }
+  }
+
+  if (failure.classification) {
+    const confidence = failure.classificationConfidence !== undefined ? ` (${Math.round(failure.classificationConfidence * 100)}% confidence)` : "";
+    lines.push(`  - Classification: ${failure.classification}${confidence}`);
+  }
+
+  for (const evidence of failure.classificationEvidence ?? []) {
+    lines.push(`  - Classification evidence: ${evidence}`);
+  }
+
+  for (const task of failure.suggestedFixTasks ?? []) {
+    lines.push(`  - Repair task: ${task}`);
+  }
 }
 
 function formatProductStatus(status: ProductTargetStatus): string {

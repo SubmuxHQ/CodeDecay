@@ -479,7 +479,13 @@ function appendEvidence(lines: string[], evidence: AgentEvidence): void {
       lines.push(`  - Target: \`${bundle.target.id}\`${bundle.target.baseUrl ? ` at \`${bundle.target.baseUrl}\`` : ""}`);
       lines.push(`  - Failed step ${bundle.failedStep.index}: ${bundle.failedStep.label}`);
       lines.push(`  - Classification: ${bundle.classification.replaceAll("-", " ")}`);
+      for (const evidence of bundle.classificationEvidence ?? []) {
+        lines.push(`  - Evidence: ${evidence}`);
+      }
       lines.push(`  - Impacted files: ${files}`);
+      for (const task of bundle.suggestedFixTasks.slice(0, 3)) {
+        lines.push(`  - Repair task: ${task}`);
+      }
       lines.push(`  - Rerun: \`${bundle.rerunCommand}\``);
     }
   }

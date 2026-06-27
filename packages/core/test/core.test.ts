@@ -294,7 +294,9 @@ describe("createAnalysisReport", () => {
         checkId: "api-get-users",
         checkKind: "api",
         priority: "high",
-        classification: "unknown",
+        classification: "confirmed-regression",
+        classificationConfidence: 0.72,
+        classificationEvidence: expect.arrayContaining(["API response evidence points to a server error, undocumented status, or response contract drift."]),
         target: {
           id: "api",
           baseUrl: "http://127.0.0.1:3000"
@@ -302,13 +304,91 @@ describe("createAnalysisReport", () => {
         expected: "GET /api/users should return one of the documented statuses 200.",
         actual: "Expected documented status 200 but got 500.",
         impactedFiles: ["src/api/users.ts"],
-        rerunCommand: "npx codedecay product --target api --run-generated-api-tests --test-id api-get-users --format markdown"
+        rerunCommand: "npx codedecay product --target api --run-generated-api-tests --test-id api-get-users --format markdown",
+        suggestedFixTasks: expect.arrayContaining([
+          "Inspect the failing API route, request data, auth setup, and response contract; fix product behavior before changing the generated test.",
+          "Treat auto-healing as review-only: do not update expected behavior unless a human confirms the product requirement changed."
+        ])
       })
     ]);
     expect(bundles[0]?.artifacts).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ kind: "test-source" }),
         expect.objectContaining({ kind: "request-response-diff" })
+      ])
+    );
+  });
+
+  it("classifies flaky generated checks from repeat evidence", () => {
+    const bundles = productFailureBundlesFromProductTargetReport({
+      targets: [
+        {
+          id: "web",
+          status: "failed",
+          generatedTestRun: {
+            failures: [
+              {
+                testId: "route-settings",
+                title: "loads /settings",
+                error: "Timeout while waiting for body.",
+                retryEvidence: {
+                  attempts: 2,
+                  passed: 1,
+                  failed: 1,
+                  conclusion: "passed-on-rerun"
+                },
+                testSourcePath: ".codedecay/local/generated-tests/web/product.generated.spec.ts"
+              }
+            ]
+          }
+        }
+      ]
+    });
+
+    expect(bundles[0]).toMatchObject({
+      classification: "likely-flaky",
+      classificationConfidence: 0.85,
+      classificationEvidence: ["The generated check failed initially and passed on a targeted rerun."],
+      suggestedFixTasks: expect.arrayContaining([
+        "If behavior is correct, propose a reviewed wait/assertion stabilization patch for the generated test."
+      ])
+    });
+  });
+
+  it("separates setup and environment failures from product regressions", () => {
+    const bundles = productFailureBundlesFromProductTargetReport({
+      targets: [
+        {
+          id: "web-auth",
+          status: "failed",
+          setup: {
+            status: "failed",
+            error: "Login seed failed with unauthorized token."
+          }
+        },
+        {
+          id: "web-preview",
+          status: "blocked",
+          health: {
+            status: "timed_out",
+            error: "Preview URL health check timed out."
+          }
+        }
+      ]
+    });
+
+    expect(bundles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "web-auth-workflow-failed",
+          classification: "auth-or-test-data-failure",
+          suggestedFixTasks: expect.arrayContaining(["Add or repair auth setup, seeded fixtures, test accounts, permissions, or data reset before changing assertions."])
+        }),
+        expect.objectContaining({
+          id: "web-preview-workflow-blocked",
+          classification: "environment-failure",
+          suggestedFixTasks: expect.arrayContaining(["Fix preview URL, local startup, browser/Playwright install, network, or health-check setup before treating this as product behavior."])
+        })
       ])
     );
   });

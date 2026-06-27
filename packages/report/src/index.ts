@@ -355,6 +355,9 @@ function appendProductFailureBundles(lines: string[], bundles: ProductFailureBun
     lines.push(`- Check: \`${bundle.checkId}\` (${bundle.checkKind})`);
     lines.push(`- Target: \`${bundle.target.id}\`${bundle.target.baseUrl ? ` at \`${bundle.target.baseUrl}\`` : ""}`);
     lines.push(`- Classification: ${bundle.classification.replaceAll("-", " ")}${confidence}`);
+    for (const evidence of bundle.classificationEvidence ?? []) {
+      lines.push(`- Classification evidence: ${evidence}`);
+    }
     lines.push(`- Failed step ${bundle.failedStep.index}: ${bundle.failedStep.label}`);
     lines.push(`- Expected: ${bundle.expected}`);
     lines.push(`- Actual: ${bundle.actual}`);
