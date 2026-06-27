@@ -178,6 +178,8 @@ export interface ProductFailureBundle {
   rerunCommand: string;
 }
 
+export const CODEDECAY_PRODUCT_LATEST_REPORT_PATH = ".codedecay/local/product-runs/latest.json";
+
 export interface ReportSummary {
   mergeRiskScore: number;
   decayScore: number;
@@ -350,6 +352,34 @@ export function createAnalysisReport(input: {
   return report;
 }
 
+export function productFailureBundlesFromProductTargetReport(value: unknown): ProductFailureBundle[] {
+  const report = asRecord(value);
+  const targets = Array.isArray(report?.targets) ? report.targets : [];
+  const bundles: ProductFailureBundle[] = [];
+
+  for (const targetValue of targets) {
+    const target = asRecord(targetValue);
+    if (!target) {
+      continue;
+    }
+
+    const generatedFailures = [
+      ...productFailureBundlesFromGeneratedRun(target, "generatedTestRun", "ui"),
+      ...productFailureBundlesFromGeneratedRun(target, "generatedApiTestRun", "api")
+    ];
+    bundles.push(...generatedFailures);
+
+    if (generatedFailures.length === 0) {
+      const setupFailure = productFailureBundleFromTargetStatus(target);
+      if (setupFailure) {
+        bundles.push(setupFailure);
+      }
+    }
+  }
+
+  return sortProductFailureBundles(bundles);
+}
+
 function sortProductFailureBundles(bundles: ProductFailureBundle[]): ProductFailureBundle[] {
   return [...bundles]
     .map((bundle) => ({
@@ -369,6 +399,159 @@ function sortProductFailureBundles(bundles: ProductFailureBundle[]): ProductFail
 
       return left.id.localeCompare(right.id);
     });
+}
+
+function productFailureBundlesFromGeneratedRun(
+  target: Record<string, unknown>,
+  runKey: "generatedTestRun" | "generatedApiTestRun",
+  checkKind: ProductCheckKind
+): ProductFailureBundle[] {
+  const run = asRecord(target[runKey]);
+  const failures = Array.isArray(run?.failures) ? run.failures : [];
+  const targetId = stringValue(target.id) ?? "product";
+  const targetBaseUrl = stringValue(target.baseUrl);
+  const bundles: ProductFailureBundle[] = [];
+
+  for (const failureValue of failures) {
+    const failure = asRecord(failureValue);
+    if (!failure) {
+      continue;
+    }
+
+    const title = stringValue(failure.title) ?? "Generated product check failed";
+    const testId = stringValue(failure.testId) ?? slugId(title);
+    const request = asRecord(failure.request);
+    const method = stringValue(request?.method);
+    const url = stringValue(request?.url);
+    const sourcePath = stringValue(failure.testSourcePath);
+    const expected = stringValue(failure.expected) ?? "Generated product check should pass.";
+    const actual = stringValue(failure.actual) ?? stringValue(failure.error) ?? "Generated product check failed.";
+    const rerunCommand =
+      stringValue(failure.rerunCommand) ??
+      `npx codedecay product --target ${targetId} ${checkKind === "api" ? "--run-generated-api-tests" : "--run-generated-tests"} --test-id ${testId} --format markdown`;
+
+    const artifacts: ProductFailureArtifact[] = [];
+    if (sourcePath) {
+      artifacts.push({
+        kind: "test-source",
+        path: sourcePath,
+        label: "generated test source"
+      });
+    }
+
+    if (method && url) {
+      artifacts.push({
+        kind: "request-response-diff",
+        label: `${method} ${url}`,
+        description: actual
+      });
+    }
+
+    bundles.push({
+      schemaVersion: 1,
+      id: slugId(`${targetId}-${checkKind}-${testId}`),
+      checkId: testId,
+      checkKind,
+      priority: "high",
+      target: targetBaseUrl ? { id: targetId, baseUrl: targetBaseUrl } : { id: targetId },
+      title,
+      summary: stringValue(failure.error) ?? actual,
+      classification: "unknown",
+      classificationConfidence: 0.5,
+      failedStep: {
+        index: 1,
+        label: stringValue(failure.failingStep) ?? `Run generated ${checkKind} check ${testId}.`,
+        status: "failed",
+        expected,
+        actual
+      },
+      neighboringSteps: [],
+      artifacts,
+      expected,
+      actual,
+      impactedFiles: stringArray(failure.impactedFiles),
+      suggestedFixTasks: [
+        checkKind === "api"
+          ? "Inspect the failing API route, request data, auth setup, and response contract."
+          : "Inspect the failing UI flow, locator stability, and product behavior."
+      ],
+      rerunCommand
+    });
+  }
+
+  return bundles;
+}
+
+function productFailureBundleFromTargetStatus(target: Record<string, unknown>): ProductFailureBundle | undefined {
+  const status = stringValue(target.status);
+  if (!status || !["failed", "blocked", "timed_out"].includes(status)) {
+    return undefined;
+  }
+
+  const targetId = stringValue(target.id) ?? "product";
+  const targetBaseUrl = stringValue(target.baseUrl);
+  const reason = productTargetFailureReason(target) ?? `Product target ended with status ${status}.`;
+  const classification: ProductFailureClassification =
+    status === "blocked" || status === "timed_out" ? "environment-failure" : "unknown";
+
+  return {
+    schemaVersion: 1,
+    id: slugId(`${targetId}-workflow-${status}`),
+    checkId: `${targetId}.workflow.${status}`,
+    checkKind: "workflow",
+    priority: status === "failed" ? "high" : "medium",
+    target: targetBaseUrl ? { id: targetId, baseUrl: targetBaseUrl } : { id: targetId },
+    title: `Product target ${targetId} ${status.replace("_", " ")}`,
+    summary: reason,
+    classification,
+    classificationConfidence: classification === "environment-failure" ? 0.7 : 0.4,
+    failedStep: {
+      index: 1,
+      label: "Run product target workflow.",
+      status: "failed",
+      expected: "Product target workflow completes without failures.",
+      actual: reason
+    },
+    neighboringSteps: [],
+    artifacts: [],
+    expected: "Product target workflow completes without failures.",
+    actual: reason,
+    impactedFiles: [],
+    suggestedFixTasks: ["Inspect product target setup, health, generated artifacts, and local execution logs."],
+    rerunCommand: `npx codedecay product --target ${targetId} --format markdown`
+  };
+}
+
+function productTargetFailureReason(target: Record<string, unknown>): string | undefined {
+  for (const key of ["setup", "start", "health", "exploration", "generatedTests", "generatedApiTests", "teardown"]) {
+    const value = asRecord(target[key]);
+    const error = stringValue(value?.error) ?? stringValue(value?.stderr) ?? stringValue(value?.blockedReason);
+    if (error) {
+      return error;
+    }
+  }
+
+  return undefined;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function slugId(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 96) || "product-failure";
 }
 
 function mergeImpactedRoutes(routes: ImpactedRoute[]): ImpactedRoute[] {

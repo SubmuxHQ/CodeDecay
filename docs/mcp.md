@@ -3,7 +3,8 @@
 CodeDecay can run as a local Model Context Protocol server so agent clients can
 ask it for PR risk, impact maps, weak-test audits, score breakdowns, runtime
 test evidence, and deterministic edge-case suggestions. It can also run
-explicitly configured local checks when the caller confirms execution.
+explicitly configured local checks and product verification when the caller
+confirms execution.
 
 The MCP server calls local CodeDecay analysis only. It does not call an LLM,
 does not require API keys, and does not send telemetry. Command execution is
@@ -14,6 +15,10 @@ opt-in and limited to commands already present in CodeDecay config.
 ```bash
 npx @submuxhq/codedecay mcp --cwd /path/to/repo
 ```
+
+For agent users who only need a local server, that is the one-command setup:
+start the command above from the repo, then point Codex, Claude Code, Cursor, or
+another MCP client at it.
 
 ## Example MCP Client Config
 
@@ -51,6 +56,19 @@ runs CodeDecay locally and passes the repository path with `--cwd`.
 - `execute_configured_checks`: runs configured CodeDecay commands, probes, and
   enabled tool adapters. It requires `confirmExecution: true` and
   `safety.allowCommands: true`.
+- `codedecay_product_plan`: lists configured product targets, readiness, local
+  artifact paths, and suggested product commands without executing anything.
+- `codedecay_product_run`: runs fixed `codedecay product` workflows such as
+  flow exploration, generated UI tests, and generated API tests. It requires
+  `confirmExecution: true` and writes the JSON report to
+  `.codedecay/local/product-runs/latest.json`.
+- `codedecay_product_failures`: reads the latest local product report and
+  returns agent-ready product failure bundles with expected/actual behavior,
+  impacted files, artifacts, and rerun commands.
+- `codedecay_product_rerun`: reruns one failed generated UI/API check from the
+  latest local product report. It defaults to the first latest failure and uses
+  `--test-id` so the rerun targets that check instead of the whole generated
+  suite.
 
 Example execution tool input:
 
@@ -60,6 +78,31 @@ Example execution tool input:
   "format": "markdown"
 }
 ```
+
+Example product verification input:
+
+```json
+{
+  "target": "api",
+  "generateApiTests": true,
+  "runGeneratedApiTests": true,
+  "confirmExecution": true,
+  "format": "markdown"
+}
+```
+
+Example failed-check rerun input:
+
+```json
+{
+  "confirmExecution": true,
+  "format": "markdown"
+}
+```
+
+`codedecay_product_rerun` reads the latest failure from
+`.codedecay/local/product-runs/latest.json`. You can also pass `target`,
+`testId`, and `checkKind` explicitly.
 
 ## Safety
 
@@ -80,10 +123,13 @@ agents, and other MCP clients. The optional `profile` only changes handoff
 wording; it does not call or authenticate with that agent. Any proposed fix
 still needs verification with tests or configured checks.
 
-`execute_configured_checks` is the only MCP tool that can execute local commands.
-It never accepts command text from MCP input. It can only run commands from
-`.codedecay/config.yml`, `codedecay.config.yml`, or enabled configured tool
-adapters such as Playwright, StrykerJS, Schemathesis, and Pact.
+`execute_configured_checks`, `codedecay_product_run`, and
+`codedecay_product_rerun` are the only MCP tools that can execute local
+commands. They never accept command text from MCP input. Configured checks can
+only run commands from `.codedecay/config.yml`, `codedecay.config.yml`, or
+enabled configured tool adapters such as Playwright, StrykerJS, Schemathesis,
+and Pact. Product tools only invoke the fixed local `codedecay product`
+subcommand with structured flags.
 
 Execution requires both:
 
@@ -93,3 +139,13 @@ Execution requires both:
 If confirmation is missing, CodeDecay returns a non-executing report. If
 `safety.allowCommands` is false, configured checks use the existing skip behavior
 and do not run.
+
+Product execution also preserves the product command safety model:
+
+- startup, setup, teardown, browser exploration, and generated test execution
+  still require `safety.allowCommands: true`,
+- CodeDecay writes only repo-local artifacts under `.codedecay/local/`,
+- generated rerun commands include `--test-id` when a failed generated check is
+  known,
+- no product payloads, screenshots, traces, code, or reports are sent to a
+  hosted service by default.

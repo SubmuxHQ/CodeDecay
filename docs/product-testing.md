@@ -168,6 +168,14 @@ When a generated test fails, the product report includes:
 - source path,
 - rerun command.
 
+When the failed generated test can be matched to a manifest entry, the rerun
+command includes `--test-id` so it targets that generated check instead of the
+whole generated suite:
+
+```bash
+npx codedecay product --target web --run-generated-tests --test-id route --format markdown
+```
+
 Review/promote workflow:
 
 1. Run `codedecay product --target web --explore --generate-tests`.
@@ -262,7 +270,9 @@ Generated API tests are conservative by default:
   or undocumented responses,
 - generated failures include request method/URL, expected behavior, actual
   error, impacted files when available, source path, exact generated source,
-  and rerun command.
+  and rerun command,
+- rerun commands include `--test-id` when CodeDecay can identify the failed
+  generated API check.
 
 Review/promote workflow:
 

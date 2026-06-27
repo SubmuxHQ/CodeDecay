@@ -18,6 +18,8 @@ The bundle includes:
 - a copy-paste prompt for any user-owned coding agent
 - changed files, impacted areas, and concrete route/API impacts when available
 - weak-test and missing-test evidence signals
+- product verification failures from `.codedecay/local/product-runs/latest.json`
+  when that artifact exists
 - merge-risk and decay-risk breakdowns plus runtime test evidence, when present
 - edge cases to check
 - configured checks and tool adapters that are available but not run
@@ -56,6 +58,36 @@ npx codedecay agent --profile cursor --format markdown --output codedecay-agent.
 5. Ask the agent to complete the listed tasks with real tests and behavior
    checks.
 6. Run CodeDecay again.
+
+## Product Verification Loop
+
+Agent bundles are report-only, but they can include the latest product
+verification failures created by `codedecay product` or the MCP product tools.
+
+```bash
+npx codedecay product --target api --generate-api-tests --run-generated-api-tests --format json --output .codedecay/local/product-runs/latest.json
+npx codedecay agent --profile codex --format markdown --output codedecay-agent.md
+```
+
+When `.codedecay/local/product-runs/latest.json` exists, `codedecay agent`
+converts generated UI/API failures into product failure bundles and fix tasks.
+Those tasks include:
+
+- failed check ID and target,
+- expected and actual behavior,
+- impacted files when available,
+- generated test source artifact,
+- rerun command for the specific failed check.
+
+Generated test rerun commands use `--test-id`:
+
+```bash
+npx codedecay product --target api --run-generated-api-tests --test-id api-get-users --format markdown
+```
+
+This lets Codex, Claude Code, Cursor, OpenCode, or another local agent fix a
+failure and rerun the failed generated check without running the entire generated
+suite by default.
 
 Example prompt style:
 

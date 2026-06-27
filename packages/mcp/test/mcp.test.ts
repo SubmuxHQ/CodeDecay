@@ -10,6 +10,10 @@ import {
   runAuditTestsTool,
   runExecuteConfiguredChecksTool,
   runImpactMapTool,
+  runProductFailuresTool,
+  runProductPlanTool,
+  runProductRerunTool,
+  runProductRunTool,
   runRedteamReportTool,
   runSuggestEdgeCasesTool
 } from "../src/index";
@@ -266,6 +270,67 @@ describe("CodeDecay MCP tools", () => {
     expect(marker(repo)).not.toContain("command");
   });
 
+  it("plans product verification targets without executing commands", () => {
+    const repo = createProductRepo();
+
+    const output = JSON.parse(runProductPlanTool({ cwd: repo }, { format: "json" }));
+
+    expect(output.mode).toBe("mcp-product-plan");
+    expect(output.latestReportPath).toBe(".codedecay/local/product-runs/latest.json");
+    expect(output.targets[0]).toMatchObject({
+      id: "api",
+      apiEndpoints: 1
+    });
+    expect(output.safety.confirmExecution).toBe(false);
+    expect(productMarker(repo)).toBe("");
+  });
+
+  it("runs product verification through a fixed local CLI and returns failures", () => {
+    const repo = createProductRepo();
+    const cliPath = writeFakeProductCli(repo);
+
+    const output = JSON.parse(
+      runProductRunTool(
+        { cwd: repo, cliPath },
+        {
+          target: "api",
+          generateApiTests: true,
+          runGeneratedApiTests: true,
+          confirmExecution: true,
+          format: "json"
+        }
+      )
+    );
+    const failures = JSON.parse(runProductFailuresTool({ cwd: repo }, { format: "json" }));
+
+    expect(output.executed).toBe(true);
+    expect(output.exitCode).toBe(1);
+    expect(output.command).toEqual(
+      expect.arrayContaining(["product", "--target", "api", "--generate-api-tests", "--run-generated-api-tests"])
+    );
+    expect(output.failures[0]).toMatchObject({
+      checkId: "api-get-users",
+      checkKind: "api",
+      rerunCommand: "npx codedecay product --target api --run-generated-api-tests --test-id api-get-users --format markdown"
+    });
+    expect(failures.failures).toHaveLength(1);
+    expect(productMarker(repo)).toContain("--generate-api-tests");
+  });
+
+  it("reruns the first latest product failure by generated test id", () => {
+    const repo = createProductRepo();
+    const cliPath = writeFakeProductCli(repo);
+    runProductRunTool({ cwd: repo, cliPath }, { target: "api", runGeneratedApiTests: true, confirmExecution: true, format: "json" });
+
+    const output = JSON.parse(runProductRerunTool({ cwd: repo, cliPath }, { confirmExecution: true, format: "json" }));
+
+    expect(output.executed).toBe(true);
+    expect(output.command).toEqual(
+      expect.arrayContaining(["--target", "api", "--run-generated-api-tests", "--test-id", "api-get-users"])
+    );
+    expect(productMarker(repo)).toContain("--test-id api-get-users");
+  });
+
   it("uses existing skip behavior when command execution is disabled", async () => {
     const repo = createExecutionRepo({ allowCommands: false });
 
@@ -458,8 +523,89 @@ function createExecutionRepo(options: { allowCommands: boolean; failPact?: boole
   return repo;
 }
 
+function createProductRepo(): string {
+  const repo = createRepo({
+    "src/api/users.ts": "export function listUsers() { return []; }\n"
+  });
+
+  writeFile(
+    repo,
+    ".codedecay/config.yml",
+    [
+      "version: 1",
+      "productTesting:",
+      "  targets:",
+      "    api:",
+      "      baseUrl: http://127.0.0.1:3000",
+      "      healthCheck: http://127.0.0.1:3000/health",
+      "      apiEndpoints:",
+      "        - id: api-get-users",
+      "          method: GET",
+      "          path: /api/users",
+      "          expectedStatuses: [200]",
+      "safety:",
+      "  allowCommands: true",
+      ""
+    ].join("\n")
+  );
+
+  return repo;
+}
+
+function writeFakeProductCli(repo: string): string {
+  const cliPath = join(repo, "fake-codedecay-cli.mjs");
+  writeFile(
+    repo,
+    "fake-codedecay-cli.mjs",
+    [
+      "import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';",
+      "import { dirname, join } from 'node:path';",
+      "const args = process.argv.slice(2);",
+      "appendFileSync('product-marker.txt', `${args.join(' ')}\\n`);",
+      "const outputIndex = args.indexOf('--output');",
+      "const outputPath = outputIndex === -1 ? '.codedecay/local/product-runs/latest.json' : args[outputIndex + 1];",
+      "const report = {",
+      "  tool: 'CodeDecay',",
+      "  version: '0.3.0',",
+      "  summary: { status: 'failed' },",
+      "  targets: [{",
+      "    id: 'api',",
+      "    status: 'failed',",
+      "    baseUrl: 'http://127.0.0.1:3000',",
+      "    generatedApiTestRun: {",
+      "      status: 'failed',",
+      "      failures: [{",
+      "        testId: 'api-get-users',",
+      "        title: 'GET /api/users returns a documented status',",
+      "        failingStep: 'Run generated test.',",
+      "        error: 'Expected documented status 200 but got 500.',",
+      "        request: { method: 'GET', url: 'http://127.0.0.1:3000/api/users' },",
+      "        expected: 'GET /api/users should return one of the documented statuses 200.',",
+      "        actual: 'Expected documented status 200 but got 500.',",
+      "        impactedFiles: ['src/api/users.ts'],",
+      "        testSourcePath: '.codedecay/local/generated-api-tests/api/api.generated.spec.ts',",
+      "        rerunCommand: 'npx codedecay product --target api --run-generated-api-tests --test-id api-get-users --format markdown'",
+      "      }]",
+      "    }",
+      "  }]",
+      "};",
+      "const absoluteOutputPath = join(process.cwd(), outputPath);",
+      "mkdirSync(dirname(absoluteOutputPath), { recursive: true });",
+      "writeFileSync(absoluteOutputPath, `${JSON.stringify(report, null, 2)}\\n`);",
+      "process.exit(1);",
+      ""
+    ].join("\n")
+  );
+  return cliPath;
+}
+
 function marker(repo: string): string {
   const path = join(repo, "marker.txt");
+  return existsSync(path) ? readFileSync(path, "utf8") : "";
+}
+
+function productMarker(repo: string): string {
+  const path = join(repo, "product-marker.txt");
   return existsSync(path) ? readFileSync(path, "utf8") : "";
 }
 

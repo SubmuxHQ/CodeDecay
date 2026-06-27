@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CODEDECAY_VERSION,
   createAnalysisReport,
+  productFailureBundlesFromProductTargetReport,
   riskLevelFromScore,
   shouldFailForRisk,
   type AnalyzerResult,
@@ -255,6 +256,61 @@ describe("createAnalysisReport", () => {
     expect(report.productFailureBundles?.[0]?.neighboringSteps.map((step) => step.index)).toEqual([1, 2]);
     expect(report.productFailureBundles?.[0]?.impactedFiles).toEqual(["src/app/login/page.tsx"]);
     expect(report.productFailureBundles?.[0]?.suggestedFixTasks).toEqual(["Add login regression."]);
+  });
+
+  it("maps product target reports into product failure bundles", () => {
+    const bundles = productFailureBundlesFromProductTargetReport({
+      targets: [
+        {
+          id: "api",
+          baseUrl: "http://127.0.0.1:3000",
+          status: "failed",
+          generatedApiTestRun: {
+            failures: [
+              {
+                testId: "api-get-users",
+                title: "GET /api/users returns a documented status",
+                failingStep: "Run generated test.",
+                error: "Expected documented status 200 but got 500.",
+                request: {
+                  method: "GET",
+                  url: "http://127.0.0.1:3000/api/users"
+                },
+                expected: "GET /api/users should return one of the documented statuses 200.",
+                actual: "Expected documented status 200 but got 500.",
+                impactedFiles: ["src/api/users.ts"],
+                testSourcePath: ".codedecay/local/generated-api-tests/api/api.generated.spec.ts",
+                rerunCommand: "npx codedecay product --target api --run-generated-api-tests --test-id api-get-users --format markdown"
+              }
+            ]
+          }
+        }
+      ]
+    });
+
+    expect(bundles).toEqual([
+      expect.objectContaining({
+        id: "api-api-api-get-users",
+        checkId: "api-get-users",
+        checkKind: "api",
+        priority: "high",
+        classification: "unknown",
+        target: {
+          id: "api",
+          baseUrl: "http://127.0.0.1:3000"
+        },
+        expected: "GET /api/users should return one of the documented statuses 200.",
+        actual: "Expected documented status 200 but got 500.",
+        impactedFiles: ["src/api/users.ts"],
+        rerunCommand: "npx codedecay product --target api --run-generated-api-tests --test-id api-get-users --format markdown"
+      })
+    ]);
+    expect(bundles[0]?.artifacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "test-source" }),
+        expect.objectContaining({ kind: "request-response-diff" })
+      ])
+    );
   });
 
   it("caps merge risk at low when all merge-risk findings are low severity", () => {

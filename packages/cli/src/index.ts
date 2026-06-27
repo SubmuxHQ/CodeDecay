@@ -26,11 +26,14 @@ import {
   type LoadedCodeDecayConfig
 } from "@submuxhq/codedecay-config";
 import {
+  CODEDECAY_PRODUCT_LATEST_REPORT_PATH,
   CODEDECAY_VERSION,
   createAnalysisReport,
+  productFailureBundlesFromProductTargetReport,
   riskLevelFromScore,
   shouldFailForRisk,
   type CodeDecayReport,
+  type ProductFailureBundle,
   type RiskLevel,
   type TestEvidenceMode
 } from "@submuxhq/codedecay-core";
@@ -129,6 +132,7 @@ interface ProductOptions {
   format: ConfigFormat;
   output?: string | undefined;
   target?: string | undefined;
+  testId?: string | undefined;
   explore: boolean;
   generateTests: boolean;
   runGeneratedTests: boolean;
@@ -872,6 +876,7 @@ const HELP_DOCS: Record<string, CommandDoc> = {
       { flag: "--run-generated-tests", description: "Run generated Playwright tests through the target repo's local Playwright CLI" },
       { flag: "--generate-api-tests", description: "Generate reviewable API regression tests from a configured OpenAPI schema" },
       { flag: "--run-generated-api-tests", description: "Run generated API tests through the target repo's local Playwright CLI" },
+      { flag: "--test-id <id>", description: "When rerunning generated tests, target one generated test ID" },
       { flag: "--max-pages <count>", description: "Maximum pages to visit during --explore (default: 10)" },
       { flag: "--max-actions <count>", description: "Maximum interactive elements to record during --explore (default: 50)" },
       { flag: "--allow-destructive-actions", description: "Record destructive forms/actions as allowed instead of blocked" },
@@ -883,7 +888,8 @@ const HELP_DOCS: Record<string, CommandDoc> = {
       "codedecay product --target web --format json",
       "codedecay product --target web --explore --max-pages 5 --format markdown",
       "codedecay product --target web --generate-tests --run-generated-tests --format markdown",
-      "codedecay product --target api --generate-api-tests --run-generated-api-tests --format markdown"
+      "codedecay product --target api --generate-api-tests --run-generated-api-tests --format markdown",
+      "codedecay product --target api --run-generated-api-tests --test-id api-get-users --format markdown"
     ],
     notes: [
       "Product target commands run only when they are configured and `safety.allowCommands` is true.",
@@ -1192,7 +1198,7 @@ async function runMcpCommand(context: CliCommandContext): Promise<void> {
   const options = parseMcpArgs(context.args);
   const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
   const { startMcpServer } = await import("@submuxhq/codedecay-mcp");
-  await startMcpServer({ cwd });
+  await startMcpServer({ cwd, cliPath: fileURLToPath(import.meta.url) });
 }
 
 function runMemoryCommand(context: CliCommandContext): void {
@@ -1424,9 +1430,23 @@ function createAnalysisContextForCli(rootDir: string, options: AnalyzeOptions | 
       base: options.base,
       head: options.head,
       changedFiles,
-      analyzerResult: analyzerResultWithMemory
+      analyzerResult: analyzerResultWithMemory,
+      productFailureBundles: loadLatestProductFailureBundles(rootDir)
     })
   };
+}
+
+function loadLatestProductFailureBundles(rootDir: string): ProductFailureBundle[] {
+  const reportPath = join(rootDir, CODEDECAY_PRODUCT_LATEST_REPORT_PATH);
+  if (!existsSync(reportPath)) {
+    return [];
+  }
+
+  try {
+    return productFailureBundlesFromProductTargetReport(JSON.parse(readFileSync(reportPath, "utf8")));
+  } catch {
+    return [];
+  }
 }
 
 async function createLlmReviewForCli(cwd: string, options: LlmReviewOptions): Promise<LlmReviewReport> {
@@ -2149,6 +2169,17 @@ function parseProductArgs(args: string[]): ProductOptions {
 
     if (arg === "--target") {
       options.target = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--test-id=")) {
+      options.testId = arg.slice("--test-id=".length);
+      continue;
+    }
+
+    if (arg === "--test-id") {
+      options.testId = requireValue(args, index, arg);
       index += 1;
       continue;
     }
@@ -3604,7 +3635,7 @@ async function runProductTarget(
       if (generatedTests.status !== "passed") {
         status = generatedTests.status;
       } else if (options.runGeneratedTests) {
-        generatedTestRun = await runGeneratedProductTests(rootDir, loadedConfig, target, generatedTests, "--run-generated-tests");
+        generatedTestRun = await runGeneratedProductTests(rootDir, loadedConfig, target, generatedTests, "--run-generated-tests", options.testId);
         if (generatedTestRun.status !== "passed") {
           status = generatedTestRun.status;
         }
@@ -3618,7 +3649,7 @@ async function runProductTarget(
       if (generatedApiTests.status !== "passed") {
         status = generatedApiTests.status;
       } else if (options.runGeneratedApiTests) {
-        generatedApiTestRun = await runGeneratedProductTests(rootDir, loadedConfig, target, generatedApiTests, "--run-generated-api-tests");
+        generatedApiTestRun = await runGeneratedProductTests(rootDir, loadedConfig, target, generatedApiTests, "--run-generated-api-tests", options.testId);
         if (generatedApiTestRun.status !== "passed") {
           status = generatedApiTestRun.status;
         }
@@ -5239,7 +5270,8 @@ async function runGeneratedProductTests(
   loadedConfig: LoadedCodeDecayConfig,
   target: CodeDecayProductTarget,
   generatedTests: ProductGeneratedTestsResult,
-  rerunFlag: "--run-generated-tests" | "--run-generated-api-tests"
+  rerunFlag: "--run-generated-tests" | "--run-generated-api-tests",
+  testId: string | undefined
 ): Promise<ProductGeneratedTestRunResult> {
   const startedAt = Date.now();
   const notes = [
@@ -5277,7 +5309,23 @@ async function runGeneratedProductTests(
     };
   }
 
-  const command = resolveProjectPlaywrightTestCommand(rootDir, generatedTests.sourcePath);
+  const selectedTest = testId ? generatedTests.tests.find((test) => test.id === testId) : undefined;
+  if (testId && !selectedTest) {
+    return {
+      status: "blocked",
+      durationMs: elapsed(startedAt),
+      passed: 0,
+      failed: 0,
+      skipped: 0,
+      failures: [],
+      stdout: "",
+      stderr: `Generated test id ${testId} was not found in ${generatedTests.manifestPath ?? "the generated test manifest"}.`,
+      error: `Generated test id ${testId} was not found.`,
+      notes
+    };
+  }
+
+  const command = resolveProjectPlaywrightTestCommand(rootDir, generatedTests.sourcePath, selectedTest?.title);
   if (!command.ok) {
     return {
       status: "blocked",
@@ -5508,9 +5556,11 @@ function findFlowPageForTest(flowMap: ProductFlowMap, url: string): ProductFlowP
 
 function resolveProjectPlaywrightTestCommand(
   rootDir: string,
-  sourcePath: string
+  sourcePath: string,
+  grepTitle?: string | undefined
 ): { ok: true; command: string } | { ok: false; error: string } {
   const absoluteSourcePath = join(rootDir, sourcePath);
+  const grepArgs = grepTitle ? ` --grep ${shellQuote(`^${escapeRegExp(grepTitle)}$`)}` : "";
   const candidates = [
     join(rootDir, "node_modules", "playwright", "cli.js"),
     join(rootDir, "node_modules", "@playwright", "test", "cli.js")
@@ -5520,7 +5570,7 @@ function resolveProjectPlaywrightTestCommand(
     if (existsSync(candidate)) {
       return {
         ok: true,
-        command: `${shellQuote(process.execPath)} ${shellQuote(candidate)} test ${shellQuote(absoluteSourcePath)} --reporter=json`
+        command: `${shellQuote(process.execPath)} ${shellQuote(candidate)} test ${shellQuote(absoluteSourcePath)} --reporter=json${grepArgs}`
       };
     }
   }
@@ -5529,7 +5579,7 @@ function resolveProjectPlaywrightTestCommand(
   if (existsSync(bin)) {
     return {
       ok: true,
-      command: `${shellQuote(bin)} test ${shellQuote(absoluteSourcePath)} --reporter=json`
+      command: `${shellQuote(bin)} test ${shellQuote(absoluteSourcePath)} --reporter=json${grepArgs}`
     };
   }
 
@@ -5653,6 +5703,7 @@ function createGeneratedTestFailure(input: {
       ? input.generatedTests.tests.find((candidate) => candidate.id === input.testId)
       : input.generatedTests.tests.find((candidate) => candidate.title === input.title || input.title.includes(candidate.title));
   const impactedFiles = findImpactedProductFiles(input.rootDir);
+  const testIdArg = testCase ? ` --test-id ${shellQuote(testCase.id)}` : "";
   return {
     testId: input.testId,
     title: input.title,
@@ -5670,7 +5721,7 @@ function createGeneratedTestFailure(input: {
     impactedFiles: impactedFiles.length > 0 ? impactedFiles : undefined,
     testSourcePath: input.generatedTests.sourcePath ?? "",
     testSource: input.testSource,
-    rerunCommand: `npx codedecay product --target ${input.target.id} ${input.rerunFlag} --format markdown`
+    rerunCommand: `npx codedecay product --target ${input.target.id} ${input.rerunFlag}${testIdArg} --format markdown`
   };
 }
 
@@ -5833,8 +5884,12 @@ function generatedTestId(...parts: string[]): string {
 }
 
 function regexLiteralForText(value: string): string {
-  const escaped = normalizeWhitespace(value).replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+  const escaped = escapeRegExp(normalizeWhitespace(value));
   return `/${escaped}/i`;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
 }
 
 function shellQuote(value: string): string {
