@@ -47,7 +47,9 @@ import {
   learnCodeDecayMemory,
   loadCodeDecayMemory,
   writeCodeDecayMemory,
-  type LoadedCodeDecayMemory
+  type CodeDecayMemory,
+  type LoadedCodeDecayMemory,
+  type MemoryMatcher
 } from "@submuxhq/codedecay-memory";
 import { createRedteamReport, renderRedteamReport, type RedteamFormat } from "@submuxhq/codedecay-redteam";
 import { renderReport, type ReportFormat } from "@submuxhq/codedecay-report";
@@ -4553,7 +4555,7 @@ function generateProductTestsForTarget(
     };
   }
 
-  const impactedPaths = findImpactedProductPaths(rootDir);
+  const impactedPaths = findPrioritizedProductPaths(rootDir);
   const tests = createGeneratedProductTestCases(flowMap, impactedPaths);
   if (tests.length === 0) {
     return {
@@ -4772,7 +4774,7 @@ function generateProductApiTestsForTarget(
     };
   }
 
-  const impactedPaths = findImpactedProductPaths(rootDir);
+  const impactedPaths = findPrioritizedProductPaths(rootDir);
   const tests = [
     ...(document ? createGeneratedProductApiTestCases(document, baseUrl, impactedPaths) : []),
     ...createConfiguredProductApiTestCases(target.apiEndpoints, baseUrl, impactedPaths)
@@ -5803,6 +5805,66 @@ function findImpactedProductPaths(rootDir: string): Set<string> {
   }
 }
 
+function findPrioritizedProductPaths(rootDir: string): Set<string> {
+  try {
+    const repoRoot = getRepoRoot(rootDir);
+    const analysis = createAnalysisContextForCli(repoRoot, { format: "markdown" });
+    const paths = new Set((analysis.report.impactedRoutes ?? []).map((route) => normalizeProductPriorityPath(route.route)));
+    const changedFiles = analysis.report.changedFiles;
+    const impactedAreaKinds = new Set(analysis.report.impactedAreas.map((area) => area.kind));
+    const memory = loadCodeDecayMemory(repoRoot).memory;
+
+    for (const regression of memory.regressions) {
+      for (const path of regression.productPaths ?? []) {
+        paths.add(normalizeProductPriorityPath(path));
+      }
+    }
+
+    for (const entry of productMemoryEntries(memory)) {
+      if (!memoryEntryMatchesProductScope(entry, changedFiles, impactedAreaKinds)) {
+        continue;
+      }
+
+      for (const path of entry.productPaths ?? []) {
+        paths.add(normalizeProductPriorityPath(path));
+      }
+    }
+
+    return paths;
+  } catch {
+    return findImpactedProductPaths(rootDir);
+  }
+}
+
+function productMemoryEntries(memory: CodeDecayMemory): MemoryMatcher[] {
+  return [...memory.flows, ...memory.invariants, ...memory.architecture, ...memory.commands];
+}
+
+function memoryEntryMatchesProductScope(
+  entry: MemoryMatcher,
+  changedFiles: CodeDecayReport["changedFiles"],
+  impactedAreaKinds: Set<CodeDecayReport["impactedAreas"][number]["kind"]>
+): boolean {
+  if (entry.areas?.some((area) => impactedAreaKinds.has(area))) {
+    return true;
+  }
+
+  return changedFiles.some((file) => entry.files?.some((pattern) => matchesProductMemoryPathPattern(file.path, pattern)));
+}
+
+function matchesProductMemoryPathPattern(path: string, pattern: string): boolean {
+  if (pattern === path) {
+    return true;
+  }
+
+  if (!pattern.includes("*")) {
+    return path.includes(pattern);
+  }
+
+  const regex = new RegExp(`^${pattern.split("*").map(escapeRegExp).join(".*")}$`);
+  return regex.test(path);
+}
+
 function findImpactedProductFiles(rootDir: string): string[] {
   try {
     const repoRoot = getRepoRoot(rootDir);
@@ -5834,7 +5896,49 @@ function relativePathForArtifact(rootDir: string, absolutePath: string): string 
 }
 
 function priorityForPath(path: string, impactedPaths: Set<string>): ProductGeneratedTestCase["priority"] {
-  return impactedPaths.has(path) ? "high" : "medium";
+  const normalized = normalizeProductPriorityPath(path);
+  return [...impactedPaths].some((candidate) => productPriorityPathMatches(normalized, candidate)) ? "high" : "medium";
+}
+
+function normalizeProductPriorityPath(path: string): string {
+  const trimmed = path.trim();
+  if (!trimmed) {
+    return "/";
+  }
+
+  try {
+    const url = new URL(trimmed);
+    return normalizeProductPriorityPath(url.pathname);
+  } catch {
+    const pathOnly = trimmed.split(/[?#]/, 1)[0] ?? trimmed;
+    if (pathOnly === "/") {
+      return "/";
+    }
+
+    return pathOnly.replace(/\/+$/, "") || "/";
+  }
+}
+
+function productPriorityPathMatches(path: string, candidate: string): boolean {
+  if (path === candidate) {
+    return true;
+  }
+
+  return productPriorityPathPattern(path).test(candidate) || productPriorityPathPattern(candidate).test(path);
+}
+
+function productPriorityPathPattern(path: string): RegExp {
+  const segments = normalizeProductPriorityPath(path)
+    .split("/")
+    .map((segment) => {
+      if (/^[:{][^/{}:]+}?$/.test(segment)) {
+        return "[^/]+";
+      }
+
+      return escapeRegExp(segment);
+    });
+
+  return new RegExp(`^${segments.join("/")}$`);
 }
 
 function priorityRank(priority: ProductGeneratedTestCase["priority"]): number {

@@ -727,6 +727,66 @@ describe("codedecay memory CLI contract", () => {
       ])
     );
   });
+
+  it("learns memory from product verification reports", async () => {
+    const repo = createLowRiskRepo();
+    const inputPath = join(repo, "product-report.json");
+    writeFile(
+      repo,
+      "product-report.json",
+      JSON.stringify(
+        {
+          tool: "CodeDecay",
+          targets: [
+            {
+              id: "web",
+              status: "passed",
+              generatedTests: {
+                status: "passed",
+                tests: [
+                  {
+                    id: "route-settings",
+                    title: "loads /settings",
+                    kind: "route-load",
+                    pageUrl: "http://127.0.0.1:3000/settings?token=secret",
+                    priority: "medium"
+                  }
+                ]
+              },
+              generatedTestRun: {
+                status: "passed",
+                passed: 1,
+                failed: 0,
+                skipped: 0,
+                failures: []
+              }
+            }
+          ]
+        },
+        null,
+        2
+      )
+    );
+
+    const preview = await run(["memory-learn", "--input", inputPath], repo);
+    expect(preview.exitCode).toBe(0);
+    expect(preview.stdout).toContain("## CodeDecay Memory Learn");
+    expect(preview.stdout).toContain("| Flows | 1 | 1 | 0 |");
+
+    const applied = await run(["memory-learn", "--input", inputPath, "--apply", "--format", "json"], repo);
+    const parsed = JSON.parse(applied.stdout);
+
+    expect(applied.exitCode).toBe(0);
+    expect(parsed.memory.flows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "Product check: web: loads /settings",
+          productPaths: ["/settings"]
+        })
+      ])
+    );
+    expect(JSON.stringify(parsed.memory)).not.toContain("token=secret");
+  });
 });
 
 describe("codedecay snapshot CLI contract", () => {
@@ -2041,6 +2101,69 @@ describe("codedecay product CLI contract", () => {
         promoteByCopyingTo: "tests/api/codedecay-api.spec.ts"
       });
       expect(existsSync(join(repo, "tests/api/codedecay-api.spec.ts"))).toBe(false);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("prioritizes generated product checks from repo memory", async () => {
+    const server = await startDemoApiServer();
+    const repo = createLowRiskRepo();
+    writeDemoOpenApiSchema(repo);
+    writeApiProductTargetConfig(repo, {
+      baseUrl: server.origin,
+      healthCheck: server.healthUrl,
+      allowCommands: false
+    });
+    writeFile(
+      repo,
+      ".codedecay/memory.json",
+      JSON.stringify(
+        {
+          version: 1,
+          flows: [
+            {
+              name: "User detail flow",
+              files: ["README.md"],
+              productPaths: ["/api/users/{id}"],
+              checks: ["user detail stays readable after docs-linked changes"]
+            }
+          ],
+          regressions: [
+            {
+              title: "Users list 500",
+              description: "A previous generated product check caught a users list 500.",
+              areas: ["api"],
+              productPaths: ["/api/users"],
+              severity: "high"
+            }
+          ]
+        },
+        null,
+        2
+      )
+    );
+
+    try {
+      const result = await run(["product", "--target", "api", "--generate-api-tests", "--format", "json"], repo);
+      const report = JSON.parse(result.stdout);
+      const tests = report.targets[0].generatedApiTests.tests;
+
+      expect(result.exitCode).toBe(0);
+      expect(tests).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            method: "GET",
+            operationPath: "/api/users",
+            priority: "high"
+          }),
+          expect.objectContaining({
+            method: "GET",
+            operationPath: "/api/users/1",
+            priority: "high"
+          })
+        ])
+      );
     } finally {
       await server.close();
     }

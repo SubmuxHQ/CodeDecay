@@ -21,6 +21,7 @@ export interface CodeDecayMemory {
 export interface MemoryMatcher {
   files?: string[] | undefined;
   areas?: ImpactedArea["kind"][] | undefined;
+  productPaths?: string[] | undefined;
 }
 
 export interface MemoryFlow extends MemoryMatcher {
@@ -445,6 +446,14 @@ function normalizeLearnedMemory(value: unknown, sourcePath: string): CodeDecayMe
     appendLearnedCodeDecayReport(learned, object);
   }
 
+  for (const report of collectLearnedProductReports(object)) {
+    appendLearnedProductReport(learned, report);
+  }
+
+  if (isProductTargetReportLike(object)) {
+    appendLearnedProductReport(learned, object);
+  }
+
   return {
     version: 1,
     flows: sortFlows(learned.flows),
@@ -576,6 +585,237 @@ function appendLearnedCodeDecayReport(memory: CodeDecayMemory, report: Record<st
   }
 }
 
+function appendLearnedProductReport(memory: CodeDecayMemory, report: Record<string, unknown>): void {
+  const targets = Array.isArray(report.targets) ? report.targets : [];
+
+  for (const targetValue of targets) {
+    const target = asRecord(targetValue);
+    if (!target) {
+      continue;
+    }
+
+    appendLearnedProductGeneratedChecks(memory, target, {
+      generatedKey: "generatedTests",
+      runKey: "generatedTestRun",
+      area: "ui",
+      runFlag: "--run-generated-tests"
+    });
+    appendLearnedProductGeneratedChecks(memory, target, {
+      generatedKey: "generatedApiTests",
+      runKey: "generatedApiTestRun",
+      area: "api",
+      runFlag: "--run-generated-api-tests"
+    });
+    appendLearnedProductWorkflowFailure(memory, target);
+  }
+}
+
+function appendLearnedProductGeneratedChecks(
+  memory: CodeDecayMemory,
+  target: Record<string, unknown>,
+  input: {
+    generatedKey: "generatedTests" | "generatedApiTests";
+    runKey: "generatedTestRun" | "generatedApiTestRun";
+    area: "ui" | "api";
+    runFlag: "--run-generated-tests" | "--run-generated-api-tests";
+  }
+): void {
+  const generated = asRecord(target[input.generatedKey]);
+  const run = asRecord(target[input.runKey]);
+  const tests = Array.isArray(generated?.tests) ? generated.tests : [];
+  const failures = Array.isArray(run?.failures) ? run.failures : [];
+  const targetId = stringValue(target.id) ?? "product";
+  if (stringValue(run?.status) === "passed") {
+    for (const testValue of tests) {
+      const test = asRecord(testValue);
+      if (!test) {
+        continue;
+      }
+
+      if (test.destructive === true) {
+        continue;
+      }
+
+      const id = stringValue(test.id);
+      const title = safeLearnedText(stringValue(test.title) ?? id ?? "Generated product check");
+      const productPaths = productPathsFromTest(test);
+      const rerunCommand = productRerunCommand(targetId, input.runFlag, id);
+
+      memory.flows.push({
+        name: `Product check: ${targetId}: ${title}`,
+        description: `Passed generated ${input.area.toUpperCase()} product check for target ${targetId}.`,
+        checks: [rerunCommand],
+        areas: [input.area],
+        ...(productPaths.length > 0 ? { productPaths } : {})
+      });
+    }
+  }
+
+  for (const failureValue of failures) {
+    const failure = asRecord(failureValue);
+    if (!failure) {
+      continue;
+    }
+
+    const failureId = stringValue(failure.testId);
+    const failureTitle = stringValue(failure.title);
+    const matchingTest = tests
+      .map((test) => asRecord(test))
+      .find((test) => {
+        if (!test) {
+          return false;
+        }
+
+        return Boolean(
+          (failureId && stringValue(test.id) === failureId) ||
+            (failureTitle && stringValue(test.title) === failureTitle) ||
+            (failureTitle && stringValue(test.title) && failureTitle.includes(stringValue(test.title) ?? ""))
+        );
+      });
+    const title = safeLearnedText(failureTitle ?? stringValue(matchingTest?.title) ?? failureId ?? "Generated product check failed");
+    const descriptionSource =
+      stringValue(failure.error) ??
+      stringValue(failure.actual) ??
+      stringValue(failure.failingStep) ??
+      `Generated ${input.area.toUpperCase()} product check failed for target ${targetId}.`;
+    const productPaths = dedupeStrings([
+      ...productPathsFromTest(matchingTest),
+      ...productPathsFromFailure(failure)
+    ]);
+    const files = stringArray(failure.impactedFiles);
+
+    memory.regressions.push({
+      title: `Product regression: ${targetId}: ${title}`,
+      description: safeLearnedText(`Generated ${input.area.toUpperCase()} product check failed for target ${targetId}. ${descriptionSource}`),
+      check: safeLearnedText(stringValue(failure.rerunCommand) ?? productRerunCommand(targetId, input.runFlag, failureId)),
+      severity: "high",
+      ...(files.length > 0 ? { files } : {}),
+      ...(productPaths.length > 0 ? { productPaths } : {})
+    });
+  }
+}
+
+function appendLearnedProductWorkflowFailure(memory: CodeDecayMemory, target: Record<string, unknown>): void {
+  const status = stringValue(target.status);
+  if (!status || !["failed", "blocked", "timed_out"].includes(status)) {
+    return;
+  }
+
+  const hasGeneratedFailures = ["generatedTestRun", "generatedApiTestRun"].some((key) => {
+    const run = asRecord(target[key]);
+    return Array.isArray(run?.failures) && run.failures.length > 0;
+  });
+  if (hasGeneratedFailures) {
+    return;
+  }
+
+  const targetId = stringValue(target.id) ?? "product";
+  const reason = productWorkflowFailureReason(target) ?? `Product target ended with status ${status}.`;
+  const productPath = productPathFromUnknown(target.healthCheck) ?? productPathFromUnknown(target.baseUrl);
+
+  memory.regressions.push({
+    title: `Product workflow: ${targetId}: ${status.replace("_", " ")}`,
+    description: safeLearnedText(reason),
+    check: `npx codedecay product --target ${targetId} --format markdown`,
+    severity: status === "failed" ? "high" : "medium",
+    ...(productPath ? { productPaths: [productPath] } : {})
+  });
+}
+
+function productPathsFromTest(test: Record<string, unknown> | undefined): string[] {
+  if (!test) {
+    return [];
+  }
+
+  return dedupeStrings(
+    [
+      productPathFromUnknown(test.operationPath),
+      productPathFromUnknown(test.pageUrl),
+      productPathFromUnknown(test.targetUrl)
+    ].filter((path): path is string => Boolean(path))
+  );
+}
+
+function productPathsFromFailure(failure: Record<string, unknown>): string[] {
+  const request = asRecord(failure.request);
+  return dedupeStrings([productPathFromUnknown(request?.url)].filter((path): path is string => Boolean(path)));
+}
+
+function productPathFromUnknown(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  try {
+    const url = new URL(trimmed);
+    return normalizeProductPath(url.pathname);
+  } catch {
+    if (!trimmed.startsWith("/")) {
+      return undefined;
+    }
+
+    return normalizeProductPath(trimmed.split(/[?#]/, 1)[0] ?? trimmed);
+  }
+}
+
+function normalizeProductPath(path: string): string {
+  const normalized = path.trim().split(/[?#]/, 1)[0] || "/";
+  if (normalized === "/") {
+    return normalized;
+  }
+
+  return normalized.replace(/\/+$/, "") || "/";
+}
+
+function productRerunCommand(
+  targetId: string,
+  runFlag: "--run-generated-tests" | "--run-generated-api-tests",
+  testId: string | undefined
+): string {
+  const testIdArg = testId ? ` --test-id ${testId}` : "";
+  return `npx codedecay product --target ${targetId} ${runFlag}${testIdArg} --format markdown`;
+}
+
+function productWorkflowFailureReason(target: Record<string, unknown>): string | undefined {
+  for (const key of ["setup", "start", "health", "exploration", "generatedTests", "generatedApiTests", "teardown"]) {
+    const value = asRecord(target[key]);
+    const reason = stringValue(value?.error) ?? stringValue(value?.stderr) ?? stringValue(value?.blockedReason);
+    if (reason) {
+      return reason;
+    }
+  }
+
+  return undefined;
+}
+
+function safeLearnedText(value: string): string {
+  return value
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [redacted]")
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[redacted-email]")
+    .replace(
+      /\b(token|access_token|refresh_token|api[_-]?key|secret|password|session|cookie)=([^&\s]+)/gi,
+      "$1=[redacted]"
+    )
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 500);
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return isPlainObject(value) ? value : undefined;
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? dedupeStrings(value.filter((item): item is string => typeof item === "string" && item.trim().length > 0))
+    : [];
+}
+
 function collectLearnedReports(object: Record<string, unknown>): Record<string, unknown>[] {
   return [
     ...normalizeReportArray(object.reports),
@@ -583,6 +823,18 @@ function collectLearnedReports(object: Record<string, unknown>): Record<string, 
     ...normalizeReportArray(object.failOnReports),
     ...normalizeReportArray(object.blockedReports)
   ];
+}
+
+function collectLearnedProductReports(object: Record<string, unknown>): Record<string, unknown>[] {
+  return [
+    ...normalizeReportArray(object.productReports),
+    ...normalizeReportArray(object.productVerificationReports),
+    ...normalizeReportArray(object.productTargetReports),
+    ...normalizeReportArray(object.reports),
+    ...normalizeReportArray(object.codeDecayReports),
+    ...normalizeReportArray(object.failOnReports),
+    ...normalizeReportArray(object.blockedReports)
+  ].filter(isProductTargetReportLike);
 }
 
 function normalizeReportArray(value: unknown): Record<string, unknown>[] {
@@ -595,6 +847,10 @@ function normalizeReportArray(value: unknown): Record<string, unknown>[] {
 
 function isCodeDecayReportLike(value: Record<string, unknown>): boolean {
   return value.tool === "CodeDecay" && Array.isArray(value.findings);
+}
+
+function isProductTargetReportLike(value: Record<string, unknown>): boolean {
+  return value.tool === "CodeDecay" && Array.isArray(value.targets);
 }
 
 function inferMemoryMatcher(object: Record<string, unknown>, text: string): MemoryMatcher {
@@ -877,6 +1133,7 @@ function normalizeMatcher(object: Record<string, unknown>, sourcePath: string, f
   const matcher: MemoryMatcher = {};
   const files = optionalStringArray(object.files, sourcePath, `${field}.files`);
   const areas = optionalAreas(object.areas, sourcePath, `${field}.areas`);
+  const productPaths = optionalStringArray(object.productPaths, sourcePath, `${field}.productPaths`);
 
   if (files) {
     matcher.files = files;
@@ -884,6 +1141,10 @@ function normalizeMatcher(object: Record<string, unknown>, sourcePath: string, f
 
   if (areas) {
     matcher.areas = areas;
+  }
+
+  if (productPaths) {
+    matcher.productPaths = productPaths.map(normalizeProductPath);
   }
 
   return matcher;
@@ -954,6 +1215,7 @@ function mergeNamedEntries<
     title?: string;
     files?: string[] | undefined;
     areas?: ImpactedArea["kind"][] | undefined;
+    productPaths?: string[] | undefined;
   }
 >(
   baseEntries: T[],
@@ -986,6 +1248,7 @@ function mergeFlow(existing: MemoryFlow, incoming: MemoryFlow): MemoryFlow {
     description: firstDefinedString(existing.description, incoming.description),
     files: mergeOptionalStringArrays(existing.files, incoming.files),
     areas: mergeOptionalAreas(existing.areas, incoming.areas),
+    productPaths: mergeOptionalProductPaths(existing.productPaths, incoming.productPaths),
     checks: mergeOptionalStringArrays(existing.checks, incoming.checks)
   };
 }
@@ -996,7 +1259,8 @@ function mergeCommand(existing: MemoryCommand, incoming: MemoryCommand): MemoryC
     command: existing.command,
     description: firstDefinedString(existing.description, incoming.description),
     files: mergeOptionalStringArrays(existing.files, incoming.files),
-    areas: mergeOptionalAreas(existing.areas, incoming.areas)
+    areas: mergeOptionalAreas(existing.areas, incoming.areas),
+    productPaths: mergeOptionalProductPaths(existing.productPaths, incoming.productPaths)
   };
 }
 
@@ -1006,7 +1270,8 @@ function mergeInvariant(existing: MemoryInvariant, incoming: MemoryInvariant): M
     description: firstDefinedString(existing.description, incoming.description) ?? existing.description,
     severity: higherRisk(existing.severity, incoming.severity),
     files: mergeOptionalStringArrays(existing.files, incoming.files),
-    areas: mergeOptionalAreas(existing.areas, incoming.areas)
+    areas: mergeOptionalAreas(existing.areas, incoming.areas),
+    productPaths: mergeOptionalProductPaths(existing.productPaths, incoming.productPaths)
   };
 }
 
@@ -1015,7 +1280,8 @@ function mergeArchitectureNote(existing: MemoryArchitectureNote, incoming: Memor
     title: existing.title,
     note: firstDefinedString(existing.note, incoming.note) ?? existing.note,
     files: mergeOptionalStringArrays(existing.files, incoming.files),
-    areas: mergeOptionalAreas(existing.areas, incoming.areas)
+    areas: mergeOptionalAreas(existing.areas, incoming.areas),
+    productPaths: mergeOptionalProductPaths(existing.productPaths, incoming.productPaths)
   };
 }
 
@@ -1026,7 +1292,8 @@ function mergeRegression(existing: MemoryRegression, incoming: MemoryRegression)
     check: firstDefinedString(existing.check, incoming.check),
     severity: higherRisk(existing.severity, incoming.severity),
     files: mergeOptionalStringArrays(existing.files, incoming.files),
-    areas: mergeOptionalAreas(existing.areas, incoming.areas)
+    areas: mergeOptionalAreas(existing.areas, incoming.areas),
+    productPaths: mergeOptionalProductPaths(existing.productPaths, incoming.productPaths)
   };
 }
 
@@ -1181,6 +1448,11 @@ function mergeOptionalStringArrays(left: string[] | undefined, right: string[] |
   return merged.length > 0 ? merged : undefined;
 }
 
+function mergeOptionalProductPaths(left: string[] | undefined, right: string[] | undefined): string[] | undefined {
+  const merged = dedupeStrings([...(left ?? []), ...(right ?? [])].map(normalizeProductPath));
+  return merged.length > 0 ? merged : undefined;
+}
+
 function mergeOptionalAreas(
   left: ImpactedArea["kind"][] | undefined,
   right: ImpactedArea["kind"][] | undefined
@@ -1213,17 +1485,25 @@ function cloneCommand(command: MemoryCommand): MemoryCommand {
   return {
     ...command,
     files: command.files ? [...command.files] : undefined,
-    areas: command.areas ? [...command.areas] : undefined
+    areas: command.areas ? [...command.areas] : undefined,
+    productPaths: command.productPaths ? [...command.productPaths] : undefined
   };
 }
 
-function structuredCloneEntry<T extends { files?: string[] | undefined; areas?: ImpactedArea["kind"][] | undefined }>(
+function structuredCloneEntry<
+  T extends {
+    files?: string[] | undefined;
+    areas?: ImpactedArea["kind"][] | undefined;
+    productPaths?: string[] | undefined;
+  }
+>(
   entry: T
 ): T {
   return {
     ...entry,
     files: entry.files ? [...entry.files] : undefined,
-    areas: entry.areas ? [...entry.areas] : undefined
+    areas: entry.areas ? [...entry.areas] : undefined,
+    productPaths: entry.productPaths ? [...entry.productPaths] : undefined
   };
 }
 
@@ -1250,11 +1530,37 @@ function sortRegressions(entries: MemoryRegression[]): MemoryRegression[] {
 function cloneMemory(memory: CodeDecayMemory): CodeDecayMemory {
   return {
     version: 1,
-    flows: memory.flows.map((flow) => ({ ...flow, files: flow.files ? [...flow.files] : undefined, areas: flow.areas ? [...flow.areas] : undefined, checks: flow.checks ? [...flow.checks] : undefined })),
-    commands: memory.commands.map((command) => ({ ...command, files: command.files ? [...command.files] : undefined, areas: command.areas ? [...command.areas] : undefined })),
-    invariants: memory.invariants.map((invariant) => ({ ...invariant, files: invariant.files ? [...invariant.files] : undefined, areas: invariant.areas ? [...invariant.areas] : undefined })),
-    architecture: memory.architecture.map((note) => ({ ...note, files: note.files ? [...note.files] : undefined, areas: note.areas ? [...note.areas] : undefined })),
-    regressions: memory.regressions.map((regression) => ({ ...regression, files: regression.files ? [...regression.files] : undefined, areas: regression.areas ? [...regression.areas] : undefined }))
+    flows: memory.flows.map((flow) => ({
+      ...flow,
+      files: flow.files ? [...flow.files] : undefined,
+      areas: flow.areas ? [...flow.areas] : undefined,
+      productPaths: flow.productPaths ? [...flow.productPaths] : undefined,
+      checks: flow.checks ? [...flow.checks] : undefined
+    })),
+    commands: memory.commands.map((command) => ({
+      ...command,
+      files: command.files ? [...command.files] : undefined,
+      areas: command.areas ? [...command.areas] : undefined,
+      productPaths: command.productPaths ? [...command.productPaths] : undefined
+    })),
+    invariants: memory.invariants.map((invariant) => ({
+      ...invariant,
+      files: invariant.files ? [...invariant.files] : undefined,
+      areas: invariant.areas ? [...invariant.areas] : undefined,
+      productPaths: invariant.productPaths ? [...invariant.productPaths] : undefined
+    })),
+    architecture: memory.architecture.map((note) => ({
+      ...note,
+      files: note.files ? [...note.files] : undefined,
+      areas: note.areas ? [...note.areas] : undefined,
+      productPaths: note.productPaths ? [...note.productPaths] : undefined
+    })),
+    regressions: memory.regressions.map((regression) => ({
+      ...regression,
+      files: regression.files ? [...regression.files] : undefined,
+      areas: regression.areas ? [...regression.areas] : undefined,
+      productPaths: regression.productPaths ? [...regression.productPaths] : undefined
+    }))
   };
 }
 

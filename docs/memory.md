@@ -51,6 +51,7 @@ report data than hand-authored memory.
 ```bash
 npx codedecay memory-learn --input ci-failure.json
 npx codedecay memory-learn --input codedecay-report.json --apply --format json
+npx codedecay memory-learn --input .codedecay/local/product-runs/latest.json --apply
 ```
 
 Accepted inputs include:
@@ -59,10 +60,18 @@ Accepted inputs include:
 - `pullRequests`: title, body, commit messages, changed files, checks, and areas
 - `reports`, `codeDecayReports`, `failOnReports`, or `blockedReports`
 - a single CodeDecay JSON report with `tool: "CodeDecay"` and `findings`
+- product verification reports with `tool: "CodeDecay"` and `targets`
+- `productReports`, `productVerificationReports`, or `productTargetReports`
 
 The learner converts those signals into flows, commands, architecture notes,
 and past regressions. It infers impacted areas from file paths and text such as
 `auth`, `api`, `schema`, `migration`, `workflow`, or `coverage`.
+
+For product verification reports, `memory-learn` keeps only reviewable metadata:
+passed generated test titles, target ids, product route/API paths, impacted
+files, and rerun commands. It does not store generated test source, stdout,
+stderr, screenshots, traces, request bodies, headers, cookies, or full URLs with
+query strings.
 
 `memory-learn` is deterministic and local. It does not query GitHub, inspect
 remote CI, call a model, or write anything unless `--apply` is passed.
@@ -77,6 +86,7 @@ remote CI, call a model, or write anything unless `--apply` is passed.
       "name": "Checkout",
       "description": "Customer checkout from cart to payment confirmation.",
       "areas": ["api", "ui"],
+      "productPaths": ["/checkout", "/api/checkout"],
       "checks": [
         "failed card retry",
         "missing shipping address",
@@ -111,6 +121,7 @@ remote CI, call a model, or write anything unless `--apply` is passed.
       "title": "Anonymous admin fallback",
       "description": "A previous fallback user path granted admin access.",
       "areas": ["auth"],
+      "productPaths": ["/api/admin/users"],
       "check": "request protected routes without a token",
       "severity": "high"
     }
@@ -140,6 +151,45 @@ Supported `files` values are simple path patterns:
 - exact path: `src/auth/session.ts`
 - contains match: `auth`
 - wildcard match: `src/auth/*`
+
+Supported `productPaths` values are live product routes or API paths:
+
+- UI route: `/settings`
+- API path: `/api/users`
+- parameterized path: `/api/users/{id}` or `/api/users/:id`
+
+`codedecay product --generate-tests` and
+`codedecay product --generate-api-tests` use product memory for priority:
+
+- previous product regressions are generated with high priority
+- passed product flows become high priority when their memory entry matches the
+  current changed files or impacted areas
+- changed framework routes remain high priority even without memory
+
+## Product Memory Retention
+
+Recommended review workflow:
+
+- Run product verification and write a JSON report, for example
+  `codedecay product --generate-api-tests --run-generated-api-tests --output .codedecay/local/product-runs/latest.json --format json`.
+- Preview learned memory with
+  `codedecay memory-learn --input .codedecay/local/product-runs/latest.json`.
+- Re-run with `--apply` only after reviewing the preview.
+- Commit `.codedecay/memory.json` like source code so changes are visible in PRs.
+
+Retention and redaction defaults:
+
+- `memory-learn` strips bearer tokens, common secret query keys, email
+  addresses, query strings, generated test source, request bodies, headers,
+  screenshots, traces, stdout, and stderr.
+- Keep `.codedecay/local/**` uncommitted unless your team explicitly wants to
+  review generated artifacts.
+- Prune stale product memory by removing obsolete `flows[].productPaths` or
+  `regressions[]` entries from `.codedecay/memory.json`; the file is intentionally
+  plain JSON so pruning is a normal code-review change.
+- If a learned check is flaky, edit the entry before committing it: downgrade the
+  severity, add a clearer `description`, or remove the `productPaths` until the
+  check is stable.
 
 ## Report Behavior
 
