@@ -61,6 +61,16 @@ import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
 import { createConfiguredToolHarnesses, type ConfiguredToolAdapterKind } from "@submuxhq/codedecay-tool-adapters";
 import YAML from "yaml";
+import {
+  renderCommandHelp,
+  renderCommandManual,
+  renderRootHelp as renderRootHelpDocument,
+  renderRootManual as renderRootManualDocument,
+  renderUninstallPlan as renderUninstallPlanDocument,
+  renderUpdatePlan as renderUpdatePlanDocument,
+  renderVersion,
+  type CommandDoc
+} from "./renderers/discovery";
 
 interface AnalyzeOptions {
   base?: string | undefined;
@@ -630,21 +640,6 @@ interface LlmReviewReport {
   untrusted: true;
 }
 
-interface HelpOptionDoc {
-  flag: string;
-  description: string;
-}
-
-interface CommandDoc {
-  name: string;
-  summary: string;
-  usage: string[];
-  description: string[];
-  options: HelpOptionDoc[];
-  examples: string[];
-  notes?: string[];
-}
-
 type CliCommandHandler = (context: CliCommandContext) => Promise<void> | void;
 type ConfigFormat = "json" | "markdown";
 
@@ -1189,7 +1184,8 @@ async function runUpdateCommand(context: CliCommandContext): Promise<void> {
 
   writeStdout(
     context.runtime,
-    renderUpdatePlan({
+    renderUpdatePlanDocument({
+      version: CODEDECAY_VERSION,
       cwd,
       plan,
       apply: options.apply
@@ -1221,7 +1217,9 @@ async function runUninstallCommand(context: CliCommandContext): Promise<void> {
 
   writeStdout(
     context.runtime,
-    renderUninstallPlan({
+    renderUninstallPlanDocument({
+      version: CODEDECAY_VERSION,
+      packageName: PACKAGE_NAME,
       cwd,
       plan,
       apply: options.apply,
@@ -8101,7 +8099,14 @@ function findUnresolvedRef(
 
 function printHelp(runtime: CliRuntime, topic?: string): void {
   if (!topic) {
-    writeStdout(runtime, renderRootHelp());
+    writeStdout(
+      runtime,
+      renderRootHelpDocument({
+        docs: HELP_DOCS,
+        commandOrder: COMMAND_ORDER,
+        utilityCommandOrder: UTILITY_COMMAND_ORDER
+      })
+    );
     return;
   }
 
@@ -8110,7 +8115,14 @@ function printHelp(runtime: CliRuntime, topic?: string): void {
 
 function printManual(runtime: CliRuntime, topic?: string): void {
   if (!topic) {
-    writeStdout(runtime, renderRootManual());
+    writeStdout(
+      runtime,
+      renderRootManualDocument({
+        docs: HELP_DOCS,
+        commandOrder: COMMAND_ORDER,
+        utilityCommandOrder: UTILITY_COMMAND_ORDER
+      })
+    );
     return;
   }
 
@@ -8118,7 +8130,7 @@ function printManual(runtime: CliRuntime, topic?: string): void {
 }
 
 function printVersion(runtime: CliRuntime): void {
-  writeStdout(runtime, `${CODEDECAY_VERSION}\n`);
+  writeStdout(runtime, renderVersion(CODEDECAY_VERSION));
 }
 
 function resolveHelpTopic(topic: string): CommandDoc {
@@ -8128,187 +8140,6 @@ function resolveHelpTopic(topic: string): CommandDoc {
   }
 
   throwUnknownCommand(topic);
-}
-
-function renderRootHelp(): string {
-  const lines = [
-    "CodeDecay",
-    "",
-    "Find what your coding agent missed before merge.",
-    "",
-    "Usage:",
-    "  codedecay <command> [options]",
-    "  codedecay help [command]",
-    "  codedecay man [command]",
-    "  codedecay update [options]",
-    "  codedecay uninstall [options]",
-    "  codedecay version",
-    "",
-    "Commands:"
-  ];
-
-  appendCommandSummaries(lines, COMMAND_ORDER);
-
-  lines.push("", "Utilities:");
-  appendCommandSummaries(lines, UTILITY_COMMAND_ORDER);
-
-  lines.push(
-    "",
-    "Global flags:",
-    "  -h, --help                 Show help",
-    "  -V, --version              Print the installed CodeDecay version",
-    "",
-    "Examples:",
-    "  codedecay analyze --base main --head HEAD --format markdown",
-    "  codedecay redteam --base main --head HEAD --format markdown",
-    "  codedecay agent --profile codex --format markdown",
-    "  codedecay help analyze",
-    "  codedecay uninstall --purge-local",
-    "  codedecay man update",
-    "",
-    'Run "codedecay help <command>" for command-specific flags.'
-  );
-
-  return `${lines.join("\n")}\n`;
-}
-
-function renderCommandHelp(doc: CommandDoc): string {
-  const lines = [
-    `CodeDecay ${doc.name}`,
-    "",
-    `${doc.summary}`,
-    "",
-    "Usage:"
-  ];
-
-  for (const usage of doc.usage) {
-    lines.push(`  ${usage}`);
-  }
-
-  if (doc.description.length > 0) {
-    lines.push("", "Description:");
-    for (const paragraph of doc.description) {
-      lines.push(`  ${paragraph}`);
-    }
-  }
-
-  if (doc.options.length > 0) {
-    lines.push("", "Options:");
-    appendOptionDocs(lines, doc.options);
-  }
-
-  if (doc.examples.length > 0) {
-    lines.push("", "Examples:");
-    for (const example of doc.examples) {
-      lines.push(`  ${example}`);
-    }
-  }
-
-  if (doc.notes && doc.notes.length > 0) {
-    lines.push("", "Notes:");
-    for (const note of doc.notes) {
-      lines.push(`  - ${note}`);
-    }
-  }
-
-  return `${lines.join("\n")}\n`;
-}
-
-function renderRootManual(): string {
-  const lines = [
-    "CODEDECAY(1)",
-    "",
-    "NAME",
-    "  codedecay - deterministic PR regression-risk and code-decay CLI",
-    "",
-    "SYNOPSIS",
-    "  codedecay <command> [options]",
-    "",
-    "DESCRIPTION",
-    "  CodeDecay is a local-first CLI for regression-risk analysis, blast-radius mapping, maintainability decay detection, weak-test auditing, and agent handoff workflows.",
-    "  It does not require hosted services or hidden model calls to produce the core analysis.",
-    "",
-    "DISCOVERY",
-    "  codedecay help <command>   Show concise command help",
-    "  codedecay man <command>    Show a longer command manual",
-    "  codedecay version          Print the installed version",
-    "  codedecay update           Print the recommended upgrade command",
-    "  codedecay uninstall       Print the recommended uninstall and cleanup plan",
-    "",
-    "COMMANDS"
-  ];
-
-  appendCommandSummaries(lines, COMMAND_ORDER);
-
-  lines.push("", "UTILITIES");
-  appendCommandSummaries(lines, UTILITY_COMMAND_ORDER);
-
-  lines.push(
-    "",
-    "SAFETY",
-    "  CodeDecay does not execute project commands unless they are explicitly configured and allowed by repo-local safety settings.",
-    "  Redteam and agent workflows package evidence and recommendations without executing configured checks by default.",
-    ""
-  );
-
-  return `${lines.join("\n")}\n`;
-}
-
-function renderCommandManual(doc: CommandDoc): string {
-  const lines = [
-    `CODEDECAY-${doc.name.toUpperCase()}(1)`,
-    "",
-    "NAME",
-    `  codedecay ${doc.name} - ${doc.summary.toLowerCase()}`,
-    "",
-    "SYNOPSIS"
-  ];
-
-  for (const usage of doc.usage) {
-    lines.push(`  ${usage}`);
-  }
-
-  if (doc.description.length > 0) {
-    lines.push("", "DESCRIPTION");
-    for (const paragraph of doc.description) {
-      lines.push(`  ${paragraph}`);
-    }
-  }
-
-  if (doc.options.length > 0) {
-    lines.push("", "OPTIONS");
-    appendOptionDocs(lines, doc.options);
-  }
-
-  if (doc.examples.length > 0) {
-    lines.push("", "EXAMPLES");
-    for (const example of doc.examples) {
-      lines.push(`  ${example}`);
-    }
-  }
-
-  if (doc.notes && doc.notes.length > 0) {
-    lines.push("", "NOTES");
-    for (const note of doc.notes) {
-      lines.push(`  - ${note}`);
-    }
-  }
-
-  return `${lines.join("\n")}\n`;
-}
-
-function appendCommandSummaries(lines: string[], commands: readonly string[]): void {
-  for (const command of commands) {
-    const doc = resolveHelpTopic(command);
-    lines.push(`  ${doc.name.padEnd(12)} ${doc.summary}`);
-  }
-}
-
-function appendOptionDocs(lines: string[], options: HelpOptionDoc[]): void {
-  const width = Math.max(...options.map((option) => option.flag.length), 0);
-  for (const option of options) {
-    lines.push(`  ${option.flag.padEnd(width)}   ${option.description}`);
-  }
 }
 
 function createUpdatePlan(cwd: string, options: UpdateOptions): UpdatePlan {
@@ -8330,36 +8161,6 @@ function createUpdatePlan(cwd: string, options: UpdateOptions): UpdatePlan {
     source: detection?.source ?? "default",
     ...packageManagerInstallCommand(manager)
   };
-}
-
-function renderUpdatePlan(input: { cwd: string; plan: UpdatePlan; apply: boolean }): string {
-  const lines = [
-    "CodeDecay update",
-    "",
-    `Current CLI version: ${CODEDECAY_VERSION}`,
-    `Working directory: ${input.cwd}`
-  ];
-
-  if (input.plan.manager) {
-    lines.push(`Package manager: ${input.plan.manager} (${input.plan.source})`);
-  } else {
-    lines.push("Package manager: not detected");
-  }
-
-  lines.push("", "Recommended command:", `  ${input.plan.displayCommand}`);
-
-  if (input.apply) {
-    lines.push("");
-    if (input.plan.canApply) {
-      lines.push("Applying update command...");
-    } else {
-      lines.push("Automatic apply is unavailable for this update plan.");
-    }
-  } else {
-    lines.push("", 'Run "codedecay update --apply" to execute it automatically.');
-  }
-
-  return `${lines.join("\n")}\n`;
 }
 
 function createUninstallPlan(cwd: string, options: UninstallOptions): UninstallPlan {
@@ -8391,74 +8192,6 @@ function createUninstallPlan(cwd: string, options: UninstallOptions): UninstallP
     dependencyVersion: dependency.version,
     purgeTargets
   };
-}
-
-function renderUninstallPlan(input: {
-  cwd: string;
-  plan: UninstallPlan;
-  apply: boolean;
-  purgeLocal: boolean;
-}): string {
-  const lines = [
-    "CodeDecay uninstall",
-    "",
-    `Current CLI version: ${CODEDECAY_VERSION}`,
-    `Working directory: ${input.cwd}`
-  ];
-
-  if (input.plan.manager) {
-    lines.push(`Package manager: ${input.plan.manager} (${input.plan.source})`);
-  } else {
-    lines.push("Package manager: not detected");
-  }
-
-  const location =
-    input.plan.dependencyLocation === "none"
-      ? "not listed in package.json"
-      : `${input.plan.dependencyLocation}${input.plan.dependencyVersion ? ` (${input.plan.dependencyVersion})` : ""}`;
-  lines.push(`Package entry: ${location}`);
-
-  lines.push("");
-  if (input.plan.displayCommand) {
-    lines.push("Recommended uninstall command:", `  ${input.plan.displayCommand}`);
-  } else {
-    lines.push(`No supported package manager command detected for ${PACKAGE_NAME}.`);
-  }
-
-  lines.push("");
-  if (input.purgeLocal) {
-    lines.push("Local purge targets:");
-    if (input.plan.purgeTargets.length === 0) {
-      lines.push("  none detected");
-    } else {
-      for (const target of input.plan.purgeTargets) {
-        lines.push(`  ${target}`);
-      }
-    }
-  } else {
-    lines.push("Local purge targets: skipped");
-    lines.push('  Pass "--purge-local" to also remove `.codedecay/` and detected CodeDecay report artifacts.');
-  }
-
-  lines.push(
-    "",
-    "Notes:",
-    "  - Uninstall does not rewrite CI workflows, package scripts, or docs references automatically.",
-    "  - Review GitHub Actions and README snippets manually if this repo integrated CodeDecay there."
-  );
-
-  if (input.apply) {
-    lines.push("");
-    if (input.plan.canApplyPackage || (input.purgeLocal && input.plan.purgeTargets.length > 0)) {
-      lines.push("Applying uninstall plan...");
-    } else {
-      lines.push("Automatic apply is unavailable for this uninstall plan.");
-    }
-  } else {
-    lines.push("", 'Run "codedecay uninstall --apply" to execute the plan.');
-  }
-
-  return `${lines.join("\n")}\n`;
 }
 
 function detectPackageManager(cwd: string): { manager: PackageManager; source: string } | undefined {
