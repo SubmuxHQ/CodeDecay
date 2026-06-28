@@ -243,6 +243,11 @@ describe("built codedecay CLI", () => {
     expect(productHelp.stdout).toContain("CodeDecay product");
     expect(productHelp.stdout).toContain("--target <id>");
 
+    const dashboardHelp = runBuilt(["dashboard", "--help"]);
+    expect(dashboardHelp.status).toBe(0);
+    expect(dashboardHelp.stdout).toContain("CodeDecay dashboard");
+    expect(dashboardHelp.stdout).toContain("--input <path>");
+
     const manual = runBuilt(["man", "update"]);
     expect(manual.status).toBe(0);
     expect(manual.stdout).toContain("CODEDECAY-UPDATE(1)");
