@@ -386,6 +386,11 @@ describe("built codedecay CLI", () => {
       ].join("\n")
     );
 
+    const executeHelp = runBuilt(["execute", "--help"]);
+    expect(executeHelp.status).toBe(0);
+    expect(executeHelp.stdout).toContain("CodeDecay execute");
+    expect(executeHelp.stdout).toContain("--output <path>");
+
     const result = runBuilt(["execute", "--cwd", repo, "--format", "json"]);
     const report = JSON.parse(result.stdout);
 
