@@ -253,6 +253,11 @@ describe("built codedecay CLI", () => {
     expect(differentialHelp.stdout).toContain("CodeDecay differential");
     expect(differentialHelp.stdout).toContain("--base <ref>");
 
+    const snapshotHelp = runBuilt(["snapshot", "--help"]);
+    expect(snapshotHelp.status).toBe(0);
+    expect(snapshotHelp.stdout).toContain("CodeDecay snapshot");
+    expect(snapshotHelp.stdout).toContain("--compare <path>");
+
     const manual = runBuilt(["man", "update"]);
     expect(manual.status).toBe(0);
     expect(manual.stdout).toContain("CODEDECAY-UPDATE(1)");
