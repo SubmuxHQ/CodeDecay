@@ -385,6 +385,21 @@ docs/
 Do not introduce a new package if an existing package already owns the
 boundary. Keep package responsibilities explicit.
 
+### Package File Organization
+
+Keep package internals easy to read and review.
+
+- Do not keep adding substantial feature logic to a single large `index.ts`.
+- Use `index.ts` mainly for public exports, command wiring, and small package
+  entrypoints.
+- Put new behavior in focused files or folders named after the responsibility,
+  such as `agent-process/`, `coverage/`, `config/`, `renderers/`, `parsers/`,
+  `commands/`, or `schemas/`.
+- Keep tests near the package boundary and mirror the feature name where it
+  helps readability.
+- Do not do broad file-splitting refactors inside unrelated feature PRs. If an
+  existing `index.ts` needs to be decomposed, create a dedicated issue and PR.
+
 ### packages/adapters
 
 Owns generic configured command adapters and adapter result normalization.
@@ -799,6 +814,7 @@ For meaningful changes:
 4. Add tests.
 5. Run validation.
 6. Open PR with `Closes #<issue-number>`.
+7. Squash merge after checks pass.
 
 Branch naming:
 
