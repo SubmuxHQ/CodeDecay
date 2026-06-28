@@ -157,20 +157,34 @@ Run `pnpm build` before starting the local MCP server because these configs use
 Future integrations should prefer existing open-source tools:
 
 - MCP for agent/tool integration
+- Codex, Claude Code, Cursor, OpenCode, OpenClaw/Hermes/Pi-compatible
+  harnesses where they expose stable local CLIs, MCP servers, or prompt-task
+  interfaces
 - Ollama for local LLMs
 - LiteLLM for BYOK model routing
 - Supermemory, Mem0, or local memory files
-- Tree-sitter or TypeScript compiler API for parsing
+- Tree-sitter, TypeScript compiler API, Babel, SWC, or language-native parsers
+  for parsing
+- ESLint, typescript-eslint, oxlint, Biome, Knip, dependency-cruiser, Madge,
+  and depcheck for JS/TS quality, dependency, and dead-code signals
+- Ruff, pytest, coverage.py, mypy, and pyright for Python quality, test, type,
+  and coverage signals
+- Semgrep, Gitleaks, OSV-Scanner, npm audit, pnpm audit, Trivy, or similar OSS
+  security/dependency scanners for security evidence
 - StrykerJS for mutation testing
 - Schemathesis for API fuzzing
 - Pact for contract testing
 - Playwright for real user-flow testing
-- Vitest/Jest/Pytest/Bun test adapters
-- c8/nyc/Istanbul for coverage
-- OpenAPI tools for API discovery
+- Vitest/Jest/Pytest/Bun/Go test/Cargo test adapters for existing test suites
+- c8, nyc, Istanbul, V8 coverage, lcov, coverage.py, and jacoco for coverage
+- OpenAPI, Swagger parser, GraphQL introspection, and language framework
+  routers for API discovery
 - Git worktrees for base/head comparison
 
 Do not build custom systems when a good open-source tool can be integrated.
+CodeDecay's moat is orchestration, normalization, memory, risk synthesis, and
+agent handoff, not rebuilding every analyzer, tester, fuzzer, browser runner, or
+security scanner.
 
 ---
 
@@ -273,30 +287,64 @@ Agents should use these skills before producing a merge-safety report.
 
 CodeDecay should not reinvent everything.
 
-Before implementing custom logic, ask:
+### Mandatory OSS-First Gate
+
+Before implementing custom logic, always ask:
 
 ```txt
-Can we use an existing open-source library, MCP server, test runner, parser, coverage tool, mutation tester, API fuzzer, or browser tester?
+Can we use an existing open-source library, MCP server, agent harness, test runner, parser, linter, type checker, coverage tool, mutation tester, API fuzzer, browser tester, dependency analyzer, or security scanner?
 ```
 
-Prefer adapters.
+If the answer is yes, prefer an adapter. Do not write a weaker custom engine
+just because it is faster to prototype.
+
+Custom CodeDecay logic is acceptable only when it does one of these jobs:
+
+- orchestrates existing tools safely
+- normalizes tool output into CodeDecay evidence
+- maps evidence to changed files, routes, product paths, memory, and PR risk
+- produces agent-readable fix/rerun tasks
+- provides a deterministic fallback when the stronger OSS tool is unavailable
+
+If custom analysis is still needed, document why an existing OSS tool was not
+used and keep the implementation small, replaceable, and adapter-friendly.
+
+Adapters must:
+
+- use explicit config or safe auto-discovery
+- run through `packages/execution` when commands are executed
+- respect `safety.allowCommands`, timeouts, and command allowlists
+- parse machine-readable output when available
+- preserve raw tool identity in evidence
+- avoid hidden installs, hidden network calls, hidden telemetry, and hidden model
+  calls
+- degrade cleanly when the external tool is not installed
+
+Think of CodeDecay as an orchestration harness. It should coordinate tools the
+way agent harnesses coordinate Codex, Claude, Pi-style agents, and MCP tools:
+collect evidence, route it through safety policy, remember what matters, and
+hand back concrete repair tasks.
 
 Examples:
 
 | Need | Preferred Direction |
 |---|---|
-| Agent integration | MCP |
+| Agent integration | MCP, local CLIs, prompt-task adapters |
 | Local AI | Ollama |
 | BYOK AI | LiteLLM |
 | Memory | Supermemory, Mem0, local `.codedecay/memory.json` |
-| Code parsing | Tree-sitter, TypeScript compiler API |
+| Code parsing | Tree-sitter, TypeScript compiler API, Babel, SWC, language-native parsers |
+| JS/TS lint and quality | ESLint, typescript-eslint, oxlint, Biome |
+| JS/TS dependency graph | dependency-cruiser, Madge, Knip, depcheck |
+| Python quality and tests | Ruff, pytest, coverage.py, mypy, pyright |
+| Security signals | Semgrep, Gitleaks, OSV-Scanner, Trivy, npm/pnpm audit |
 | Test strength | StrykerJS |
 | API edge cases | Schemathesis |
 | Contract testing | Pact |
 | Browser/user testing | Playwright |
-| Coverage | c8, nyc, Istanbul |
-| Existing tests | Vitest, Jest, Pytest, Bun |
-| API discovery | OpenAPI tools |
+| Coverage | c8, nyc, Istanbul, V8 coverage, lcov, coverage.py, jacoco |
+| Existing tests | Vitest, Jest, Pytest, Bun, Go test, Cargo test |
+| API discovery | OpenAPI tools, GraphQL introspection, framework route manifests |
 | Git comparison | native git, worktrees |
 
 CodeDecay owns the orchestration and final merge-safety report.
