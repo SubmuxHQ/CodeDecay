@@ -324,6 +324,50 @@ describe("built codedecay CLI", () => {
     expect(mcpHelp.stdout).toContain("--cwd <path>");
   });
 
+  it("supports memory parser behavior from the built CLI", () => {
+    const repo = createLowRiskRepo();
+
+    const memoryHelp = runBuilt(["memory", "--help"]);
+    expect(memoryHelp.status).toBe(0);
+    expect(memoryHelp.stdout).toContain("CodeDecay memory");
+    expect(memoryHelp.stdout).toContain("--format <format>");
+
+    const memory = runBuilt(["memory", "--cwd", repo, "--format", "json"]);
+    expect(memory.status).toBe(0);
+    expect(JSON.parse(memory.stdout)).toMatchObject({
+      memory: {
+        version: 1,
+        flows: [],
+        commands: [],
+        invariants: [],
+        architecture: [],
+        regressions: []
+      }
+    });
+
+    const memoryImportHelp = runBuilt(["memory-import", "--help"]);
+    expect(memoryImportHelp.status).toBe(0);
+    expect(memoryImportHelp.stdout).toContain("CodeDecay memory-import");
+    expect(memoryImportHelp.stdout).toContain("--input <path>");
+
+    const memoryImportMissingInput = runBuilt(["memory-import", "--cwd", repo]);
+    expect(memoryImportMissingInput.status).toBe(2);
+    expect(memoryImportMissingInput.stderr).toContain(
+      'Missing value for --input. Use "codedecay help memory-import" for usage.'
+    );
+
+    const memoryLearnHelp = runBuilt(["memory-learn", "--help"]);
+    expect(memoryLearnHelp.status).toBe(0);
+    expect(memoryLearnHelp.stdout).toContain("CodeDecay memory-learn");
+    expect(memoryLearnHelp.stdout).toContain("--input <path>");
+
+    const memoryLearnMissingInput = runBuilt(["memory-learn", "--cwd", repo]);
+    expect(memoryLearnMissingInput.status).toBe(2);
+    expect(memoryLearnMissingInput.stderr).toContain(
+      'Missing value for --input. Use "codedecay help memory-learn" for usage.'
+    );
+  });
+
   it("executes configured commands from the built CLI", () => {
     const repo = createLowRiskRepo();
     writeFile(
