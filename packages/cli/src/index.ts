@@ -6,15 +6,11 @@ import { fileURLToPath } from "node:url";
 import {
   createConfiguredCommandAdapters,
   runAdapters,
-  type AdapterResult,
-  type AdapterStatus
+  type AdapterResult
 } from "@submuxhq/codedecay-adapters";
 import {
   createAgentTaskBundle,
-  isAgentProfileId,
-  renderAgentTaskBundle,
-  type AgentProfileId,
-  type AgentTaskBundleFormat
+  renderAgentTaskBundle
 } from "@submuxhq/codedecay-agent";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
 import {
@@ -39,7 +35,6 @@ import {
 } from "@submuxhq/codedecay-core";
 import { checkCommandSafety, runConfiguredCommand, type CommandExecutionResult, type ExecutionStatus } from "@submuxhq/codedecay-execution";
 import { createGitWorktree, getGitChangedFiles, getRepoRoot, removeGitWorktree } from "@submuxhq/codedecay-git";
-import type { Evidence } from "@submuxhq/codedecay-harness";
 import {
   applyMemoryContext,
   loadCodeDecayMemory,
@@ -50,9 +45,9 @@ import { createRedteamReport, renderRedteamReport } from "@submuxhq/codedecay-re
 import { renderReport } from "@submuxhq/codedecay-report";
 import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
-import { createConfiguredToolHarnesses } from "@submuxhq/codedecay-tool-adapters";
 import YAML from "yaml";
 import { runConfigCommand } from "./commands/config";
+import { runExecuteCommand as runExecuteCommandWithDependencies } from "./commands/execute";
 import { runLlmReviewCommand as runLlmReviewCommandWithDependencies } from "./commands/llm-review";
 import { runUninstallCommand, runUpdateCommand, runVersionCommand } from "./commands/maintenance";
 import {
@@ -71,7 +66,6 @@ import {
   parseAnalyzeArgs,
   parseDashboardArgs,
   parseDifferentialArgs,
-  parseExecuteArgs,
   parseMcpArgs,
   parseProductArgs,
   parseRedteamArgs
@@ -91,11 +85,6 @@ import type {
   DifferentialSideResult,
   DifferentialSummary,
   DifferentialStatus,
-  ExecuteOptions,
-  ExecutionReport,
-  ExecutionResult,
-  ExecutionSummary,
-  ExecutionToolAdapterResult,
   LlmReviewOptions,
   McpOptions,
   ManagedProductProcess,
@@ -128,7 +117,7 @@ import {
   renderRootManual as renderRootManualDocument,
   type CommandDoc
 } from "./renderers/discovery";
-import { trimLongOutput } from "./renderers/output";
+import { appendCodeBlock, appendOutputBlock, formatStatus } from "./renderers/command-output";
 
 const COMMAND_HANDLERS: Record<string, CliCommandHandler> = {
   agent: runAgentCommand,
@@ -136,7 +125,10 @@ const COMMAND_HANDLERS: Record<string, CliCommandHandler> = {
   config: runConfigCommand,
   dashboard: runDashboardCommand,
   differential: runDifferentialCommand,
-  execute: runExecuteCommand,
+  execute: (context) => runExecuteCommandWithDependencies(context, {
+    createAnalysisContext: createAnalysisContextForCli,
+    writeOutput: writeCliOutput
+  }),
   "llm-review": (context) => runLlmReviewCommandWithDependencies(context, {
     createAnalysisContext: createAnalysisContextForCli,
     resolveRepoRoot: getRepoRootForCli,
@@ -267,25 +259,6 @@ async function runMcpCommand(context: CliCommandContext): Promise<void> {
   const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
   const { startMcpServer } = await import("@submuxhq/codedecay-mcp");
   await startMcpServer({ cwd, cliPath: fileURLToPath(import.meta.url) });
-}
-
-async function runExecuteCommand(context: CliCommandContext): Promise<void> {
-  const options = parseExecuteArgs(context.args);
-  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
-  const loadedConfig = loadCodeDecayConfig({ cwd });
-  const report = await createExecutionReport(cwd, loadedConfig);
-  const rendered = renderExecutionReport(report, options.format);
-
-  writeCliOutput({
-    cwd,
-    output: options.output,
-    rendered,
-    runtime: context.runtime
-  });
-
-  if (isExecutionFailure(report.summary.status)) {
-    throw new CliExit(1);
-  }
 }
 
 async function runProductCommand(context: CliCommandContext): Promise<void> {
@@ -945,311 +918,6 @@ function writeCliOutput(input: {
   }
 
   write(input.runtime.stdout, input.rendered);
-}
-
-async function createExecutionReport(rootDir: string, loadedConfig: LoadedCodeDecayConfig): Promise<ExecutionReport> {
-  const startedAt = Date.now();
-  const configuredAdapters = createConfiguredCommandAdapters(loadedConfig.config);
-  const adapterResults: ExecutionResult[] = [];
-
-  for (const configured of configuredAdapters) {
-    const [result] = await runAdapters([configured.adapter], {
-      rootDir,
-      changedFiles: [],
-      config: loadedConfig.config
-    });
-
-    if (!result) {
-      continue;
-    }
-
-    adapterResults.push({
-      ...result,
-      kind: configured.kind,
-      command: configured.command
-    });
-  }
-
-  const toolAdapterResults = await runConfiguredToolAdapters(rootDir, loadedConfig);
-
-  const report: ExecutionReport = {
-    tool: "CodeDecay",
-    version: CODEDECAY_VERSION,
-    generatedAt: new Date().toISOString(),
-    summary: createExecutionSummary(adapterResults, toolAdapterResults, elapsed(startedAt)),
-    results: adapterResults,
-    toolAdapters: toolAdapterResults
-  };
-
-  if (loadedConfig.sourcePath) {
-    report.configSource = loadedConfig.sourcePath;
-  }
-
-  return report;
-}
-
-async function runConfiguredToolAdapters(
-  rootDir: string,
-  loadedConfig: LoadedCodeDecayConfig
-): Promise<ExecutionToolAdapterResult[]> {
-  const configuredToolAdapters = createConfiguredToolHarnesses(loadedConfig.config);
-  const results: ExecutionToolAdapterResult[] = [];
-
-  for (const configured of configuredToolAdapters) {
-    const plan = await configured.harness.plan({
-      cwd: rootDir,
-      evidence: []
-    });
-    const agentContext =
-      configured.kind === "agent-process"
-        ? createAgentProcessHarnessContextForCli(rootDir, loadedConfig, configured.context)
-        : configured.context;
-    const context =
-      configured.timeoutMs === undefined
-        ? { cwd: rootDir, context: agentContext }
-        : { cwd: rootDir, timeoutMs: configured.timeoutMs, context: agentContext };
-    const result = await configured.harness.run(plan, context);
-    const mapped: ExecutionToolAdapterResult = {
-      kind: configured.kind,
-      name: configured.name,
-      command: configured.command,
-      status: result.status,
-      durationMs: result.durationMs,
-      summary: result.summary ?? result.failure?.message ?? `${configured.name} produced ${result.evidence.length} evidence item(s).`,
-      evidence: result.evidence
-    };
-
-    if (configured.timeoutMs !== undefined) {
-      mapped.timeoutMs = configured.timeoutMs;
-    }
-
-    if (result.failure) {
-      mapped.failure = result.failure;
-    }
-
-    results.push(mapped);
-  }
-
-  return results;
-}
-
-function createAgentProcessHarnessContextForCli(
-  rootDir: string,
-  loadedConfig: LoadedCodeDecayConfig,
-  configuredContext: Record<string, unknown> | undefined
-): Record<string, unknown> {
-  const profile = agentProfileFromContext(configuredContext?.agentProfile);
-  const bundleFormat = agentBundleFormatFromContext(configuredContext?.agentBundleFormat);
-  const analysis = createAnalysisContextForCli(rootDir, { format: "json" });
-  const report = createRedteamReport({
-    analysisReport: analysis.report,
-    config: loadedConfig.config,
-    configSource: loadedConfig.sourcePath,
-    memory: analysis.loadedMemory.memory,
-    memorySource: analysis.loadedMemory.sourcePath,
-    skills: loadCodeDecaySkills({ cwd: rootDir })
-  });
-  const bundle = createAgentTaskBundle(report, { profile });
-
-  return {
-    ...configuredContext,
-    agentProfile: profile,
-    agentBundleFormat: bundleFormat,
-    agentBundle: renderAgentTaskBundle(bundle, bundleFormat)
-  };
-}
-
-function agentProfileFromContext(value: unknown): AgentProfileId {
-  return typeof value === "string" && isAgentProfileId(value) ? value : "generic";
-}
-
-function agentBundleFormatFromContext(value: unknown): AgentTaskBundleFormat {
-  return value === "json" || value === "markdown" ? value : "markdown";
-}
-
-function createExecutionSummary(
-  results: ExecutionResult[],
-  toolAdapters: ExecutionToolAdapterResult[],
-  durationMs: number
-): ExecutionSummary {
-  const allResults = [...results, ...toolAdapters];
-  const passed = countStatus(allResults, "passed");
-  const failed = countStatus(allResults, "failed");
-  const skipped = countStatus(allResults, "skipped");
-  const timedOut = countStatus(allResults, "timed_out");
-  const errors = countStatus(allResults, "error");
-
-  return {
-    status: executionStatus(allResults, { failed, timedOut, errors }),
-    total: allResults.length,
-    passed,
-    failed,
-    skipped,
-    timedOut,
-    errors,
-    durationMs
-  };
-}
-
-function executionStatus(
-  results: Array<{ status: AdapterStatus }>,
-  counts: Pick<ExecutionSummary, "failed" | "timedOut" | "errors">
-): AdapterStatus {
-  if (counts.errors > 0) {
-    return "error";
-  }
-
-  if (counts.timedOut > 0) {
-    return "timed_out";
-  }
-
-  if (counts.failed > 0) {
-    return "failed";
-  }
-
-  if (results.length === 0 || results.every((result) => result.status === "skipped")) {
-    return "skipped";
-  }
-
-  return "passed";
-}
-
-function renderExecutionReport(report: ExecutionReport, format: ConfigFormat): string {
-  if (format === "json") {
-    return `${JSON.stringify(report, null, 2)}\n`;
-  }
-
-  return renderExecutionMarkdown(report);
-}
-
-function renderExecutionMarkdown(report: ExecutionReport): string {
-  const lines = [
-    "## CodeDecay Execution Report",
-    "",
-    `**Overall status:** ${formatStatus(report.summary.status)}`,
-    `**Config:** ${report.configSource ? `\`${report.configSource}\`` : "defaults (no config file found)"}`,
-    "",
-    "| Result | Count |",
-    "| --- | ---: |",
-    `| Total | ${report.summary.total} |`,
-    `| Passed | ${report.summary.passed} |`,
-    `| Failed | ${report.summary.failed} |`,
-    `| Timed out | ${report.summary.timedOut} |`,
-    `| Errors | ${report.summary.errors} |`,
-    `| Skipped | ${report.summary.skipped} |`,
-    `| Duration | ${report.summary.durationMs}ms |`,
-    ""
-  ];
-
-  if (report.results.length === 0 && report.toolAdapters.length === 0) {
-    lines.push("No configured commands, probes, or tool adapters found.", "");
-    return `${lines.join("\n")}\n`;
-  }
-
-  if (report.results.length > 0) {
-    lines.push("### Results", "");
-    for (const result of report.results) {
-      lines.push(
-        `- **${result.name}** (${result.kind}) ${formatStatus(result.status)} in ${result.durationMs}ms: \`${result.command}\``
-      );
-
-      if (result.exitCode !== undefined) {
-        lines.push(`  - Exit code: ${result.exitCode}`);
-      }
-
-      if (result.error) {
-        lines.push(`  - Error: ${result.error}`);
-      }
-
-      appendOutputBlock(lines, "stdout", result.stdout);
-      appendOutputBlock(lines, "stderr", result.stderr);
-    }
-    lines.push("");
-  }
-
-  if (report.toolAdapters.length > 0) {
-    lines.push("### Tool Adapter Results", "");
-    for (const result of report.toolAdapters) {
-      lines.push(
-        `- **${result.name}** (${result.kind}) ${formatStatus(result.status)} in ${result.durationMs}ms: \`${result.command}\``
-      );
-
-      if (result.failure) {
-        lines.push(`  - Failure: ${result.failure.mode}: ${result.failure.message}`);
-      }
-
-      appendToolEvidence(lines, result.evidence);
-    }
-    lines.push("");
-  }
-
-  lines.push(
-    "",
-    "### Notes",
-    "",
-    "CodeDecay only runs commands explicitly configured in CodeDecay config. It does not run commands proposed by LLMs or remote services.",
-    ""
-  );
-
-  return `${lines.join("\n")}\n`;
-}
-
-function appendToolEvidence(lines: string[], evidence: Evidence[]): void {
-  if (evidence.length === 0) {
-    return;
-  }
-
-  lines.push("  - Evidence:");
-  for (const item of evidence.slice(0, 5)) {
-    lines.push(`    - ${formatEvidenceSeverity(item.severity)} ${item.kind}: ${item.summary}`);
-  }
-}
-
-function formatEvidenceSeverity(severity: Evidence["severity"]): string {
-  return `${severity.charAt(0).toUpperCase()}${severity.slice(1)}`;
-}
-
-function appendOutputBlock(lines: string[], label: string, output: string): void {
-  const trimmed = output.trim();
-  if (!trimmed) {
-    return;
-  }
-
-  lines.push(`  - ${label}:`);
-  lines.push("    ```text");
-  for (const line of trimLongOutput(trimmed).split(/\r?\n/)) {
-    lines.push(`    ${line}`);
-  }
-  lines.push("    ```");
-}
-
-function appendCodeBlock(lines: string[], language: string, source: string): void {
-  const trimmed = source.trim();
-  if (!trimmed) {
-    return;
-  }
-
-  lines.push(`    \`\`\`${language}`);
-  for (const line of trimmed.split(/\r?\n/)) {
-    lines.push(`    ${line}`);
-  }
-  lines.push("    ```");
-}
-
-function countStatus(results: Array<{ status: AdapterStatus }>, status: AdapterStatus): number {
-  return results.filter((result) => result.status === status).length;
-}
-
-function isExecutionFailure(status: AdapterStatus): boolean {
-  return status === "failed" || status === "timed_out" || status === "error";
-}
-
-function formatStatus(status: AdapterStatus): string {
-  if (status === "timed_out") {
-    return "Timed out";
-  }
-
-  return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
 }
 
 async function createProductTargetReport(
