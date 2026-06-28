@@ -824,7 +824,10 @@ async function runSemgrepPlan(
     }
   });
   const durationMs = elapsed(startedAt);
-  const analysis = analyzeSemgrepReport(context.cwd, options.reportPath, execution.stdout);
+  const canParseSemgrepReport = execution.status === "passed" || execution.status === "failed";
+  const analysis = canParseSemgrepReport
+    ? analyzeSemgrepReport(context.cwd, options.reportPath, execution.stdout)
+    : undefined;
   const artifacts = analysis?.artifactPath
     ? [
         {
