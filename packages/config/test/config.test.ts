@@ -77,6 +77,11 @@ describe("loadCodeDecayConfig", () => {
         "    baseUrl: http://127.0.0.1:4000",
         "  pact:",
         "    enabled: false",
+        "  semgrep:",
+        "    config: .semgrep.yml",
+        "    reportPath: reports/semgrep.json",
+        "    failOnSeverity: medium",
+        "    timeoutMs: 180000",
         "productTesting:",
         "  targets:",
         "    web:",
@@ -147,6 +152,13 @@ describe("loadCodeDecayConfig", () => {
         },
         pact: {
           enabled: false
+        },
+        semgrep: {
+          enabled: true,
+          config: ".semgrep.yml",
+          reportPath: "reports/semgrep.json",
+          failOnSeverity: "medium",
+          timeoutMs: 180000
         }
       },
       productTesting: {
@@ -351,6 +363,16 @@ describe("loadCodeDecayConfig", () => {
     writeFile(root, ".codedecay/config.yml", "version: 1\ntoolAdapters:\n  stryker:\n    reportPath: ''\n");
 
     expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(/toolAdapters.stryker.reportPath must be a non-empty string/);
+  });
+
+  it("fails clearly for invalid Semgrep adapter fields", () => {
+    const emptyConfigRoot = createTempDir();
+    writeFile(emptyConfigRoot, ".codedecay/config.yml", "version: 1\ntoolAdapters:\n  semgrep:\n    config: ''\n");
+    expect(() => loadCodeDecayConfig({ cwd: emptyConfigRoot })).toThrow(/toolAdapters.semgrep.config must be a non-empty string/);
+
+    const invalidSeverityRoot = createTempDir();
+    writeFile(invalidSeverityRoot, ".codedecay/config.yml", "version: 1\ntoolAdapters:\n  semgrep:\n    failOnSeverity: critical\n");
+    expect(() => loadCodeDecayConfig({ cwd: invalidSeverityRoot })).toThrow(/toolAdapters.semgrep.failOnSeverity must be low, medium, or high/);
   });
 
   it("fails clearly for invalid product target URLs", () => {

@@ -44,6 +44,9 @@ toolAdapters:
     command: pnpm exec playwright test
   stryker:
     command: pnpm exec stryker run
+  semgrep:
+    config: .semgrep.yml
+    failOnSeverity: high
   schemathesis:
     schema: docs/openapi.yaml
     baseUrl: http://127.0.0.1:3000
@@ -63,6 +66,7 @@ CodeDecay supports these configured command groups:
 - `probes`
 - `toolAdapters.playwright`
 - `toolAdapters.stryker`
+- `toolAdapters.semgrep`
 - `toolAdapters.schemathesis`
 - `toolAdapters.pact`
 

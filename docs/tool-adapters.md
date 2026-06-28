@@ -8,6 +8,7 @@ The first adapters are:
 
 - Playwright for browser/user-flow checks.
 - StrykerJS for mutation-testing evidence.
+- Semgrep for multi-language static bug/security evidence.
 - Schemathesis for OpenAPI/GraphQL API fuzzing evidence.
 - Pact for contract-testing evidence.
 
@@ -24,6 +25,9 @@ toolAdapters:
   stryker:
     command: pnpm exec stryker run
     reportPath: reports/mutation/mutation.json
+  semgrep:
+    config: .semgrep.yml
+    failOnSeverity: high
   schemathesis:
     schema: docs/openapi.yaml
     baseUrl: http://127.0.0.1:3000
@@ -114,6 +118,52 @@ toolAdapters:
     command: pnpm exec stryker run
     reportPath: tmp/stryker-mutation.json
 ```
+
+## Semgrep Harness
+
+The Semgrep harness is also a private internal package API for now:
+
+```ts
+createSemgrepHarness({
+  config: ".semgrep.yml",
+  failOnSeverity: "high",
+  allowCommands: true
+});
+```
+
+Safety defaults:
+
+- command execution is disabled unless `allowCommands: true` is provided,
+- commands go through `@submuxhq/codedecay-execution`,
+- unsafe commands are blocked by the shared safety policy,
+- Semgrep is not installed by CodeDecay,
+- Semgrep Registry, `semgrep ci`, and remote configs are not used by default,
+- no telemetry, LLM calls, API keys, or CodeDecayCloud dependency are used.
+
+The generated local-first command is:
+
+```bash
+semgrep scan --config .semgrep.yml --json --metrics=off --disable-version-check
+```
+
+If `toolAdapters.semgrep: true` is configured without a command or config,
+CodeDecay only runs Semgrep when it discovers a local `.semgrep.yml`,
+`.semgrep.yaml`, `.semgrep/`, `semgrep.yml`, or `semgrep.yaml` config.
+
+Projects can override the full command when they intentionally want a custom
+entry point, package manager wrapper, Semgrep Registry config, or `semgrep ci`:
+
+```yaml
+toolAdapters:
+  semgrep:
+    command: pnpm exec semgrep scan --config p/ci --json --metrics=off
+    failOnSeverity: medium
+```
+
+When Semgrep JSON is available on stdout or at `reportPath`, CodeDecay parses
+findings into `static-analysis` evidence with rule id, message, file, line,
+severity, and selected metadata. Findings at or above `failOnSeverity` fail the
+adapter result. The default threshold is `high`.
 
 ## Schemathesis Harness
 
