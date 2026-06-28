@@ -46,6 +46,7 @@ import {
   runMemoryLearnCommand as runMemoryLearnCommandWithDependencies
 } from "./commands/memory";
 import { runMcpCommand as runMcpCommandWithDependencies } from "./commands/mcp";
+import { runProductCommand as runProductCommandWithDependencies } from "./commands/product";
 import { runRedteamCommand as runRedteamCommandWithDependencies } from "./commands/redteam";
 import { runSnapshotCommand as runSnapshotCommandWithDependencies } from "./commands/snapshot";
 import { COMMAND_ORDER, HELP_DOCS, ROOT_FLAG_ALIASES, UTILITY_COMMAND_ORDER } from "./docs/commands";
@@ -54,8 +55,7 @@ import { write, writeStderr, writeStdout } from "./io";
 import { throwUnknownCommand as throwUnknownCommandWithDocs } from "./parsers/diagnostics";
 import {
   HelpRequested,
-  parseDashboardArgs,
-  parseProductArgs
+  parseDashboardArgs
 } from "./parsers/args";
 import type {
   AnalyzeOptions,
@@ -133,7 +133,11 @@ const COMMAND_HANDLERS: Record<string, CliCommandHandler> = {
   memory: (context) => runMemoryCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),
   "memory-import": (context) => runMemoryImportCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),
   "memory-learn": (context) => runMemoryLearnCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),
-  product: runProductCommand,
+  product: (context) => runProductCommandWithDependencies(context, {
+    createProductTargetReport,
+    renderProductTargetReport,
+    writeOutput: writeCliOutput
+  }),
   redteam: (context) => runRedteamCommandWithDependencies(context, {
     createAnalysisContext: createAnalysisContextForCli,
     resolveRepoRoot: getRepoRootForCli,
@@ -251,39 +255,6 @@ async function run(args: string[], runtime: CliRuntime): Promise<void | number> 
     runtime,
     runtimeCwd
   });
-}
-
-async function runProductCommand(context: CliCommandContext): Promise<void> {
-  const options = parseProductArgs(context.args);
-  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
-  const loadedConfig = loadCodeDecayConfig({ cwd });
-  const report = await createProductTargetReport(cwd, loadedConfig, options);
-
-  writeCliOutput({
-    cwd,
-    output: options.output,
-    rendered: renderProductTargetReport(report, options.format),
-    runtime: context.runtime
-  });
-
-  if (isProductTargetFailure(report.summary.status)) {
-    const shouldFail =
-      options.failOnClassifications && options.failOnClassifications.length > 0
-        ? shouldFailProductReportForClassifications(report, options.failOnClassifications)
-        : true;
-    if (shouldFail) {
-      throw new CliExit(1);
-    }
-  }
-}
-
-function shouldFailProductReportForClassifications(
-  report: ProductTargetReport,
-  classifications: ProductFailureClassification[]
-): boolean {
-  const failures = productFailureBundlesFromProductTargetReport(report);
-  const gate = new Set(classifications);
-  return failures.some((failure) => gate.has(failure.classification));
 }
 
 function runDashboardCommand(context: CliCommandContext): void {
