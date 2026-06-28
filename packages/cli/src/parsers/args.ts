@@ -1,7 +1,6 @@
 import type {
   AnalyzeOptions,
   AgentOptions,
-  DifferentialOptions,
   LlmReviewOptions,
   RedteamOptions,
   SnapshotOptions
@@ -19,89 +18,13 @@ import { HelpRequested, throwUnknownOption } from "./shared";
 
 export { parseConfigArgs } from "./config";
 export { parseDashboardArgs } from "./dashboard";
+export { parseDifferentialArgs } from "./differential";
 export { parseExecuteArgs } from "./execute";
 export { parseMcpArgs } from "./mcp";
 export { parseMemoryArgs, parseMemoryImportArgs, parseMemoryLearnArgs } from "./memory";
 export { parseProductArgs } from "./product";
 export { parseUninstallArgs, parseUpdateArgs } from "./maintenance";
 export { HelpRequested } from "./shared";
-
-export function parseDifferentialArgs(args: string[]): DifferentialOptions {
-  const options: DifferentialOptions = {
-    format: "markdown"
-  };
-
-  for (let index = 0; index < args.length; index += 1) {
-    const arg = args[index];
-
-    if (!arg) {
-      continue;
-    }
-
-    if (arg === "--help" || arg === "-h") {
-      throw new HelpRequested();
-    }
-
-    if (arg.startsWith("--cwd=")) {
-      options.cwd = arg.slice("--cwd=".length);
-      continue;
-    }
-
-    if (arg === "--cwd") {
-      options.cwd = requireValue(args, index, arg);
-      index += 1;
-      continue;
-    }
-
-    if (arg.startsWith("--base=")) {
-      options.base = arg.slice("--base=".length);
-      continue;
-    }
-
-    if (arg === "--base") {
-      options.base = requireValue(args, index, arg);
-      index += 1;
-      continue;
-    }
-
-    if (arg.startsWith("--head=")) {
-      options.head = arg.slice("--head=".length);
-      continue;
-    }
-
-    if (arg === "--head") {
-      options.head = requireValue(args, index, arg);
-      index += 1;
-      continue;
-    }
-
-    if (arg.startsWith("--format=")) {
-      options.format = parseConfigFormat(arg.slice("--format=".length));
-      continue;
-    }
-
-    if (arg === "--format") {
-      options.format = parseConfigFormat(requireValue(args, index, arg));
-      index += 1;
-      continue;
-    }
-
-    if (arg.startsWith("--output=")) {
-      options.output = arg.slice("--output=".length);
-      continue;
-    }
-
-    if (arg === "--output") {
-      options.output = requireValue(args, index, arg);
-      index += 1;
-      continue;
-    }
-
-    throwUnknownOption(arg, "differential");
-  }
-
-  return options;
-}
 
 export function parseSnapshotArgs(args: string[]): SnapshotOptions {
   const options: SnapshotOptions = {
