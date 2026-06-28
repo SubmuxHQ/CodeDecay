@@ -42,6 +42,16 @@ describe("loadCodeDecayConfig", () => {
     });
   });
 
+  it("returns fresh default config objects for missing config", () => {
+    const root = createTempDir();
+    const first = loadCodeDecayConfig({ cwd: root });
+    first.config.commands.test.push("mutated test command");
+
+    const second = loadCodeDecayConfig({ cwd: root });
+
+    expect(second.config.commands.test).toEqual([]);
+  });
+
   it("loads .codedecay/config.yml from cwd", () => {
     const root = createTempDir();
     writeFile(
