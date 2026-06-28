@@ -4,11 +4,6 @@ import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  createConfiguredCommandAdapters,
-  runAdapters,
-  type AdapterResult
-} from "@submuxhq/codedecay-adapters";
-import {
   createAgentTaskBundle,
   renderAgentTaskBundle
 } from "@submuxhq/codedecay-agent";
@@ -34,7 +29,7 @@ import {
   type RiskLevel
 } from "@submuxhq/codedecay-core";
 import { checkCommandSafety, runConfiguredCommand, type CommandExecutionResult, type ExecutionStatus } from "@submuxhq/codedecay-execution";
-import { createGitWorktree, getGitChangedFiles, getRepoRoot, removeGitWorktree } from "@submuxhq/codedecay-git";
+import { getGitChangedFiles, getRepoRoot } from "@submuxhq/codedecay-git";
 import {
   applyMemoryContext,
   loadCodeDecayMemory,
@@ -47,6 +42,7 @@ import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
 import YAML from "yaml";
 import { runConfigCommand } from "./commands/config";
+import { runDifferentialCommand as runDifferentialCommandWithDependencies } from "./commands/differential";
 import { runExecuteCommand as runExecuteCommandWithDependencies } from "./commands/execute";
 import { runLlmReviewCommand as runLlmReviewCommandWithDependencies } from "./commands/llm-review";
 import { runUninstallCommand, runUpdateCommand, runVersionCommand } from "./commands/maintenance";
@@ -65,7 +61,6 @@ import {
   parseAgentArgs,
   parseAnalyzeArgs,
   parseDashboardArgs,
-  parseDifferentialArgs,
   parseMcpArgs,
   parseProductArgs,
   parseRedteamArgs
@@ -79,12 +74,6 @@ import type {
   CliRuntime,
   ConfigFormat,
   DashboardOptions,
-  DifferentialOptions,
-  DifferentialProbeResult,
-  DifferentialReport,
-  DifferentialSideResult,
-  DifferentialSummary,
-  DifferentialStatus,
   LlmReviewOptions,
   McpOptions,
   ManagedProductProcess,
@@ -124,7 +113,11 @@ const COMMAND_HANDLERS: Record<string, CliCommandHandler> = {
   analyze: runAnalyzeCommand,
   config: runConfigCommand,
   dashboard: runDashboardCommand,
-  differential: runDifferentialCommand,
+  differential: (context) => runDifferentialCommandWithDependencies(context, {
+    formatGitError: formatGitErrorForCli,
+    resolveRepoRoot: getRepoRootForCli,
+    writeOutput: writeCliOutput
+  }),
   execute: (context) => runExecuteCommandWithDependencies(context, {
     createAnalysisContext: createAnalysisContextForCli,
     writeOutput: writeCliOutput
@@ -758,32 +751,6 @@ function escapeHtml(value: string): string {
 
 function escapeAttribute(value: string): string {
   return escapeHtml(value).replace(/`/g, "&#96;");
-}
-
-async function runDifferentialCommand(context: CliCommandContext): Promise<void> {
-  const options = parseDifferentialArgs(context.args);
-  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
-  const refs = requireDifferentialRefs(options);
-  const rootDir = getRepoRootForCli(cwd, { base: refs.base, head: refs.head, format: "markdown" });
-  const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
-  let report: DifferentialReport;
-
-  try {
-    report = await createDifferentialReport(rootDir, refs, loadedConfig);
-  } catch (error: unknown) {
-    throw formatGitErrorForCli(error, rootDir, { base: refs.base, head: refs.head, format: "markdown" });
-  }
-
-  writeCliOutput({
-    cwd,
-    output: options.output,
-    rendered: renderDifferentialReport(report, options.format),
-    runtime: context.runtime
-  });
-
-  if (isDifferentialFailure(report.summary.status)) {
-    throw new CliExit(1);
-  }
 }
 
 function runRedteamCommand(context: CliCommandContext): void {
@@ -4327,321 +4294,6 @@ async function delay(ms: number): Promise<void> {
   }
 
   await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function requireDifferentialRefs(options: DifferentialOptions): { base: string; head: string } {
-  if (!options.base || !options.head) {
-    throw new Error("codedecay differential requires --base <ref> and --head <ref>.");
-  }
-
-  return {
-    base: options.base,
-    head: options.head
-  };
-}
-
-async function createDifferentialReport(
-  rootDir: string,
-  refs: { base: string; head: string },
-  loadedConfig: LoadedCodeDecayConfig
-): Promise<DifferentialReport> {
-  const startedAt = Date.now();
-  const configuredProbes = createConfiguredCommandAdapters(loadedConfig.config).filter((item) => item.kind === "probe");
-  let baseWorktree: { path: string } | undefined;
-  let headWorktree: { path: string } | undefined;
-
-  try {
-    baseWorktree = createGitWorktree({ cwd: rootDir, ref: refs.base, prefix: "base" });
-    headWorktree = createGitWorktree({ cwd: rootDir, ref: refs.head, prefix: "head" });
-
-    const results: DifferentialProbeResult[] = [];
-    for (const probe of configuredProbes) {
-      const baseResult = await runDifferentialSide(probe.adapter, baseWorktree.path, loadedConfig);
-      const headResult = await runDifferentialSide(probe.adapter, headWorktree.path, loadedConfig);
-      const differences = compareDifferentialSides(baseResult, headResult);
-      const status = differentialProbeStatus(baseResult, headResult, differences);
-
-      results.push({
-        id: probe.adapter.id,
-        name: probe.adapter.name,
-        command: probe.command,
-        status,
-        differences,
-        base: baseResult,
-        head: headResult
-      });
-    }
-
-    const report: DifferentialReport = {
-      tool: "CodeDecay",
-      version: CODEDECAY_VERSION,
-      generatedAt: new Date().toISOString(),
-      base: refs.base,
-      head: refs.head,
-      summary: createDifferentialSummary(results, elapsed(startedAt)),
-      results
-    };
-
-    if (loadedConfig.sourcePath) {
-      report.configSource = loadedConfig.sourcePath;
-    }
-
-    return report;
-  } finally {
-    if (headWorktree) {
-      removeGitWorktree({ cwd: rootDir, path: headWorktree.path });
-    }
-
-    if (baseWorktree) {
-      removeGitWorktree({ cwd: rootDir, path: baseWorktree.path });
-    }
-  }
-}
-
-async function runDifferentialSide(
-  adapter: ReturnType<typeof createConfiguredCommandAdapters>[number]["adapter"],
-  rootDir: string,
-  loadedConfig: LoadedCodeDecayConfig
-): Promise<DifferentialSideResult> {
-  const [result] = await runAdapters([adapter], {
-    rootDir,
-    changedFiles: [],
-    config: loadedConfig.config
-  });
-
-  if (!result) {
-    return {
-      status: "error",
-      durationMs: 0,
-      stdout: "",
-      stderr: "",
-      error: "Adapter did not return a result."
-    };
-  }
-
-  return toDifferentialSide(result);
-}
-
-function toDifferentialSide(result: AdapterResult): DifferentialSideResult {
-  const side: DifferentialSideResult = {
-    status: result.status,
-    durationMs: result.durationMs,
-    stdout: result.stdout,
-    stderr: result.stderr
-  };
-
-  if (result.exitCode !== undefined) {
-    side.exitCode = result.exitCode;
-  }
-
-  if (result.error) {
-    side.error = result.error;
-  }
-
-  const structuredOutput = parseStructuredOutput(result.stdout);
-  if (structuredOutput !== undefined) {
-    side.structuredOutput = structuredOutput;
-  }
-
-  return side;
-}
-
-function createDifferentialSummary(results: DifferentialProbeResult[], durationMs: number): DifferentialSummary {
-  const changed = results.filter((result) => result.status === "changed").length;
-  const failed = results.filter((result) => result.status === "failed").length;
-  const skipped = results.filter((result) => result.status === "skipped").length;
-  const unchanged = results.filter((result) => result.status === "passed").length;
-
-  return {
-    status: differentialStatus(results, { changed, failed, skipped }),
-    total: results.length,
-    unchanged,
-    changed,
-    skipped,
-    failed,
-    durationMs
-  };
-}
-
-function differentialStatus(
-  results: DifferentialProbeResult[],
-  counts: Pick<DifferentialSummary, "changed" | "failed" | "skipped">
-): DifferentialStatus {
-  if (counts.failed > 0) {
-    return "failed";
-  }
-
-  if (counts.changed > 0) {
-    return "changed";
-  }
-
-  if (results.length === 0 || counts.skipped === results.length) {
-    return "skipped";
-  }
-
-  return "passed";
-}
-
-function differentialProbeStatus(
-  base: DifferentialSideResult,
-  head: DifferentialSideResult,
-  differences: string[]
-): DifferentialStatus {
-  if (isDifferentialSideInfrastructureFailure(base) || isDifferentialSideInfrastructureFailure(head)) {
-    return "failed";
-  }
-
-  if (base.status === "skipped" && head.status === "skipped") {
-    return "skipped";
-  }
-
-  return differences.length > 0 ? "changed" : "passed";
-}
-
-function isDifferentialSideInfrastructureFailure(side: DifferentialSideResult): boolean {
-  return side.status === "error" || side.status === "timed_out";
-}
-
-function compareDifferentialSides(base: DifferentialSideResult, head: DifferentialSideResult): string[] {
-  const differences: string[] = [];
-
-  if (base.status !== head.status) {
-    differences.push(`status changed from ${base.status} to ${head.status}`);
-  }
-
-  if (base.exitCode !== head.exitCode) {
-    differences.push(`exit code changed from ${formatOptionalNumber(base.exitCode)} to ${formatOptionalNumber(head.exitCode)}`);
-  }
-
-  if (base.structuredOutput !== undefined || head.structuredOutput !== undefined) {
-    if (stableJson(base.structuredOutput) !== stableJson(head.structuredOutput)) {
-      differences.push("structured stdout changed");
-    }
-  } else if (normalizeOutput(base.stdout) !== normalizeOutput(head.stdout)) {
-    differences.push("stdout changed");
-  }
-
-  if (normalizeOutput(base.stderr) !== normalizeOutput(head.stderr)) {
-    differences.push("stderr changed");
-  }
-
-  return differences;
-}
-
-function renderDifferentialReport(report: DifferentialReport, format: ConfigFormat): string {
-  if (format === "json") {
-    return `${JSON.stringify(report, null, 2)}\n`;
-  }
-
-  return renderDifferentialMarkdown(report);
-}
-
-function renderDifferentialMarkdown(report: DifferentialReport): string {
-  const lines = [
-    "## CodeDecay Differential Report",
-    "",
-    `**Overall status:** ${formatDifferentialStatus(report.summary.status)}`,
-    `**Base:** \`${report.base}\``,
-    `**Head:** \`${report.head}\``,
-    `**Config:** ${report.configSource ? `\`${report.configSource}\`` : "defaults (no config file found)"}`,
-    "",
-    "| Result | Count |",
-    "| --- | ---: |",
-    `| Total | ${report.summary.total} |`,
-    `| Unchanged | ${report.summary.unchanged} |`,
-    `| Changed | ${report.summary.changed} |`,
-    `| Failed | ${report.summary.failed} |`,
-    `| Skipped | ${report.summary.skipped} |`,
-    `| Duration | ${report.summary.durationMs}ms |`,
-    ""
-  ];
-
-  if (report.results.length === 0) {
-    lines.push("No configured probes found.", "");
-    return `${lines.join("\n")}\n`;
-  }
-
-  lines.push("### Probe Results", "");
-  for (const result of report.results) {
-    lines.push(`- **${result.name}** ${formatDifferentialStatus(result.status)}: \`${result.command}\``);
-
-    if (result.differences.length > 0) {
-      lines.push(`  - Differences: ${result.differences.join("; ")}`);
-    }
-
-    lines.push(`  - Base: ${formatStatus(result.base.status)}${formatSideExitCode(result.base)}`);
-    lines.push(`  - Head: ${formatStatus(result.head.status)}${formatSideExitCode(result.head)}`);
-
-    if (result.status === "changed" || result.status === "failed") {
-      appendOutputBlock(lines, "base stdout", result.base.stdout);
-      appendOutputBlock(lines, "head stdout", result.head.stdout);
-      appendOutputBlock(lines, "base stderr", result.base.stderr);
-      appendOutputBlock(lines, "head stderr", result.head.stderr);
-    }
-  }
-
-  lines.push(
-    "",
-    "### Notes",
-    "",
-    "CodeDecay runs only configured probes from CodeDecay config on temporary git worktrees, then removes those worktrees.",
-    ""
-  );
-
-  return `${lines.join("\n")}\n`;
-}
-
-function parseStructuredOutput(output: string): unknown {
-  const trimmed = output.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-
-  try {
-    return JSON.parse(trimmed);
-  } catch {
-    return undefined;
-  }
-}
-
-function stableJson(value: unknown): string {
-  return JSON.stringify(sortJsonValue(value));
-}
-
-function sortJsonValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map(sortJsonValue);
-  }
-
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, nested]) => [key, sortJsonValue(nested)])
-    );
-  }
-
-  return value;
-}
-
-function normalizeOutput(value: string): string {
-  return value.trim().replace(/\r\n/g, "\n");
-}
-
-function formatOptionalNumber(value: number | undefined): string {
-  return value === undefined ? "none" : String(value);
-}
-
-function formatSideExitCode(side: DifferentialSideResult): string {
-  return side.exitCode === undefined ? "" : `, exit ${side.exitCode}`;
-}
-
-function isDifferentialFailure(status: DifferentialStatus): boolean {
-  return status === "changed" || status === "failed";
-}
-
-function formatDifferentialStatus(status: DifferentialStatus): string {
-  return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
 }
 
 function getRepoRootForCli(cwd: string, options: { base?: string | undefined; head?: string | undefined; format: string }): string {
