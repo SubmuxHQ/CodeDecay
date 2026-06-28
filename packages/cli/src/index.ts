@@ -45,6 +45,7 @@ import {
   runMemoryImportCommand as runMemoryImportCommandWithDependencies,
   runMemoryLearnCommand as runMemoryLearnCommandWithDependencies
 } from "./commands/memory";
+import { runMcpCommand as runMcpCommandWithDependencies } from "./commands/mcp";
 import { runRedteamCommand as runRedteamCommandWithDependencies } from "./commands/redteam";
 import { runSnapshotCommand as runSnapshotCommandWithDependencies } from "./commands/snapshot";
 import { COMMAND_ORDER, HELP_DOCS, ROOT_FLAG_ALIASES, UTILITY_COMMAND_ORDER } from "./docs/commands";
@@ -54,7 +55,6 @@ import { throwUnknownCommand as throwUnknownCommandWithDocs } from "./parsers/di
 import {
   HelpRequested,
   parseDashboardArgs,
-  parseMcpArgs,
   parseProductArgs
 } from "./parsers/args";
 import type {
@@ -127,7 +127,9 @@ const COMMAND_HANDLERS: Record<string, CliCommandHandler> = {
     resolveRepoRoot: getRepoRootForCli,
     writeOutput: writeCliOutput
   }),
-  mcp: runMcpCommand,
+  mcp: (context) => runMcpCommandWithDependencies(context, {
+    cliPath: fileURLToPath(import.meta.url)
+  }),
   memory: (context) => runMemoryCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),
   "memory-import": (context) => runMemoryImportCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),
   "memory-learn": (context) => runMemoryLearnCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),
@@ -249,13 +251,6 @@ async function run(args: string[], runtime: CliRuntime): Promise<void | number> 
     runtime,
     runtimeCwd
   });
-}
-
-async function runMcpCommand(context: CliCommandContext): Promise<void> {
-  const options = parseMcpArgs(context.args);
-  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
-  const { startMcpServer } = await import("@submuxhq/codedecay-mcp");
-  await startMcpServer({ cwd, cliPath: fileURLToPath(import.meta.url) });
 }
 
 async function runProductCommand(context: CliCommandContext): Promise<void> {
