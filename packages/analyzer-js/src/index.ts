@@ -15,18 +15,24 @@ import type {
   TestEvidenceSummary
 } from "@submuxhq/codedecay-core";
 import { dedupeStrings } from "@submuxhq/codedecay-core";
+import {
+  classifyChange,
+  classifyPath,
+  isLowSignalChange,
+  isSourcePath,
+  isTestPath,
+  type AreaKind
+} from "./classifiers/paths";
+import {
+  createMissingNearbyTestsFinding,
+  createRiskyAreaFinding,
+  firstLine
+} from "./findings/builders";
+import { dedupeFindings } from "./findings/sorting";
 
 export interface AnalyzeJsOptions {
   rootDir: string;
   changedFiles: FileChange[];
-}
-
-type AreaKind = ImpactedArea["kind"];
-
-interface PathClassification {
-  kind: AreaKind;
-  name: string;
-  risk: RiskLevel;
 }
 
 interface FunctionMetric {
@@ -68,32 +74,7 @@ interface PropagatedRouteImpactAnalysis {
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
 
-const SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".py"]);
 const SOURCE_EXTENSION_CANDIDATES = [".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"];
-const ASSET_EXTENSIONS = new Set([
-  ".avif",
-  ".bmp",
-  ".eot",
-  ".gif",
-  ".ico",
-  ".jpeg",
-  ".jpg",
-  ".mp3",
-  ".mp4",
-  ".ogg",
-  ".otf",
-  ".pdf",
-  ".png",
-  ".svg",
-  ".ttf",
-  ".wav",
-  ".webm",
-  ".webp",
-  ".woff",
-  ".woff2"
-]);
-const TEST_DIR_NAMES = new Set(["test", "tests", "spec", "specs", "e2e", "integration", "__tests__", "__specs__"]);
-const TEST_FILE_STEM_PATTERN = /(^|[._-])(test|spec|e2e|integration)([._-]|$)/i;
 const IGNORED_DIRS = new Set([".git", "node_modules", "dist", "coverage", ".next", "build"]);
 const ASSERTION_PATTERN =
   /\b(expect|assert|strictEqual|deepStrictEqual|ok)\s*\(|\bshould\(|\bto(Be|Equal|StrictEqual|Contain|Match|Have|Throw|BeTruthy|BeFalsy)\b/;
@@ -103,20 +84,6 @@ const MOCK_PATTERN =
 const TEST_CASE_PATTERN = /\b(it|test|specify)\s*\(/;
 const HTTP_METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 const GENERIC_SOURCE_STEMS = new Set(["index", "main", "app", "page", "route", "layout", "config"]);
-const PACKAGE_METADATA_KEYS = new Set([
-  "author",
-  "bugs",
-  "description",
-  "funding",
-  "homepage",
-  "keywords",
-  "license",
-  "name",
-  "private",
-  "repository",
-  "version"
-]);
-
 export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
   const findings: Finding[] = [];
   const impactedAreas: ImpactedArea[] = [];
@@ -142,15 +109,7 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
         files: [change.path]
       });
 
-      findings.push({
-        ruleId: `risky-${classification.kind}-change`,
-        title: `${capitalize(classification.kind)} area changed`,
-        description: `${change.path} touches a ${classification.kind} area and should be reviewed for regression impact.`,
-        severity: classification.risk,
-        category: classification.kind === "config" ? "configuration" : "regression",
-        file: change.path,
-        line: firstLine(change)
-      });
+      findings.push(createRiskyAreaFinding(change, classification));
     }
   }
 
@@ -165,15 +124,12 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
       .filter((change) => classifyChange(change)?.risk !== "low")
       .filter((change) => !fullyCoveredSourcePaths.has(change.path));
     if (riskySourceFiles.length > 0) {
-      findings.push({
-        ruleId: "missing-nearby-tests",
-        title: "Risky source changes without changed tests",
-        description: "This PR changes risky source areas but does not change any obvious test files.",
-        severity: riskySourceFiles.some((change) => classifyChange(change)?.risk === "high") ? "high" : "medium",
-        category: "coverage",
-        file: riskySourceFiles[0]?.path,
-        line: firstLine(riskySourceFiles[0])
-      });
+      findings.push(
+        createMissingNearbyTestsFinding(
+          riskySourceFiles,
+          riskySourceFiles.some((change) => classifyChange(change)?.risk === "high") ? "high" : "medium"
+        )
+      );
     }
   }
 
@@ -235,66 +191,6 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
     recommendedTests: recommendedTests.length > 0 ? dedupeStrings(recommendedTests) : ["Run the test suite for changed packages or apps."],
     testEvidence: runtimeCoverage.testEvidence
   };
-}
-
-function classifyChange(change: FileChange): PathClassification | undefined {
-  if (isLockfilePath(change.path)) {
-    return { kind: "config", name: "Dependency lockfile", risk: "low" };
-  }
-
-  if (isPackageMetadataOnlyChange(change)) {
-    return { kind: "config", name: "Package metadata", risk: "low" };
-  }
-
-  return classifyPath(change.path);
-}
-
-function classifyPath(path: string): PathClassification | undefined {
-  const normalized = path.toLowerCase();
-
-  if (isAssetPath(normalized)) {
-    return undefined;
-  }
-
-  if (isDocsPath(normalized)) {
-    return { kind: "docs", name: "Documentation", risk: "low" };
-  }
-
-  if (isTestPath(normalized)) {
-    return { kind: "test", name: "Tests", risk: "low" };
-  }
-
-  if (/(^|\/)(auth|session|sessions|jwt|oauth|middleware|permissions?|rbac|acl)(\/|\.|-|_)/i.test(path)) {
-    return { kind: "auth", name: "Authentication and authorization", risk: "high" };
-  }
-
-  if (
-    /(^|\/)(schema\.prisma|migrations?|drizzle|knex|sequelize|typeorm|db|database|models?)(\/|\.|-|_|$)/i.test(path)
-  ) {
-    return { kind: "database", name: "Database and schema", risk: "high" };
-  }
-
-  if (/(^|\/)(pages\/api|app\/api|api|routes?|controllers?)(\/|\.|-|_)/i.test(path)) {
-    return { kind: "api", name: "API surface", risk: "high" };
-  }
-
-  if (/(^|\/)(app|pages|routes|screens|views)(\/|\.|-|_)/i.test(path) && isSourcePath(path)) {
-    return { kind: "ui", name: "UI route", risk: "medium" };
-  }
-
-  if (
-    /(^|\/)(package\.json|pnpm-lock\.yaml|yarn\.lock|package-lock\.json|tsconfig|next\.config|vite\.config|webpack\.config|eslint|prettier|dockerfile|compose|\.github\/workflows|vercel\.json|netlify\.toml)/i.test(
-      path
-    )
-  ) {
-    return { kind: "config", name: "Build and runtime configuration", risk: "medium" };
-  }
-
-  if (isSourcePath(path)) {
-    return { kind: "source", name: "Source code", risk: "low" };
-  }
-
-  return undefined;
 }
 
 function detectImpactedRoutes(rootDir: string, changedSourceFiles: FileChange[]): ImpactedRoute[] {
@@ -1892,92 +1788,6 @@ function listRepoFiles(rootDir: string): string[] {
   return files;
 }
 
-function dedupeFindings(findings: Finding[]): Finding[] {
-  const byKey = new Map<string, Finding>();
-
-  for (const finding of findings) {
-    const key = `${finding.ruleId}:${finding.file ?? ""}:${finding.line ?? ""}:${finding.description}`;
-    if (!byKey.has(key)) {
-      byKey.set(key, finding);
-    }
-  }
-
-  return [...byKey.values()];
-}
-
-function isSourcePath(path: string): boolean {
-  return SOURCE_EXTENSIONS.has(extname(path).toLowerCase());
-}
-
-function isAssetPath(path: string): boolean {
-  return ASSET_EXTENSIONS.has(extname(path).toLowerCase());
-}
-
-function isDocsPath(path: string): boolean {
-  return /(^|\/)(docs?|readme|changelog|adr)(\/|\.|$)/i.test(path) || /\.(md|mdx|txt)$/i.test(path);
-}
-
-function isLowSignalChange(change: FileChange): boolean {
-  return (
-    isDocsPath(change.path) ||
-    isAssetPath(change.path) ||
-    isLockfilePath(change.path) ||
-    isPackageMetadataOnlyChange(change)
-  );
-}
-
-function isLockfilePath(path: string): boolean {
-  const normalized = normalizePath(path).toLowerCase();
-  const fileName = basename(normalized);
-  return (
-    fileName === "pnpm-lock.yaml" ||
-    fileName === "yarn.lock" ||
-    fileName === "package-lock.json" ||
-    fileName === "npm-shrinkwrap.json" ||
-    fileName === "bun.lock" ||
-    fileName === "bun.lockb"
-  );
-}
-
-function isPackageMetadataOnlyChange(change: FileChange): boolean {
-  if (basename(normalizePath(change.path)).toLowerCase() !== "package.json") {
-    return false;
-  }
-
-  const meaningfulLines = change.addedLines
-    .map((line) => line.content.trim())
-    .filter((line) => line.length > 0 && !line.startsWith("//"));
-
-  if (meaningfulLines.length === 0) {
-    return true;
-  }
-
-  return meaningfulLines.every((line) => {
-    if (/^[{}\[\],]+$/.test(line)) {
-      return true;
-    }
-
-    const keyMatch = /^"([^"]+)"\s*:/.exec(line);
-    if (keyMatch) {
-      return PACKAGE_METADATA_KEYS.has(keyMatch[1] ?? "");
-    }
-
-    return /^"[^"]+"\s*,?$/.test(line) || /^(true|false|null)\s*,?$/.test(line);
-  });
-}
-
-function isTestPath(path: string): boolean {
-  const normalized = normalizePath(path).toLowerCase();
-  const segments = normalized.split("/").filter(Boolean);
-  const directorySegments = segments.slice(0, -1);
-  if (directorySegments.some((segment) => TEST_DIR_NAMES.has(segment))) {
-    return true;
-  }
-
-  const fileName = segments.at(-1) ?? normalized;
-  return TEST_FILE_STEM_PATTERN.test(stripExtension(fileName));
-}
-
 function stripExtension(path: string): string {
   return path.replace(/\.[^.]+$/, "");
 }
@@ -2200,12 +2010,4 @@ function isQuote(value: string | undefined): boolean {
 
 function isWhitespace(value: string | undefined): boolean {
   return value === " " || value === "\t" || value === "\n" || value === "\r" || value === "\f" || value === "\v";
-}
-
-function firstLine(change: FileChange | undefined): number | undefined {
-  return change?.addedLines[0]?.line;
-}
-
-function capitalize(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
 }
