@@ -44,6 +44,9 @@ toolAdapters:
   stryker:
     command: pnpm exec stryker run
     reportPath: reports/mutation/mutation.json
+  semgrep:
+    config: .semgrep.yml
+    failOnSeverity: high
   schemathesis:
     schema: docs/openapi.yaml
     baseUrl: http://127.0.0.1:3000
@@ -192,7 +195,7 @@ Execution uses this config as its allowlisted command source. See
 [Differential behavior checks](differential.md).
 
 Tool adapters are also configured here. See [Tool adapters](tool-adapters.md)
-for Playwright, StrykerJS, Schemathesis, and Pact adapter details.
+for Playwright, StrykerJS, Semgrep, Schemathesis, and Pact adapter details.
 
 Read [Product Testing](product-testing.md) for the failure bundle schema and the
 roadmap toward local-first UI/API verification.

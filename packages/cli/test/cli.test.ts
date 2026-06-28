@@ -1424,6 +1424,83 @@ describe("codedecay execute CLI contract", () => {
     );
   });
 
+  it("runs configured Semgrep adapter and returns static-analysis evidence", async () => {
+    const repo = createLowRiskRepo();
+    writeFile(
+      repo,
+      "semgrep-json.js",
+      [
+        "console.log(JSON.stringify({",
+        "  results: [{",
+        "    check_id: 'javascript.express.security.audit.xss',",
+        "    path: 'src/app.ts',",
+        "    start: { line: 12, col: 3 },",
+        "    end: { line: 12, col: 21 },",
+        "    extra: {",
+        "      message: 'User input reaches response',",
+        "      severity: 'ERROR',",
+        "      metadata: { category: 'security', confidence: 'HIGH', technology: ['express'] }",
+        "    }",
+        "  }]",
+        "}));",
+        ""
+      ].join("\n")
+    );
+    writeFile(
+      repo,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "commands: {}",
+        "probes: []",
+        "toolAdapters:",
+        "  semgrep:",
+        "    command: node semgrep-json.js",
+        "    failOnSeverity: high",
+        "safety:",
+        "  allowCommands: true",
+        "  commandTimeoutMs: 1000",
+        ""
+      ].join("\n")
+    );
+
+    const result = await run(["execute", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(report.summary).toMatchObject({
+      status: "failed",
+      total: 1,
+      failed: 1
+    });
+    expect(report.toolAdapters[0]).toMatchObject({
+      kind: "semgrep",
+      name: "Semgrep",
+      command: "node semgrep-json.js",
+      status: "failed",
+      failure: {
+        mode: "tool-finding"
+      }
+    });
+    expect(report.toolAdapters[0].evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "static-analysis",
+          severity: "high",
+          summary: "javascript.express.security.audit.xss: User input reaches response in src/app.ts:12.",
+          file: "src/app.ts",
+          line: 12
+        })
+      ])
+    );
+
+    const markdown = await run(["execute", "--format", "markdown"], repo);
+    expect(markdown.exitCode).toBe(1);
+    expect(markdown.stdout).toContain("Semgrep");
+    expect(markdown.stdout).toContain("static-analysis");
+    expect(markdown.stdout).toContain("User input reaches response");
+  });
+
   it("returns exit 1 and reports failures from configured tool adapters", async () => {
     const repo = createLowRiskRepo();
     writeFile(repo, "pact-fail.js", "console.error('contract mismatch'); process.exit(15);\n");

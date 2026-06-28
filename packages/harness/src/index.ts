@@ -6,6 +6,7 @@ export type EvidenceKind =
   | "test"
   | "coverage"
   | "mutation"
+  | "static-analysis"
   | "api-fuzz"
   | "contract"
   | "browser-flow"
@@ -46,6 +47,7 @@ export type HarnessCapability =
   | "test-execution"
   | "browser-flow"
   | "api-fuzzing"
+  | "static-analysis"
   | "mutation-testing"
   | "contract-testing"
   | "coverage"
@@ -62,6 +64,7 @@ export type HarnessFailureMode =
   | "network-required"
   | "unsafe-command"
   | "model-unavailable"
+  | "tool-finding"
   | "no-evidence"
   | "internal-error";
 

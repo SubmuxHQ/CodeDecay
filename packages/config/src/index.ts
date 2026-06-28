@@ -42,6 +42,7 @@ export interface CodeDecayToolAdapters {
   stryker?: CodeDecayStrykerToolAdapter | undefined;
   schemathesis?: CodeDecaySchemathesisToolAdapter | undefined;
   pact?: CodeDecayCommandToolAdapter | undefined;
+  semgrep?: CodeDecaySemgrepToolAdapter | undefined;
 }
 
 export interface CodeDecayCommandToolAdapter {
@@ -57,6 +58,14 @@ export interface CodeDecaySchemathesisToolAdapter extends CodeDecayCommandToolAd
 
 export interface CodeDecayStrykerToolAdapter extends CodeDecayCommandToolAdapter {
   reportPath?: string | undefined;
+}
+
+export type CodeDecayToolSeverity = "low" | "medium" | "high";
+
+export interface CodeDecaySemgrepToolAdapter extends CodeDecayCommandToolAdapter {
+  config?: string | undefined;
+  reportPath?: string | undefined;
+  failOnSeverity?: CodeDecayToolSeverity | undefined;
 }
 
 export interface CodeDecayProductTestingConfig {
@@ -363,6 +372,7 @@ function normalizeToolAdapters(value: unknown, sourcePath: string): CodeDecayToo
   const stryker = normalizeStrykerToolAdapter(value.stryker, sourcePath);
   const schemathesis = normalizeSchemathesisToolAdapter(value.schemathesis, sourcePath);
   const pact = normalizeCommandToolAdapter(value.pact, "toolAdapters.pact", sourcePath);
+  const semgrep = normalizeSemgrepToolAdapter(value.semgrep, sourcePath);
 
   if (playwright) {
     adapters.playwright = playwright;
@@ -378,6 +388,10 @@ function normalizeToolAdapters(value: unknown, sourcePath: string): CodeDecayToo
 
   if (pact) {
     adapters.pact = pact;
+  }
+
+  if (semgrep) {
+    adapters.semgrep = semgrep;
   }
 
   return adapters;
@@ -663,6 +677,44 @@ function normalizeStrykerToolAdapter(
   return stryker;
 }
 
+function normalizeSemgrepToolAdapter(
+  value: unknown,
+  sourcePath: string
+): CodeDecaySemgrepToolAdapter | undefined {
+  const adapter = normalizeCommandToolAdapter(value, "toolAdapters.semgrep", sourcePath);
+  if (!adapter || typeof value === "boolean") {
+    return adapter;
+  }
+
+  if (!isPlainObject(value)) {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: toolAdapters.semgrep must be a boolean or object.`);
+  }
+
+  const semgrep: CodeDecaySemgrepToolAdapter = { ...adapter };
+
+  if (value.config !== undefined) {
+    semgrep.config = normalizeNonEmptyString(value.config, "toolAdapters.semgrep.config", sourcePath);
+  }
+
+  if (value.reportPath !== undefined) {
+    semgrep.reportPath = normalizeNonEmptyString(value.reportPath, "toolAdapters.semgrep.reportPath", sourcePath);
+  }
+
+  if (value.failOnSeverity !== undefined) {
+    semgrep.failOnSeverity = normalizeToolSeverity(value.failOnSeverity, "toolAdapters.semgrep.failOnSeverity", sourcePath);
+  }
+
+  return semgrep;
+}
+
+function normalizeToolSeverity(value: unknown, field: string, sourcePath: string): CodeDecayToolSeverity {
+  if (value === "low" || value === "medium" || value === "high") {
+    return value;
+  }
+
+  throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be low, medium, or high.`);
+}
+
 function normalizePositiveInteger(value: unknown, field: string, sourcePath: string): number {
   if (typeof value === "number" && Number.isInteger(value) && value > 0) {
     return value;
@@ -811,6 +863,10 @@ function cloneToolAdapters(toolAdapters: CodeDecayToolAdapters): CodeDecayToolAd
 
   if (toolAdapters.pact) {
     cloned.pact = { ...toolAdapters.pact };
+  }
+
+  if (toolAdapters.semgrep) {
+    cloned.semgrep = { ...toolAdapters.semgrep };
   }
 
   return cloned;

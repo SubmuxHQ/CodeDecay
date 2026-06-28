@@ -45,7 +45,7 @@ Exit codes:
 - local memory summary from `.codedecay/memory.json`
 - repo-local agent skill summaries from `.agents/skills/*/SKILL.md`
 - configured test/build/start/probe commands that are available but not run
-- configured Playwright, StrykerJS, Schemathesis, and Pact tool adapters that
+- configured Playwright, StrykerJS, Semgrep, Schemathesis, and Pact tool adapters that
   are planned but not run
 - fix tasks for your coding agent
 - explicit safety flags showing that commands and models were not called
