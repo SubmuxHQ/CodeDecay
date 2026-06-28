@@ -1,9 +1,29 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import type { CodeDecayProductApiEndpoint, CodeDecayProductTarget, LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import { runConfiguredCommand } from "@submuxhq/codedecay-execution";
 import YAML from "yaml";
-import { normalizeExploreUrl, normalizeWhitespace, resolveMaybeUrl, sanitizeArtifactSegment, slugifyLowerAscii } from "./exploration";
+import { normalizeExploreUrl, normalizeWhitespace, resolveMaybeUrl, sanitizeArtifactSegment } from "../exploration";
+import {
+  PRODUCT_API_METHODS,
+  SAFE_PRODUCT_API_METHODS,
+  type OpenApiDocument,
+  type OpenApiOperation,
+  type OpenApiParameter,
+  type OpenApiPathItem,
+  type OpenApiSchema,
+  type ProductHttpMethod,
+  type ResolvedOpenApiSchema
+} from "./openapi";
+import { priorityForPath, priorityRank } from "./priority";
+import {
+  defaultProductFlowMapPath,
+  defaultProductGeneratedApiTestManifestPath,
+  defaultProductGeneratedTestManifestPath,
+  relativePathForArtifact,
+  writeOutput
+} from "./paths";
+import { elapsed, escapeRegExp, generatedTestId, regexLiteralForText, shellQuote } from "./strings";
 import type {
   ProductFlowMap,
   ProductFlowPage,
@@ -13,7 +33,11 @@ import type {
   ProductGeneratedTestRunResult,
   ProductGeneratedTestsResult,
   ProductHealthResult
-} from "../types";
+} from "../../types";
+
+export { relativePathForArtifact } from "./paths";
+export { normalizeProductPriorityPath, priorityRank } from "./priority";
+export { escapeRegExp } from "./strings";
 
 export interface ProductGeneratedTestDependencies {
   findPrioritizedProductPaths: (rootDir: string) => Set<string>;
@@ -150,68 +174,6 @@ export function loadGeneratedProductTestsForTarget(rootDir: string, target: Code
     };
   }
 }
-
-type ProductHttpMethod = "GET" | "HEAD" | "OPTIONS" | "POST" | "PUT" | "PATCH" | "DELETE";
-
-interface OpenApiDocument {
-  openapi?: string | undefined;
-  swagger?: string | undefined;
-  servers?: Array<{ url?: string | undefined }> | undefined;
-  paths?: Record<string, OpenApiPathItem | undefined> | undefined;
-}
-
-interface OpenApiPathItem {
-  parameters?: OpenApiParameter[] | undefined;
-  get?: OpenApiOperation | undefined;
-  head?: OpenApiOperation | undefined;
-  options?: OpenApiOperation | undefined;
-  post?: OpenApiOperation | undefined;
-  put?: OpenApiOperation | undefined;
-  patch?: OpenApiOperation | undefined;
-  delete?: OpenApiOperation | undefined;
-}
-
-interface OpenApiOperation {
-  operationId?: string | undefined;
-  summary?: string | undefined;
-  description?: string | undefined;
-  parameters?: OpenApiParameter[] | undefined;
-  requestBody?: OpenApiRequestBody | undefined;
-  responses?: Record<string, unknown> | undefined;
-}
-
-interface OpenApiParameter {
-  name?: string | undefined;
-  in?: string | undefined;
-  required?: boolean | undefined;
-  schema?: OpenApiSchema | undefined;
-  example?: unknown;
-}
-
-interface OpenApiRequestBody {
-  content?: Record<string, { schema?: OpenApiSchema | undefined; example?: unknown } | undefined> | undefined;
-  required?: boolean | undefined;
-}
-
-interface OpenApiSchema {
-  type?: string | undefined;
-  format?: string | undefined;
-  enum?: unknown[] | undefined;
-  default?: unknown;
-  example?: unknown;
-  properties?: Record<string, OpenApiSchema | undefined> | undefined;
-  required?: string[] | undefined;
-  items?: OpenApiSchema | undefined;
-}
-
-interface ResolvedOpenApiSchema {
-  schemaPath: string;
-  absolutePath: string;
-  source: "configured" | "discovered";
-}
-
-const PRODUCT_API_METHODS: ProductHttpMethod[] = ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"];
-const SAFE_PRODUCT_API_METHODS = new Set<ProductHttpMethod>(["GET", "HEAD", "OPTIONS"]);
 
 export function generateProductApiTestsForTarget(
   rootDir: string,
@@ -1417,18 +1379,6 @@ function generatedProductBaseUrl(rootDir: string, generatedTests: ProductGenerat
   }
 }
 
-function defaultProductFlowMapPath(targetId: string): string {
-  return join(".codedecay", "local", "product-flow-maps", sanitizeArtifactSegment(targetId), "flow-map.json");
-}
-
-function defaultProductGeneratedTestManifestPath(targetId: string): string {
-  return join(".codedecay", "local", "generated-tests", sanitizeArtifactSegment(targetId), "manifest.json");
-}
-
-function defaultProductGeneratedApiTestManifestPath(targetId: string): string {
-  return join(".codedecay", "local", "generated-api-tests", sanitizeArtifactSegment(targetId), "manifest.json");
-}
-
 function expectedGeneratedTestBehavior(testCase: ProductGeneratedTestCase | undefined): string | undefined {
   if (!testCase) {
     return undefined;
@@ -1443,69 +1393,6 @@ function expectedGeneratedTestBehavior(testCase: ProductGeneratedTestCase | unde
   }
 
   return `${testCase.title} should pass in the generated product regression suite.`;
-}
-
-export function relativePathForArtifact(rootDir: string, absolutePath: string): string {
-  const artifactPath = relative(rootDir, absolutePath);
-  return artifactPath && !artifactPath.startsWith("..") ? artifactPath : absolutePath;
-}
-
-function priorityForPath(path: string, impactedPaths: Set<string>): ProductGeneratedTestCase["priority"] {
-  const normalized = normalizeProductPriorityPath(path);
-  return [...impactedPaths].some((candidate) => productPriorityPathMatches(normalized, candidate)) ? "high" : "medium";
-}
-
-export function normalizeProductPriorityPath(path: string): string {
-  const trimmed = path.trim();
-  if (!trimmed) {
-    return "/";
-  }
-
-  try {
-    const url = new URL(trimmed);
-    return normalizeProductPriorityPath(url.pathname);
-  } catch {
-    const pathOnly = trimmed.split(/[?#]/, 1)[0] ?? trimmed;
-    if (pathOnly === "/") {
-      return "/";
-    }
-
-    return pathOnly.replace(/\/+$/, "") || "/";
-  }
-}
-
-function productPriorityPathMatches(path: string, candidate: string): boolean {
-  if (path === candidate) {
-    return true;
-  }
-
-  return productPriorityPathPattern(path).test(candidate) || productPriorityPathPattern(candidate).test(path);
-}
-
-function productPriorityPathPattern(path: string): RegExp {
-  const segments = normalizeProductPriorityPath(path)
-    .split("/")
-    .map((segment) => {
-      if (/^[:{][^/{}:]+}?$/.test(segment)) {
-        return "[^/]+";
-      }
-
-      return escapeRegExp(segment);
-    });
-
-  return new RegExp(`^${segments.join("/")}$`);
-}
-
-export function priorityRank(priority: ProductGeneratedTestCase["priority"]): number {
-  if (priority === "high") {
-    return 0;
-  }
-
-  if (priority === "medium") {
-    return 1;
-  }
-
-  return 2;
 }
 
 function safeInputType(inputType: string | undefined): boolean {
@@ -1531,38 +1418,4 @@ function sampleValueForInput(inputType: string | undefined, name: string | undef
   }
 
   return "CodeDecay test";
-}
-
-function generatedTestId(...parts: string[]): string {
-  return slugifyLowerAscii(parts.join("-"), "generated-test", 96);
-}
-
-function regexLiteralForText(value: string): string {
-  const escaped = escapeRegExp(normalizeWhitespace(value));
-  return `/${escaped}/i`;
-}
-
-export function escapeRegExp(value: string): string {
-  return value.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
-}
-
-function shellQuote(value: string): string {
-  if (/^[A-Za-z0-9_/:=.,@%+-]+$/.test(value)) {
-    return value;
-  }
-
-  return `'${value.replace(/'/g, "'\\''")}'`;
-}
-
-
-function writeOutput(cwd: string, path: string, contents: string): void {
-  const outputPath = resolve(cwd, path);
-  const outputDir = dirname(outputPath);
-  mkdirSync(outputDir, { recursive: true });
-
-  writeFileSync(outputPath, contents, "utf8");
-}
-
-function elapsed(startedAt: number): number {
-  return Math.max(0, Date.now() - startedAt);
 }
