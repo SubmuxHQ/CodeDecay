@@ -7931,7 +7931,8 @@ function appendConfigToolAdapters(
     formatConfigToolAdapter("StrykerJS", toolAdapters.stryker),
     formatConfigToolAdapter("Schemathesis", toolAdapters.schemathesis),
     formatConfigToolAdapter("Pact", toolAdapters.pact),
-    formatConfigToolAdapter("Semgrep", toolAdapters.semgrep)
+    formatConfigToolAdapter("Semgrep", toolAdapters.semgrep),
+    formatConfigToolAdapter("Coverage", toolAdapters.coverage)
   ].filter((row): row is string => row !== undefined);
 
   if (rows.length === 0) {
@@ -7956,7 +7957,9 @@ function formatConfigToolAdapter(
     "schema" in adapter && adapter.schema ? `schema: \`${adapter.schema}\`` : undefined,
     "baseUrl" in adapter && adapter.baseUrl ? `baseUrl: \`${adapter.baseUrl}\`` : undefined,
     "config" in adapter && adapter.config ? `config: \`${adapter.config}\`` : undefined,
-    "failOnSeverity" in adapter && adapter.failOnSeverity ? `failOnSeverity: ${adapter.failOnSeverity}` : undefined
+    "failOnSeverity" in adapter && adapter.failOnSeverity ? `failOnSeverity: ${adapter.failOnSeverity}` : undefined,
+    "reportPaths" in adapter && adapter.reportPaths ? `reportPaths: \`${adapter.reportPaths.join(", ")}\`` : undefined,
+    "failOn" in adapter && adapter.failOn ? `failOn: ${adapter.failOn}` : undefined
   ]
     .filter((item): item is string => item !== undefined)
     .join("<br>");

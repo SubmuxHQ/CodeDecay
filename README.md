@@ -348,6 +348,11 @@ toolAdapters:
   playwright:
     enabled: true
     command: pnpm exec playwright test
+  coverage:
+    command: pnpm test -- --coverage
+    reportPaths:
+      - coverage/coverage-final.json
+    failOn: uncovered
   semgrep:
     config: .semgrep.yml
     failOnSeverity: high
@@ -414,7 +419,7 @@ packages/
   report/           JSON, Markdown, SARIF rendering
   skills/           repo-local agent skill loading
   test-audit/       weak-test and missing-test evidence signals
-  tool-adapters/    Playwright, StrykerJS, Semgrep, Schemathesis, Pact adapters
+  tool-adapters/    Playwright, coverage, StrykerJS, Semgrep, Schemathesis, Pact adapters
 docs/               user docs, RFCs, sample reports
 .agents/            contributor agent commands and skills
 .codedecay/         local setup scripts and example config

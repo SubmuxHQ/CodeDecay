@@ -44,6 +44,11 @@ toolAdapters:
   stryker:
     command: pnpm exec stryker run
     reportPath: reports/mutation/mutation.json
+  coverage:
+    command: pnpm test -- --coverage
+    reportPaths:
+      - coverage/coverage-final.json
+    failOn: uncovered
   semgrep:
     config: .semgrep.yml
     failOnSeverity: high
@@ -195,7 +200,8 @@ Execution uses this config as its allowlisted command source. See
 [Differential behavior checks](differential.md).
 
 Tool adapters are also configured here. See [Tool adapters](tool-adapters.md)
-for Playwright, StrykerJS, Semgrep, Schemathesis, and Pact adapter details.
+for Playwright, coverage, StrykerJS, Semgrep, Schemathesis, and Pact adapter
+details.
 
 Read [Product Testing](product-testing.md) for the failure bundle schema and the
 roadmap toward local-first UI/API verification.

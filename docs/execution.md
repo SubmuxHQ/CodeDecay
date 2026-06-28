@@ -42,6 +42,10 @@ probes:
 toolAdapters:
   playwright:
     command: pnpm exec playwright test
+  coverage:
+    command: pnpm test -- --coverage
+    reportPaths:
+      - coverage/coverage-final.json
   stryker:
     command: pnpm exec stryker run
   semgrep:
@@ -65,6 +69,7 @@ CodeDecay supports these configured command groups:
 - `commands.start`
 - `probes`
 - `toolAdapters.playwright`
+- `toolAdapters.coverage`
 - `toolAdapters.stryker`
 - `toolAdapters.semgrep`
 - `toolAdapters.schemathesis`

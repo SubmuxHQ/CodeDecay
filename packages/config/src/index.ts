@@ -43,6 +43,7 @@ export interface CodeDecayToolAdapters {
   schemathesis?: CodeDecaySchemathesisToolAdapter | undefined;
   pact?: CodeDecayCommandToolAdapter | undefined;
   semgrep?: CodeDecaySemgrepToolAdapter | undefined;
+  coverage?: CodeDecayCoverageToolAdapter | undefined;
 }
 
 export interface CodeDecayCommandToolAdapter {
@@ -66,6 +67,13 @@ export interface CodeDecaySemgrepToolAdapter extends CodeDecayCommandToolAdapter
   config?: string | undefined;
   reportPath?: string | undefined;
   failOnSeverity?: CodeDecayToolSeverity | undefined;
+}
+
+export type CodeDecayCoverageFailOn = "none" | "uncovered";
+
+export interface CodeDecayCoverageToolAdapter extends CodeDecayCommandToolAdapter {
+  reportPaths?: string[] | undefined;
+  failOn?: CodeDecayCoverageFailOn | undefined;
 }
 
 export interface CodeDecayProductTestingConfig {
@@ -373,6 +381,7 @@ function normalizeToolAdapters(value: unknown, sourcePath: string): CodeDecayToo
   const schemathesis = normalizeSchemathesisToolAdapter(value.schemathesis, sourcePath);
   const pact = normalizeCommandToolAdapter(value.pact, "toolAdapters.pact", sourcePath);
   const semgrep = normalizeSemgrepToolAdapter(value.semgrep, sourcePath);
+  const coverage = normalizeCoverageToolAdapter(value.coverage, sourcePath);
 
   if (playwright) {
     adapters.playwright = playwright;
@@ -392,6 +401,10 @@ function normalizeToolAdapters(value: unknown, sourcePath: string): CodeDecayToo
 
   if (semgrep) {
     adapters.semgrep = semgrep;
+  }
+
+  if (coverage) {
+    adapters.coverage = coverage;
   }
 
   return adapters;
@@ -707,12 +720,58 @@ function normalizeSemgrepToolAdapter(
   return semgrep;
 }
 
+function normalizeCoverageToolAdapter(
+  value: unknown,
+  sourcePath: string
+): CodeDecayCoverageToolAdapter | undefined {
+  const adapter = normalizeCommandToolAdapter(value, "toolAdapters.coverage", sourcePath);
+  if (!adapter || typeof value === "boolean") {
+    return adapter;
+  }
+
+  if (!isPlainObject(value)) {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: toolAdapters.coverage must be a boolean or object.`);
+  }
+
+  const coverage: CodeDecayCoverageToolAdapter = { ...adapter };
+
+  if (value.reportPaths !== undefined) {
+    coverage.reportPaths = normalizeStringList(value.reportPaths, "toolAdapters.coverage.reportPaths", sourcePath);
+  }
+
+  if (value.failOn !== undefined) {
+    coverage.failOn = normalizeCoverageFailOn(value.failOn, "toolAdapters.coverage.failOn", sourcePath);
+  }
+
+  return coverage;
+}
+
 function normalizeToolSeverity(value: unknown, field: string, sourcePath: string): CodeDecayToolSeverity {
   if (value === "low" || value === "medium" || value === "high") {
     return value;
   }
 
   throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be low, medium, or high.`);
+}
+
+function normalizeCoverageFailOn(value: unknown, field: string, sourcePath: string): CodeDecayCoverageFailOn {
+  if (value === "none" || value === "uncovered") {
+    return value;
+  }
+
+  throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be none or uncovered.`);
+}
+
+function normalizeStringList(value: unknown, field: string, sourcePath: string): string[] {
+  if (typeof value === "string") {
+    return [normalizeNonEmptyString(value, field, sourcePath)];
+  }
+
+  if (Array.isArray(value) && value.length > 0) {
+    return value.map((item, index) => normalizeNonEmptyString(item, `${field}[${index}]`, sourcePath));
+  }
+
+  throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be a non-empty string or string array.`);
 }
 
 function normalizePositiveInteger(value: unknown, field: string, sourcePath: string): number {
@@ -867,6 +926,13 @@ function cloneToolAdapters(toolAdapters: CodeDecayToolAdapters): CodeDecayToolAd
 
   if (toolAdapters.semgrep) {
     cloned.semgrep = { ...toolAdapters.semgrep };
+  }
+
+  if (toolAdapters.coverage) {
+    cloned.coverage = {
+      ...toolAdapters.coverage,
+      reportPaths: toolAdapters.coverage.reportPaths ? [...toolAdapters.coverage.reportPaths] : undefined
+    };
   }
 
   return cloned;
