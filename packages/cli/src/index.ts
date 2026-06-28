@@ -10,7 +10,6 @@ import {
   type AdapterStatus
 } from "@submuxhq/codedecay-adapters";
 import {
-  AGENT_PROFILE_IDS,
   createAgentTaskBundle,
   isAgentProfileId,
   renderAgentTaskBundle,
@@ -30,7 +29,6 @@ import {
   createAnalysisReport,
   dedupeStrings,
   productFailureBundlesFromProductTargetReport,
-  riskLevelFromScore,
   shouldFailForRisk,
   type CodeDecayReport,
   type ProductCheckKind,
@@ -53,8 +51,8 @@ import {
   type LoadedCodeDecayMemory,
   type MemoryMatcher
 } from "@submuxhq/codedecay-memory";
-import { createRedteamReport, renderRedteamReport, type RedteamFormat } from "@submuxhq/codedecay-redteam";
-import { renderReport, type ReportFormat } from "@submuxhq/codedecay-report";
+import { createRedteamReport, renderRedteamReport } from "@submuxhq/codedecay-redteam";
+import { renderReport } from "@submuxhq/codedecay-report";
 import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
 import { createConfiguredToolHarnesses } from "@submuxhq/codedecay-tool-adapters";
@@ -64,6 +62,19 @@ import {
   throwUnknownCommand as throwUnknownCommandWithDocs,
   throwUnknownOption as throwUnknownOptionWithDocs
 } from "./parsers/diagnostics";
+import {
+  parseAgentFormat,
+  parseAgentProfile,
+  parseConfigFormat,
+  parseFormat,
+  parsePackageManager,
+  parsePositiveInteger,
+  parseProductFailureClassifications,
+  parseRedteamFormat,
+  parseRiskLevel,
+  requireValue,
+  VALID_PACKAGE_MANAGERS
+} from "./parsers/primitives";
 import type {
   AnalyzeOptions,
   AgentOptions,
@@ -132,18 +143,6 @@ import {
   type CommandDoc
 } from "./renderers/discovery";
 
-const VALID_FORMATS = new Set<ReportFormat>(["json", "markdown", "sarif"]);
-const VALID_CONFIG_FORMATS = new Set<ConfigFormat>(["json", "markdown"]);
-const VALID_RISK_LEVELS = new Set<RiskLevel>(["low", "medium", "high"]);
-const VALID_PRODUCT_FAILURE_CLASSIFICATIONS = new Set<ProductFailureClassification>([
-  "confirmed-regression",
-  "likely-flaky",
-  "environment-failure",
-  "auth-or-test-data-failure",
-  "generated-test-weakness",
-  "unknown"
-]);
-const VALID_PACKAGE_MANAGERS = new Set<PackageManager>(["npm", "pnpm", "yarn", "bun"]);
 const PACKAGE_NAME = "@submuxhq/codedecay";
 const CODEDECAY_PURGE_FILE_PATTERN = /^codedecay(?:[-_.][a-z0-9._-]+)?\.(?:json|md|sarif|txt)$/i;
 
@@ -2419,105 +2418,6 @@ function parseAnalyzeArgs(args: string[]): AnalyzeOptions {
   }
 
   return options;
-}
-
-function parseFormat(value: string): ReportFormat {
-  if (VALID_FORMATS.has(value as ReportFormat)) {
-    return value as ReportFormat;
-  }
-
-  throw new Error(`Invalid format "${value}". Expected json, markdown, or sarif.`);
-}
-
-function parseConfigFormat(value: string): ConfigFormat {
-  if (VALID_CONFIG_FORMATS.has(value as ConfigFormat)) {
-    return value as ConfigFormat;
-  }
-
-  throw new Error(`Invalid config format "${value}". Expected json or markdown.`);
-}
-
-function parseRedteamFormat(value: string): RedteamFormat {
-  if (VALID_CONFIG_FORMATS.has(value as RedteamFormat)) {
-    return value as RedteamFormat;
-  }
-
-  throw new Error(`Invalid redteam format "${value}". Expected json or markdown.`);
-}
-
-function parseAgentFormat(value: string): AgentTaskBundleFormat {
-  if (VALID_CONFIG_FORMATS.has(value as AgentTaskBundleFormat)) {
-    return value as AgentTaskBundleFormat;
-  }
-
-  throw new Error(`Invalid agent format "${value}". Expected json or markdown.`);
-}
-
-function parseAgentProfile(value: string): AgentProfileId {
-  if (isAgentProfileId(value)) {
-    return value;
-  }
-
-  throw new Error(`Invalid agent profile "${value}". Expected ${AGENT_PROFILE_IDS.join(", ")}.`);
-}
-
-function parseRiskLevel(value: string): RiskLevel {
-  if (VALID_RISK_LEVELS.has(value as RiskLevel)) {
-    return value as RiskLevel;
-  }
-
-  const numeric = Number(value);
-  if (Number.isFinite(numeric)) {
-    return riskLevelFromScore(numeric);
-  }
-
-  throw new Error(`Invalid risk level "${value}". Expected low, medium, or high.`);
-}
-
-function parseProductFailureClassifications(value: string, flag: string): ProductFailureClassification[] {
-  const classifications = value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-  if (classifications.length === 0) {
-    throw new Error(`${flag} requires at least one classification.`);
-  }
-
-  const invalid = classifications.find((classification) => !VALID_PRODUCT_FAILURE_CLASSIFICATIONS.has(classification as ProductFailureClassification));
-  if (invalid) {
-    throw new Error(
-      `Invalid product failure classification "${invalid}". Expected ${[...VALID_PRODUCT_FAILURE_CLASSIFICATIONS].join(", ")}.`
-    );
-  }
-
-  return classifications as ProductFailureClassification[];
-}
-
-function parsePackageManager(value: string): PackageManager {
-  if (VALID_PACKAGE_MANAGERS.has(value as PackageManager)) {
-    return value as PackageManager;
-  }
-
-  throw new Error(`Invalid package manager "${value}". Expected npm, pnpm, yarn, or bun.`);
-}
-
-function parsePositiveInteger(value: string, flag: string): number {
-  const parsed = Number(value);
-  if (Number.isInteger(parsed) && parsed > 0) {
-    return parsed;
-  }
-
-  throw new Error(`Invalid value for ${flag}: expected a positive integer.`);
-}
-
-function requireValue(args: string[], index: number, flag: string): string {
-  const value = args[index + 1];
-  if (!value || value.startsWith("--")) {
-    throw new Error(`Missing value for ${flag}`);
-  }
-
-  return value;
 }
 
 function writeOutput(cwd: string, path: string, contents: string): void {
