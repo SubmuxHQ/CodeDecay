@@ -16,7 +16,6 @@ import {
   createAnalysisReport,
   dedupeStrings,
   productFailureBundlesFromProductTargetReport,
-  shouldFailForRisk,
   type CodeDecayReport,
   type ProductCheckKind,
   type ProductFailureClassification,
@@ -32,10 +31,10 @@ import {
   type CodeDecayMemory,
   type MemoryMatcher
 } from "@submuxhq/codedecay-memory";
-import { renderReport } from "@submuxhq/codedecay-report";
 import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
 import YAML from "yaml";
 import { runAgentCommand as runAgentCommandWithDependencies } from "./commands/agent";
+import { runAnalyzeCommand as runAnalyzeCommandWithDependencies } from "./commands/analyze";
 import { runConfigCommand } from "./commands/config";
 import { runDifferentialCommand as runDifferentialCommandWithDependencies } from "./commands/differential";
 import { runExecuteCommand as runExecuteCommandWithDependencies } from "./commands/execute";
@@ -54,10 +53,9 @@ import { write, writeStderr, writeStdout } from "./io";
 import { throwUnknownCommand as throwUnknownCommandWithDocs } from "./parsers/diagnostics";
 import {
   HelpRequested,
-  parseAnalyzeArgs,
   parseDashboardArgs,
   parseMcpArgs,
-  parseProductArgs,
+  parseProductArgs
 } from "./parsers/args";
 import type {
   AnalyzeOptions,
@@ -108,7 +106,11 @@ const COMMAND_HANDLERS: Record<string, CliCommandHandler> = {
     resolveRepoRoot: getRepoRootForCli,
     writeOutput: writeCliOutput
   }),
-  analyze: runAnalyzeCommand,
+  analyze: (context) => runAnalyzeCommandWithDependencies(context, {
+    createAnalysisContext: createAnalysisContextForCli,
+    resolveRepoRoot: getRepoRootForCli,
+    writeOutput: writeCliOutput
+  }),
   config: runConfigCommand,
   dashboard: runDashboardCommand,
   differential: (context) => runDifferentialCommandWithDependencies(context, {
@@ -753,24 +755,6 @@ function escapeHtml(value: string): string {
 
 function escapeAttribute(value: string): string {
   return escapeHtml(value).replace(/`/g, "&#96;");
-}
-
-function runAnalyzeCommand(context: CliCommandContext): void {
-  const options = parseAnalyzeArgs(context.args);
-  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
-  const rootDir = getRepoRootForCli(cwd, options);
-  const { report } = createAnalysisContextForCli(rootDir, options);
-
-  writeCliOutput({
-    cwd,
-    output: options.output,
-    rendered: renderReport(report, options.format),
-    runtime: context.runtime
-  });
-
-  if (options.failOn && shouldFailForRisk(report.summary.riskLevel, options.failOn)) {
-    throw new CliExit(1);
-  }
 }
 
 function createAnalysisContextForCli(
