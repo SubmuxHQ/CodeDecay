@@ -1,6 +1,9 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import type {
+  CodeDecayAgentBundleFormat,
+  CodeDecayAgentProcessToolAdapter,
+  CodeDecayAgentProfile,
   CodeDecayCoverageFailOn,
   CodeDecayCoverageToolAdapter,
   CodeDecayCommandToolAdapter,
@@ -81,13 +84,31 @@ export interface CoverageHarnessOptions {
   outputLimit?: number | undefined;
 }
 
-export type ConfiguredToolAdapterKind = "playwright" | "stryker" | "schemathesis" | "pact" | "semgrep" | "coverage";
+export interface AgentProcessHarnessOptions {
+  command?: string | undefined;
+  profile?: CodeDecayAgentProfile | undefined;
+  bundleFormat?: CodeDecayAgentBundleFormat | undefined;
+  timeoutMs?: number | undefined;
+  allowCommands?: boolean | undefined;
+  allowUnsafeCommands?: boolean | undefined;
+  outputLimit?: number | undefined;
+}
+
+export type ConfiguredToolAdapterKind =
+  | "agent-process"
+  | "playwright"
+  | "stryker"
+  | "schemathesis"
+  | "pact"
+  | "semgrep"
+  | "coverage";
 
 export interface ConfiguredToolHarness {
   kind: ConfiguredToolAdapterKind;
   name: string;
   command: string;
   timeoutMs?: number | undefined;
+  context?: Record<string, unknown> | undefined;
   harness: CodeDecayHarness;
 }
 
@@ -114,11 +135,49 @@ const DEFAULT_COVERAGE_TIMEOUT_MS = 120_000;
 const DEFAULT_COVERAGE_FAIL_ON: CodeDecayCoverageFailOn = "none";
 const DEFAULT_COVERAGE_REPORT_PATHS = ["coverage/coverage-final.json", "coverage-final.json", "coverage/lcov.info", "lcov.info"];
 const DEFAULT_COVERAGE_DISCOVERY_DIRS = ["coverage", ".v8-coverage", ".nyc_output"];
+const AGENT_PROCESS_HARNESS_NAME = "agent-process";
+const DEFAULT_AGENT_PROCESS_TIMEOUT_MS = 300_000;
+const DEFAULT_AGENT_PROCESS_PROFILE: CodeDecayAgentProfile = "generic";
+const DEFAULT_AGENT_PROCESS_BUNDLE_FORMAT: CodeDecayAgentBundleFormat = "markdown";
+const AGENT_PROCESS_BUNDLE_DIR = ".codedecay/local/agent-process";
 const TOOL_SEVERITY_ORDER: Record<CodeDecayToolSeverity, number> = {
   low: 0,
   medium: 1,
   high: 2
 };
+
+export function createAgentProcessHarness(options: AgentProcessHarnessOptions = {}): CodeDecayHarness {
+  validateAgentProcessOptions(options);
+
+  return {
+    name: AGENT_PROCESS_HARNESS_NAME,
+    capabilities: ["agent-reasoning", "execution"],
+    requiredConfig: [
+      {
+        key: "agentProcess.command",
+        description: "Command that runs a local user-owned agent or agent harness.",
+        required: true
+      },
+      {
+        key: "safety.allowCommands",
+        description: "Must be true before CodeDecay runs configured commands.",
+        required: true
+      }
+    ],
+    plan: async (input) => createAgentProcessPlan(input, options),
+    run: async (plan, context) => runAgentProcessPlan(plan, context, options),
+    collectEvidence: async (result) => result.evidence,
+    summarize: async (evidence) =>
+      summarizeHarnessResult({
+        harnessName: AGENT_PROCESS_HARNESS_NAME,
+        status: evidence.some((item) => item.severity === "high") ? "failed" : "passed",
+        durationMs: 0,
+        evidence,
+        artifacts: [],
+        summary: `${AGENT_PROCESS_HARNESS_NAME} produced ${evidence.length} evidence item(s).`
+      })
+  };
+}
 
 export function createPlaywrightHarness(options: PlaywrightHarnessOptions = {}): CodeDecayHarness {
   const command = options.command ?? DEFAULT_PLAYWRIGHT_COMMAND;
@@ -345,6 +404,10 @@ export function createCoverageHarness(options: CoverageHarnessOptions = {}): Cod
 export function createConfiguredToolHarnesses(config: CodeDecayConfig): ConfiguredToolHarness[] {
   const configured: ConfiguredToolHarness[] = [];
 
+  if (config.toolAdapters.agentProcess?.enabled) {
+    configured.push(createConfiguredAgentProcessHarness(config.toolAdapters.agentProcess, config.safety.allowCommands));
+  }
+
   if (config.toolAdapters.playwright?.enabled) {
     configured.push(
       createConfiguredCommandHarness({
@@ -385,6 +448,50 @@ export function createConfiguredToolHarnesses(config: CodeDecayConfig): Configur
 
   if (config.toolAdapters.coverage?.enabled) {
     configured.push(createConfiguredCoverageHarness(config.toolAdapters.coverage, config.safety.allowCommands));
+  }
+
+  return configured;
+}
+
+function createConfiguredAgentProcessHarness(
+  adapter: CodeDecayAgentProcessToolAdapter,
+  allowCommands: boolean
+): ConfiguredToolHarness {
+  const options: AgentProcessHarnessOptions = {
+    allowCommands
+  };
+
+  if (adapter.command !== undefined) {
+    options.command = adapter.command;
+  }
+
+  if (adapter.profile !== undefined) {
+    options.profile = adapter.profile;
+  }
+
+  if (adapter.bundleFormat !== undefined) {
+    options.bundleFormat = adapter.bundleFormat;
+  }
+
+  if (adapter.timeoutMs !== undefined) {
+    options.timeoutMs = adapter.timeoutMs;
+  }
+
+  const profile = options.profile ?? DEFAULT_AGENT_PROCESS_PROFILE;
+  const bundleFormat = options.bundleFormat ?? DEFAULT_AGENT_PROCESS_BUNDLE_FORMAT;
+  const configured: ConfiguredToolHarness = {
+    kind: "agent-process",
+    name: "Agent Process",
+    command: options.command ?? "<agent command required>",
+    context: {
+      agentProfile: profile,
+      agentBundleFormat: bundleFormat
+    },
+    harness: createAgentProcessHarness(options)
+  };
+
+  if (adapter.timeoutMs !== undefined) {
+    configured.timeoutMs = adapter.timeoutMs;
   }
 
   return configured;
@@ -571,6 +678,119 @@ function createConfiguredCoverageHarness(
   }
 
   return configured;
+}
+
+function createAgentProcessPlan(input: HarnessPlanInput, options: AgentProcessHarnessOptions): HarnessPlan {
+  const command = options.command ?? "<agent command required>";
+  const profile = options.profile ?? DEFAULT_AGENT_PROCESS_PROFILE;
+  const bundleFormat = options.bundleFormat ?? DEFAULT_AGENT_PROCESS_BUNDLE_FORMAT;
+
+  return {
+    id: "agent-process-review",
+    harnessName: AGENT_PROCESS_HARNESS_NAME,
+    summary: "Run a configured local agent process against a CodeDecay task bundle and collect untrusted suggestions.",
+    requiresApproval: !options.allowCommands,
+    steps: [
+      {
+        id: "prepare-agent-bundle",
+        title: "Prepare agent task bundle",
+        description: `Write a ${bundleFormat} CodeDecay agent bundle for profile ${profile} under ${AGENT_PROCESS_BUNDLE_DIR}.`
+      },
+      {
+        id: "run-agent-process",
+        title: "Run local agent process",
+        description: `Run \`${command}\` from ${input.cwd} with CODEDECAY_AGENT_BUNDLE_PATH set.`
+      }
+    ]
+  };
+}
+
+async function runAgentProcessPlan(
+  plan: HarnessPlan,
+  context: HarnessRunContext,
+  options: AgentProcessHarnessOptions
+): Promise<HarnessRunResult> {
+  validateAgentProcessPlan(plan);
+  const startedAt = Date.now();
+  const profile = options.profile ?? DEFAULT_AGENT_PROCESS_PROFILE;
+  const bundleFormat = options.bundleFormat ?? DEFAULT_AGENT_PROCESS_BUNDLE_FORMAT;
+  const command = options.command;
+
+  if (!command) {
+    const durationMs = elapsed(startedAt);
+    const evidence = [
+      createEvidence({
+        source: { kind: "agent", name: "Agent Process", id: AGENT_PROCESS_HARNESS_NAME },
+        kind: "agent-suggestion",
+        severity: "info",
+        summary: "Agent process was skipped because no local agent command was configured.",
+        trusted: false,
+        metadata: {
+          status: "skipped",
+          profile,
+          bundleFormat,
+          untrusted: true
+        }
+      })
+    ];
+
+    return createHarnessFailureResult({
+      harnessName: AGENT_PROCESS_HARNESS_NAME,
+      mode: "missing-config",
+      message: "Agent process requires toolAdapters.agentProcess.command before CodeDecay can run it.",
+      status: "skipped",
+      durationMs,
+      evidence
+    });
+  }
+
+  const bundle = writeAgentProcessBundle(context.cwd, context.context, profile, bundleFormat);
+  const timeoutMs = context.timeoutMs ?? options.timeoutMs ?? DEFAULT_AGENT_PROCESS_TIMEOUT_MS;
+  const execution = await runConfiguredCommand({
+    command,
+    cwd: context.cwd,
+    timeoutMs,
+    outputLimit: options.outputLimit,
+    env: {
+      CODEDECAY_AGENT_BUNDLE_PATH: bundle.absolutePath,
+      CODEDECAY_AGENT_BUNDLE_RELATIVE_PATH: bundle.artifactPath,
+      CODEDECAY_AGENT_BUNDLE_FORMAT: bundle.bundleFormat,
+      CODEDECAY_AGENT_PROFILE: profile,
+      CODEDECAY_AGENT_OUTPUT_UNTRUSTED: "1"
+    },
+    safety: {
+      allowCommands: options.allowCommands ?? false,
+      allowUnsafeCommands: options.allowUnsafeCommands
+    }
+  });
+  const durationMs = elapsed(startedAt);
+  const artifacts = [{ path: bundle.artifactPath, description: "CodeDecay agent task bundle passed to the local agent process." }];
+  const evidence = [agentProcessEvidenceFromExecution(execution, bundle, profile)];
+
+  if (execution.status !== "passed") {
+    const failed = createHarnessFailureResult({
+      harnessName: AGENT_PROCESS_HARNESS_NAME,
+      mode: failureModeFromExecution(execution),
+      message: agentProcessFailureMessageFromExecution(execution),
+      status: harnessStatusFromExecution(execution),
+      durationMs,
+      evidence
+    });
+
+    return {
+      ...failed,
+      artifacts
+    };
+  }
+
+  return {
+    harnessName: AGENT_PROCESS_HARNESS_NAME,
+    status: "passed",
+    durationMs,
+    evidence,
+    artifacts,
+    summary: agentProcessEvidenceSummaryFromExecution(execution)
+  };
 }
 
 function createPlaywrightPlan(
@@ -1689,6 +1909,100 @@ function summarizeSemgrepReport(
   };
 }
 
+interface AgentProcessBundle {
+  artifactPath: string;
+  absolutePath: string;
+  bundleFormat: CodeDecayAgentBundleFormat;
+}
+
+function writeAgentProcessBundle(
+  cwd: string,
+  context: Record<string, unknown> | undefined,
+  profile: CodeDecayAgentProfile,
+  format: CodeDecayAgentBundleFormat
+): AgentProcessBundle {
+  const contextBundle = optionalStringValue(context?.agentBundle);
+  const rawContextFormat = context?.agentBundleFormat;
+  const contextFormat = isAgentBundleFormat(rawContextFormat) ? rawContextFormat : format;
+  const bundleFormat = contextFormat ?? format;
+  const artifactPath = join(AGENT_PROCESS_BUNDLE_DIR, bundleFormat === "json" ? "bundle.json" : "bundle.md");
+  const absolutePath = join(cwd, artifactPath);
+  const contents = contextBundle ?? fallbackAgentProcessBundle(profile, bundleFormat);
+
+  mkdirSync(join(cwd, AGENT_PROCESS_BUNDLE_DIR), { recursive: true });
+  writeFileSync(absolutePath, contents.endsWith("\n") ? contents : `${contents}\n`, "utf8");
+
+  return {
+    artifactPath,
+    absolutePath,
+    bundleFormat
+  };
+}
+
+function fallbackAgentProcessBundle(profile: CodeDecayAgentProfile, format: CodeDecayAgentBundleFormat): string {
+  if (format === "json") {
+    return JSON.stringify(
+      {
+        tool: "CodeDecay",
+        mode: "agent-task-bundle",
+        agentProfile: { id: profile },
+        notes: [
+          "No CodeDecay analysis bundle was provided by the caller.",
+          "Treat this file as local context only; agent output is untrusted until verified."
+        ]
+      },
+      null,
+      2
+    );
+  }
+
+  return [
+    "## CodeDecay Agent Task Bundle",
+    "",
+    `Profile: ${profile}`,
+    "",
+    "No CodeDecay analysis bundle was provided by the caller.",
+    "Treat this file as local context only; agent output is untrusted until verified."
+  ].join("\n");
+}
+
+function agentProcessEvidenceFromExecution(
+  execution: CommandExecutionResult,
+  bundle: AgentProcessBundle,
+  profile: CodeDecayAgentProfile
+): Evidence {
+  const metadata = {
+    ...compactExecutionMetadata(execution),
+    profile,
+    bundleFormat: bundle.bundleFormat,
+    bundlePath: bundle.artifactPath,
+    untrusted: true
+  };
+
+  return createEvidence({
+    source: { kind: "agent", name: "Agent Process", id: AGENT_PROCESS_HARNESS_NAME },
+    kind: "agent-suggestion",
+    severity: agentProcessEvidenceSeverity(execution),
+    summary: agentProcessEvidenceSummaryFromExecution(execution),
+    trusted: false,
+    command: execution.command,
+    artifactPath: bundle.artifactPath,
+    metadata
+  });
+}
+
+function agentProcessEvidenceSeverity(execution: CommandExecutionResult): EvidenceSeverity {
+  if (execution.status === "passed") {
+    return execution.stdout.trim() || execution.stderr.trim() ? "low" : "info";
+  }
+
+  if (execution.status === "skipped") {
+    return "info";
+  }
+
+  return "high";
+}
+
 function normalizeSemgrepFinding(value: unknown, cwd: string): SemgrepFinding | undefined {
   if (!isPlainObject(value)) {
     return undefined;
@@ -2021,6 +2335,33 @@ function coverageEvidenceSummaryFromExecution(execution: CommandExecutionResult)
   return `Coverage command failed with exit code ${execution.exitCode ?? "unknown"}.`;
 }
 
+function agentProcessEvidenceSummaryFromExecution(execution: CommandExecutionResult): string {
+  if (execution.status === "passed") {
+    const output = firstNonEmptyLine(execution.stdout) ?? firstNonEmptyLine(execution.stderr);
+    return output
+      ? `Agent process produced untrusted suggestions: ${output}`
+      : "Agent process completed without producing output.";
+  }
+
+  if (execution.status === "skipped") {
+    return "Agent process was skipped because command execution is disabled.";
+  }
+
+  if (execution.status === "blocked") {
+    return `Agent process command was blocked: ${execution.blockedReason ?? "unsafe command"}.`;
+  }
+
+  if (execution.status === "timed_out") {
+    return "Agent process command timed out.";
+  }
+
+  if (execution.status === "error") {
+    return `Agent process command errored: ${execution.error ?? "unknown error"}.`;
+  }
+
+  return `Agent process command failed with exit code ${execution.exitCode ?? "unknown"}.`;
+}
+
 function compactExecutionMetadata(execution: CommandExecutionResult): Record<string, unknown> {
   const metadata: Record<string, unknown> = {
     status: execution.status,
@@ -2152,6 +2493,18 @@ function coverageFailureMessageFromExecution(execution: CommandExecutionResult):
   }
 
   return coverageEvidenceSummaryFromExecution(execution);
+}
+
+function agentProcessFailureMessageFromExecution(execution: CommandExecutionResult): string {
+  if (execution.status === "skipped") {
+    return "Agent process command execution is disabled.";
+  }
+
+  if (execution.status === "blocked") {
+    return `Agent process command was blocked by safety policy: ${execution.blockedReason ?? "unsafe command"}.`;
+  }
+
+  return agentProcessEvidenceSummaryFromExecution(execution);
 }
 
 function normalizeStrykerMutantStatus(value: unknown): "Survived" | "NoCoverage" | undefined {
@@ -2716,12 +3069,52 @@ function optionalStringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0 ? value : undefined;
 }
 
+function firstNonEmptyLine(value: string): string | undefined {
+  const line = value
+    .split(/\r?\n/)
+    .map((item) => item.trim())
+    .find((item) => item.length > 0);
+
+  if (!line) {
+    return undefined;
+  }
+
+  const limit = 180;
+  return line.length <= limit ? line : `${line.slice(0, limit)}...`;
+}
+
 function optionalNumberValue(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+function isAgentBundleFormat(value: unknown): value is CodeDecayAgentBundleFormat {
+  return value === "markdown" || value === "json";
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function validateAgentProcessOptions(options: AgentProcessHarnessOptions): void {
+  if (options.command !== undefined) {
+    validateNonEmptyString(options.command, "Agent process command");
+  }
+
+  if (options.profile !== undefined && !isCodeDecayAgentProfile(options.profile)) {
+    throw new Error("Agent process profile must be generic, codex, claude-code, cursor, pi, opencode, or desktop.");
+  }
+
+  if (options.bundleFormat !== undefined && !isAgentBundleFormat(options.bundleFormat)) {
+    throw new Error("Agent process bundleFormat must be markdown or json.");
+  }
+
+  if (options.timeoutMs !== undefined && (!Number.isInteger(options.timeoutMs) || options.timeoutMs <= 0)) {
+    throw new Error("Agent process timeoutMs must be a positive integer.");
+  }
+
+  if (options.outputLimit !== undefined && (!Number.isInteger(options.outputLimit) || options.outputLimit <= 0)) {
+    throw new Error("Agent process outputLimit must be a positive integer.");
+  }
 }
 
 function validatePlaywrightOptions(options: PlaywrightHarnessOptions & { command: string }): void {
@@ -2850,6 +3243,18 @@ function isCodeDecayToolSeverity(value: string): value is CodeDecayToolSeverity 
   return value === "low" || value === "medium" || value === "high";
 }
 
+function isCodeDecayAgentProfile(value: string): value is CodeDecayAgentProfile {
+  return (
+    value === "generic" ||
+    value === "codex" ||
+    value === "claude-code" ||
+    value === "cursor" ||
+    value === "pi" ||
+    value === "opencode" ||
+    value === "desktop"
+  );
+}
+
 function isCodeDecayCoverageFailOn(value: string): value is CodeDecayCoverageFailOn {
   return value === "none" || value === "uncovered";
 }
@@ -2857,6 +3262,12 @@ function isCodeDecayCoverageFailOn(value: string): value is CodeDecayCoverageFai
 function validatePlan(plan: HarnessPlan): void {
   if (plan.harnessName !== PLAYWRIGHT_HARNESS_NAME) {
     throw new Error(`Playwright harness cannot run plan for ${plan.harnessName}.`);
+  }
+}
+
+function validateAgentProcessPlan(plan: HarnessPlan): void {
+  if (plan.harnessName !== AGENT_PROCESS_HARNESS_NAME) {
+    throw new Error(`Agent process harness cannot run plan for ${plan.harnessName}.`);
   }
 }
 

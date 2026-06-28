@@ -67,6 +67,11 @@ describe("loadCodeDecayConfig", () => {
         "  endpoint: http://127.0.0.1:11434",
         "  timeoutMs: 20000",
         "toolAdapters:",
+        "  agentProcess:",
+        "    command: node agent-harness.js",
+        "    profile: codex",
+        "    bundleFormat: json",
+        "    timeoutMs: 240000",
         "  playwright: true",
         "  stryker:",
         "    command: pnpm exec stryker run",
@@ -143,6 +148,13 @@ describe("loadCodeDecayConfig", () => {
         timeoutMs: 20000
       },
       toolAdapters: {
+        agentProcess: {
+          enabled: true,
+          command: "node agent-harness.js",
+          profile: "codex",
+          bundleFormat: "json",
+          timeoutMs: 240000
+        },
         playwright: {
           enabled: true
         },
@@ -387,6 +399,20 @@ describe("loadCodeDecayConfig", () => {
     const invalidSeverityRoot = createTempDir();
     writeFile(invalidSeverityRoot, ".codedecay/config.yml", "version: 1\ntoolAdapters:\n  semgrep:\n    failOnSeverity: critical\n");
     expect(() => loadCodeDecayConfig({ cwd: invalidSeverityRoot })).toThrow(/toolAdapters.semgrep.failOnSeverity must be low, medium, or high/);
+  });
+
+  it("fails clearly for invalid agent process adapter fields", () => {
+    const invalidProfileRoot = createTempDir();
+    writeFile(invalidProfileRoot, ".codedecay/config.yml", "version: 1\ntoolAdapters:\n  agentProcess:\n    profile: robot\n");
+    expect(() => loadCodeDecayConfig({ cwd: invalidProfileRoot })).toThrow(
+      /toolAdapters.agentProcess.profile must be generic, codex, claude-code, cursor, pi, opencode, or desktop/
+    );
+
+    const invalidFormatRoot = createTempDir();
+    writeFile(invalidFormatRoot, ".codedecay/config.yml", "version: 1\ntoolAdapters:\n  agentProcess:\n    bundleFormat: xml\n");
+    expect(() => loadCodeDecayConfig({ cwd: invalidFormatRoot })).toThrow(
+      /toolAdapters.agentProcess.bundleFormat must be markdown or json/
+    );
   });
 
   it("fails clearly for invalid coverage adapter fields", () => {

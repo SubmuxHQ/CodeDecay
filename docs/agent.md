@@ -42,6 +42,33 @@ Supported profiles:
 - `opencode`: handoff wording for OpenCode.
 - `desktop`: handoff wording for desktop or local agent apps.
 
+## Optional Local Agent Process
+
+If you want CodeDecay to run a user-owned local agent CLI under the same command
+safety policy as other tool adapters, configure `toolAdapters.agentProcess`.
+
+```yaml
+toolAdapters:
+  agentProcess:
+    command: node scripts/local-agent-harness.js
+    profile: codex
+    bundleFormat: markdown
+
+safety:
+  allowCommands: true
+```
+
+Then run:
+
+```bash
+npx codedecay execute --format markdown
+```
+
+CodeDecay writes `.codedecay/local/agent-process/bundle.md` or `bundle.json`,
+sets `CODEDECAY_AGENT_BUNDLE_PATH`, runs the configured command, and records the
+agent output as untrusted `agent-suggestion` evidence. The output is not treated
+as proof until verified by tests, static tools, or human review.
+
 Example:
 
 ```bash

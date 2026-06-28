@@ -3916,7 +3916,14 @@ async function runConfiguredToolAdapters(
       cwd: rootDir,
       evidence: []
     });
-    const context = configured.timeoutMs === undefined ? { cwd: rootDir } : { cwd: rootDir, timeoutMs: configured.timeoutMs };
+    const agentContext =
+      configured.kind === "agent-process"
+        ? createAgentProcessHarnessContextForCli(rootDir, loadedConfig, configured.context)
+        : configured.context;
+    const context =
+      configured.timeoutMs === undefined
+        ? { cwd: rootDir, context: agentContext }
+        : { cwd: rootDir, timeoutMs: configured.timeoutMs, context: agentContext };
     const result = await configured.harness.run(plan, context);
     const mapped: ExecutionToolAdapterResult = {
       kind: configured.kind,
@@ -3940,6 +3947,40 @@ async function runConfiguredToolAdapters(
   }
 
   return results;
+}
+
+function createAgentProcessHarnessContextForCli(
+  rootDir: string,
+  loadedConfig: LoadedCodeDecayConfig,
+  configuredContext: Record<string, unknown> | undefined
+): Record<string, unknown> {
+  const profile = agentProfileFromContext(configuredContext?.agentProfile);
+  const bundleFormat = agentBundleFormatFromContext(configuredContext?.agentBundleFormat);
+  const analysis = createAnalysisContextForCli(rootDir, { format: "json" });
+  const report = createRedteamReport({
+    analysisReport: analysis.report,
+    config: loadedConfig.config,
+    configSource: loadedConfig.sourcePath,
+    memory: analysis.loadedMemory.memory,
+    memorySource: analysis.loadedMemory.sourcePath,
+    skills: loadCodeDecaySkills({ cwd: rootDir })
+  });
+  const bundle = createAgentTaskBundle(report, { profile });
+
+  return {
+    ...configuredContext,
+    agentProfile: profile,
+    agentBundleFormat: bundleFormat,
+    agentBundle: renderAgentTaskBundle(bundle, bundleFormat)
+  };
+}
+
+function agentProfileFromContext(value: unknown): AgentProfileId {
+  return typeof value === "string" && isAgentProfileId(value) ? value : "generic";
+}
+
+function agentBundleFormatFromContext(value: unknown): AgentTaskBundleFormat {
+  return value === "json" || value === "markdown" ? value : "markdown";
 }
 
 function createExecutionSummary(
@@ -7927,6 +7968,7 @@ function appendConfigToolAdapters(
   toolAdapters: LoadedCodeDecayConfig["config"]["toolAdapters"]
 ): void {
   const rows = [
+    formatConfigToolAdapter("Agent Process", toolAdapters.agentProcess),
     formatConfigToolAdapter("Playwright", toolAdapters.playwright),
     formatConfigToolAdapter("StrykerJS", toolAdapters.stryker),
     formatConfigToolAdapter("Schemathesis", toolAdapters.schemathesis),
@@ -7958,6 +8000,8 @@ function formatConfigToolAdapter(
     "baseUrl" in adapter && adapter.baseUrl ? `baseUrl: \`${adapter.baseUrl}\`` : undefined,
     "config" in adapter && adapter.config ? `config: \`${adapter.config}\`` : undefined,
     "failOnSeverity" in adapter && adapter.failOnSeverity ? `failOnSeverity: ${adapter.failOnSeverity}` : undefined,
+    "profile" in adapter && adapter.profile ? `profile: ${adapter.profile}` : undefined,
+    "bundleFormat" in adapter && adapter.bundleFormat ? `bundleFormat: ${adapter.bundleFormat}` : undefined,
     "reportPaths" in adapter && adapter.reportPaths ? `reportPaths: \`${adapter.reportPaths.join(", ")}\`` : undefined,
     "failOn" in adapter && adapter.failOn ? `failOn: ${adapter.failOn}` : undefined
   ]

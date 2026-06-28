@@ -6,6 +6,8 @@ harness evidence.
 
 The first adapters are:
 
+- Agent Process for local Codex, Claude Code, Pi, OpenCode, OpenClaw/Hermes,
+  or other user-owned agent harness commands.
 - Playwright for browser/user-flow checks.
 - Coverage for local test coverage artifacts.
 - StrykerJS for mutation-testing evidence.
@@ -22,6 +24,10 @@ plans but does not run them.
 version: 1
 
 toolAdapters:
+  agentProcess:
+    command: codex exec "$(cat \"$CODEDECAY_AGENT_BUNDLE_PATH\")"
+    profile: codex
+    bundleFormat: markdown
   playwright: true
   coverage:
     command: pnpm test -- --coverage
@@ -46,6 +52,58 @@ safety:
 
 Set `safety.allowCommands: true` only for explicit execution commands. Redteam
 reports remain report-only even when adapter plans are configured.
+
+## Agent Process Harness
+
+The Agent Process harness runs one explicitly configured local agent command and
+captures the output as untrusted `agent-suggestion` evidence.
+
+Use it when you already have a local Codex, Claude Code, Pi, OpenCode,
+OpenClaw/Hermes, or custom OSS agent harness CLI and want CodeDecay to hand it a
+deterministic task bundle during `codedecay execute` or MCP
+`execute_configured_checks`.
+
+```yaml
+toolAdapters:
+  agentProcess:
+    command: node scripts/local-agent-harness.js
+    profile: claude-code
+    bundleFormat: markdown
+
+safety:
+  allowCommands: true
+```
+
+Before running the command, CodeDecay writes a bundle under:
+
+```text
+.codedecay/local/agent-process/bundle.md
+```
+
+or, when `bundleFormat: json`:
+
+```text
+.codedecay/local/agent-process/bundle.json
+```
+
+The configured command receives:
+
+- `CODEDECAY_AGENT_BUNDLE_PATH`: absolute path to the generated bundle.
+- `CODEDECAY_AGENT_BUNDLE_RELATIVE_PATH`: repo-relative bundle path.
+- `CODEDECAY_AGENT_BUNDLE_FORMAT`: `markdown` or `json`.
+- `CODEDECAY_AGENT_PROFILE`: `generic`, `codex`, `claude-code`, `cursor`,
+  `pi`, `opencode`, or `desktop`.
+- `CODEDECAY_AGENT_OUTPUT_UNTRUSTED`: always `1`.
+
+Safety defaults:
+
+- no command runs unless `safety.allowCommands: true`,
+- there is no default agent command,
+- commands go through `@submuxhq/codedecay-execution`,
+- unsafe commands are blocked by the shared safety policy,
+- CodeDecay does not install or authenticate agent CLIs,
+- agent output is `trusted: false` and must be verified by tests, static tools,
+  or human review.
 
 ## Playwright Harness
 

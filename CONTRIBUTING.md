@@ -51,7 +51,8 @@ and optional CodeDecay config/memory examples.
 - `packages/report`: JSON, Markdown, and SARIF report rendering.
 - `packages/skills`: repo-local agent skill discovery.
 - `packages/test-audit`: missing-test and weak-test proof audit.
-- `packages/tool-adapters`: Playwright, StrykerJS, Schemathesis, and Pact adapter wrappers.
+- `packages/tool-adapters`: Agent Process, Playwright, coverage, StrykerJS,
+  Semgrep, Schemathesis, and Pact adapter wrappers.
 - `examples`: runnable adoption examples and risk demos.
 - `docs`: public documentation.
 

@@ -40,6 +40,10 @@ probes:
     timeoutMs: 5000
 
 toolAdapters:
+  agentProcess:
+    command: node scripts/local-agent-harness.js
+    profile: codex
+    bundleFormat: markdown
   playwright: true
   stryker:
     command: pnpm exec stryker run
@@ -200,8 +204,8 @@ Execution uses this config as its allowlisted command source. See
 [Differential behavior checks](differential.md).
 
 Tool adapters are also configured here. See [Tool adapters](tool-adapters.md)
-for Playwright, coverage, StrykerJS, Semgrep, Schemathesis, and Pact adapter
-details.
+for Agent Process, Playwright, coverage, StrykerJS, Semgrep, Schemathesis, and
+Pact adapter details.
 
 Read [Product Testing](product-testing.md) for the failure bundle schema and the
 roadmap toward local-first UI/API verification.

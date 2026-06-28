@@ -40,6 +40,10 @@ probes:
     timeoutMs: 5000
 
 toolAdapters:
+  agentProcess:
+    command: node scripts/local-agent-harness.js
+    profile: codex
+    bundleFormat: markdown
   playwright:
     command: pnpm exec playwright test
   coverage:
@@ -68,6 +72,7 @@ CodeDecay supports these configured command groups:
 - `commands.build`
 - `commands.start`
 - `probes`
+- `toolAdapters.agentProcess`
 - `toolAdapters.playwright`
 - `toolAdapters.coverage`
 - `toolAdapters.stryker`
@@ -79,6 +84,11 @@ Each command runs from the configured `--cwd` directory. Probe-level
 `timeoutMs` overrides the global `safety.commandTimeoutMs`. Tool adapters use
 their own configured command and timeout, then return normalized tool evidence
 separately from raw command/probe results.
+
+`toolAdapters.agentProcess` is the only adapter intended to run user-owned
+agent CLIs. It receives a generated CodeDecay agent bundle path through
+environment variables and records the agent output as untrusted
+`agent-suggestion` evidence.
 
 ## Safety Rules
 

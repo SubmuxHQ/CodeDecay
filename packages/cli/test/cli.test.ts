@@ -1351,6 +1351,70 @@ describe("codedecay execute CLI contract", () => {
     expect(markdown.stdout).toContain("browser-flow");
   });
 
+  it("runs a configured agent process adapter with a generated CodeDecay bundle", async () => {
+    const repo = createLowRiskRepo();
+    writeFile(
+      repo,
+      "local-agent.js",
+      [
+        "const fs = require('node:fs');",
+        "const bundle = fs.readFileSync(process.env.CODEDECAY_AGENT_BUNDLE_PATH, 'utf8');",
+        "console.log(`profile=${process.env.CODEDECAY_AGENT_PROFILE}`);",
+        "console.log(`format=${process.env.CODEDECAY_AGENT_BUNDLE_FORMAT}`);",
+        "console.log(`hasPrompt=${bundle.includes('CodeDecay agent task bundle')}`);"
+      ].join("\n")
+    );
+    writeFile(
+      repo,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "commands: {}",
+        "probes: []",
+        "toolAdapters:",
+        "  agentProcess:",
+        "    command: node local-agent.js",
+        "    profile: codex",
+        "    bundleFormat: markdown",
+        "safety:",
+        "  allowCommands: true",
+        "  commandTimeoutMs: 1000",
+        ""
+      ].join("\n")
+    );
+
+    const result = await run(["execute", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(report.summary).toMatchObject({
+      status: "passed",
+      total: 1,
+      passed: 1
+    });
+    expect(report.toolAdapters[0]).toMatchObject({
+      kind: "agent-process",
+      name: "Agent Process",
+      command: "node local-agent.js",
+      status: "passed"
+    });
+    expect(report.toolAdapters[0].evidence[0]).toMatchObject({
+      kind: "agent-suggestion",
+      severity: "low",
+      trusted: false,
+      artifactPath: ".codedecay/local/agent-process/bundle.md",
+      metadata: expect.objectContaining({
+        profile: "codex",
+        bundleFormat: "markdown",
+        stdout: expect.stringContaining("profile=codex"),
+        untrusted: true
+      })
+    });
+    expect(readFileSync(join(repo, ".codedecay/local/agent-process/bundle.md"), "utf8")).toContain(
+      "Target agent profile: Codex"
+    );
+  });
+
   it("surfaces StrykerJS survivor evidence from configured mutation reports", async () => {
     const repo = createLowRiskRepo();
     writeFile(repo, "stryker-pass.js", "console.log('mutation done');\n");

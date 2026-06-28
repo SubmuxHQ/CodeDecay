@@ -38,6 +38,7 @@ export interface CodeDecayLlmConfig {
 }
 
 export interface CodeDecayToolAdapters {
+  agentProcess?: CodeDecayAgentProcessToolAdapter | undefined;
   playwright?: CodeDecayCommandToolAdapter | undefined;
   stryker?: CodeDecayStrykerToolAdapter | undefined;
   schemathesis?: CodeDecaySchemathesisToolAdapter | undefined;
@@ -50,6 +51,14 @@ export interface CodeDecayCommandToolAdapter {
   enabled: boolean;
   command?: string | undefined;
   timeoutMs?: number | undefined;
+}
+
+export type CodeDecayAgentProfile = "generic" | "codex" | "claude-code" | "cursor" | "pi" | "opencode" | "desktop";
+export type CodeDecayAgentBundleFormat = "markdown" | "json";
+
+export interface CodeDecayAgentProcessToolAdapter extends CodeDecayCommandToolAdapter {
+  profile?: CodeDecayAgentProfile | undefined;
+  bundleFormat?: CodeDecayAgentBundleFormat | undefined;
 }
 
 export interface CodeDecaySchemathesisToolAdapter extends CodeDecayCommandToolAdapter {
@@ -376,12 +385,17 @@ function normalizeToolAdapters(value: unknown, sourcePath: string): CodeDecayToo
   }
 
   const adapters: CodeDecayToolAdapters = {};
+  const agentProcess = normalizeAgentProcessToolAdapter(value.agentProcess, sourcePath);
   const playwright = normalizeCommandToolAdapter(value.playwright, "toolAdapters.playwright", sourcePath);
   const stryker = normalizeStrykerToolAdapter(value.stryker, sourcePath);
   const schemathesis = normalizeSchemathesisToolAdapter(value.schemathesis, sourcePath);
   const pact = normalizeCommandToolAdapter(value.pact, "toolAdapters.pact", sourcePath);
   const semgrep = normalizeSemgrepToolAdapter(value.semgrep, sourcePath);
   const coverage = normalizeCoverageToolAdapter(value.coverage, sourcePath);
+
+  if (agentProcess) {
+    adapters.agentProcess = agentProcess;
+  }
 
   if (playwright) {
     adapters.playwright = playwright;
@@ -642,6 +656,36 @@ function normalizeCommandToolAdapter(
   return adapter;
 }
 
+function normalizeAgentProcessToolAdapter(
+  value: unknown,
+  sourcePath: string
+): CodeDecayAgentProcessToolAdapter | undefined {
+  const adapter = normalizeCommandToolAdapter(value, "toolAdapters.agentProcess", sourcePath);
+  if (!adapter || typeof value === "boolean") {
+    return adapter;
+  }
+
+  if (!isPlainObject(value)) {
+    throw new Error(`Invalid CodeDecay config at ${sourcePath}: toolAdapters.agentProcess must be a boolean or object.`);
+  }
+
+  const agentProcess: CodeDecayAgentProcessToolAdapter = { ...adapter };
+
+  if (value.profile !== undefined) {
+    agentProcess.profile = normalizeAgentProfile(value.profile, "toolAdapters.agentProcess.profile", sourcePath);
+  }
+
+  if (value.bundleFormat !== undefined) {
+    agentProcess.bundleFormat = normalizeAgentBundleFormat(
+      value.bundleFormat,
+      "toolAdapters.agentProcess.bundleFormat",
+      sourcePath
+    );
+  }
+
+  return agentProcess;
+}
+
 function normalizeSchemathesisToolAdapter(
   value: unknown,
   sourcePath: string
@@ -752,6 +796,32 @@ function normalizeToolSeverity(value: unknown, field: string, sourcePath: string
   }
 
   throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be low, medium, or high.`);
+}
+
+function normalizeAgentProfile(value: unknown, field: string, sourcePath: string): CodeDecayAgentProfile {
+  if (
+    value === "generic" ||
+    value === "codex" ||
+    value === "claude-code" ||
+    value === "cursor" ||
+    value === "pi" ||
+    value === "opencode" ||
+    value === "desktop"
+  ) {
+    return value;
+  }
+
+  throw new Error(
+    `Invalid CodeDecay config at ${sourcePath}: ${field} must be generic, codex, claude-code, cursor, pi, opencode, or desktop.`
+  );
+}
+
+function normalizeAgentBundleFormat(value: unknown, field: string, sourcePath: string): CodeDecayAgentBundleFormat {
+  if (value === "markdown" || value === "json") {
+    return value;
+  }
+
+  throw new Error(`Invalid CodeDecay config at ${sourcePath}: ${field} must be markdown or json.`);
 }
 
 function normalizeCoverageFailOn(value: unknown, field: string, sourcePath: string): CodeDecayCoverageFailOn {
@@ -907,6 +977,10 @@ function cloneCommands(commands: CodeDecayCommands): CodeDecayCommands {
 
 function cloneToolAdapters(toolAdapters: CodeDecayToolAdapters): CodeDecayToolAdapters {
   const cloned: CodeDecayToolAdapters = {};
+
+  if (toolAdapters.agentProcess) {
+    cloned.agentProcess = { ...toolAdapters.agentProcess };
+  }
 
   if (toolAdapters.playwright) {
     cloned.playwright = { ...toolAdapters.playwright };

@@ -127,9 +127,9 @@ still needs verification with tests or configured checks.
 `codedecay_product_rerun` are the only MCP tools that can execute local
 commands. They never accept command text from MCP input. Configured checks can
 only run commands from `.codedecay/config.yml`, `codedecay.config.yml`, or
-enabled configured tool adapters such as Playwright, coverage, StrykerJS,
-Semgrep, Schemathesis, and Pact. Product tools only invoke the fixed local `codedecay product`
-subcommand with structured flags.
+enabled configured tool adapters such as Agent Process, Playwright, coverage,
+StrykerJS, Semgrep, Schemathesis, and Pact. Product tools only invoke the fixed
+local `codedecay product` subcommand with structured flags.
 
 Execution requires both:
 

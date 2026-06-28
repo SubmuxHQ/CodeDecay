@@ -482,8 +482,9 @@ Owns weak-test and missing-test proof signals.
 
 ### packages/tool-adapters
 
-Owns OSS tool adapter wrappers such as Playwright, StrykerJS, Schemathesis, and
-Pact. These adapters must go through safe configured execution.
+Owns OSS tool adapter wrappers such as Agent Process, Playwright, coverage,
+StrykerJS, Semgrep, Schemathesis, and Pact. These adapters must go through safe
+configured execution.
 
 ---
 

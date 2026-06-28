@@ -345,6 +345,10 @@ commands:
     - pnpm build
 
 toolAdapters:
+  agentProcess:
+    command: node scripts/local-agent-harness.js
+    profile: codex
+    bundleFormat: markdown
   playwright:
     enabled: true
     command: pnpm exec playwright test
@@ -419,7 +423,7 @@ packages/
   report/           JSON, Markdown, SARIF rendering
   skills/           repo-local agent skill loading
   test-audit/       weak-test and missing-test evidence signals
-  tool-adapters/    Playwright, coverage, StrykerJS, Semgrep, Schemathesis, Pact adapters
+  tool-adapters/    Agent Process, Playwright, coverage, StrykerJS, Semgrep, Schemathesis, Pact adapters
 docs/               user docs, RFCs, sample reports
 .agents/            contributor agent commands and skills
 .codedecay/         local setup scripts and example config

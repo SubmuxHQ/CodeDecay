@@ -102,6 +102,7 @@ export interface HarnessRunContext {
   cwd: string;
   timeoutMs?: number | undefined;
   signal?: AbortSignal | undefined;
+  context?: Record<string, unknown> | undefined;
 }
 
 export interface HarnessFailure {

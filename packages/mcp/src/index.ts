@@ -14,8 +14,10 @@ import {
 import {
   AGENT_PROFILE_IDS,
   createAgentTaskBundle,
+  isAgentProfileId,
   renderAgentTaskBundle,
-  type AgentProfileId
+  type AgentProfileId,
+  type AgentTaskBundleFormat
 } from "@submuxhq/codedecay-agent";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
 import { loadCodeDecayConfig, type LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
@@ -773,7 +775,14 @@ async function runConfiguredToolAdapterChecks(
       cwd: rootDir,
       evidence: []
     });
-    const context = configured.timeoutMs === undefined ? { cwd: rootDir } : { cwd: rootDir, timeoutMs: configured.timeoutMs };
+    const agentContext =
+      configured.kind === "agent-process"
+        ? createAgentProcessHarnessContextForMcp(rootDir, loadedConfig, configured.context)
+        : configured.context;
+    const context =
+      configured.timeoutMs === undefined
+        ? { cwd: rootDir, context: agentContext }
+        : { cwd: rootDir, timeoutMs: configured.timeoutMs, context: agentContext };
     const result = await configured.harness.run(plan, context);
     const mapped: McpExecutionToolAdapterResult = {
       kind: configured.kind,
@@ -797,6 +806,40 @@ async function runConfiguredToolAdapterChecks(
   }
 
   return results;
+}
+
+function createAgentProcessHarnessContextForMcp(
+  rootDir: string,
+  loadedConfig: LoadedCodeDecayConfig,
+  configuredContext: Record<string, unknown> | undefined
+): Record<string, unknown> {
+  const profile = agentProfileFromContext(configuredContext?.agentProfile);
+  const bundleFormat = agentBundleFormatFromContext(configuredContext?.agentBundleFormat);
+  const context = createAnalysisContext({ cwd: rootDir }, { cwd: rootDir });
+  const report = createRedteamReport({
+    analysisReport: context.report,
+    config: loadedConfig.config,
+    configSource: loadedConfig.sourcePath,
+    memory: context.loadedMemory.memory,
+    memorySource: context.loadedMemory.sourcePath,
+    skills: loadCodeDecaySkills({ cwd: rootDir })
+  });
+  const bundle = createAgentTaskBundle(report, { profile });
+
+  return {
+    ...configuredContext,
+    agentProfile: profile,
+    agentBundleFormat: bundleFormat,
+    agentBundle: renderAgentTaskBundle(bundle, bundleFormat)
+  };
+}
+
+function agentProfileFromContext(value: unknown): AgentProfileId {
+  return typeof value === "string" && isAgentProfileId(value) ? value : "generic";
+}
+
+function agentBundleFormatFromContext(value: unknown): AgentTaskBundleFormat {
+  return value === "json" || value === "markdown" ? value : "markdown";
 }
 
 function createExecutionSummary(
