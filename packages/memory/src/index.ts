@@ -777,7 +777,15 @@ function normalizeProductPath(path: string): string {
     return normalized;
   }
 
-  return normalized.replace(/\/+$/, "") || "/";
+  return trimTrailingSlashes(normalized) || "/";
+}
+
+function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 1 && value[end - 1] === "/") {
+    end -= 1;
+  }
+  return end === value.length ? value : value.slice(0, end);
 }
 
 function productRerunCommand(

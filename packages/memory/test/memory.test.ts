@@ -394,7 +394,7 @@ describe("CodeDecay memory", () => {
                   id: "route-dashboard",
                   title: "loads /dashboard",
                   kind: "route-load",
-                  pageUrl: "http://127.0.0.1:3000/dashboard?token=secret",
+                  pageUrl: "http://127.0.0.1:3000/dashboard/?token=secret",
                   priority: "medium"
                 }
               ]
@@ -413,9 +413,9 @@ describe("CodeDecay memory", () => {
                   id: "api-get-users",
                   title: "GET /api/users returns a documented status",
                   kind: "api-operation",
-                  pageUrl: "http://127.0.0.1:3000/api/users?token=secret",
+                  pageUrl: "http://127.0.0.1:3000/api/users/?token=secret",
                   method: "GET",
-                  operationPath: "/api/users?token=secret",
+                  operationPath: "/api/users/?token=secret",
                   headers: { authorization: "Bearer secret" },
                   requestBody: { password: "secret" },
                   priority: "medium"
@@ -435,7 +435,7 @@ describe("CodeDecay memory", () => {
                   error: "Bearer supersecret leaked for user@example.com token=abc123",
                   request: {
                     method: "GET",
-                    url: "http://127.0.0.1:3000/api/users?token=abc123"
+                    url: "http://127.0.0.1:3000/api/users/?token=abc123"
                   },
                   impactedFiles: ["src/app/api/users/route.ts"],
                   testSourcePath: ".codedecay/local/generated-api-tests/api/api.generated.spec.ts",
