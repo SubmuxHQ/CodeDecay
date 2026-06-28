@@ -1,6 +1,8 @@
 node_modules/
 dist/
 coverage/
+!packages/tool-adapters/src/coverage/
+!packages/tool-adapters/src/coverage/**
 .turbo/
 .DS_Store
 *.log
