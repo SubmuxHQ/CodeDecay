@@ -7,8 +7,7 @@ import {
   createConfiguredCommandAdapters,
   runAdapters,
   type AdapterResult,
-  type AdapterStatus,
-  type ConfiguredCommandKind
+  type AdapterStatus
 } from "@submuxhq/codedecay-adapters";
 import {
   AGENT_PROFILE_IDS,
@@ -38,13 +37,12 @@ import {
   type ProductFailureClassification,
   type ProductFailureBundle,
   type ProductFailureStep,
-  type RiskLevel,
-  type TestEvidenceMode
+  type RiskLevel
 } from "@submuxhq/codedecay-core";
 import { checkCommandSafety, runConfiguredCommand, type CommandExecutionResult, type ExecutionStatus } from "@submuxhq/codedecay-execution";
 import { createGitWorktree, getGitChangedFiles, getRepoRoot, removeGitWorktree } from "@submuxhq/codedecay-git";
-import type { Evidence, HarnessFailure } from "@submuxhq/codedecay-harness";
-import { createLlmProvider, type LlmCompletion, type LlmSuggestion } from "@submuxhq/codedecay-llm";
+import type { Evidence } from "@submuxhq/codedecay-harness";
+import { createLlmProvider, type LlmCompletion } from "@submuxhq/codedecay-llm";
 import {
   applyMemoryContext,
   importCodeDecayMemory,
@@ -59,9 +57,66 @@ import { createRedteamReport, renderRedteamReport, type RedteamFormat } from "@s
 import { renderReport, type ReportFormat } from "@submuxhq/codedecay-report";
 import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
-import { createConfiguredToolHarnesses, type ConfiguredToolAdapterKind } from "@submuxhq/codedecay-tool-adapters";
+import { createConfiguredToolHarnesses } from "@submuxhq/codedecay-tool-adapters";
 import YAML from "yaml";
 import { COMMAND_ORDER, HELP_DOCS, ROOT_FLAG_ALIASES, UTILITY_COMMAND_ORDER } from "./docs/commands";
+import type {
+  AnalyzeOptions,
+  AgentOptions,
+  CliAnalysisContext,
+  CliCommandContext,
+  CliCommandHandler,
+  CliRuntime,
+  ConfigFormat,
+  ConfigOptions,
+  DashboardOptions,
+  DifferentialOptions,
+  DifferentialProbeResult,
+  DifferentialReport,
+  DifferentialSideResult,
+  DifferentialSummary,
+  DifferentialStatus,
+  ExecuteOptions,
+  ExecutionReport,
+  ExecutionResult,
+  ExecutionSummary,
+  ExecutionToolAdapterResult,
+  LlmReviewOptions,
+  LlmReviewReport,
+  McpOptions,
+  ManagedProductProcess,
+  MemoryImportOptions,
+  MemoryLearnOptions,
+  MemoryOptions,
+  PackageManager,
+  ProductBlockedAction,
+  ProductExplorationResult,
+  ProductExplorerOptions,
+  ProductFlowLink,
+  ProductFlowMap,
+  ProductFlowPage,
+  ProductGeneratedTestCase,
+  ProductGeneratedTestFailure,
+  ProductGeneratedTestManifest,
+  ProductGeneratedTestRunResult,
+  ProductGeneratedTestsResult,
+  ProductHealthResult,
+  ProductInteractiveElement,
+  ProductOptions,
+  ProductStartResult,
+  ProductTargetReport,
+  ProductTargetResult,
+  ProductTargetStatus,
+  ProductTargetSummary,
+  RedteamOptions,
+  SnapshotOptions,
+  TrendSnapshot,
+  TrendSnapshotComparison,
+  UninstallOptions,
+  UninstallPlan,
+  UpdateOptions,
+  UpdatePlan
+} from "./types";
 import {
   renderCommandHelp,
   renderCommandManual,
@@ -72,577 +127,6 @@ import {
   renderVersion,
   type CommandDoc
 } from "./renderers/discovery";
-
-interface AnalyzeOptions {
-  base?: string | undefined;
-  head?: string | undefined;
-  cwd?: string | undefined;
-  format: ReportFormat;
-  output?: string | undefined;
-  failOn?: RiskLevel | undefined;
-}
-
-interface AgentOptions {
-  base?: string | undefined;
-  head?: string | undefined;
-  cwd?: string | undefined;
-  format: AgentTaskBundleFormat;
-  profile: AgentProfileId;
-  output?: string | undefined;
-}
-
-interface ConfigOptions {
-  cwd?: string | undefined;
-  format: ConfigFormat;
-}
-
-interface McpOptions {
-  cwd?: string | undefined;
-}
-
-interface MemoryOptions {
-  cwd?: string | undefined;
-  format: ConfigFormat;
-}
-
-interface MemoryImportOptions {
-  cwd?: string | undefined;
-  input: string;
-  format: ConfigFormat;
-  apply: boolean;
-}
-
-interface MemoryLearnOptions {
-  cwd?: string | undefined;
-  input: string;
-  format: ConfigFormat;
-  apply: boolean;
-}
-
-interface SnapshotOptions {
-  base?: string | undefined;
-  head?: string | undefined;
-  cwd?: string | undefined;
-  compare?: string | undefined;
-  format: ConfigFormat;
-  output?: string | undefined;
-}
-
-interface LlmReviewOptions {
-  base?: string | undefined;
-  head?: string | undefined;
-  cwd?: string | undefined;
-  format: ConfigFormat;
-  output?: string | undefined;
-  task?: string | undefined;
-  ping: boolean;
-}
-
-interface ExecuteOptions {
-  cwd?: string | undefined;
-  format: ConfigFormat;
-  output?: string | undefined;
-}
-
-interface ProductOptions {
-  cwd?: string | undefined;
-  format: ConfigFormat;
-  output?: string | undefined;
-  target?: string | undefined;
-  testId?: string | undefined;
-  explore: boolean;
-  generateTests: boolean;
-  runGeneratedTests: boolean;
-  generateApiTests: boolean;
-  runGeneratedApiTests: boolean;
-  failOnClassifications?: ProductFailureClassification[] | undefined;
-  maxPages: number;
-  maxActions: number;
-  allowDestructiveActions: boolean;
-}
-
-interface DashboardOptions {
-  cwd?: string | undefined;
-  output?: string | undefined;
-  format: ConfigFormat;
-  inputPaths: string[];
-}
-
-interface DifferentialOptions {
-  base?: string | undefined;
-  head?: string | undefined;
-  cwd?: string | undefined;
-  format: ConfigFormat;
-  output?: string | undefined;
-}
-
-interface RedteamOptions {
-  base?: string | undefined;
-  head?: string | undefined;
-  cwd?: string | undefined;
-  format: RedteamFormat;
-  output?: string | undefined;
-  failOn?: RiskLevel | undefined;
-}
-
-type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
-
-interface UpdateOptions {
-  cwd?: string | undefined;
-  manager?: PackageManager | undefined;
-  apply: boolean;
-}
-
-interface UninstallOptions {
-  cwd?: string | undefined;
-  manager?: PackageManager | undefined;
-  apply: boolean;
-  purgeLocal: boolean;
-}
-
-interface UpdatePlan {
-  manager?: PackageManager | undefined;
-  source: string;
-  displayCommand: string;
-  command: string;
-  args: string[];
-  canApply: boolean;
-}
-
-interface UninstallPlan {
-  manager?: PackageManager | undefined;
-  source: string;
-  displayCommand?: string | undefined;
-  command?: string | undefined;
-  args: string[];
-  canApplyPackage: boolean;
-  dependencyLocation: "devDependencies" | "dependencies" | "optionalDependencies" | "none";
-  dependencyVersion?: string | undefined;
-  purgeTargets: string[];
-}
-
-interface ExecutionReport {
-  tool: "CodeDecay";
-  version: string;
-  generatedAt: string;
-  configSource?: string | undefined;
-  summary: ExecutionSummary;
-  results: ExecutionResult[];
-  toolAdapters: ExecutionToolAdapterResult[];
-}
-
-interface ProductTargetReport {
-  tool: "CodeDecay";
-  version: string;
-  generatedAt: string;
-  configSource?: string | undefined;
-  summary: ProductTargetSummary;
-  targets: ProductTargetResult[];
-  safety: ProductTargetSafetySummary;
-}
-
-interface ProductTargetSummary {
-  status: ProductTargetStatus;
-  total: number;
-  ready: number;
-  passed: number;
-  failed: number;
-  skipped: number;
-  blocked: number;
-  timedOut: number;
-  durationMs: number;
-}
-
-type ProductTargetStatus = "passed" | "failed" | "skipped" | "blocked" | "timed_out";
-
-interface ProductTargetResult {
-  id: string;
-  status: ProductTargetStatus;
-  readiness: CodeDecayProductTarget["readiness"];
-  baseUrl?: string | undefined;
-  healthCheck?: string | undefined;
-  timeoutMs: number;
-  durationMs: number;
-  setup?: CommandExecutionResult | undefined;
-  start?: ProductStartResult | undefined;
-  health?: ProductHealthResult | undefined;
-  exploration?: ProductExplorationResult | undefined;
-  generatedTests?: ProductGeneratedTestsResult | undefined;
-  generatedTestRun?: ProductGeneratedTestRunResult | undefined;
-  generatedApiTests?: ProductGeneratedTestsResult | undefined;
-  generatedApiTestRun?: ProductGeneratedTestRunResult | undefined;
-  teardown?: CommandExecutionResult | undefined;
-  notes: string[];
-}
-
-interface ProductStartResult {
-  command: string;
-  status: "started" | "skipped" | "blocked" | "error";
-  durationMs: number;
-  stdout: string;
-  stderr: string;
-  pid?: number | undefined;
-  error?: string | undefined;
-  blockedReason?: string | undefined;
-}
-
-interface ManagedProductProcess extends ProductStartResult {
-  child?: ChildProcessWithoutNullStreams | undefined;
-}
-
-interface ProductHealthResult {
-  url: string;
-  status: ProductTargetStatus;
-  attempts: number;
-  durationMs: number;
-  httpStatus?: number | undefined;
-  error?: string | undefined;
-}
-
-interface ProductExplorationResult {
-  status: ProductTargetStatus;
-  driver: "playwright";
-  artifactPath?: string | undefined;
-  pages: number;
-  interactiveElements: number;
-  blockedActions: number;
-  skippedActions: number;
-  durationMs: number;
-  error?: string | undefined;
-  notes: string[];
-}
-
-interface ProductGeneratedTestsResult {
-  status: ProductTargetStatus;
-  sourcePath?: string | undefined;
-  manifestPath?: string | undefined;
-  tests: ProductGeneratedTestCase[];
-  durationMs: number;
-  error?: string | undefined;
-  notes: string[];
-}
-
-interface ProductGeneratedTestCase {
-  id: string;
-  title: string;
-  kind: "route-load" | "link-navigation" | "input-state" | "form-visibility" | "api-operation";
-  pageUrl: string;
-  selector?: string | undefined;
-  targetUrl?: string | undefined;
-  method?: string | undefined;
-  operationPath?: string | undefined;
-  operationId?: string | undefined;
-  expectedStatuses?: number[] | undefined;
-  headers?: Record<string, string> | undefined;
-  requestBody?: unknown;
-  destructive?: boolean | undefined;
-  priority: "high" | "medium" | "low";
-}
-
-interface ProductGeneratedTestManifest {
-  schemaVersion: 1;
-  generatedAt: string;
-  target: {
-    id: string;
-    baseUrl: string;
-  };
-  sourceFlowMapPath?: string | undefined;
-  sourceOpenApiSchemaPath?: string | undefined;
-  sourceApiEndpoints?: string | undefined;
-  testSourcePath: string;
-  reviewRequired: true;
-  promoteByCopyingTo: string;
-  tests: ProductGeneratedTestCase[];
-}
-
-interface ProductGeneratedTestRunResult {
-  status: ProductTargetStatus;
-  command?: string | undefined;
-  durationMs: number;
-  passed: number;
-  failed: number;
-  skipped: number;
-  failures: ProductGeneratedTestFailure[];
-  stdout: string;
-  stderr: string;
-  exitCode?: number | undefined;
-  error?: string | undefined;
-  notes: string[];
-}
-
-interface ProductGeneratedTestFailure {
-  testId?: string | undefined;
-  title: string;
-  failingStep: string;
-  error: string;
-  retryEvidence?: ProductGeneratedTestRetryEvidence | undefined;
-  classification?: ProductFailureClassification | undefined;
-  classificationConfidence?: number | undefined;
-  classificationEvidence?: string[] | undefined;
-  suggestedFixTasks?: string[] | undefined;
-  request?: ProductGeneratedTestFailureRequest | undefined;
-  expected?: string | undefined;
-  actual?: string | undefined;
-  impactedFiles?: string[] | undefined;
-  testSourcePath: string;
-  testSource: string;
-  rerunCommand: string;
-}
-
-interface ProductGeneratedTestRetryEvidence {
-  attempts: number;
-  passed: number;
-  failed: number;
-  command?: string | undefined;
-  conclusion: "passed-on-rerun" | "failed-on-rerun" | "not-rerun";
-  error?: string | undefined;
-}
-
-interface ProductGeneratedTestFailureRequest {
-  method: string;
-  url: string;
-}
-
-interface ProductExplorerOptions {
-  maxPages: number;
-  maxActions: number;
-  allowDestructiveActions: boolean;
-}
-
-interface ProductFlowMap {
-  schemaVersion: 1;
-  generatedAt: string;
-  target: {
-    id: string;
-    baseUrl: string;
-    origin: string;
-  };
-  driver: "playwright";
-  limits: {
-    sameOrigin: true;
-    maxPages: number;
-    maxActions: number;
-    allowDestructiveActions: boolean;
-  };
-  summary: {
-    pages: number;
-    interactiveElements: number;
-    blockedActions: number;
-    skippedActions: number;
-  };
-  pages: ProductFlowPage[];
-  blockedActions: ProductBlockedAction[];
-}
-
-interface ProductFlowPage {
-  url: string;
-  title: string;
-  path: string;
-  depth: number;
-  links: ProductFlowLink[];
-  interactiveElements: ProductInteractiveElement[];
-  screenshotPath?: string | undefined;
-}
-
-interface ProductFlowLink {
-  href: string;
-  text: string;
-  selector: string;
-  sameOrigin: boolean;
-  discovered: boolean;
-}
-
-interface ProductInteractiveElement {
-  kind: "link" | "form" | "button" | "input";
-  selector: string;
-  name: string;
-  action?: string | undefined;
-  method?: string | undefined;
-  inputType?: string | undefined;
-  destructive: boolean;
-  blocked: boolean;
-  blockReason?: string | undefined;
-}
-
-interface ProductBlockedAction {
-  pageUrl: string;
-  selector: string;
-  name: string;
-  reason: string;
-}
-
-interface ProductTargetSafetySummary {
-  commandsExecuted: boolean;
-  browserAutomationRan: boolean;
-  generatedTestsRan: boolean;
-  startupCommandsAllowed: boolean;
-  telemetrySent: false;
-  cloudDependency: false;
-  notes: string[];
-}
-
-interface ExecutionSummary {
-  status: AdapterStatus;
-  total: number;
-  passed: number;
-  failed: number;
-  skipped: number;
-  timedOut: number;
-  errors: number;
-  durationMs: number;
-}
-
-interface ExecutionResult extends AdapterResult {
-  kind: ConfiguredCommandKind;
-  command: string;
-}
-
-interface ExecutionToolAdapterResult {
-  kind: ConfiguredToolAdapterKind;
-  name: string;
-  command: string;
-  status: AdapterStatus;
-  durationMs: number;
-  summary: string;
-  evidence: Evidence[];
-  timeoutMs?: number | undefined;
-  failure?: HarnessFailure | undefined;
-}
-
-type DifferentialStatus = "passed" | "changed" | "skipped" | "failed";
-
-interface DifferentialReport {
-  tool: "CodeDecay";
-  version: string;
-  generatedAt: string;
-  base: string;
-  head: string;
-  configSource?: string | undefined;
-  summary: DifferentialSummary;
-  results: DifferentialProbeResult[];
-}
-
-interface DifferentialSummary {
-  status: DifferentialStatus;
-  total: number;
-  unchanged: number;
-  changed: number;
-  skipped: number;
-  failed: number;
-  durationMs: number;
-}
-
-interface DifferentialProbeResult {
-  id: string;
-  name: string;
-  command: string;
-  status: DifferentialStatus;
-  differences: string[];
-  base: DifferentialSideResult;
-  head: DifferentialSideResult;
-}
-
-interface DifferentialSideResult {
-  status: AdapterStatus;
-  durationMs: number;
-  stdout: string;
-  stderr: string;
-  exitCode?: number | undefined;
-  error?: string | undefined;
-  structuredOutput?: unknown;
-}
-
-interface CliRuntime {
-  cwd?: string | undefined;
-  stdout?: (text: string) => void;
-  stderr?: (text: string) => void;
-}
-
-interface CliCommandContext {
-  args: string[];
-  runtime: CliRuntime;
-  runtimeCwd: string;
-}
-
-interface CliAnalysisContext {
-  report: ReturnType<typeof createAnalysisReport>;
-  loadedMemory: LoadedCodeDecayMemory;
-}
-
-interface TrendSnapshot {
-  tool: "CodeDecay";
-  version: string;
-  generatedAt: string;
-  base?: string | undefined;
-  head?: string | undefined;
-  summary: {
-    mergeRiskScore: number;
-    decayScore: number;
-    riskLevel: RiskLevel;
-    changedFiles: number;
-    impactedAreas: number;
-    impactedRoutes: number;
-    findingCounts: Record<RiskLevel, number>;
-    missingTestFindings: number;
-    weakTestFindings: number;
-    evidenceMode: TestEvidenceMode;
-    highRiskFiles: string[];
-    impactedAreaKinds: string[];
-  };
-}
-
-interface TrendSnapshotComparison {
-  tool: "CodeDecay";
-  version: string;
-  generatedAt: string;
-  current: TrendSnapshot;
-  previous: TrendSnapshot;
-  delta: {
-    mergeRiskScore: number;
-    decayScore: number;
-    changedFiles: number;
-    impactedAreas: number;
-    impactedRoutes: number;
-    highFindings: number;
-    mediumFindings: number;
-    lowFindings: number;
-    missingTestFindings: number;
-    weakTestFindings: number;
-  };
-}
-
-interface LlmReviewReport {
-  tool: "CodeDecay";
-  version: string;
-  generatedAt: string;
-  mode: "ping" | "review";
-  configSource?: string | undefined;
-  base?: string | undefined;
-  head?: string | undefined;
-  provider: {
-    id: string;
-    configuredProvider: "disabled" | "ollama" | "litellm";
-    model?: string | undefined;
-    endpoint?: string | undefined;
-    apiKeyEnv?: string | undefined;
-    timeoutMs: number;
-  };
-  summary?: {
-    mergeRiskScore: number;
-    decayScore: number;
-    riskLevel: RiskLevel;
-    changedFiles: number;
-    impactedAreas: number;
-    impactedRoutes: number;
-    evidenceMode: TestEvidenceMode;
-  };
-  suggestions: LlmSuggestion[];
-  rawText: string;
-  untrusted: true;
-}
-
-type CliCommandHandler = (context: CliCommandContext) => Promise<void> | void;
-type ConfigFormat = "json" | "markdown";
 
 const VALID_FORMATS = new Set<ReportFormat>(["json", "markdown", "sarif"]);
 const VALID_CONFIG_FORMATS = new Set<ConfigFormat>(["json", "markdown"]);
