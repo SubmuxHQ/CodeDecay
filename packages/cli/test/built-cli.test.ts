@@ -258,6 +258,11 @@ describe("built codedecay CLI", () => {
     expect(snapshotHelp.stdout).toContain("CodeDecay snapshot");
     expect(snapshotHelp.stdout).toContain("--compare <path>");
 
+    const llmReviewHelp = runBuilt(["llm-review", "--help"]);
+    expect(llmReviewHelp.status).toBe(0);
+    expect(llmReviewHelp.stdout).toContain("CodeDecay llm-review");
+    expect(llmReviewHelp.stdout).toContain("--task <text>");
+
     const manual = runBuilt(["man", "update"]);
     expect(manual.status).toBe(0);
     expect(manual.stdout).toContain("CODEDECAY-UPDATE(1)");
