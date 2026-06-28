@@ -299,6 +299,11 @@ describe("built codedecay CLI", () => {
       ["version: 1", "commands:", "  test: pnpm test", "safety:", "  commandTimeoutMs: 15000", ""].join("\n")
     );
 
+    const configHelp = runBuilt(["config", "--help"]);
+    expect(configHelp.status).toBe(0);
+    expect(configHelp.stdout).toContain("CodeDecay config");
+    expect(configHelp.stdout).toContain("--format <format>");
+
     const result = runBuilt(["config", "--cwd", repo, "--format", "json"]);
 
     expect(result.status).toBe(0);
@@ -312,6 +317,11 @@ describe("built codedecay CLI", () => {
         }
       }
     });
+
+    const mcpHelp = runBuilt(["mcp", "--help"]);
+    expect(mcpHelp.status).toBe(0);
+    expect(mcpHelp.stdout).toContain("CodeDecay mcp");
+    expect(mcpHelp.stdout).toContain("--cwd <path>");
   });
 
   it("executes configured commands from the built CLI", () => {
