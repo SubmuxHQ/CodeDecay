@@ -15,6 +15,7 @@ import {
   type HarnessSummary
 } from "@submuxhq/codedecay-harness";
 import { createCoverageHarness, createConfiguredCoverageHarness } from "./coverage";
+import { createPlaywrightHarness, createConfiguredPlaywrightHarness } from "./playwright";
 import { createSemgrepHarness, createConfiguredSemgrepHarness } from "./semgrep";
 import {
   compactExecutionMetadata,
@@ -36,12 +37,11 @@ import type {
   ConfiguredToolAdapterKind,
   ConfiguredToolHarness,
   PactHarnessOptions,
-  PlaywrightHarnessOptions,
   SchemathesisHarnessOptions,
   StrykerHarnessOptions
 } from "./types";
 
-export { createCoverageHarness, createSemgrepHarness };
+export { createCoverageHarness, createPlaywrightHarness, createSemgrepHarness };
 export type {
   AgentProcessHarnessOptions,
   ConfiguredToolAdapterKind,
@@ -54,9 +54,6 @@ export type {
   StrykerHarnessOptions
 } from "./types";
 
-const PLAYWRIGHT_HARNESS_NAME = "playwright";
-const DEFAULT_PLAYWRIGHT_COMMAND = "pnpm exec playwright test";
-const DEFAULT_PLAYWRIGHT_TIMEOUT_MS = 120_000;
 const STRYKER_HARNESS_NAME = "stryker";
 const DEFAULT_STRYKER_COMMAND = "pnpm exec stryker run";
 const DEFAULT_STRYKER_TIMEOUT_MS = 300_000;
@@ -103,40 +100,6 @@ export function createAgentProcessHarness(options: AgentProcessHarnessOptions = 
         evidence,
         artifacts: [],
         summary: `${AGENT_PROCESS_HARNESS_NAME} produced ${evidence.length} evidence item(s).`
-      })
-  };
-}
-
-export function createPlaywrightHarness(options: PlaywrightHarnessOptions = {}): CodeDecayHarness {
-  const command = options.command ?? DEFAULT_PLAYWRIGHT_COMMAND;
-  validatePlaywrightOptions({ ...options, command });
-
-  return {
-    name: PLAYWRIGHT_HARNESS_NAME,
-    capabilities: ["browser-flow", "test-execution", "execution"],
-    requiredConfig: [
-      {
-        key: "playwright.command",
-        description: "Command that runs Playwright checks for the repo.",
-        required: false
-      },
-      {
-        key: "safety.allowCommands",
-        description: "Must be true before CodeDecay runs configured commands.",
-        required: true
-      }
-    ],
-    plan: async (input) => createPlaywrightPlan(input, command, Boolean(options.allowCommands)),
-    run: async (plan, context) => runPlaywrightPlan(plan, context, { ...options, command }),
-    collectEvidence: async (result) => result.evidence,
-    summarize: async (evidence) =>
-      summarizeHarnessResult({
-        harnessName: PLAYWRIGHT_HARNESS_NAME,
-        status: evidence.some((item) => item.severity === "high") ? "failed" : "passed",
-        durationMs: 0,
-        evidence,
-        artifacts: [],
-        summary: `${PLAYWRIGHT_HARNESS_NAME} produced ${evidence.length} evidence item(s).`
       })
   };
 }
@@ -261,16 +224,7 @@ export function createConfiguredToolHarnesses(config: CodeDecayConfig): Configur
   }
 
   if (config.toolAdapters.playwright?.enabled) {
-    configured.push(
-      createConfiguredCommandHarness({
-        kind: "playwright",
-        name: "Playwright",
-        adapter: config.toolAdapters.playwright,
-        defaultCommand: DEFAULT_PLAYWRIGHT_COMMAND,
-        create: createPlaywrightHarness,
-        allowCommands: config.safety.allowCommands
-      })
-    );
+    configured.push(createConfiguredPlaywrightHarness(config.toolAdapters.playwright, config.safety.allowCommands));
   }
 
   if (config.toolAdapters.stryker?.enabled) {
@@ -565,26 +519,6 @@ async function runAgentProcessPlan(
   };
 }
 
-function createPlaywrightPlan(
-  input: HarnessPlanInput,
-  command: string,
-  allowCommands: boolean
-): HarnessPlan {
-  return {
-    id: "playwright-browser-flow",
-    harnessName: PLAYWRIGHT_HARNESS_NAME,
-    summary: "Run configured Playwright browser/user-flow checks and collect tool evidence.",
-    requiresApproval: !allowCommands,
-    steps: [
-      {
-        id: "run-playwright",
-        title: "Run Playwright checks",
-        description: `Run \`${command}\` from ${input.cwd}.`
-      }
-    ]
-  };
-}
-
 function createStrykerPlan(
   input: HarnessPlanInput,
   command: string,
@@ -643,48 +577,6 @@ function createPactPlan(
       }
     ]
   };
-}
-
-async function runPlaywrightPlan(
-  plan: HarnessPlan,
-  context: HarnessRunContext,
-  options: PlaywrightHarnessOptions & { command: string }
-): Promise<HarnessRunResult> {
-  validatePlan(plan);
-  const startedAt = Date.now();
-  const timeoutMs = context.timeoutMs ?? options.timeoutMs ?? DEFAULT_PLAYWRIGHT_TIMEOUT_MS;
-  const execution = await runConfiguredCommand({
-    command: options.command,
-    cwd: context.cwd,
-    timeoutMs,
-    outputLimit: options.outputLimit,
-    safety: {
-      allowCommands: options.allowCommands ?? false,
-      allowUnsafeCommands: options.allowUnsafeCommands
-    }
-  });
-  const durationMs = elapsed(startedAt);
-  const evidence = [evidenceFromExecution(execution)];
-
-  if (execution.status === "passed") {
-    return {
-      harnessName: PLAYWRIGHT_HARNESS_NAME,
-      status: "passed",
-      durationMs,
-      evidence,
-      artifacts: [],
-      summary: "Playwright checks passed."
-    };
-  }
-
-  return createHarnessFailureResult({
-    harnessName: PLAYWRIGHT_HARNESS_NAME,
-    mode: failureModeFromExecution(execution),
-    message: failureMessageFromExecution(execution),
-    status: harnessStatusFromExecution(execution),
-    durationMs,
-    evidence
-  });
 }
 
 async function runStrykerPlan(
@@ -841,22 +733,6 @@ async function runPactPlan(
     status: harnessStatusFromExecution(execution),
     durationMs,
     evidence
-  });
-}
-
-function evidenceFromExecution(execution: CommandExecutionResult): Evidence {
-  return createEvidence({
-    source: {
-      kind: "tool",
-      name: "Playwright",
-      id: "playwright"
-    },
-    kind: "browser-flow",
-    severity: evidenceSeverityFromExecution(execution),
-    summary: evidenceSummaryFromExecution(execution),
-    trusted: true,
-    command: execution.command,
-    metadata: compactExecutionMetadata(execution)
   });
 }
 
@@ -1206,30 +1082,6 @@ function agentProcessEvidenceSeverity(execution: CommandExecutionResult): Eviden
   return "high";
 }
 
-function evidenceSummaryFromExecution(execution: CommandExecutionResult): string {
-  if (execution.status === "passed") {
-    return "Playwright checks passed.";
-  }
-
-  if (execution.status === "skipped") {
-    return "Playwright checks were skipped because command execution is disabled.";
-  }
-
-  if (execution.status === "blocked") {
-    return `Playwright command was blocked: ${execution.blockedReason ?? "unsafe command"}.`;
-  }
-
-  if (execution.status === "timed_out") {
-    return "Playwright command timed out.";
-  }
-
-  if (execution.status === "error") {
-    return `Playwright command errored: ${execution.error ?? "unknown error"}.`;
-  }
-
-  return `Playwright command failed with exit code ${execution.exitCode ?? "unknown"}.`;
-}
-
 function strykerEvidenceSummaryFromExecution(execution: CommandExecutionResult): string {
   if (execution.status === "passed") {
     return "StrykerJS mutation checks passed.";
@@ -1327,18 +1179,6 @@ function agentProcessEvidenceSummaryFromExecution(execution: CommandExecutionRes
   }
 
   return `Agent process command failed with exit code ${execution.exitCode ?? "unknown"}.`;
-}
-
-function failureMessageFromExecution(execution: CommandExecutionResult): string {
-  if (execution.status === "skipped") {
-    return "Playwright command execution is disabled.";
-  }
-
-  if (execution.status === "blocked") {
-    return `Playwright command was blocked by safety policy: ${execution.blockedReason ?? "unsafe command"}.`;
-  }
-
-  return evidenceSummaryFromExecution(execution);
 }
 
 function strykerFailureMessageFromExecution(execution: CommandExecutionResult): string {
@@ -1465,18 +1305,6 @@ function validateAgentProcessOptions(options: AgentProcessHarnessOptions): void 
   }
 }
 
-function validatePlaywrightOptions(options: PlaywrightHarnessOptions & { command: string }): void {
-  validateNonEmptyString(options.command, "Playwright command");
-
-  if (options.timeoutMs !== undefined && (!Number.isInteger(options.timeoutMs) || options.timeoutMs <= 0)) {
-    throw new Error("Playwright timeoutMs must be a positive integer.");
-  }
-
-  if (options.outputLimit !== undefined && (!Number.isInteger(options.outputLimit) || options.outputLimit <= 0)) {
-    throw new Error("Playwright outputLimit must be a positive integer.");
-  }
-}
-
 function validateStrykerOptions(options: StrykerHarnessOptions & { command: string }): void {
   validateNonEmptyString(options.command, "StrykerJS command");
 
@@ -1535,12 +1363,6 @@ function isCodeDecayAgentProfile(value: string): value is CodeDecayAgentProfile 
     value === "opencode" ||
     value === "desktop"
   );
-}
-
-function validatePlan(plan: HarnessPlan): void {
-  if (plan.harnessName !== PLAYWRIGHT_HARNESS_NAME) {
-    throw new Error(`Playwright harness cannot run plan for ${plan.harnessName}.`);
-  }
 }
 
 function validateAgentProcessPlan(plan: HarnessPlan): void {
