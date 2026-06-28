@@ -3,7 +3,6 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
 import {
   createConfiguredCommandAdapters,
   runAdapters,
@@ -12,7 +11,6 @@ import {
   type ConfiguredCommandKind
 } from "@submuxhq/codedecay-adapters";
 import {
-  AGENT_PROFILE_IDS,
   createAgentTaskBundle,
   isAgentProfileId,
   renderAgentTaskBundle,
@@ -28,7 +26,6 @@ import {
   productFailureBundlesFromProductTargetReport,
   type CodeDecayReport,
   type ImpactedArea,
-  type ProductCheckKind,
   type ProductFailureBundle
 } from "@submuxhq/codedecay-core";
 import { getGitChangedFiles, getRepoRoot } from "@submuxhq/codedecay-git";
@@ -39,55 +36,20 @@ import { renderMarkdownReport } from "@submuxhq/codedecay-report";
 import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
 import { createConfiguredToolHarnesses, type ConfiguredToolAdapterKind } from "@submuxhq/codedecay-tool-adapters";
+import { registerCodeDecayMcpTools } from "./tools/registry";
+import type {
+  AgentTaskBundleToolInput,
+  AnalyzePrToolInput,
+  ExecuteConfiguredChecksToolInput,
+  McpToolInput,
+  ProductRerunToolInput,
+  ProductRunToolInput,
+  ProductToolInput
+} from "./tools/types";
 
 export interface StartMcpServerOptions {
   cwd: string;
   cliPath?: string | undefined;
-}
-
-export interface McpToolInput {
-  cwd?: string | undefined;
-  base?: string | undefined;
-  head?: string | undefined;
-}
-
-export interface AnalyzePrToolInput extends McpToolInput {
-  format?: "markdown" | "json" | undefined;
-}
-
-export interface AgentTaskBundleToolInput extends AnalyzePrToolInput {
-  profile?: AgentProfileId | undefined;
-}
-
-export interface ExecuteConfiguredChecksToolInput {
-  cwd?: string | undefined;
-  format?: "markdown" | "json" | undefined;
-  confirmExecution?: boolean | undefined;
-}
-
-export interface ProductToolInput {
-  cwd?: string | undefined;
-  target?: string | undefined;
-  format?: "markdown" | "json" | undefined;
-}
-
-export interface ProductRunToolInput extends ProductToolInput {
-  confirmExecution?: boolean | undefined;
-  explore?: boolean | undefined;
-  generateTests?: boolean | undefined;
-  runGeneratedTests?: boolean | undefined;
-  generateApiTests?: boolean | undefined;
-  runGeneratedApiTests?: boolean | undefined;
-  allowDestructiveActions?: boolean | undefined;
-  maxPages?: number | undefined;
-  maxActions?: number | undefined;
-  testId?: string | undefined;
-}
-
-export interface ProductRerunToolInput extends ProductToolInput {
-  confirmExecution?: boolean | undefined;
-  testId?: string | undefined;
-  checkKind?: ProductCheckKind | undefined;
 }
 
 interface McpAnalysisContext {
@@ -181,146 +143,19 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
     version: CODEDECAY_VERSION
   });
 
-  server.tool(
-    "analyze_pr",
-    "Analyze a pull request or working tree for regression risk and maintainability decay.",
-    {
-      cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
-      base: z.string().optional().describe("Base git ref or SHA."),
-      head: z.string().optional().describe("Head git ref or SHA."),
-      format: z.enum(["markdown", "json"]).optional().describe("Response format.")
-    },
-    async (input) => textResult(runAnalyzePrTool(options, input))
-  );
-
-  server.tool(
-    "impact_map",
-    "Return changed files, likely impacted product/system areas, and concrete route/API impacts for the PR.",
-    {
-      cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
-      base: z.string().optional().describe("Base git ref or SHA."),
-      head: z.string().optional().describe("Head git ref or SHA.")
-    },
-    async (input) => textResult(runImpactMapTool(options, input))
-  );
-
-  server.tool(
-    "audit_tests",
-    "Return missing-test and weak-test proof findings such as no changed tests, no assertions, snapshot-only tests, mocked changed source, unrelated tests, and copied implementation logic.",
-    {
-      cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
-      base: z.string().optional().describe("Base git ref or SHA."),
-      head: z.string().optional().describe("Head git ref or SHA.")
-    },
-    async (input) => textResult(runAuditTestsTool(options, input))
-  );
-
-  server.tool(
-    "suggest_edge_cases",
-    "Return deterministic edge-case and real-check suggestions for impacted areas. This does not call an LLM.",
-    {
-      cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
-      base: z.string().optional().describe("Base git ref or SHA."),
-      head: z.string().optional().describe("Head git ref or SHA.")
-    },
-    async (input) => textResult(runSuggestEdgeCasesTool(options, input))
-  );
-
-  server.tool(
-    "redteam_report",
-    "Return a deterministic CodeDecay redteam report for an MCP-compatible agent. Report-only: does not execute commands or call models.",
-    {
-      cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
-      base: z.string().optional().describe("Base git ref or SHA."),
-      head: z.string().optional().describe("Head git ref or SHA."),
-      format: z.enum(["markdown", "json"]).optional().describe("Response format.")
-    },
-    async (input) => textResult(runRedteamReportTool(options, input))
-  );
-
-  server.tool(
-    "agent_task_bundle",
-    "Return a deterministic CodeDecay task bundle that user-owned coding agents can use to fix PR risks. Report-only: does not execute commands or call models.",
-    {
-      cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
-      base: z.string().optional().describe("Base git ref or SHA."),
-      head: z.string().optional().describe("Head git ref or SHA."),
-      format: z.enum(["markdown", "json"]).optional().describe("Response format."),
-      profile: z.enum(AGENT_PROFILE_IDS).optional().describe("User-owned agent handoff profile.")
-    },
-    async (input) => textResult(runAgentTaskBundleTool(options, input))
-  );
-
-  server.tool(
-    "execute_configured_checks",
-    "Run only explicitly configured CodeDecay commands and tool adapters. Requires confirmExecution=true and safety.allowCommands=true; never runs arbitrary MCP-provided commands.",
-    {
-      cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
-      format: z.enum(["markdown", "json"]).optional().describe("Response format."),
-      confirmExecution: z
-        .boolean()
-        .optional()
-        .describe("Must be true before CodeDecay runs configured local commands.")
-    },
-    async (input) => textResult(runExecuteConfiguredChecksTool(options, input))
-  );
-
-  server.tool(
-    "codedecay_product_plan",
-    "Plan configured product verification targets and artifact paths without running product commands.",
-    {
-      cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
-      target: z.string().optional().describe("Optional productTesting target id."),
-      format: z.enum(["markdown", "json"]).optional().describe("Response format.")
-    },
-    async (input) => textResult(runProductPlanTool(options, input))
-  );
-
-  server.tool(
-    "codedecay_product_run",
-    "Run fixed CodeDecay product verification commands. Requires confirmExecution=true; never runs arbitrary MCP-provided commands.",
-    {
-      cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
-      target: z.string().optional().describe("Optional productTesting target id."),
-      format: z.enum(["markdown", "json"]).optional().describe("Response format."),
-      confirmExecution: z.boolean().optional().describe("Must be true before CodeDecay runs product verification."),
-      explore: z.boolean().optional().describe("Run product flow exploration."),
-      generateTests: z.boolean().optional().describe("Generate UI tests from the flow map."),
-      runGeneratedTests: z.boolean().optional().describe("Run generated UI tests."),
-      generateApiTests: z.boolean().optional().describe("Generate API tests from OpenAPI or configured endpoints."),
-      runGeneratedApiTests: z.boolean().optional().describe("Run generated API tests."),
-      allowDestructiveActions: z.boolean().optional().describe("Allow destructive product actions when generating/running checks."),
-      maxPages: z.number().int().positive().optional().describe("Maximum pages for exploration."),
-      maxActions: z.number().int().positive().optional().describe("Maximum interactive actions for exploration."),
-      testId: z.string().optional().describe("Generated test id to rerun.")
-    },
-    async (input) => textResult(runProductRunTool(options, input))
-  );
-
-  server.tool(
-    "codedecay_product_failures",
-    "Return product verification failures from the latest local product run artifact.",
-    {
-      cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
-      target: z.string().optional().describe("Optional productTesting target id."),
-      format: z.enum(["markdown", "json"]).optional().describe("Response format.")
-    },
-    async (input) => textResult(runProductFailuresTool(options, input))
-  );
-
-  server.tool(
-    "codedecay_product_rerun",
-    "Rerun one failed generated product check from the latest local product run artifact. Requires confirmExecution=true.",
-    {
-      cwd: z.string().optional().describe("Repository working directory. Defaults to the server cwd."),
-      target: z.string().optional().describe("Optional productTesting target id. Defaults to the failed target."),
-      testId: z.string().optional().describe("Generated test id. Defaults to the first latest failure."),
-      checkKind: z.enum(["ui", "api", "workflow"]).optional().describe("Failed check kind when testId is supplied manually."),
-      format: z.enum(["markdown", "json"]).optional().describe("Response format."),
-      confirmExecution: z.boolean().optional().describe("Must be true before CodeDecay reruns product verification.")
-    },
-    async (input) => textResult(runProductRerunTool(options, input))
-  );
+  registerCodeDecayMcpTools(server, {
+    analyzePr: (input) => runAnalyzePrTool(options, input),
+    impactMap: (input) => runImpactMapTool(options, input),
+    auditTests: (input) => runAuditTestsTool(options, input),
+    suggestEdgeCases: (input) => runSuggestEdgeCasesTool(options, input),
+    redteamReport: (input) => runRedteamReportTool(options, input),
+    agentTaskBundle: (input) => runAgentTaskBundleTool(options, input),
+    executeConfiguredChecks: (input) => runExecuteConfiguredChecksTool(options, input),
+    productPlan: (input) => runProductPlanTool(options, input),
+    productRun: (input) => runProductRunTool(options, input),
+    productFailures: (input) => runProductFailuresTool(options, input),
+    productRerun: (input) => runProductRerunTool(options, input)
+  });
 
   return server;
 }
@@ -1320,15 +1155,4 @@ function suggestEdgeCases(report: CodeDecayReport): string[] {
   }
 
   return [...suggestions].sort((left, right) => left.localeCompare(right));
-}
-
-async function textResult(value: string | Promise<string>): Promise<{ content: Array<{ type: "text"; text: string }> }> {
-  return {
-    content: [
-      {
-        type: "text",
-        text: await value
-      }
-    ]
-  };
 }
