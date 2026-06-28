@@ -10,12 +10,9 @@ import type {
   ProductGeneratedTestRunResult,
   ProductGeneratedTestsResult
 } from "../../types";
+import type { ProductGeneratedTestDependencies } from "./dependencies";
 
 type JsonRecord = Record<string, unknown>;
-
-interface ProductGeneratedTestRunnerDependencies {
-  findImpactedProductFiles: (rootDir: string) => string[];
-}
 
 export async function runGeneratedProductTests(
   rootDir: string,
@@ -24,7 +21,7 @@ export async function runGeneratedProductTests(
   generatedTests: ProductGeneratedTestsResult,
   rerunFlag: "--run-generated-tests" | "--run-generated-api-tests",
   testId: string | undefined,
-  dependencies: ProductGeneratedTestRunnerDependencies
+  dependencies: ProductGeneratedTestDependencies
 ): Promise<ProductGeneratedTestRunResult> {
   const startedAt = Date.now();
   const notes = [
