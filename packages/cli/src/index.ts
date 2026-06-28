@@ -3,10 +3,6 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync,
 import { createRequire } from "node:module";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  createAgentTaskBundle,
-  renderAgentTaskBundle
-} from "@submuxhq/codedecay-agent";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
 import {
   loadCodeDecayConfig,
@@ -36,11 +32,10 @@ import {
   type CodeDecayMemory,
   type MemoryMatcher
 } from "@submuxhq/codedecay-memory";
-import { createRedteamReport, renderRedteamReport } from "@submuxhq/codedecay-redteam";
 import { renderReport } from "@submuxhq/codedecay-report";
-import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
 import YAML from "yaml";
+import { runAgentCommand as runAgentCommandWithDependencies } from "./commands/agent";
 import { runConfigCommand } from "./commands/config";
 import { runDifferentialCommand as runDifferentialCommandWithDependencies } from "./commands/differential";
 import { runExecuteCommand as runExecuteCommandWithDependencies } from "./commands/execute";
@@ -51,6 +46,7 @@ import {
   runMemoryImportCommand as runMemoryImportCommandWithDependencies,
   runMemoryLearnCommand as runMemoryLearnCommandWithDependencies
 } from "./commands/memory";
+import { runRedteamCommand as runRedteamCommandWithDependencies } from "./commands/redteam";
 import { runSnapshotCommand as runSnapshotCommandWithDependencies } from "./commands/snapshot";
 import { COMMAND_ORDER, HELP_DOCS, ROOT_FLAG_ALIASES, UTILITY_COMMAND_ORDER } from "./docs/commands";
 import { CliExit } from "./errors";
@@ -58,12 +54,10 @@ import { write, writeStderr, writeStdout } from "./io";
 import { throwUnknownCommand as throwUnknownCommandWithDocs } from "./parsers/diagnostics";
 import {
   HelpRequested,
-  parseAgentArgs,
   parseAnalyzeArgs,
   parseDashboardArgs,
   parseMcpArgs,
   parseProductArgs,
-  parseRedteamArgs
 } from "./parsers/args";
 import type {
   AnalyzeOptions,
@@ -109,7 +103,11 @@ import {
 import { appendCodeBlock, appendOutputBlock, formatStatus } from "./renderers/command-output";
 
 const COMMAND_HANDLERS: Record<string, CliCommandHandler> = {
-  agent: runAgentCommand,
+  agent: (context) => runAgentCommandWithDependencies(context, {
+    createAnalysisContext: createAnalysisContextForCli,
+    resolveRepoRoot: getRepoRootForCli,
+    writeOutput: writeCliOutput
+  }),
   analyze: runAnalyzeCommand,
   config: runConfigCommand,
   dashboard: runDashboardCommand,
@@ -132,7 +130,11 @@ const COMMAND_HANDLERS: Record<string, CliCommandHandler> = {
   "memory-import": (context) => runMemoryImportCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),
   "memory-learn": (context) => runMemoryLearnCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),
   product: runProductCommand,
-  redteam: runRedteamCommand,
+  redteam: (context) => runRedteamCommandWithDependencies(context, {
+    createAnalysisContext: createAnalysisContextForCli,
+    resolveRepoRoot: getRepoRootForCli,
+    writeOutput: writeCliOutput
+  }),
   snapshot: (context) => runSnapshotCommandWithDependencies(context, {
     createAnalysisContext: createAnalysisContextForCli,
     resolveRepoRoot: getRepoRootForCli,
@@ -753,37 +755,6 @@ function escapeAttribute(value: string): string {
   return escapeHtml(value).replace(/`/g, "&#96;");
 }
 
-function runRedteamCommand(context: CliCommandContext): void {
-  const options = parseRedteamArgs(context.args);
-  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
-  const report = createRedteamReportForCli(cwd, options);
-
-  writeCliOutput({
-    cwd,
-    output: options.output,
-    rendered: renderRedteamReport(report, options.format),
-    runtime: context.runtime
-  });
-
-  if (options.failOn && shouldFailForRisk(report.summary.riskLevel, options.failOn)) {
-    throw new CliExit(1);
-  }
-}
-
-function runAgentCommand(context: CliCommandContext): void {
-  const options = parseAgentArgs(context.args);
-  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
-  const report = createRedteamReportForCli(cwd, options);
-  const bundle = createAgentTaskBundle(report, { profile: options.profile });
-
-  writeCliOutput({
-    cwd,
-    output: options.output,
-    rendered: renderAgentTaskBundle(bundle, options.format),
-    runtime: context.runtime
-  });
-}
-
 function runAnalyzeCommand(context: CliCommandContext): void {
   const options = parseAnalyzeArgs(context.args);
   const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
@@ -802,23 +773,10 @@ function runAnalyzeCommand(context: CliCommandContext): void {
   }
 }
 
-function createRedteamReportForCli(cwd: string, options: AgentOptions | RedteamOptions) {
-  const rootDir = getRepoRootForCli(cwd, options);
-  const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
-  const analysis = createAnalysisContextForCli(rootDir, options);
-  const loadedSkills = loadCodeDecaySkills({ cwd: rootDir });
-
-  return createRedteamReport({
-    analysisReport: analysis.report,
-    config: loadedConfig.config,
-    configSource: loadedConfig.sourcePath,
-    memory: analysis.loadedMemory.memory,
-    memorySource: analysis.loadedMemory.sourcePath,
-    skills: loadedSkills
-  });
-}
-
-function createAnalysisContextForCli(rootDir: string, options: AnalyzeOptions | SnapshotOptions | LlmReviewOptions): CliAnalysisContext {
+function createAnalysisContextForCli(
+  rootDir: string,
+  options: AnalyzeOptions | AgentOptions | RedteamOptions | SnapshotOptions | LlmReviewOptions
+): CliAnalysisContext {
   const changedFiles = getChangedFilesForCli(rootDir, options);
   const analyzerResult = analyzeJsProject({
     rootDir,
