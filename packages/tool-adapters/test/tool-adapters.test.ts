@@ -585,6 +585,27 @@ describe("createSemgrepHarness", () => {
     });
   });
 
+  it("does not parse stale Semgrep reportPath when command execution is denied", async () => {
+    const repo = createTempDir();
+    const harness = createSemgrepHarness({
+      command: "node semgrep-json.js",
+      reportPath: "reports/semgrep.json"
+    });
+    writeFile(repo, "reports/semgrep.json", JSON.stringify(createSemgrepReport("ERROR"), null, 2));
+
+    const plan = await harness.plan({ cwd: repo, evidence: [] });
+    const result = await harness.run(plan, { cwd: repo });
+
+    expect(result.status).toBe("skipped");
+    expect(result.failure?.mode).toBe("command-denied");
+    expect(result.artifacts).toEqual([]);
+    expect(result.evidence).toHaveLength(1);
+    expect(result.evidence[0]).toMatchObject({
+      kind: "static-analysis",
+      severity: "info"
+    });
+  });
+
   it("parses Semgrep JSON stdout and fails on high findings by default", async () => {
     const repo = createTempDir();
     const harness = createSemgrepHarness({
