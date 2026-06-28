@@ -43,12 +43,8 @@ import type { Evidence } from "@submuxhq/codedecay-harness";
 import { createLlmProvider, type LlmCompletion } from "@submuxhq/codedecay-llm";
 import {
   applyMemoryContext,
-  importCodeDecayMemory,
-  learnCodeDecayMemory,
   loadCodeDecayMemory,
-  writeCodeDecayMemory,
   type CodeDecayMemory,
-  type LoadedCodeDecayMemory,
   type MemoryMatcher
 } from "@submuxhq/codedecay-memory";
 import { createRedteamReport, renderRedteamReport } from "@submuxhq/codedecay-redteam";
@@ -58,6 +54,11 @@ import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
 import { createConfiguredToolHarnesses } from "@submuxhq/codedecay-tool-adapters";
 import YAML from "yaml";
 import { runUninstallCommand, runUpdateCommand, runVersionCommand } from "./commands/maintenance";
+import {
+  runMemoryCommand as runMemoryCommandWithDependencies,
+  runMemoryImportCommand as runMemoryImportCommandWithDependencies,
+  runMemoryLearnCommand as runMemoryLearnCommandWithDependencies
+} from "./commands/memory";
 import { COMMAND_ORDER, HELP_DOCS, ROOT_FLAG_ALIASES, UTILITY_COMMAND_ORDER } from "./docs/commands";
 import { CliExit } from "./errors";
 import { write, writeStderr, writeStdout } from "./io";
@@ -72,9 +73,6 @@ import {
   parseExecuteArgs,
   parseLlmReviewArgs,
   parseMcpArgs,
-  parseMemoryArgs,
-  parseMemoryImportArgs,
-  parseMemoryLearnArgs,
   parseProductArgs,
   parseRedteamArgs,
   parseSnapshotArgs
@@ -104,9 +102,6 @@ import type {
   LlmReviewReport,
   McpOptions,
   ManagedProductProcess,
-  MemoryImportOptions,
-  MemoryLearnOptions,
-  MemoryOptions,
   ProductBlockedAction,
   ProductExplorationResult,
   ProductExplorerOptions,
@@ -129,7 +124,7 @@ import type {
   RedteamOptions,
   SnapshotOptions,
   TrendSnapshot,
-  TrendSnapshotComparison,
+  TrendSnapshotComparison
 } from "./types";
 import {
   renderCommandHelp,
@@ -148,9 +143,9 @@ const COMMAND_HANDLERS: Record<string, CliCommandHandler> = {
   execute: runExecuteCommand,
   "llm-review": runLlmReviewCommand,
   mcp: runMcpCommand,
-  memory: runMemoryCommand,
-  "memory-import": runMemoryImportCommand,
-  "memory-learn": runMemoryLearnCommand,
+  memory: (context) => runMemoryCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),
+  "memory-import": (context) => runMemoryImportCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),
+  "memory-learn": (context) => runMemoryLearnCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),
   product: runProductCommand,
   redteam: runRedteamCommand,
   snapshot: runSnapshotCommand
@@ -275,56 +270,6 @@ async function runMcpCommand(context: CliCommandContext): Promise<void> {
   const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
   const { startMcpServer } = await import("@submuxhq/codedecay-mcp");
   await startMcpServer({ cwd, cliPath: fileURLToPath(import.meta.url) });
-}
-
-function runMemoryCommand(context: CliCommandContext): void {
-  const options = parseMemoryArgs(context.args);
-  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
-  const rootDir = getRepoRootForCli(cwd, { format: "markdown" });
-  const loadedMemory = loadCodeDecayMemory(rootDir);
-  write(context.runtime.stdout, renderMemory(loadedMemory, options.format));
-}
-
-function runMemoryImportCommand(context: CliCommandContext): void {
-  const options = parseMemoryImportArgs(context.args);
-  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
-  const rootDir = getRepoRootForCli(cwd, { format: "markdown" });
-  const loadedMemory = loadCodeDecayMemory(rootDir);
-  const inputPath = resolve(context.runtimeCwd, options.input);
-  const rawImport = JSON.parse(readFileSync(inputPath, "utf8"));
-  const imported = importCodeDecayMemory(loadedMemory.memory, rawImport, inputPath);
-  const writtenPath = options.apply ? writeCodeDecayMemory(rootDir, imported.memory) : undefined;
-
-  write(
-    context.runtime.stdout,
-    renderMemoryImportResult({
-      format: options.format,
-      inputPath,
-      writtenPath,
-      result: imported
-    })
-  );
-}
-
-function runMemoryLearnCommand(context: CliCommandContext): void {
-  const options = parseMemoryLearnArgs(context.args);
-  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
-  const rootDir = getRepoRootForCli(cwd, { format: "markdown" });
-  const loadedMemory = loadCodeDecayMemory(rootDir);
-  const inputPath = resolve(context.runtimeCwd, options.input);
-  const rawLearning = JSON.parse(readFileSync(inputPath, "utf8"));
-  const learned = learnCodeDecayMemory(loadedMemory.memory, rawLearning, inputPath);
-  const writtenPath = options.apply ? writeCodeDecayMemory(rootDir, learned.memory) : undefined;
-
-  write(
-    context.runtime.stdout,
-    renderMemoryLearnResult({
-      format: options.format,
-      inputPath,
-      writtenPath,
-      result: learned
-    })
-  );
 }
 
 function runSnapshotCommand(context: CliCommandContext): void {
@@ -1267,119 +1212,6 @@ function renderLlmReviewReport(report: LlmReviewReport, format: ConfigFormat): s
     "LLM suggestions are untrusted until verified by tests, configured checks, or manual review.",
     ""
   );
-
-  return `${lines.join("\n")}\n`;
-}
-
-function renderMemory(loadedMemory: LoadedCodeDecayMemory, format: ConfigFormat): string {
-  if (format === "json") {
-    return `${JSON.stringify(loadedMemory, null, 2)}\n`;
-  }
-
-  const { memory, sourcePath } = loadedMemory;
-  const lines = [
-    "## CodeDecay Memory",
-    "",
-    `**Source:** ${sourcePath ? `\`${sourcePath}\`` : "defaults (no memory file found)"}`,
-    "",
-    "| Section | Count |",
-    "| --- | ---: |",
-    `| Flows | ${memory.flows.length} |`,
-    `| Commands | ${memory.commands.length} |`,
-    `| Invariants | ${memory.invariants.length} |`,
-    `| Architecture notes | ${memory.architecture.length} |`,
-    `| Past regressions | ${memory.regressions.length} |`,
-    ""
-  ];
-
-  return `${lines.join("\n")}\n`;
-}
-
-function renderMemoryImportResult(input: {
-  format: ConfigFormat;
-  inputPath: string;
-  writtenPath?: string | undefined;
-  result: ReturnType<typeof importCodeDecayMemory>;
-}): string {
-  if (input.format === "json") {
-    return `${JSON.stringify(
-      {
-        tool: "CodeDecay",
-        version: CODEDECAY_VERSION,
-        inputPath: input.inputPath,
-        writtenPath: input.writtenPath,
-        added: input.result.added,
-        merged: input.result.merged,
-        memory: input.result.memory
-      },
-      null,
-      2
-    )}\n`;
-  }
-
-  const lines = [
-    "## CodeDecay Memory Import",
-    "",
-    `**Input:** \`${input.inputPath}\``,
-    `**Applied:** ${input.writtenPath ? "yes" : "no"}`,
-    input.writtenPath ? `**Written to:** \`${input.writtenPath}\`` : "**Written to:** preview only",
-    "",
-    "| Section | Added | Merged |",
-    "| --- | ---: | ---: |",
-    `| Flows | ${input.result.added.flows} | ${input.result.merged.flows} |`,
-    `| Commands | ${input.result.added.commands} | ${input.result.merged.commands} |`,
-    `| Invariants | ${input.result.added.invariants} | ${input.result.merged.invariants} |`,
-    `| Architecture notes | ${input.result.added.architecture} | ${input.result.merged.architecture} |`,
-    `| Past regressions | ${input.result.added.regressions} | ${input.result.merged.regressions} |`,
-    "",
-    renderMemory({ memory: input.result.memory, sourcePath: input.writtenPath }, "markdown").trim(),
-    ""
-  ];
-
-  return `${lines.join("\n")}\n`;
-}
-
-function renderMemoryLearnResult(input: {
-  format: ConfigFormat;
-  inputPath: string;
-  writtenPath?: string | undefined;
-  result: ReturnType<typeof learnCodeDecayMemory>;
-}): string {
-  if (input.format === "json") {
-    return `${JSON.stringify(
-      {
-        tool: "CodeDecay",
-        version: CODEDECAY_VERSION,
-        inputPath: input.inputPath,
-        writtenPath: input.writtenPath,
-        learned: input.result.learned,
-        added: input.result.added,
-        merged: input.result.merged,
-        memory: input.result.memory
-      },
-      null,
-      2
-    )}\n`;
-  }
-
-  const lines = [
-    "## CodeDecay Memory Learn",
-    "",
-    `**Input:** \`${input.inputPath}\``,
-    `**Applied:** ${input.writtenPath ? "yes" : "no"}`,
-    input.writtenPath ? `**Written to:** \`${input.writtenPath}\`` : "**Written to:** preview only",
-    "",
-    "| Section | Learned | Added | Merged |",
-    "| --- | ---: | ---: | ---: |",
-    `| Flows | ${input.result.learned.flows} | ${input.result.added.flows} | ${input.result.merged.flows} |`,
-    `| Commands | ${input.result.learned.commands} | ${input.result.added.commands} | ${input.result.merged.commands} |`,
-    `| Invariants | ${input.result.learned.invariants} | ${input.result.added.invariants} | ${input.result.merged.invariants} |`,
-    `| Architecture notes | ${input.result.learned.architecture} | ${input.result.added.architecture} | ${input.result.merged.architecture} |`,
-    `| Past regressions | ${input.result.learned.regressions} | ${input.result.added.regressions} | ${input.result.merged.regressions} |`,
-    "",
-    renderMemory({ memory: input.result.memory, sourcePath: input.writtenPath }, "markdown").trim(),
-    ""
-  ];
 
   return `${lines.join("\n")}\n`;
 }
