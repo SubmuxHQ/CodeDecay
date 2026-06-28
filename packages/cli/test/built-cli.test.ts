@@ -251,6 +251,11 @@ describe("built codedecay CLI", () => {
     expect(update.stdout).toContain("Package manager: pnpm (package.json#packageManager)");
     expect(update.stdout).toContain("pnpm add -D @submuxhq/codedecay@latest");
 
+    const updateWithManagerOverride = runBuilt(["update", "--cwd", cwd, "--manager", "npm"]);
+    expect(updateWithManagerOverride.status).toBe(0);
+    expect(updateWithManagerOverride.stdout).toContain("Package manager: npm (override)");
+    expect(updateWithManagerOverride.stdout).toContain("npm install -D @submuxhq/codedecay@latest");
+
     const uninstallHelp = runBuilt(["help", "uninstall"]);
     expect(uninstallHelp.status).toBe(0);
     expect(uninstallHelp.stdout).toContain("--purge-local");
@@ -261,6 +266,11 @@ describe("built codedecay CLI", () => {
     expect(uninstall.status).toBe(0);
     expect(uninstall.stdout).toContain("pnpm remove @submuxhq/codedecay");
     expect(uninstall.stdout).toContain(".codedecay");
+
+    const uninstallWithManagerOverride = runBuilt(["uninstall", "--cwd", cwd, "--manager=npm"]);
+    expect(uninstallWithManagerOverride.status).toBe(0);
+    expect(uninstallWithManagerOverride.stdout).toContain("Package manager: npm (override)");
+    expect(uninstallWithManagerOverride.stdout).toContain("npm uninstall @submuxhq/codedecay");
   });
 
   it("suggests similar commands and flags from the built CLI", () => {
