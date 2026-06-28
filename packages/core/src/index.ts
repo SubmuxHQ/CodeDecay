@@ -788,11 +788,29 @@ function stringArray(value: unknown): string[] {
 }
 
 function slugId(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 96) || "product-failure";
+  let slug = "";
+  let pendingSeparator = false;
+
+  for (const char of value.toLowerCase()) {
+    if ((char >= "a" && char <= "z") || (char >= "0" && char <= "9")) {
+      if (pendingSeparator && slug.length > 0 && slug.length < 96) {
+        slug += "-";
+      }
+      pendingSeparator = false;
+      if (slug.length < 96) {
+        slug += char;
+      }
+      continue;
+    }
+
+    pendingSeparator = slug.length > 0;
+  }
+
+  while (slug.endsWith("-")) {
+    slug = slug.slice(0, -1);
+  }
+
+  return slug || "product-failure";
 }
 
 function mergeImpactedRoutes(routes: ImpactedRoute[]): ImpactedRoute[] {

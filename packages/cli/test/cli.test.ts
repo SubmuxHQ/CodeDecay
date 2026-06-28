@@ -1798,16 +1798,20 @@ describe("codedecay product CLI contract", () => {
         expect.arrayContaining([
           expect.objectContaining({
             href: `${server.origin}/settings`,
+            text: "Settings & Details",
             sameOrigin: true,
             discovered: true
           }),
           expect.objectContaining({
             href: "https://example.com",
+            text: "&lt;External&gt;",
             sameOrigin: false,
             discovered: false
           })
         ])
       );
+      expect(JSON.stringify(flowMap.pages[0])).not.toContain("Hidden script action");
+      expect(JSON.stringify(flowMap.pages[0])).not.toContain("hidden-style");
       expect(flowMap.blockedActions).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
@@ -2589,10 +2593,12 @@ async function startDemoAppServer(): Promise<DemoAppServer> {
           "<html>",
           "<head><title>Demo Home</title></head>",
           "<body>",
-          '<a href="/settings">Settings</a>',
-          '<a href="https://example.com">External</a>',
+          '<script>Hidden script action</script>',
+          "<style>.hidden-style { color: red; }</style>",
+          '<a href="/settings"><span>Settings &amp; Details</span><script>Hidden script action</script></a>',
+          '<a href="https://example.com">&amp;lt;External&amp;gt;</a>',
           '<form method="post" action="/users/delete" aria-label="Delete user">',
-          '<button type="submit">Delete user</button>',
+          '<button type="submit">Delete&nbsp;user<style>.hidden-style {}</style></button>',
           "</form>",
           "</body>",
           "</html>"
