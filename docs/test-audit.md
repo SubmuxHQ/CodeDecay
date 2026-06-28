@@ -31,6 +31,11 @@ Python (`.py`) files. Python projects should provide LCOV or another supported
 coverage artifact from their own test runner; CodeDecay maps the artifact to
 changed lines but does not run pytest automatically.
 
+Use `toolAdapters.coverage` when you want CodeDecay to run an explicit local
+coverage command or collect existing coverage artifacts during `codedecay
+execute`. The analyzer still owns changed-line coverage mapping in
+`analyze`, `redteam`, and `agent` reports.
+
 ## Statuses
 
 - `missing`: changed source behavior does not have nearby changed test evidence.
@@ -56,5 +61,5 @@ The audit consumes existing analyzer findings, including:
 
 ## Future OSS Adapters
 
-Future adapters such as StrykerJS can add stronger mutation-testing evidence to
-this audit. They should remain explicit, local-first, and opt-in.
+Adapters such as coverage and StrykerJS can add stronger runtime or mutation
+evidence to this audit. They remain explicit, local-first, and opt-in.

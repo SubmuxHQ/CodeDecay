@@ -7,6 +7,7 @@ harness evidence.
 The first adapters are:
 
 - Playwright for browser/user-flow checks.
+- Coverage for local test coverage artifacts.
 - StrykerJS for mutation-testing evidence.
 - Semgrep for multi-language static bug/security evidence.
 - Schemathesis for OpenAPI/GraphQL API fuzzing evidence.
@@ -22,6 +23,11 @@ version: 1
 
 toolAdapters:
   playwright: true
+  coverage:
+    command: pnpm test -- --coverage
+    reportPaths:
+      - coverage/coverage-final.json
+    failOn: uncovered
   stryker:
     command: pnpm exec stryker run
     reportPath: reports/mutation/mutation.json
@@ -69,6 +75,44 @@ pnpm exec playwright test
 
 Projects can override the command when they already have their own Playwright
 script, shard, config file, or browser setup.
+
+## Coverage Harness
+
+The coverage harness is also a private internal package API for now:
+
+```ts
+createCoverageHarness({
+  command: "pnpm test -- --coverage",
+  reportPaths: ["coverage/coverage-final.json"],
+  failOn: "uncovered",
+  allowCommands: true
+});
+```
+
+Safety defaults:
+
+- command execution is disabled unless `allowCommands: true` is provided,
+- commands go through `@submuxhq/codedecay-execution`,
+- unsafe commands are blocked by the shared safety policy,
+- coverage tools are not installed by CodeDecay,
+- no telemetry, LLM calls, API keys, or CodeDecayCloud dependency are used.
+
+Projects own the test runner and coverage command:
+
+```yaml
+toolAdapters:
+  coverage:
+    command: pnpm test -- --coverage
+    reportPaths:
+      - coverage/coverage-final.json
+      - coverage/lcov.info
+    failOn: uncovered
+```
+
+If `command` is omitted, CodeDecay only collects existing local artifacts.
+Supported artifact formats are Istanbul `coverage-final.json`, LCOV
+`lcov.info`, and V8 JSON coverage. The adapter defaults to evidence-only mode;
+set `failOn: uncovered` to fail when measured lines are uncovered.
 
 ## StrykerJS Harness
 

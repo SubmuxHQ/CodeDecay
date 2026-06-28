@@ -1501,6 +1501,80 @@ describe("codedecay execute CLI contract", () => {
     expect(markdown.stdout).toContain("User input reaches response");
   });
 
+  it("collects configured coverage artifacts and returns coverage evidence", async () => {
+    const repo = createLowRiskRepo();
+    writeFile(
+      repo,
+      "coverage/coverage-final.json",
+      JSON.stringify({
+        "src/app.ts": {
+          l: {
+            "1": 1,
+            "2": 0
+          }
+        }
+      })
+    );
+    writeFile(
+      repo,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "commands: {}",
+        "probes: []",
+        "toolAdapters:",
+        "  coverage:",
+        "    reportPaths:",
+        "      - coverage/coverage-final.json",
+        "    failOn: uncovered",
+        "safety:",
+        "  allowCommands: false",
+        "  commandTimeoutMs: 1000",
+        ""
+      ].join("\n")
+    );
+
+    const result = await run(["execute", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(report.summary).toMatchObject({
+      status: "failed",
+      total: 1,
+      failed: 1
+    });
+    expect(report.toolAdapters[0]).toMatchObject({
+      kind: "coverage",
+      name: "Coverage",
+      command: "collect coverage artifacts",
+      status: "failed",
+      failure: {
+        mode: "tool-finding"
+      }
+    });
+    expect(report.toolAdapters[0].evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "coverage",
+          severity: "high",
+          summary: "Coverage artifacts measured 2 line(s); 1 line(s) are uncovered."
+        }),
+        expect.objectContaining({
+          kind: "coverage",
+          file: "src/app.ts",
+          line: 2,
+          artifactPath: "coverage/coverage-final.json"
+        })
+      ])
+    );
+
+    const markdown = await run(["execute", "--format", "markdown"], repo);
+    expect(markdown.exitCode).toBe(1);
+    expect(markdown.stdout).toContain("Coverage");
+    expect(markdown.stdout).toContain("coverage");
+    expect(markdown.stdout).toContain("uncovered measured line");
+  });
+
   it("returns exit 1 and reports failures from configured tool adapters", async () => {
     const repo = createLowRiskRepo();
     writeFile(repo, "pact-fail.js", "console.error('contract mismatch'); process.exit(15);\n");

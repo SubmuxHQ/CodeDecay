@@ -82,6 +82,13 @@ describe("loadCodeDecayConfig", () => {
         "    reportPath: reports/semgrep.json",
         "    failOnSeverity: medium",
         "    timeoutMs: 180000",
+        "  coverage:",
+        "    command: pnpm test -- --coverage",
+        "    reportPaths:",
+        "      - coverage/coverage-final.json",
+        "      - coverage/lcov.info",
+        "    failOn: uncovered",
+        "    timeoutMs: 120000",
         "productTesting:",
         "  targets:",
         "    web:",
@@ -159,6 +166,13 @@ describe("loadCodeDecayConfig", () => {
           reportPath: "reports/semgrep.json",
           failOnSeverity: "medium",
           timeoutMs: 180000
+        },
+        coverage: {
+          enabled: true,
+          command: "pnpm test -- --coverage",
+          reportPaths: ["coverage/coverage-final.json", "coverage/lcov.info"],
+          failOn: "uncovered",
+          timeoutMs: 120000
         }
       },
       productTesting: {
@@ -373,6 +387,16 @@ describe("loadCodeDecayConfig", () => {
     const invalidSeverityRoot = createTempDir();
     writeFile(invalidSeverityRoot, ".codedecay/config.yml", "version: 1\ntoolAdapters:\n  semgrep:\n    failOnSeverity: critical\n");
     expect(() => loadCodeDecayConfig({ cwd: invalidSeverityRoot })).toThrow(/toolAdapters.semgrep.failOnSeverity must be low, medium, or high/);
+  });
+
+  it("fails clearly for invalid coverage adapter fields", () => {
+    const emptyPathRoot = createTempDir();
+    writeFile(emptyPathRoot, ".codedecay/config.yml", "version: 1\ntoolAdapters:\n  coverage:\n    reportPaths:\n      - ''\n");
+    expect(() => loadCodeDecayConfig({ cwd: emptyPathRoot })).toThrow(/toolAdapters.coverage.reportPaths\[0\] must be a non-empty string/);
+
+    const invalidFailOnRoot = createTempDir();
+    writeFile(invalidFailOnRoot, ".codedecay/config.yml", "version: 1\ntoolAdapters:\n  coverage:\n    failOn: partial\n");
+    expect(() => loadCodeDecayConfig({ cwd: invalidFailOnRoot })).toThrow(/toolAdapters.coverage.failOn must be none or uncovered/);
   });
 
   it("fails clearly for invalid product target URLs", () => {

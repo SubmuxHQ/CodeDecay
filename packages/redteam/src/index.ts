@@ -674,7 +674,7 @@ function appendConfiguredChecks(lines: string[], checks: RedteamConfiguredCheck[
 function appendToolAdapterPlans(lines: string[], plans: RedteamToolAdapterPlan[]): void {
   lines.push("### Tool Adapter Plans", "");
   if (plans.length === 0) {
-    lines.push("No Playwright, StrykerJS, Schemathesis, or Pact tool adapters are configured.", "");
+    lines.push("No Playwright, coverage, StrykerJS, Semgrep, Schemathesis, or Pact tool adapters are configured.", "");
     return;
   }
 
