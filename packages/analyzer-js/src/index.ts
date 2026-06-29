@@ -5,18 +5,15 @@ import type {
   FileChange,
   Finding,
   ImpactedRoute,
-  ImpactedArea,
-  RiskLevel
+  ImpactedArea
 } from "@submuxhq/codedecay-core";
 import { dedupeStrings } from "@submuxhq/codedecay-core";
 import {
   classifyChange,
-  classifyPath,
-  isLowSignalChange,
   isSourcePath,
-  isTestPath,
-  type AreaKind
+  isTestPath
 } from "./classifiers/paths";
+import { detectFragilePatterns } from "./decay/fragile-patterns";
 import { detectDuplicateAddedLogic } from "./duplicates/added-logic";
 import { createRiskyAreaFinding, firstLine } from "./findings/builders";
 import { dedupeFindings } from "./findings/sorting";
@@ -24,6 +21,8 @@ import { analyzeFunctions } from "./functions/metrics";
 import { buildReverseImportGraph, findReverseImportChains } from "./imports/graph";
 import { detectRoutesForFile, mergeImpactedRoutes } from "./routes/impact";
 import { analyzeRuntimeCoverage } from "./runtime-coverage";
+import { detectBroadUnrelatedChanges } from "./scope/broad-change";
+import { detectTestBloat } from "./tests/bloat";
 import { analyzeTestRecommendations } from "./tests/recommendations";
 import { detectWeakTests } from "./tests/weak-audit";
 
@@ -210,113 +209,6 @@ function detectPropagatedRouteImpacts(
 
 function normalizePath(path: string): string {
   return path.replaceAll("\\", "/");
-}
-
-function detectBroadUnrelatedChanges(changedFiles: FileChange[]): Finding | undefined {
-  const sourceFiles = changedFiles.filter((change) => !isLowSignalChange(change));
-  if (sourceFiles.length === 0) {
-    return undefined;
-  }
-
-  const topLevelGroups = new Set(sourceFiles.map((change) => change.path.split("/")[0] ?? change.path));
-  const areaKinds = new Set(
-    sourceFiles
-      .map((change) => classifyPath(change.path)?.kind)
-      .filter((kind): kind is AreaKind => Boolean(kind))
-  );
-
-  if (sourceFiles.length >= 12 || topLevelGroups.size >= 5 || areaKinds.size >= 5) {
-    return {
-      ruleId: "broad-unrelated-change",
-      title: "Broad unrelated change set",
-      description: `This PR changes ${sourceFiles.length} files across ${topLevelGroups.size} top-level areas and ${areaKinds.size} risk categories.`,
-      severity: sourceFiles.length >= 20 || topLevelGroups.size >= 8 ? "high" : "medium",
-      category: "scope"
-    };
-  }
-
-  return undefined;
-}
-
-function detectFragilePatterns(changedFiles: FileChange[]): Finding[] {
-  const findings: Finding[] = [];
-  const patterns: Array<{ id: string; title: string; pattern: RegExp; severity: RiskLevel }> = [
-    {
-      id: "typescript-any",
-      title: "New unchecked TypeScript escape hatch",
-      pattern: /\b(as\s+any|:\s*any|<any>)/,
-      severity: "medium"
-    },
-    {
-      id: "compiler-suppression",
-      title: "New compiler or linter suppression",
-      pattern: /(@ts-ignore|@ts-expect-error|eslint-disable|biome-ignore)/,
-      severity: "medium"
-    },
-    {
-      id: "silent-failure",
-      title: "Potential silent failure path",
-      pattern: /catch\s*\([^)]*\)\s*\{\s*\}|catch\s*\{\s*\}|return\s+null\s*;?\s*\/\/\s*(ignore|fallback)/i,
-      severity: "high"
-    }
-  ];
-
-  for (const change of changedFiles.filter((file) => isSourcePath(file.path) && !isTestPath(file.path))) {
-    for (const line of change.addedLines) {
-      for (const pattern of patterns) {
-        if (pattern.pattern.test(line.content)) {
-          findings.push({
-            ruleId: pattern.id,
-            title: pattern.title,
-            description: `${change.path} adds code that can hide type, lint, or runtime failures.`,
-            severity: pattern.severity,
-            category: "decay",
-            file: change.path,
-            line: line.line
-          });
-        }
-      }
-    }
-  }
-
-  return findings;
-}
-
-function detectTestBloat(changedFiles: FileChange[], changedSourceFiles: FileChange[]): Finding[] {
-  const sourceAdditions = changedSourceFiles.reduce((sum, file) => sum + file.additions, 0);
-  const findings: Finding[] = [];
-
-  for (const change of changedFiles.filter((file) => isTestPath(file.path))) {
-    const mockLines = change.addedLines.filter((line) =>
-      /(jest\.mock|vi\.mock|sinon|mockResolvedValue|mockReturnValue|snapshot|toMatchSnapshot)/.test(line.content)
-    );
-
-    if (change.additions >= 120 || (change.additions >= 60 && change.additions > sourceAdditions * 2)) {
-      findings.push({
-        ruleId: "test-bloat",
-        title: "Large test change relative to source change",
-        description: `${change.path} adds ${change.additions} lines of tests for ${sourceAdditions} source additions.`,
-        severity: change.additions >= 180 || mockLines.length >= 20 ? "high" : "medium",
-        category: "decay",
-        file: change.path,
-        line: firstLine(change)
-      });
-    }
-
-    if (mockLines.length >= 12) {
-      findings.push({
-        ruleId: "heavy-mocking",
-        title: "Heavy mocking in changed tests",
-        description: `${change.path} adds ${mockLines.length} mock or snapshot lines, which may weaken regression confidence.`,
-        severity: "medium",
-        category: "coverage",
-        file: change.path,
-        line: mockLines[0]?.line
-      });
-    }
-  }
-
-  return findings;
 }
 
 function readChangedFile(rootDir: string, path: string): string | undefined {
