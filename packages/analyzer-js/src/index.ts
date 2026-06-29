@@ -18,6 +18,8 @@ import {
   isTestPath,
   type AreaKind
 } from "./classifiers/paths";
+import { normalizeImplementationLine } from "./code/normalize";
+import { detectDuplicateAddedLogic } from "./duplicates/added-logic";
 import { listRepoFiles } from "./files/repo";
 import {
   createMissingNearbyTestsFinding,
@@ -610,52 +612,8 @@ function looksLikeRunnableTest(content: string): boolean {
   return TEST_CASE_PATTERN.test(content);
 }
 
-function normalizeImplementationLine(line: string): string {
-  return normalizeCodeLine(line)
-    .replace(/\b(expect|assert|test|it|describe)\b/g, "")
-    .trim();
-}
-
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function detectDuplicateAddedLogic(changedFiles: FileChange[]): Finding[] {
-  const blockMap = new Map<string, Array<{ file: string; line: number }>>();
-
-  for (const change of changedFiles.filter((file) => isSourcePath(file.path) && !isTestPath(file.path))) {
-    const normalizedLines = change.addedLines
-      .map((line) => ({ line: line.line, content: normalizeCodeLine(line.content) }))
-      .filter((line) => line.content.length >= 8);
-
-    for (let index = 0; index <= normalizedLines.length - 4; index += 1) {
-      const blockLines = normalizedLines.slice(index, index + 4);
-      const key = blockLines.map((line) => line.content).join("\n");
-      const firstLineNumber = blockLines[0]?.line ?? 1;
-      const entries = blockMap.get(key) ?? [];
-      entries.push({ file: change.path, line: firstLineNumber });
-      blockMap.set(key, entries);
-    }
-  }
-
-  const findings: Finding[] = [];
-  for (const entries of blockMap.values()) {
-    const uniqueFiles = new Set(entries.map((entry) => entry.file));
-    if (uniqueFiles.size >= 2 || entries.length >= 3) {
-      const first = entries[0];
-      findings.push({
-        ruleId: "duplicated-added-logic",
-        title: "Duplicated added logic",
-        description: `A similar block of added logic appears ${entries.length} times across ${uniqueFiles.size} file(s).`,
-        severity: uniqueFiles.size >= 3 ? "high" : "medium",
-        category: "decay",
-        file: first?.file,
-        line: first?.line
-      });
-    }
-  }
-
-  return findings.slice(0, 5);
 }
 
 function readChangedFile(rootDir: string, path: string): string | undefined {
@@ -668,101 +626,4 @@ function readChangedFile(rootDir: string, path: string): string | undefined {
 
 function stripExtension(path: string): string {
   return path.replace(/\.[^.]+$/, "");
-}
-
-function normalizeCodeLine(line: string): string {
-  return replaceQuotedStrings(collapseWhitespace(stripLineComment(line.trim())));
-}
-
-function readQuotedValue(value: string, startIndex: number): { value: string; endIndex: number } | undefined {
-  const quote = value[startIndex];
-  if (!isQuote(quote)) {
-    return undefined;
-  }
-
-  let cursor = startIndex + 1;
-  let result = "";
-
-  while (cursor < value.length) {
-    const current = value[cursor];
-    if (current === "\\") {
-      if (cursor + 1 < value.length) {
-        result += value[cursor + 1];
-        cursor += 2;
-        continue;
-      }
-      break;
-    }
-
-    if (current === quote) {
-      return { value: result, endIndex: cursor };
-    }
-
-    result += current;
-    cursor += 1;
-  }
-
-  return undefined;
-}
-
-function stripLineComment(value: string): string {
-  const commentIndex = value.indexOf("//");
-  return commentIndex === -1 ? value : value.slice(0, commentIndex);
-}
-
-function collapseWhitespace(value: string): string {
-  const parts: string[] = [];
-  let previousWasWhitespace = false;
-
-  for (const char of value) {
-    if (isWhitespace(char)) {
-      if (!previousWasWhitespace && parts.length > 0) {
-        parts.push(" ");
-      }
-      previousWasWhitespace = true;
-      continue;
-    }
-
-    parts.push(char);
-    previousWasWhitespace = false;
-  }
-
-  if (parts.at(-1) === " ") {
-    parts.pop();
-  }
-
-  return parts.join("");
-}
-
-function replaceQuotedStrings(value: string): string {
-  const parts: string[] = [];
-  let cursor = 0;
-
-  while (cursor < value.length) {
-    if (!isQuote(value[cursor])) {
-      parts.push(value[cursor] ?? "");
-      cursor += 1;
-      continue;
-    }
-
-    const quoted = readQuotedValue(value, cursor);
-    if (!quoted) {
-      parts.push(value[cursor] ?? "");
-      cursor += 1;
-      continue;
-    }
-
-    parts.push("\"\"");
-    cursor = quoted.endIndex + 1;
-  }
-
-  return parts.join("");
-}
-
-function isQuote(value: string | undefined): boolean {
-  return value === "\"" || value === "'" || value === "`";
-}
-
-function isWhitespace(value: string | undefined): boolean {
-  return value === " " || value === "\t" || value === "\n" || value === "\r" || value === "\f" || value === "\v";
 }
