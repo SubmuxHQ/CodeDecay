@@ -189,6 +189,8 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/plugins: {}
+
   packages/redteam:
     dependencies:
       '@submuxhq/codedecay-config':

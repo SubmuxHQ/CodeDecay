@@ -1,6 +1,7 @@
 export type { CodeDecayConfig } from "./types/config";
 export type { CodeDecayCommands, CodeDecayProbe } from "./types/commands";
 export type { CodeDecayLlmConfig } from "./types/llm";
+export type { CodeDecayPluginsConfig } from "./types/plugins";
 export type { LoadedCodeDecayConfig, LoadCodeDecayConfigOptions } from "./types/load";
 export type {
   CodeDecayProductApiEndpoint,

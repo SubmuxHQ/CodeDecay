@@ -194,6 +194,9 @@ function createConfig(input: { allowCommands: boolean }): CodeDecayConfig {
     toolAdapters: {},
     productTesting: {
       targets: {}
+    },
+    plugins: {
+      enabled: []
     }
   };
 }

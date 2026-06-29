@@ -19,6 +19,10 @@ export const FULL_CONFIG_YAML = [
   "  model: qwen2.5-coder",
   "  endpoint: http://127.0.0.1:11434",
   "  timeoutMs: 20000",
+  "plugins:",
+  "  enabled:",
+  "    - local-security-pack",
+  "    - team-ownership-pack",
   "toolAdapters:",
   "  agentProcess:",
   "    command: node agent-harness.js",
@@ -95,6 +99,9 @@ export const EXPECTED_FULL_CONFIG: CodeDecayConfig = {
     model: "qwen2.5-coder",
     endpoint: "http://127.0.0.1:11434",
     timeoutMs: 20000
+  },
+  plugins: {
+    enabled: ["local-security-pack", "team-ownership-pack"]
   },
   toolAdapters: {
     agentProcess: {

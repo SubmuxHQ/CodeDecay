@@ -5,6 +5,7 @@ import { cloneConfig } from "./clone";
 import { CONFIG_CANDIDATES, DEFAULT_CODEDECAY_CONFIG } from "./defaults";
 import { normalizeCommands, normalizeProbes } from "./normalize/commands";
 import { normalizeLlm } from "./normalize/llm";
+import { normalizePlugins } from "./normalize/plugins";
 import { normalizeProductTesting } from "./normalize/product";
 import { isPlainObject } from "./normalize/primitives";
 import { normalizeSafety } from "./normalize/safety";
@@ -64,6 +65,7 @@ function normalizeConfig(value: unknown, sourcePath: string): CodeDecayConfig {
   const llm = normalizeLlm(value.llm, sourcePath);
   const toolAdapters = normalizeToolAdapters(value.toolAdapters, sourcePath);
   const productTesting = normalizeProductTesting(value.productTesting, safety, sourcePath);
+  const plugins = normalizePlugins(value.plugins, sourcePath);
 
   return {
     version: 1,
@@ -72,6 +74,7 @@ function normalizeConfig(value: unknown, sourcePath: string): CodeDecayConfig {
     safety,
     llm,
     toolAdapters,
-    productTesting
+    productTesting,
+    plugins
   };
 }

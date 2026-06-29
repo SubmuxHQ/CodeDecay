@@ -19,5 +19,8 @@ export const DEFAULT_CODEDECAY_CONFIG: CodeDecayConfig = {
   toolAdapters: {},
   productTesting: {
     targets: {}
+  },
+  plugins: {
+    enabled: []
   }
 };

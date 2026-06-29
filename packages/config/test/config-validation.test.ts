@@ -23,4 +23,11 @@ describe("CodeDecay config validation", () => {
 
     expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(/productTesting.targets.web.baseUrl must be an http or https URL/);
   });
+
+  it("fails clearly for invalid plugin config", () => {
+    const root = createTempDir();
+    writeFile(root, ".codedecay/config.yml", "version: 1\nplugins: true\n");
+
+    expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(/plugins must be an object/);
+  });
 });
