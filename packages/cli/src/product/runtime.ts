@@ -25,6 +25,8 @@ import {
   runGeneratedProductTests,
   type ProductGeneratedTestDependencies
 } from "./generated-tests";
+import { pollProductHealth } from "./runtime/health";
+import { createProductTargetResult } from "./runtime/result";
 import {
   commandActuallyExecuted,
   createProductTargetSummary,
@@ -260,122 +262,6 @@ async function runProductTarget(
     generatedApiTestRun,
     teardown
   );
-}
-
-function createProductTargetResult(
-  target: CodeDecayProductTarget,
-  status: ProductTargetStatus,
-  startedAt: number,
-  notes: string[],
-  setup: CommandExecutionResult | undefined,
-  start: ManagedProductProcess | undefined,
-  health: ProductHealthResult | undefined,
-  exploration: ProductExplorationResult | undefined,
-  generatedTests: ProductGeneratedTestsResult | undefined,
-  generatedTestRun: ProductGeneratedTestRunResult | undefined,
-  generatedApiTests: ProductGeneratedTestsResult | undefined,
-  generatedApiTestRun: ProductGeneratedTestRunResult | undefined,
-  teardown: CommandExecutionResult | undefined
-): ProductTargetResult {
-  const result: ProductTargetResult = {
-    id: target.id,
-    status,
-    readiness: target.readiness,
-    baseUrl: target.readiness.effectiveBaseUrl ?? target.baseUrl,
-    healthCheck: target.healthCheck,
-    timeoutMs: target.timeoutMs,
-    durationMs: elapsed(startedAt),
-    notes
-  };
-
-  if (setup) {
-    result.setup = setup;
-  }
-
-  if (start) {
-    const { child: _child, ...serializableStart } = start;
-    result.start = serializableStart;
-  }
-
-  if (health) {
-    result.health = health;
-  }
-
-  if (exploration) {
-    result.exploration = exploration;
-  }
-
-  if (generatedTests) {
-    result.generatedTests = generatedTests;
-  }
-
-  if (generatedTestRun) {
-    result.generatedTestRun = generatedTestRun;
-  }
-
-  if (generatedApiTests) {
-    result.generatedApiTests = generatedApiTests;
-  }
-
-  if (generatedApiTestRun) {
-    result.generatedApiTestRun = generatedApiTestRun;
-  }
-
-  if (teardown) {
-    result.teardown = teardown;
-  }
-
-  return result;
-}
-
-async function pollProductHealth(url: string, timeoutMs: number): Promise<ProductHealthResult> {
-  const startedAt = Date.now();
-  const deadline = startedAt + timeoutMs;
-  let attempts = 0;
-  let lastStatus: number | undefined;
-  let lastError: string | undefined;
-
-  while (Date.now() <= deadline) {
-    attempts += 1;
-    const remainingMs = Math.max(1, deadline - Date.now());
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), Math.min(2500, remainingMs));
-
-    try {
-      const response = await fetch(url, {
-        signal: controller.signal
-      });
-      lastStatus = response.status;
-
-      if (response.status >= 200 && response.status < 400) {
-        clearTimeout(timeout);
-        return {
-          url,
-          status: "passed",
-          attempts,
-          durationMs: elapsed(startedAt),
-          httpStatus: response.status
-        };
-      }
-
-      lastError = `Health check returned HTTP ${response.status}.`;
-    } catch (error: unknown) {
-      lastError = error instanceof Error ? error.message : String(error);
-    } finally {
-      clearTimeout(timeout);
-    }
-
-    await delay(Math.min(500, Math.max(0, deadline - Date.now())));
-  }
-
-  return {
-    url,
-    status: "timed_out",
-    attempts,
-    durationMs: elapsed(startedAt),
-    httpStatus: lastStatus,
-    error: lastError ? `Timed out waiting for a healthy response: ${lastError}` : "Timed out waiting for a healthy response."
-  };
 }
 
 async function exploreProductTarget(
