@@ -1,7 +1,8 @@
-import type { AnalyzerResult, FileChange, ImpactedArea } from "@submuxhq/codedecay-core";
+import type { AnalyzerResult } from "@submuxhq/codedecay-core";
 import { dedupeStrings } from "@submuxhq/codedecay-core";
+import { firstLine, firstMatchingFile, matchesMemoryEntry } from "./context-matchers";
 import { isEmptyMemory } from "./schema";
-import type { MemoryContextInput, MemoryMatcher } from "./types";
+import type { MemoryContextInput } from "./types";
 
 export function applyMemoryContext(input: MemoryContextInput): AnalyzerResult {
   if (isEmptyMemory(input.memory)) {
@@ -86,49 +87,4 @@ export function applyMemoryContext(input: MemoryContextInput): AnalyzerResult {
     findings,
     recommendedTests: dedupeStrings(recommendedTests)
   };
-}
-
-function matchesMemoryEntry(entry: MemoryMatcher, changedFiles: FileChange[], impactedAreas: ImpactedArea[]): boolean {
-  return Boolean(firstMatchingFile(entry, changedFiles, impactedAreas));
-}
-
-function firstMatchingFile(
-  entry: MemoryMatcher,
-  changedFiles: FileChange[],
-  impactedAreas: ImpactedArea[]
-): FileChange | undefined {
-  const matchingAreaFiles = new Set(
-    impactedAreas
-      .filter((area) => entry.areas?.includes(area.kind))
-      .flatMap((area) => area.files)
-  );
-
-  return changedFiles.find((file) => {
-    if (matchingAreaFiles.has(file.path)) {
-      return true;
-    }
-
-    return entry.files?.some((pattern) => matchesPathPattern(file.path, pattern)) ?? false;
-  });
-}
-
-function matchesPathPattern(path: string, pattern: string): boolean {
-  if (pattern === path) {
-    return true;
-  }
-
-  if (!pattern.includes("*")) {
-    return path.includes(pattern);
-  }
-
-  const regex = new RegExp(`^${pattern.split("*").map(escapeRegExp).join(".*")}$`);
-  return regex.test(path);
-}
-
-function firstLine(change: FileChange): number | undefined {
-  return change.addedLines[0]?.line;
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
