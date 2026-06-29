@@ -1,96 +1,16 @@
 import { realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runAgentCommand as runAgentCommandWithDependencies } from "./commands/agent";
-import { runAnalyzeCommand as runAnalyzeCommandWithDependencies } from "./commands/analyze";
-import { runConfigCommand } from "./commands/config";
-import { runDashboardCommand as runDashboardCommandWithDependencies } from "./commands/dashboard";
-import { runDifferentialCommand as runDifferentialCommandWithDependencies } from "./commands/differential";
-import { runExecuteCommand as runExecuteCommandWithDependencies } from "./commands/execute";
-import { runLlmReviewCommand as runLlmReviewCommandWithDependencies } from "./commands/llm-review";
 import { runUninstallCommand, runUpdateCommand, runVersionCommand } from "./commands/maintenance";
-import {
-  runMemoryCommand as runMemoryCommandWithDependencies,
-  runMemoryImportCommand as runMemoryImportCommandWithDependencies,
-  runMemoryLearnCommand as runMemoryLearnCommandWithDependencies
-} from "./commands/memory";
-import { runMcpCommand as runMcpCommandWithDependencies } from "./commands/mcp";
-import { runProductCommand as runProductCommandWithDependencies } from "./commands/product";
-import { runRedteamCommand as runRedteamCommandWithDependencies } from "./commands/redteam";
-import { runSnapshotCommand as runSnapshotCommandWithDependencies } from "./commands/snapshot";
 import { printHelp, printManual, throwUnknownCommand } from "./commands/help";
+import { createCommandHandlers } from "./commands/registry";
 import { CliExit } from "./errors";
 import { writeStderr } from "./io";
 import { HelpRequested } from "./parsers/args";
-import { createProductTargetReport as createProductTargetReportWithRuntime } from "./product/runtime";
-import {
-  createAnalysisContextForCli,
-  formatGitErrorForCli,
-  getChangedFilesForCli,
-  getRepoRootForCli
-} from "./runtime/analysis";
-import { writeCliOutput } from "./runtime/output";
-import type {
-  CliCommandContext,
-  CliCommandHandler,
-  CliRuntime,
-} from "./types";
-import { renderProductTargetReport } from "./renderers/product-target-report";
+import type { CliRuntime } from "./types";
 
-const COMMAND_HANDLERS: Record<string, CliCommandHandler> = {
-  agent: (context) => runAgentCommandWithDependencies(context, {
-    createAnalysisContext: createAnalysisContextForCli,
-    resolveRepoRoot: getRepoRootForCli,
-    writeOutput: writeCliOutput
-  }),
-  analyze: (context) => runAnalyzeCommandWithDependencies(context, {
-    createAnalysisContext: createAnalysisContextForCli,
-    resolveRepoRoot: getRepoRootForCli,
-    writeOutput: writeCliOutput
-  }),
-  config: runConfigCommand,
-  dashboard: (context) => runDashboardCommandWithDependencies(context, {
-    resolveRepoRoot: getRepoRootForCli
-  }),
-  differential: (context) => runDifferentialCommandWithDependencies(context, {
-    formatGitError: formatGitErrorForCli,
-    resolveRepoRoot: getRepoRootForCli,
-    writeOutput: writeCliOutput
-  }),
-  execute: (context) => runExecuteCommandWithDependencies(context, {
-    createAnalysisContext: createAnalysisContextForCli,
-    writeOutput: writeCliOutput
-  }),
-  "llm-review": (context) => runLlmReviewCommandWithDependencies(context, {
-    createAnalysisContext: createAnalysisContextForCli,
-    resolveRepoRoot: getRepoRootForCli,
-    writeOutput: writeCliOutput
-  }),
-  mcp: (context) => runMcpCommandWithDependencies(context, {
-    cliPath: fileURLToPath(import.meta.url)
-  }),
-  memory: (context) => runMemoryCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),
-  "memory-import": (context) => runMemoryImportCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),
-  "memory-learn": (context) => runMemoryLearnCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),
-  product: (context) => runProductCommandWithDependencies(context, {
-    createProductTargetReport: (cwd, loadedConfig, options) => createProductTargetReportWithRuntime(cwd, loadedConfig, options, {
-      createAnalysisContext: (repoRoot) => createAnalysisContextForCli(repoRoot, { format: "markdown" }),
-      getChangedFiles: (repoRoot) => getChangedFilesForCli(repoRoot, { format: "markdown" })
-    }),
-    renderProductTargetReport,
-    writeOutput: writeCliOutput
-  }),
-  redteam: (context) => runRedteamCommandWithDependencies(context, {
-    createAnalysisContext: createAnalysisContextForCli,
-    resolveRepoRoot: getRepoRootForCli,
-    writeOutput: writeCliOutput
-  }),
-  snapshot: (context) => runSnapshotCommandWithDependencies(context, {
-    createAnalysisContext: createAnalysisContextForCli,
-    resolveRepoRoot: getRepoRootForCli,
-    writeOutput: writeCliOutput
-  })
-};
+const CLI_ENTRYPOINT_PATH = fileURLToPath(import.meta.url);
+const COMMAND_HANDLERS = createCommandHandlers({ cliPath: CLI_ENTRYPOINT_PATH });
 
 if (isDirectRun()) {
   runCli(process.argv.slice(2)).then((exitCode) => {
@@ -201,7 +121,7 @@ async function run(args: string[], runtime: CliRuntime): Promise<void | number> 
 
 function isDirectRun(): boolean {
   const entrypoint = process.argv[1];
-  return Boolean(entrypoint && realPathOrResolve(entrypoint) === realPathOrResolve(fileURLToPath(import.meta.url)));
+  return Boolean(entrypoint && realPathOrResolve(entrypoint) === realPathOrResolve(CLI_ENTRYPOINT_PATH));
 }
 
 function realPathOrResolve(path: string): string {
