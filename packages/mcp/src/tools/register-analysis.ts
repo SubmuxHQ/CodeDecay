@@ -42,6 +42,20 @@ export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayM
   );
 
   server.tool(
+    "tool_recommendations",
+    "Return local OSS tool recommendations for this repository shape. Does not install tools, execute commands, call models, or use network access.",
+    analyzePrToolSchema,
+    async (input) => textResult(handlers.toolRecommendations(input as AnalyzePrToolInput))
+  );
+
+  server.tool(
+    "pattern_search",
+    "Return local pattern-pack matches for changed areas so user-owned agents can consider known edge cases and weak-test traps.",
+    gitContextToolSchema,
+    async (input) => textResult(handlers.patternSearch(input as McpToolInput))
+  );
+
+  server.tool(
     "redteam_report",
     "Return a deterministic CodeDecay redteam report for an MCP-compatible agent. Report-only: does not execute commands or call models.",
     analyzePrToolSchema,

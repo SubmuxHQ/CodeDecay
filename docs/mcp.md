@@ -2,7 +2,8 @@
 
 CodeDecay can run as a local Model Context Protocol server so agent clients can
 ask it for PR risk, impact maps, weak-test audits, score breakdowns, runtime
-test evidence, and deterministic edge-case suggestions. It can also run
+test evidence, deterministic edge-case suggestions, local pattern-pack matches,
+and OSS tool recommendations. It can also run
 explicitly configured local checks and product verification when the caller
 confirms execution.
 
@@ -44,6 +45,11 @@ runs CodeDecay locally and passes the repository path with `--cwd`.
 - `audit_tests`: returns missing-test and weak-test evidence findings plus
   recommended checks.
 - `suggest_edge_cases`: returns deterministic edge-case suggestions.
+- `tool_recommendations`: returns local OSS tool recommendations for the repo
+  shape. It does not install tools, execute commands, call models, or use
+  network access.
+- `pattern_search`: returns local pattern-pack matches for changed areas so
+  user-owned agents can consider known edge cases and weak-test traps.
 - `redteam_report`: returns a deterministic merge-safety report for your agent,
   including impacted areas, weak-test findings, edge cases, configured checks,
   memory summary, fix tasks, and safety flags.

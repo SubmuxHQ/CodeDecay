@@ -36,6 +36,7 @@ describe("redteam report assembly and rendering", () => {
       testProofStatus: "weak",
       configuredChecks: 2,
       toolAdapters: 3,
+      patternInsights: 2,
       productFailureBundles: 1,
       skills: 1
     });
@@ -47,6 +48,7 @@ describe("redteam report assembly and rendering", () => {
       changedTestFiles: ["src/auth/session.test.ts"]
     });
     expect(report.edgeCases).toContain("Check missing, expired, malformed, and privilege-escalation credentials.");
+    expect(report.edgeCases).toContain("Check missing, expired, malformed, replayed, and wrong-scope credentials.");
     expect(report.edgeCases).toContain("Add an API-level session regression test");
     expect(report.edgeCases).toContain(
       "Run or strengthen src/auth/session.test.ts with negative, malformed, boundary, or integration coverage."
@@ -89,8 +91,12 @@ describe("redteam report assembly and rendering", () => {
         untrusted: true
       }
     ]);
+    expect(report.patternInsights.map((pattern) => pattern.id)).toEqual(
+      expect.arrayContaining(["owasp-auth-session-negative-paths", "mutation-tested-test-quality"])
+    );
     expect(report.fixTasks.map((task) => task.title)).toEqual(
       expect.arrayContaining([
+        "Apply pattern: Auth and session boundaries fail closed",
         "Add auth negative-path proof",
         "Exercise the real API boundary",
         "Strengthen test proof",
@@ -118,6 +124,8 @@ describe("redteam report assembly and rendering", () => {
     expect(json.summary.impactedRoutes).toBe(1);
     expect(json.summary.missingTestFindings).toBe(0);
     expect(json.summary.productFailureBundles).toBe(1);
+    expect(json.summary.patternInsights).toBe(2);
+    expect(json.patternInsights[0].trust).toBe("pattern-pack");
     expect(json.analysis.impactedRoutes[0]).toMatchObject({
       framework: "nextjs",
       kind: "api-route",
@@ -137,6 +145,9 @@ describe("redteam report assembly and rendering", () => {
     expect(markdown).toContain("High `GET /api/session` (Next.js API route)");
     expect(markdown).toContain("Add an API-level session regression test");
     expect(markdown).toContain("### Tool Adapter Plans");
+    expect(markdown).toContain("### Pattern Intelligence");
+    expect(markdown).toContain("Pattern-pack guidance is local curated context, not proof.");
+    expect(markdown).toContain("OWASP Authentication Cheat Sheet");
     expect(markdown).toContain("Playwright");
     expect(markdown).toContain("Schemathesis");
     expect(markdown).toContain("PR Red-Team Skill");

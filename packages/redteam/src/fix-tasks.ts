@@ -3,6 +3,7 @@ import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
 import type {
   RedteamConfiguredCheck,
   RedteamFixTask,
+  RedteamPatternInsight,
   RedteamSkillSummary,
   RedteamToolAdapterPlan
 } from "./types";
@@ -15,6 +16,7 @@ export function createFixTasks(input: {
   edgeCases: string[];
   configuredChecks: RedteamConfiguredCheck[];
   toolAdapterPlans: RedteamToolAdapterPlan[];
+  patternInsights: RedteamPatternInsight[];
   memory: CodeDecayMemory;
   skills: RedteamSkillSummary[];
 }): RedteamFixTask[] {
@@ -59,6 +61,16 @@ export function createFixTasks(input: {
       priority: input.analysisReport.summary.riskLevel === "high" ? "medium" : "low",
       source: "tool-adapter",
       detail: `${adapter.kind}: ${adapter.command}`
+    });
+  }
+
+  for (const pattern of input.patternInsights.slice(0, 6)) {
+    const detail = pattern.suggestedChecks[0] ?? pattern.edgeCases[0] ?? pattern.title;
+    tasks.push({
+      title: `Apply pattern: ${pattern.title}`,
+      priority: pattern.areas.includes("auth") || pattern.areas.includes("api") ? "high" : "medium",
+      source: "pattern",
+      detail
     });
   }
 

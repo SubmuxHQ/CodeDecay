@@ -17,6 +17,8 @@ export interface CodeDecayMcpToolHandlers {
   impactMap(input: McpToolInput): string | Promise<string>;
   auditTests(input: McpToolInput): string | Promise<string>;
   suggestEdgeCases(input: McpToolInput): string | Promise<string>;
+  toolRecommendations(input: AnalyzePrToolInput): string | Promise<string>;
+  patternSearch(input: McpToolInput): string | Promise<string>;
   redteamReport(input: AnalyzePrToolInput): string | Promise<string>;
   agentTaskBundle(input: AgentTaskBundleToolInput): string | Promise<string>;
   executeConfiguredChecks(input: ExecuteConfiguredChecksToolInput): string | Promise<string>;

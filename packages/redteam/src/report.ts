@@ -4,13 +4,15 @@ import { collectConfiguredChecks, collectToolAdapterPlans } from "./checks";
 import { summarizeMemory, summarizeSkills } from "./context";
 import { suggestEdgeCases } from "./edge-cases";
 import { createFixTasks } from "./fix-tasks";
+import { matchPatternIntelligence } from "./patterns";
 import { createRedteamSafetySummary } from "./safety";
 import type { RedteamReport, RedteamReportInput } from "./types";
 
 export function createRedteamReport(input: RedteamReportInput): RedteamReport {
   const testAudit = createTestProofAudit(input.analysisReport);
   const weakTestFindings = testAudit.weakTestFindings;
-  const edgeCases = suggestEdgeCases(input.analysisReport);
+  const patternInsights = matchPatternIntelligence(input.analysisReport);
+  const edgeCases = mergeEdgeCases(suggestEdgeCases(input.analysisReport), patternInsights.flatMap((pattern) => pattern.edgeCases));
   const configuredChecks = collectConfiguredChecks(input.config);
   const toolAdapterPlans = collectToolAdapterPlans(input.config);
   const memory = summarizeMemory(input.memory, input.memorySource);
@@ -21,6 +23,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
     edgeCases,
     configuredChecks,
     toolAdapterPlans,
+    patternInsights,
     memory: input.memory,
     skills
   });
@@ -45,6 +48,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
       edgeCases: edgeCases.length,
       configuredChecks: configuredChecks.length,
       toolAdapters: toolAdapterPlans.length,
+      patternInsights: patternInsights.length,
       productFailureBundles: input.analysisReport.productFailureBundles?.length ?? 0,
       skills: skills.length,
       fixTasks: fixTasks.length,
@@ -57,6 +61,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
     edgeCases,
     configuredChecks,
     toolAdapterPlans,
+    patternInsights,
     memory,
     skills,
     investigation: input.investigation,
@@ -73,4 +78,8 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
   }
 
   return report;
+}
+
+function mergeEdgeCases(base: string[], patternEdgeCases: string[]): string[] {
+  return [...new Set([...base, ...patternEdgeCases])].sort((left, right) => left.localeCompare(right));
 }

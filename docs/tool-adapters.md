@@ -14,6 +14,31 @@ The first adapters are:
 - Semgrep for multi-language static bug/security evidence.
 - Schemathesis for OpenAPI/GraphQL API fuzzing evidence.
 - Pact for contract-testing evidence.
+- OSV-Scanner and OpenSSF Scorecard as recommended external security checks
+  where useful; these are not run by default.
+
+## Discovering Tools
+
+Run `codedecay doctor` to inspect the local repo and recommend mature OSS tools
+that fit the detected framework, tests, API schema, CI, and package manager.
+
+```bash
+npx codedecay doctor
+npx codedecay doctor --format json
+npx codedecay doctor --write-config-preview
+```
+
+Doctor is recommendation-only:
+
+- no tools are installed,
+- no commands are executed,
+- no network calls are made,
+- no LLM/model calls are made,
+- `.codedecay/config.yml` is not modified.
+
+When `--write-config-preview` is used, CodeDecay writes a reviewable preview to
+`.codedecay/local/config-preview.yml`. Copy only the parts you want into tracked
+config.
 
 ## Configuring Adapters
 

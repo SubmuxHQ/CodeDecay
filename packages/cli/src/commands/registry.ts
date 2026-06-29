@@ -3,6 +3,7 @@ import { runAnalyzeCommand as runAnalyzeCommandWithDependencies } from "./analyz
 import { runConfigCommand } from "./config";
 import { runDashboardCommand as runDashboardCommandWithDependencies } from "./dashboard";
 import { runDifferentialCommand as runDifferentialCommandWithDependencies } from "./differential";
+import { runDoctorCommand as runDoctorCommandWithDependencies } from "./doctor";
 import { runExecuteCommand as runExecuteCommandWithDependencies } from "./execute";
 import { runLlmReviewCommand as runLlmReviewCommandWithDependencies } from "./llm-review";
 import {
@@ -49,6 +50,9 @@ export function createCommandHandlers(options: CommandRegistryOptions): Record<s
     differential: (context) => runDifferentialCommandWithDependencies(context, {
       formatGitError: formatGitErrorForCli,
       resolveRepoRoot: getRepoRootForCli,
+      writeOutput: writeCliOutput
+    }),
+    doctor: (context) => runDoctorCommandWithDependencies(context, {
       writeOutput: writeCliOutput
     }),
     execute: (context) => runExecuteCommandWithDependencies(context, {

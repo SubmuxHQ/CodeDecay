@@ -82,6 +82,11 @@ describe("built codedecay CLI command surface", () => {
     expect(llmReviewHelp.stdout).toContain("CodeDecay llm-review");
     expect(llmReviewHelp.stdout).toContain("--task <text>");
 
+    const doctorHelp = runBuilt(["doctor", "--help"]);
+    expect(doctorHelp.status).toBe(0);
+    expect(doctorHelp.stdout).toContain("CodeDecay doctor");
+    expect(doctorHelp.stdout).toContain("--write-config-preview");
+
     const manual = runBuilt(["man", "update"]);
     expect(manual.status).toBe(0);
     expect(manual.stdout).toContain("CODEDECAY-UPDATE(1)");

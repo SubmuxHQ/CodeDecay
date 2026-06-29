@@ -1,5 +1,6 @@
 import { createAgentProcessHarness, createConfiguredAgentProcessHarness } from "./agent-process";
 import { createCoverageHarness, createConfiguredCoverageHarness } from "./coverage";
+export * from "./doctor";
 import { createPactHarness, createConfiguredPactHarness } from "./pact";
 import { createPlaywrightHarness, createConfiguredPlaywrightHarness } from "./playwright";
 import { createSchemathesisHarness, createConfiguredSchemathesisHarness } from "./schemathesis";

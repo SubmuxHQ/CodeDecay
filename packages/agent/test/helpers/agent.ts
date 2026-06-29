@@ -25,6 +25,7 @@ export function createFixtureReport(): RedteamReport {
       edgeCases: 1,
       configuredChecks: 1,
       toolAdapters: 1,
+      patternInsights: 0,
       productFailureBundles: 1,
       skills: 1,
       fixTasks: 2,
@@ -168,6 +169,7 @@ export function createFixtureReport(): RedteamReport {
         requiresApproval: true
       }
     ],
+    patternInsights: [],
     memory: {
       flows: 1,
       commands: 0,
