@@ -1,5 +1,5 @@
 export {
-  createConfiguredCoverageHarness,
-  createCoverageHarness,
-  resolveCoverageDisplayCommand
+  createCoverageHarness
 } from "./harness";
+export { createConfiguredCoverageHarness } from "./configured";
+export { resolveCoverageDisplayCommand } from "./plan";

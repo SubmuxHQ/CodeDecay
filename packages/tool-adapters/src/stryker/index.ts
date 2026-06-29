@@ -1,1 +1,2 @@
-export { createConfiguredStrykerHarness, createStrykerHarness } from "./harness";
+export { createConfiguredStrykerHarness } from "./configured";
+export { createStrykerHarness } from "./harness";

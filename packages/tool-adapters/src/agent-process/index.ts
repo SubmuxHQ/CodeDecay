@@ -1,4 +1,4 @@
 export {
-  createAgentProcessHarness,
-  createConfiguredAgentProcessHarness
+  createAgentProcessHarness
 } from "./harness";
+export { createConfiguredAgentProcessHarness } from "./configured";

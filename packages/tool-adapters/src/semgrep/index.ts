@@ -1,2 +1,3 @@
 export { resolveSemgrepDisplayCommand } from "./commands";
-export { createConfiguredSemgrepHarness, createSemgrepHarness } from "./harness";
+export { createConfiguredSemgrepHarness } from "./configured";
+export { createSemgrepHarness } from "./harness";
