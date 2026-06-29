@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { join } from "node:path";
 import type {
   AnalyzerResult,
   FileChange,
@@ -18,17 +18,13 @@ import {
   type AreaKind
 } from "./classifiers/paths";
 import { detectDuplicateAddedLogic } from "./duplicates/added-logic";
-import { listRepoFiles } from "./files/repo";
-import {
-  createMissingNearbyTestsFinding,
-  createRiskyAreaFinding,
-  firstLine
-} from "./findings/builders";
+import { createRiskyAreaFinding, firstLine } from "./findings/builders";
 import { dedupeFindings } from "./findings/sorting";
 import { analyzeFunctions } from "./functions/metrics";
 import { buildReverseImportGraph, findReverseImportChains } from "./imports/graph";
 import { detectRoutesForFile, mergeImpactedRoutes } from "./routes/impact";
 import { analyzeRuntimeCoverage } from "./runtime-coverage";
+import { analyzeTestRecommendations } from "./tests/recommendations";
 import { detectWeakTests } from "./tests/weak-audit";
 
 export interface AnalyzeJsOptions {
@@ -77,21 +73,14 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
   findings.push(...propagatedRouteImpacts.findings);
   recommendedTests.push(...propagatedRouteImpacts.recommendedTests);
 
-  if (changedSourceFiles.length > 0 && changedTestFiles.length === 0) {
-    const riskySourceFiles = changedSourceFiles
-      .filter((change) => classifyChange(change)?.risk !== "low")
-      .filter((change) => !fullyCoveredSourcePaths.has(change.path));
-    if (riskySourceFiles.length > 0) {
-      findings.push(
-        createMissingNearbyTestsFinding(
-          riskySourceFiles,
-          riskySourceFiles.some((change) => classifyChange(change)?.risk === "high") ? "high" : "medium"
-        )
-      );
-    }
-  }
-
-  recommendedTests.push(...recommendTests(options.rootDir, changedSourceFiles));
+  const testRecommendations = analyzeTestRecommendations({
+    rootDir: options.rootDir,
+    changedSourceFiles,
+    changedTestFiles,
+    fullyCoveredSourcePaths
+  });
+  findings.push(...testRecommendations.findings);
+  recommendedTests.push(...testRecommendations.recommendedTests);
 
   const broadChangeFinding = detectBroadUnrelatedChanges(options.changedFiles);
   if (broadChangeFinding) {
@@ -223,41 +212,6 @@ function normalizePath(path: string): string {
   return path.replaceAll("\\", "/");
 }
 
-function recommendTests(rootDir: string, sourceChanges: FileChange[]): string[] {
-  if (sourceChanges.length === 0) {
-    return [];
-  }
-
-  const repoFiles = listRepoFiles(rootDir);
-  const testFiles = repoFiles.filter(isTestPath);
-  const recommendations: string[] = [];
-
-  for (const change of sourceChanges) {
-    const sourceBase = stripExtension(basename(change.path));
-    const sourceDir = dirname(change.path);
-    const matches = testFiles.filter((testPath) => {
-      const testBase = stripExtension(basename(testPath))
-        .replace(/(\.|-|_)test$/i, "")
-        .replace(/(\.|-|_)spec$/i, "");
-
-      return (
-        testBase.includes(sourceBase) ||
-        sourceBase.includes(testBase) ||
-        dirname(testPath).startsWith(sourceDir) ||
-        sourceDir.startsWith(dirname(testPath))
-      );
-    });
-
-    if (matches.length > 0) {
-      recommendations.push(...matches.slice(0, 4));
-    } else {
-      recommendations.push(`Add or run tests covering ${change.path}`);
-    }
-  }
-
-  return recommendations;
-}
-
 function detectBroadUnrelatedChanges(changedFiles: FileChange[]): Finding | undefined {
   const sourceFiles = changedFiles.filter((change) => !isLowSignalChange(change));
   if (sourceFiles.length === 0) {
@@ -371,8 +325,4 @@ function readChangedFile(rootDir: string, path: string): string | undefined {
   } catch {
     return undefined;
   }
-}
-
-function stripExtension(path: string): string {
-  return path.replace(/\.[^.]+$/, "");
 }
