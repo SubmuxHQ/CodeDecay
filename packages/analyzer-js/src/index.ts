@@ -13,11 +13,11 @@ import {
   isSourcePath,
   isTestPath
 } from "./classifiers/paths";
+import { detectFunctionMetricFindings } from "./decay/function-findings";
 import { detectFragilePatterns } from "./decay/fragile-patterns";
 import { detectDuplicateAddedLogic } from "./duplicates/added-logic";
 import { createRiskyAreaFinding, firstLine } from "./findings/builders";
 import { dedupeFindings } from "./findings/sorting";
-import { analyzeFunctions } from "./functions/metrics";
 import { buildReverseImportGraph, findReverseImportChains } from "./imports/graph";
 import { detectRoutesForFile, mergeImpactedRoutes } from "./routes/impact";
 import { analyzeRuntimeCoverage } from "./runtime-coverage";
@@ -95,40 +95,7 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
   const testAudit = detectWeakTests(options.rootDir, changedTestFiles, changedSourceFiles);
   findings.push(...testAudit.findings);
   recommendedTests.push(...testAudit.recommendedTests);
-
-  for (const sourceChange of changedSourceFiles) {
-    const content = readChangedFile(options.rootDir, sourceChange.path);
-    if (!content) {
-      continue;
-    }
-
-    const metrics = analyzeFunctions(sourceChange, content);
-    for (const metric of metrics) {
-      if (metric.lines >= 120) {
-        findings.push({
-          ruleId: "large-function",
-          title: "Large changed function",
-          description: `${metric.name} spans ${metric.lines} lines, which increases review and regression risk.`,
-          severity: metric.lines >= 180 ? "high" : "medium",
-          category: "decay",
-          file: metric.file,
-          line: metric.line
-        });
-      }
-
-      if (metric.complexity >= 12) {
-        findings.push({
-          ruleId: "high-complexity",
-          title: "High complexity in changed function",
-          description: `${metric.name} has estimated cyclomatic complexity ${metric.complexity}.`,
-          severity: metric.complexity >= 20 ? "high" : "medium",
-          category: "decay",
-          file: metric.file,
-          line: metric.line
-        });
-      }
-    }
-  }
+  findings.push(...detectFunctionMetricFindings(options.rootDir, changedSourceFiles));
 
   return {
     findings: dedupeFindings(findings),
