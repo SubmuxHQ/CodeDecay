@@ -8,7 +8,7 @@
   "packageManager": "pnpm@11.8.0",
   "scripts": {
     "build": "pnpm build:packages && pnpm docs:build",
-    "build:packages": "pnpm -r build",
+    "build:packages": "pnpm -r --workspace-concurrency=1 build",
     "docs:prepare": "node scripts/generate-docs-artifacts.mjs",
     "predocs:dev": "pnpm docs:prepare",
     "docs:dev": "vitepress dev docs",
