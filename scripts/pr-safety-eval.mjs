@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRunId, readOptionValue, splitCommand } from "./lib/args.mjs";
 import { readJsonFile, resetDir, writeFiles, writeJsonFile } from "./lib/files.mjs";
 import { initFixtureGitRepo } from "./lib/git.mjs";
 import { runCommand } from "./lib/process.mjs";
 import { scenarios } from "./fixtures/pr-safety-eval/scenarios.mjs";
+import { writePrSafetyDocsReport } from "./fixtures/pr-safety-eval/docs-report.mjs";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const options = parseArgs(process.argv.slice(2));
@@ -64,7 +65,7 @@ function main() {
     writeJsonFile(join(runDir, "summary.json"), evalReport);
 
     if (options.updateDocs) {
-      writeDocsReport(evalReport);
+      writePrSafetyDocsReport(repoRoot, evalReport);
     }
 
     printResult(evalReport);
@@ -335,71 +336,6 @@ function runLoggedCommand({ id, cwd, command, args, expectedExitCodes }) {
   }
 
   return record;
-}
-
-function writeDocsReport(report) {
-  const target = join(repoRoot, "docs/evals/first-efficacy-report.md");
-  const lines = [
-    "# First PR Safety Efficacy Benchmark",
-    "",
-    "This benchmark is a small, deterministic proof that CodeDecay can catch seeded PR risks that ordinary passing tests miss.",
-    "",
-    "It is not a claim that CodeDecay makes every PR safe. It is a regression harness for the product promise: find what a coding agent may have missed before merge.",
-    "",
-    "## How to run",
-    "",
-    "```bash",
-    "pnpm eval:pr-safety -- --run-id local-pr-safety-eval",
-    "```",
-    "",
-    "Artifacts are written under `.codedecay/local/evals/<run-id>/`.",
-    "",
-    "## Current benchmark result",
-    "",
-    `- Status: ${report.status}`,
-    `- Scenarios: ${report.scenarios.length}`,
-    `- Issues: ${report.issues.length}`,
-    "",
-    "## Scenarios",
-    ""
-  ];
-
-  for (const scenario of report.scenarios) {
-    lines.push(`### ${scenario.title}`, "");
-    lines.push(scenario.whyItMatters, "");
-    lines.push("| Signal | Result |");
-    lines.push("| --- | --- |");
-    lines.push(`| Scenario status | ${scenario.status} |`);
-    lines.push(`| Baseline tests | exit ${scenario.commands.baselineTest.exitCode} |`);
-    lines.push(`| Baseline behavior probe | exit ${scenario.commands.baselineProbe.exitCode} |`);
-    lines.push(`| Risky weak tests | exit ${scenario.commands.riskyTest.exitCode} |`);
-    lines.push(`| Risky behavior probe | exit ${scenario.commands.riskyProbe.exitCode} |`);
-    lines.push(`| CodeDecay risk | ${scenario.codeDecay.riskLevel} (${scenario.codeDecay.mergeRiskScore}/100 merge, ${scenario.codeDecay.decayScore}/100 decay) |`);
-    lines.push(`| Test proof status | ${scenario.codeDecay.testProofStatus} |`);
-    lines.push(`| Weak-test findings | ${scenario.codeDecay.weakTestFindings} |`);
-    lines.push(`| Missing-test findings | ${scenario.codeDecay.missingTestFindings} |`);
-    lines.push("", "Expected evidence:", "");
-    for (const assertion of scenario.assertions) {
-      lines.push(`- ${assertion.passed ? "Pass" : "Fail"}: ${assertion.name}`);
-    }
-    lines.push("");
-  }
-
-  lines.push(
-    "## Safety boundaries",
-    "",
-    "- No telemetry.",
-    "- No cloud dependency.",
-    "- No API keys.",
-    "- No LLM/model calls.",
-    "- Fixtures run inside local temporary git repositories.",
-    "",
-    "The benchmark uses deterministic CodeDecay reports plus explicit behavior probes. AI or agent suggestions should be evaluated separately from this tool evidence.",
-    ""
-  );
-
-  mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, `${lines.join("\n").trim()}\n`, "utf8");
 }
 
 function printResult(report) {

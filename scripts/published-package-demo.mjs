@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { basename, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRunId, readOptionValue } from "./lib/args.mjs";
 import { readJsonFile, readTextIfExists, resetDir, sha256, writeJsonFile } from "./lib/files.mjs";
@@ -13,6 +12,11 @@ import {
   nodeApiExampleCommandSpecs,
   prepareExampleRepoCommandSpecs
 } from "./fixtures/published-package-demo/command-specs.mjs";
+import {
+  assertPublishedPackageDemoOutputs,
+  renderPublishedPackageDemoSummary,
+  summarizePublishedPackageExample
+} from "./fixtures/published-package-demo/summary.mjs";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const options = parseArgs(process.argv.slice(2));
@@ -135,17 +139,7 @@ function runNodeApiExampleChecks(codedecayBin, repoDir) {
 }
 
 function assertDemoOutputs(nextRepo, nodeApiRepo) {
-  const nextAnalyze = readJsonFile(join(nextRepo, "codedecay-output", "analyze.json"));
-  const nodeAnalyze = readJsonFile(join(nodeApiRepo, "codedecay-output", "analyze.json"));
-  const nextSarif = readJsonFile(join(nextRepo, "codedecay-output", "analyze.sarif"));
-  const nodeSarif = readJsonFile(join(nodeApiRepo, "codedecay-output", "analyze.sarif"));
-  const nodeExecute = readJsonFile(join(nodeApiRepo, "codedecay-output", "execute.json"));
-
-  assertCondition("Next.js demo should be high risk.", nextAnalyze.summary?.riskLevel === "high");
-  assertCondition("Node API demo should be high risk.", nodeAnalyze.summary?.riskLevel === "high");
-  assertCondition("Next.js SARIF should have one run.", Array.isArray(nextSarif.runs) && nextSarif.runs.length === 1);
-  assertCondition("Node API SARIF should have one run.", Array.isArray(nodeSarif.runs) && nodeSarif.runs.length === 1);
-  assertCondition("Node API execute should fail because the demo contract check catches the risky change.", nodeExecute.summary?.status === "failed");
+  runLog.issues.push(...assertPublishedPackageDemoOutputs(nextRepo, nodeApiRepo));
 }
 
 function recordCommand(commandSpec) {
@@ -250,8 +244,8 @@ function writeSummary() {
   };
 
   if (nextRepo && nodeApiRepo) {
-    summary.next = summarizeExample(nextRepo);
-    summary.nodeApi = summarizeExample(nodeApiRepo);
+    summary.next = summarizePublishedPackageExample(nextRepo);
+    summary.nodeApi = summarizePublishedPackageExample(nodeApiRepo);
     const executePath = join(nodeApiRepo, "codedecay-output", "execute.json");
     if (existsSync(executePath)) {
       summary.nodeApi.execute = readJsonFile(executePath).summary;
@@ -259,82 +253,13 @@ function writeSummary() {
   }
 
   writeFileSync(join(runDir, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8");
-  writeFileSync(join(runDir, "summary.md"), renderMarkdownSummary(summary), "utf8");
-}
-
-function summarizeExample(repoDir) {
-  const analyze = readJsonFile(join(repoDir, "codedecay-output", "analyze.json"));
-  const redteam = readJsonFile(join(repoDir, "codedecay-output", "redteam.json"));
-
-  return {
-    analyze: {
-      riskLevel: analyze.summary?.riskLevel,
-      mergeRiskScore: analyze.summary?.mergeRiskScore,
-      decayScore: analyze.summary?.decayScore,
-      findingCounts: analyze.summary?.findingCounts
-    },
-    redteam: redteam.summary,
-    outputFiles: ["agent-codex.md", "analyze.json", "analyze.md", "analyze.sarif", "redteam.json", "redteam.md"].filter((file) =>
-      existsSync(join(repoDir, "codedecay-output", file))
-    )
-  };
-}
-
-function renderMarkdownSummary(summary) {
-  const lines = [
-    "# CodeDecay Published Package Demo",
-    "",
-    `- Run ID: \`${summary.runId}\``,
-    `- Status: **${summary.status}**`,
-    `- Package: \`${summary.packageSource.installSpec}\``,
-    `- Version: \`${summary.packageVersion}\``,
-    `- Commands: ${summary.commandCount}`,
-    `- Issues: ${summary.issueCount}`,
-    "",
-    "## Next.js Risk Demo",
-    "",
-    `- Risk: ${summary.next?.analyze?.riskLevel ?? "unknown"}`,
-    `- Merge risk: ${summary.next?.analyze?.mergeRiskScore ?? "unknown"}`,
-    `- Decay score: ${summary.next?.analyze?.decayScore ?? "unknown"}`,
-    `- Findings: \`${JSON.stringify(summary.next?.analyze?.findingCounts ?? {})}\``,
-    "",
-    "## Node API Risk Demo",
-    "",
-    `- Risk: ${summary.nodeApi?.analyze?.riskLevel ?? "unknown"}`,
-    `- Merge risk: ${summary.nodeApi?.analyze?.mergeRiskScore ?? "unknown"}`,
-    `- Decay score: ${summary.nodeApi?.analyze?.decayScore ?? "unknown"}`,
-    `- Findings: \`${JSON.stringify(summary.nodeApi?.analyze?.findingCounts ?? {})}\``,
-    `- Execute status: ${summary.nodeApi?.execute?.status ?? "not-run"}`,
-    "",
-    "## Artifacts",
-    "",
-    `- Run log: \`${relative(repoRoot, join(runDir, "run.json"))}\``,
-    `- Summary JSON: \`${relative(repoRoot, join(runDir, "summary.json"))}\``,
-    `- Logs: \`${relative(repoRoot, logsDir)}\``
-  ];
-
-  if (runLog.issues.length > 0) {
-    lines.push("", "## Issues", "");
-    for (const issue of runLog.issues) {
-      lines.push(`- **${issue.title}**: ${issue.detail}`);
-    }
-  }
-
-  return `${lines.join("\n")}\n`;
+  writeFileSync(join(runDir, "summary.md"), renderPublishedPackageDemoSummary(summary, { repoRoot, runDir, logsDir, issues: runLog.issues }), "utf8");
 }
 
 function printResult() {
   console.log(`CodeDecay published package demo ${runLog.status}.`);
   console.log(`JSON log: ${join(runDir, "run.json")}`);
   console.log(`Summary: ${join(runDir, "summary.md")}`);
-}
-
-function assertCondition(title, condition) {
-  if (condition) {
-    return;
-  }
-
-  runLog.issues.push({ severity: "error", title, detail: "Output assertion failed." });
 }
 
 function writeRunLog() {
