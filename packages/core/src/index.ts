@@ -14,6 +14,10 @@ export {
 export { findingCounts, sortFindings } from "./findings";
 export { productFailureBundlesFromProductTargetReport } from "./product-failures";
 export { compareRiskLevels, riskLevelFromScore, shouldFailForRisk } from "./risk";
+export {
+  createRevalidationReport,
+  revalidationSubjectId
+} from "./revalidate";
 export { createAnalysisReport } from "./report";
 export type { RiskLevel } from "./risk";
 export type { ScoreBreakdown, ScoreContributor, ScoreEvidenceKind } from "./scoring";
@@ -27,6 +31,14 @@ export type {
   AuditProjectRecord,
   AuditRunRecord,
   AuditRunStatus,
+  RevalidationCurrentFile,
+  RevalidationInput,
+  RevalidationItem,
+  RevalidationItemKind,
+  RevalidationMarkOptions,
+  RevalidationMemorySuggestion,
+  RevalidationReport,
+  RevalidationStatus,
   ChangedLine,
   ChangedSourceCoverage,
   ChangedSourceCoverageStatus,

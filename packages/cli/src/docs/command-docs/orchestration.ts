@@ -28,6 +28,35 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       "Configured checks are described in the report as recommendations unless you run execute or differential explicitly."
     ]
   },
+  revalidate: {
+    name: "revalidate",
+    summary: "Re-check prior findings and preview memory updates.",
+    usage: ["codedecay revalidate --input <report.json> [options]"],
+    description: [
+      "Compare a previous CodeDecay JSON report with a fresh deterministic report, mark finding lifecycle status, and preview memory loopback entries."
+    ],
+    options: [
+      { flag: "--input <path>", description: "Previous CodeDecay JSON report to revalidate" },
+      { flag: "--base <ref>", description: "Base git ref to compare from for the fresh report" },
+      { flag: "--head <ref>", description: "Head git ref to compare to for the fresh report" },
+      { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
+      { flag: "--format <format>", description: "json or markdown (default: markdown)" },
+      { flag: "--output <path>", description: "Write revalidation report to a file instead of stdout" },
+      { flag: "--false-positive <id>", description: "Explicitly mark a previous finding id as false-positive; can be repeated" },
+      { flag: "--accept-risk <id>", description: "Explicitly mark a previous finding id as accepted-risk; can be repeated" },
+      { flag: "--apply-memory", description: "Write previewed memory loopback entries to .codedecay/memory.json" }
+    ],
+    examples: [
+      "codedecay analyze --format json --output .codedecay/previous-report.json",
+      "codedecay revalidate --input .codedecay/previous-report.json --format markdown",
+      "codedecay revalidate --input .codedecay/previous-report.json --accept-risk finding:risky-auth-change:src/auth/session.ts:4 --apply-memory"
+    ],
+    notes: [
+      "Revalidation is deterministic and does not call models or hosted services.",
+      "Memory updates are preview-only unless --apply-memory is provided.",
+      "AI verdicts, if added later, must be shown separately as untrusted suggestions."
+    ]
+  },
   "llm-review": {
     name: "llm-review",
     summary: "Optional LLM-assisted review suggestions grounded in deterministic analysis.",

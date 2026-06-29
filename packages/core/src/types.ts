@@ -20,6 +20,16 @@ export type {
   AuditRunRecord,
   AuditRunStatus
 } from "./audit";
+export type {
+  RevalidationCurrentFile,
+  RevalidationInput,
+  RevalidationItem,
+  RevalidationItemKind,
+  RevalidationMarkOptions,
+  RevalidationMemorySuggestion,
+  RevalidationReport,
+  RevalidationStatus
+} from "./revalidate";
 export type { ChangedLine, FileChange, FileStatus } from "./types/file-change";
 export type { Finding, FindingCategory } from "./types/findings";
 export type { ImpactedArea, ImpactedRoute } from "./types/impact";
