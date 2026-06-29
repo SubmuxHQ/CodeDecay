@@ -6,15 +6,11 @@ import type {
   ImpactedArea
 } from "@submuxhq/codedecay-core";
 import { dedupeStrings } from "@submuxhq/codedecay-core";
-import {
-  classifyChange,
-  isSourcePath,
-  isTestPath
-} from "./classifiers/paths";
+import { analyzeImpactedAreas } from "./areas/analysis";
+import { isSourcePath, isTestPath } from "./classifiers/paths";
 import { detectFunctionMetricFindings } from "./decay/function-findings";
 import { detectFragilePatterns } from "./decay/fragile-patterns";
 import { detectDuplicateAddedLogic } from "./duplicates/added-logic";
-import { createRiskyAreaFinding } from "./findings/builders";
 import { dedupeFindings } from "./findings/sorting";
 import { analyzeRouteImpacts } from "./routes/analysis";
 import { mergeImpactedRoutes } from "./routes/impact";
@@ -43,19 +39,9 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
     runtimeCoverage.testEvidence.changedSources.filter((entry) => entry.status === "covered").map((entry) => entry.path)
   );
 
-  for (const change of options.changedFiles) {
-    const classification = classifyChange(change);
-    if (classification) {
-      impactedAreas.push({
-        name: classification.name,
-        kind: classification.kind,
-        risk: classification.risk,
-        files: [change.path]
-      });
-
-      findings.push(createRiskyAreaFinding(change, classification));
-    }
-  }
+  const areaAnalysis = analyzeImpactedAreas(options.changedFiles);
+  impactedAreas.push(...areaAnalysis.impactedAreas);
+  findings.push(...areaAnalysis.findings);
 
   const routeImpacts = analyzeRouteImpacts(options.rootDir, changedSourceFiles);
   impactedRoutes.push(...routeImpacts.impactedRoutes);
