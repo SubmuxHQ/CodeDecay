@@ -266,6 +266,11 @@ Current JS/TS analyzer signals include:
 - fragile abstractions
 - weak tests, missing nearby tests, and low-confidence test evidence
 
+Reports also include language/parser coverage. JavaScript and TypeScript files
+use the current parser-backed analyzer. Limited languages such as Python are
+still represented for path, diff, coverage, and test-audit signals, but report
+their parser limitations until dedicated adapters are added.
+
 The analyzer is intentionally conservative. Findings are review signals, not
 guarantees that a bug exists or that a fix is safe.
 

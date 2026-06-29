@@ -58,6 +58,10 @@ export function createAnalysisReport(input: {
     report.head = input.head;
   }
 
+  if (input.analyzerResult.languageAnalysis) {
+    report.languageAnalysis = input.analyzerResult.languageAnalysis;
+  }
+
   if (input.analyzerResult.testEvidence) {
     report.testEvidence = input.analyzerResult.testEvidence;
   }

@@ -165,6 +165,28 @@ const report: CodeDecayReport = {
     candidateCount: 1,
     skippedFiles: []
   },
+  languageAnalysis: {
+    files: [
+      {
+        path: "src/auth/session.ts",
+        language: "typescript",
+        status: "supported",
+        parser: "typescript-estree",
+        capabilities: ["path-classification", "route-impact", "security-matchers"]
+      },
+      {
+        path: "src/auth.py",
+        language: "python",
+        status: "limited",
+        parser: "none",
+        capabilities: ["path-classification", "runtime-coverage", "test-audit"],
+        limitation: "Python files use path/test/coverage signals until a Python parser adapter is added."
+      }
+    ],
+    supportedFiles: ["src/auth/session.ts"],
+    limitedFiles: ["src/auth.py"],
+    unsupportedFiles: []
+  },
   recommendedTests: ["src/auth/session.test.ts", "Add or run tests covering next.config.js"],
   testEvidence: {
     mode: "runtime_augmented",
@@ -274,6 +296,9 @@ describe("reports", () => {
     expect(markdown).toContain("src/auth/session.ts");
     expect(markdown).toContain("### Likely Impacted Routes And APIs");
     expect(markdown).toContain("### Merge Risk Breakdown");
+    expect(markdown).toContain("### Language And Parser Coverage");
+    expect(markdown).toContain("Fully supported parser files: 1");
+    expect(markdown).toContain("limited `src/auth.py`");
     expect(markdown).toContain("### Security Risk Breakdown");
     expect(markdown).toContain("### Security Matcher Coverage");
     expect(markdown).toContain("Changed source files scanned: 1");
@@ -308,6 +333,7 @@ describe("reports", () => {
       confidence: "direct"
     });
     expect(json.securityAnalysis.scannedFiles).toEqual(["src/auth/session.ts"]);
+    expect(json.languageAnalysis.limitedFiles).toEqual(["src/auth.py"]);
     expect(json.impactedRoutes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -336,6 +362,7 @@ describe("reports", () => {
     expect(sarif.runs[0].results[0].locations[0].physicalLocation.region.startLine).toBe(3);
     expect(sarif.runs[0].properties.mergeRiskBreakdown.score).toBe(72);
     expect(sarif.runs[0].properties.securityScore).toBe(36);
+    expect(sarif.runs[0].properties.languageAnalysis.limitedFiles).toEqual(["src/auth.py"]);
     expect(sarif.runs[0].properties.securityAnalysis.scannedFiles).toEqual(["src/auth/session.ts"]);
     expect(sarif.runs[0].properties.securityCandidates[0].ruleId).toBe("security-sql-injection");
     expect(sarif.runs[0].results).toEqual(

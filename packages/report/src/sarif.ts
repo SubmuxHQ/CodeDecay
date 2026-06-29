@@ -24,6 +24,7 @@ export function renderSarifReport(report: CodeDecayReport): string {
             mergeRiskBreakdown: report.summary.mergeRiskBreakdown,
             decayBreakdown: report.summary.decayBreakdown,
             securityBreakdown: report.summary.securityBreakdown,
+            languageAnalysis: report.languageAnalysis,
             securityAnalysis: report.securityAnalysis,
             securityCandidates: report.securityCandidates,
             testEvidence: report.testEvidence,

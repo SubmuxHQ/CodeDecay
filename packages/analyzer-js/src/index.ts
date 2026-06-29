@@ -15,6 +15,7 @@ import { detectFunctionMetricFindings } from "./decay/function-findings";
 import { detectFragilePatterns } from "./decay/fragile-patterns";
 import { detectDuplicateAddedLogic } from "./duplicates/added-logic";
 import { dedupeFindings } from "./findings/sorting";
+import { analyzeLanguageSupport } from "./language/support";
 import { analyzeRouteImpacts } from "./routes/analysis";
 import { mergeImpactedRoutes } from "./routes/impact";
 import { analyzeRuntimeCoverage } from "./runtime-coverage";
@@ -37,9 +38,12 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
     (change) => isSourcePath(change.path) && change.status !== "deleted" && !isTestPath(change.path)
   );
   const changedTestFiles = options.changedFiles.filter((change) => isTestPath(change.path));
+  const languageAnalysis = analyzeLanguageSupport(options.changedFiles);
+  const parserSupportedSourcePaths = new Set(languageAnalysis.supportedFiles);
+  const parserSupportedSourceFiles = changedSourceFiles.filter((change) => parserSupportedSourcePaths.has(change.path));
   const runtimeCoverage = analyzeRuntimeCoverage(options.rootDir, changedSourceFiles);
   const securityScan = scanSecurityCandidates({
-    files: changedSourceFiles.map((change) => ({
+    files: parserSupportedSourceFiles.map((change) => ({
       path: change.path,
       content: readChangeContent(options.rootDir, change)
     }))
@@ -52,7 +56,7 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
   impactedAreas.push(...areaAnalysis.impactedAreas);
   findings.push(...areaAnalysis.findings);
 
-  const routeImpacts = analyzeRouteImpacts(options.rootDir, changedSourceFiles);
+  const routeImpacts = analyzeRouteImpacts(options.rootDir, parserSupportedSourceFiles);
   impactedRoutes.push(...routeImpacts.impactedRoutes);
   findings.push(...routeImpacts.findings);
   recommendedTests.push(...routeImpacts.recommendedTests);
@@ -81,12 +85,13 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
   const testAudit = detectWeakTests(options.rootDir, changedTestFiles, changedSourceFiles);
   findings.push(...testAudit.findings);
   recommendedTests.push(...testAudit.recommendedTests);
-  findings.push(...detectFunctionMetricFindings(options.rootDir, changedSourceFiles));
+  findings.push(...detectFunctionMetricFindings(options.rootDir, parserSupportedSourceFiles));
 
   const result: AnalyzerResult = {
     findings: dedupeFindings(findings),
     impactedAreas,
     impactedRoutes: mergeImpactedRoutes(impactedRoutes),
+    languageAnalysis,
     securityAnalysis: {
       scannedFiles: securityScan.scannedFiles,
       candidateCount: securityScan.candidates.length,

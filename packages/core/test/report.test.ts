@@ -82,6 +82,20 @@ describe("createAnalysisReport", () => {
         candidateCount: 1,
         skippedFiles: []
       },
+      languageAnalysis: {
+        files: [
+          {
+            path: "src/auth/session.ts",
+            language: "typescript",
+            status: "supported",
+            parser: "typescript-estree",
+            capabilities: ["path-classification", "route-impact", "security-matchers"]
+          }
+        ],
+        supportedFiles: ["src/auth/session.ts"],
+        limitedFiles: [],
+        unsupportedFiles: []
+      },
       recommendedTests: ["src/auth/session.test.ts"]
     };
 
@@ -100,6 +114,7 @@ describe("createAnalysisReport", () => {
     expect(report.summary.mergeRiskBreakdown?.contributors.length).toBeGreaterThan(0);
     expect(report.summary.decayBreakdown?.contributors.length).toBeGreaterThan(0);
     expect(report.summary.securityBreakdown?.contributors[0]?.ruleId).toBe("security-sql-injection");
+    expect(report.languageAnalysis?.supportedFiles).toEqual(["src/auth/session.ts"]);
     expect(report.securityCandidates?.[0]?.cwe).toBe("CWE-89");
     expect(report.securityAnalysis?.scannedFiles).toEqual(["src/auth/session.ts"]);
     expect(report.impactedRoutes).toEqual([

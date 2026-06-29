@@ -6,6 +6,7 @@ import {
   appendFindings,
   appendImpactedAreas,
   appendImpactedRoutes,
+  appendLanguageAnalysis,
   appendProductFailureBundles,
   appendRecommendedChecks,
   appendReportNotes,
@@ -30,6 +31,7 @@ export function renderMarkdownReport(report: CodeDecayReport): string {
   appendChangedFiles(lines, report);
   appendImpactedAreas(lines, report);
   appendImpactedRoutes(lines, report);
+  appendLanguageAnalysis(lines, report.languageAnalysis);
   appendScoreBreakdown(lines, "Merge Risk Breakdown", report.summary.mergeRiskBreakdown);
   appendScoreBreakdown(lines, "Decay Risk Breakdown", report.summary.decayBreakdown);
   appendScoreBreakdown(lines, "Security Risk Breakdown", report.summary.securityBreakdown);

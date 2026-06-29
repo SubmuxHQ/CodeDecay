@@ -90,6 +90,7 @@ Reports include:
 - `mergeRiskBreakdown`
 - `decayBreakdown`
 - `securityBreakdown`
+- `languageAnalysis`
 
 Each breakdown records:
 
@@ -97,6 +98,10 @@ Each breakdown records:
 - whether the contributor is `direct`, `heuristic`, or `structural`
 - any dampeners that lowered the final score
 - notes about severity caps or heuristic-only handling
+
+`languageAnalysis` records which changed source files had full parser-backed
+support, which files were analyzed with limited path/diff/coverage/test-audit
+signals, and which files have no registered parser support yet.
 
 This is meant to answer two questions quickly:
 
