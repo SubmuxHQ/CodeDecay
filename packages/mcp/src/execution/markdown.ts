@@ -1,5 +1,5 @@
-import type { AdapterStatus } from "@submuxhq/codedecay-adapters";
-import type { Evidence } from "@submuxhq/codedecay-harness";
+import { formatExecutionStatus } from "./format";
+import { appendOutputBlock, appendToolEvidence } from "./markdown-sections";
 import type { McpExecutionReport } from "./types";
 
 export function renderMcpExecutionMarkdown(report: McpExecutionReport): string {
@@ -75,54 +75,4 @@ export function renderMcpExecutionMarkdown(report: McpExecutionReport): string {
   lines.push("");
 
   return `${lines.join("\n")}\n`;
-}
-
-function appendToolEvidence(lines: string[], evidence: Evidence[]): void {
-  if (evidence.length === 0) {
-    return;
-  }
-
-  lines.push("  - Evidence:");
-  for (const item of evidence.slice(0, 5)) {
-    lines.push(`    - ${formatEvidenceSeverity(item.severity)} ${item.kind}: ${item.summary}`);
-  }
-}
-
-function appendOutputBlock(lines: string[], label: string, output: string): void {
-  const trimmed = output.trim();
-  if (!trimmed) {
-    return;
-  }
-
-  lines.push(`  - ${label}:`);
-  lines.push("    ```text");
-  for (const line of trimLongOutput(trimmed).split(/\r?\n/)) {
-    lines.push(`    ${line}`);
-  }
-  lines.push("    ```");
-}
-
-function trimLongOutput(output: string): string {
-  const limit = 2000;
-  if (output.length <= limit) {
-    return output;
-  }
-
-  return `${output.slice(output.length - limit)}\n[output truncated to last ${limit} characters]`;
-}
-
-function formatExecutionStatus(status: AdapterStatus | "not_confirmed"): string {
-  if (status === "timed_out") {
-    return "Timed out";
-  }
-
-  if (status === "not_confirmed") {
-    return "Not confirmed";
-  }
-
-  return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
-}
-
-function formatEvidenceSeverity(severity: Evidence["severity"]): string {
-  return `${severity.charAt(0).toUpperCase()}${severity.slice(1)}`;
 }
