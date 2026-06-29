@@ -1,22 +1,33 @@
 #!/usr/bin/env node
-import { createHash } from "node:crypto";
-import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
-  rmSync,
   statSync,
   writeFileSync
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { createRunId, splitCommand } from "./lib/args.mjs";
+import {
+  capitalize,
+  escapeTable,
+  firstLines,
+  parseJson,
+  resetDir,
+  sha256,
+  shellQuote,
+  writeFiles,
+  writeTextFile
+} from "./lib/files.mjs";
+import { initFixtureGitRepo, runGit as git, runGitOutput as gitOutput } from "./lib/git.mjs";
+import { runCommand } from "./lib/process.mjs";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const options = parseArgs(process.argv.slice(2));
-const runId = options.runId ?? new Date().toISOString().replaceAll(":", "-").replace(/\.\d{3}Z$/, "Z");
+const runId = options.runId ?? createRunId();
 const outputRoot = resolve(repoRoot, options.outputDir ?? ".codedecay/local/end-user-demo");
 const runDir = resolve(outputRoot, runId);
 const logsDir = join(runDir, "logs");
@@ -423,21 +434,15 @@ function recordCommand(input) {
 }
 
 function recordProcess(input) {
-  const startedAt = Date.now();
   const command = input.command;
-  const result = spawnSync(command[0], command.slice(1), {
+  const { durationMs, exitCode, signal, stdout, stderr, error } = runCommand(command[0], command.slice(1), {
     cwd: input.cwd,
-    encoding: "utf8",
-    timeout: input.timeoutMs ?? 120_000,
+    timeoutMs: input.timeoutMs ?? 120_000,
     env: {
       ...process.env,
       NO_COLOR: "1"
     }
   });
-  const durationMs = Date.now() - startedAt;
-  const exitCode = typeof result.status === "number" ? result.status : result.signal ? 1 : 2;
-  const stdout = result.stdout ?? "";
-  const stderr = result.stderr ?? "";
   const stdoutPath = join(logsDir, `${input.id}.stdout.txt`);
   const stderrPath = join(logsDir, `${input.id}.stderr.txt`);
   writeFileSync(stdoutPath, stdout, "utf8");
@@ -448,7 +453,7 @@ function recordProcess(input) {
   const expectedExit = input.expectedExitCodes.includes(exitCode);
   const stdoutEmptyOk = !input.expectStdoutEmpty || stdout.trim().length === 0;
   const outputsOk = outputFiles.every((file) => file.exists && (!file.parseJson || file.parsedJsonOk));
-  const status = expectedExit && stdoutEmptyOk && outputsOk && !result.error ? "pass" : "fail";
+  const status = expectedExit && stdoutEmptyOk && outputsOk && !error ? "pass" : "fail";
 
   const commandLog = {
     id: input.id,
@@ -459,7 +464,7 @@ function recordProcess(input) {
     cwd: input.cwd,
     expectedExitCodes: input.expectedExitCodes,
     exitCode,
-    signal: result.signal ?? undefined,
+    signal,
     durationMs,
     stdout,
     stderr,
@@ -467,7 +472,7 @@ function recordProcess(input) {
     stderrPath: relative(runDir, stderrPath),
     parsedStdout,
     outputFiles,
-    error: result.error ? String(result.error) : undefined
+    error
   };
 
   runLog.commands.push(commandLog);
@@ -807,7 +812,7 @@ function createLowRiskRepo(root) {
     ".gitignore": "codedecay-output/\n"
   });
   initGitRepo(root);
-  writeFile(root, "README.md", "# Low risk demo\n\nDocs-only change.\n");
+  writeTextFile(root, "README.md", "# Low risk demo\n\nDocs-only change.\n");
 }
 
 function createMediumRiskRepo(root) {
@@ -815,18 +820,36 @@ function createMediumRiskRepo(root) {
   writeFiles(root, {
     "src/app/dashboard/page.tsx": "export default function Page() { return <main>Dashboard</main>; }\n",
     "src/app/settings/page.tsx": "export default function Page() { return <main>Settings</main>; }\n",
+    "src/app/reports/page.tsx": "export default function Page() { return <main>Reports</main>; }\n",
+    "src/app/profile/page.tsx": "export default function Page() { return <main>Profile</main>; }\n",
+    "src/app/billing/page.tsx": "export default function Page() { return <main>Billing</main>; }\n",
     ".gitignore": "codedecay-output/\n"
   });
   initGitRepo(root);
-  writeFile(
+  writeTextFile(
     root,
     "src/app/dashboard/page.tsx",
     "export default function Page() { return <main>Dashboard changed</main>; }\n"
   );
-  writeFile(
+  writeTextFile(
     root,
     "src/app/settings/page.tsx",
     "export default function Page() { return <main>Settings changed</main>; }\n"
+  );
+  writeTextFile(
+    root,
+    "src/app/reports/page.tsx",
+    "export default function Page() { return <main>Reports changed</main>; }\n"
+  );
+  writeTextFile(
+    root,
+    "src/app/profile/page.tsx",
+    "export default function Page() { return <main>Profile changed</main>; }\n"
+  );
+  writeTextFile(
+    root,
+    "src/app/billing/page.tsx",
+    "export default function Page() { return <main>Billing changed</main>; }\n"
   );
 }
 
@@ -1113,48 +1136,8 @@ function scriptReadBehavior(body) {
 }
 
 function initGitRepo(root) {
-  git(root, ["init", "-b", "main"]);
-  git(root, ["config", "user.email", "codedecay@example.com"]);
-  git(root, ["config", "user.name", "CodeDecay Demo"]);
-  git(root, ["add", "."]);
-  git(root, ["commit", "-m", "baseline"]);
+  initFixtureGitRepo(root);
   runLog.setup.push({ step: "init-git-repo", root });
-}
-
-function git(root, args) {
-  const result = spawnSync("git", ["-C", root, ...args], {
-    encoding: "utf8"
-  });
-  if (result.status !== 0) {
-    throw new Error(`git ${args.join(" ")} failed in ${root}: ${result.stderr || result.stdout}`);
-  }
-}
-
-function gitOutput(root, args) {
-  const result = spawnSync("git", ["-C", root, ...args], {
-    encoding: "utf8"
-  });
-  if (result.status !== 0) {
-    throw new Error(`git ${args.join(" ")} failed in ${root}: ${result.stderr || result.stdout}`);
-  }
-  return result.stdout;
-}
-
-function writeFiles(root, files) {
-  for (const [path, contents] of Object.entries(files)) {
-    writeFile(root, path, contents);
-  }
-}
-
-function writeFile(root, path, contents) {
-  const fullPath = join(root, path);
-  mkdirSync(dirname(fullPath), { recursive: true });
-  writeFileSync(fullPath, contents, "utf8");
-}
-
-function resetDir(path) {
-  rmSync(path, { recursive: true, force: true });
-  mkdirSync(path, { recursive: true });
 }
 
 function writeRunLog() {
@@ -1216,45 +1199,6 @@ function printResult() {
   console.log(`CodeDecay end-user demo ${runLog.status}.`);
   console.log(`JSON log: ${join(runDir, "run.json")}`);
   console.log(`Summary: ${join(runDir, "summary.md")}`);
-}
-
-function parseJson(value) {
-  try {
-    return { ok: true, value: JSON.parse(value) };
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : String(error)
-    };
-  }
-}
-
-function sha256(buffer) {
-  return createHash("sha256").update(buffer).digest("hex");
-}
-
-function firstLines(value, count) {
-  return value.split(/\r?\n/).slice(0, count).join("\n");
-}
-
-function shellQuote(value) {
-  if (/^[A-Za-z0-9_./:=@-]+$/.test(value)) {
-    return value;
-  }
-
-  return `'${value.replaceAll("'", "'\\''")}'`;
-}
-
-function escapeTable(value) {
-  return String(value).replaceAll("|", "\\|").replace(/\s+/g, " ").trim();
-}
-
-function splitCommand(value) {
-  return value.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g)?.map((part) => part.replace(/^["']|["']$/g, "")) ?? [];
-}
-
-function capitalize(value) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function parseArgs(args) {
