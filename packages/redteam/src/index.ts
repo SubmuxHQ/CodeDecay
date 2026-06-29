@@ -10,13 +10,13 @@ import {
   type RiskLevel
 } from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
-import type { LoadedCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import {
   createTestProofAudit,
   weakTestRuleIds as testAuditWeakTestRuleIds,
   type TestProofAudit
 } from "@submuxhq/codedecay-test-audit";
 import { collectConfiguredChecks, collectToolAdapterPlans } from "./checks";
+import { summarizeMemory, summarizeSkills } from "./context";
 import { createRedteamSafetySummary } from "./safety";
 import type {
   RedteamConfiguredCheck,
@@ -213,32 +213,6 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
   );
 
   return `${lines.join("\n")}\n`;
-}
-
-function summarizeMemory(memory: CodeDecayMemory, sourcePath: string | undefined): RedteamMemorySummary {
-  const summary: RedteamMemorySummary = {
-    flows: memory.flows.length,
-    commands: memory.commands.length,
-    invariants: memory.invariants.length,
-    architecture: memory.architecture.length,
-    regressions: memory.regressions.length
-  };
-
-  if (sourcePath) {
-    summary.sourcePath = sourcePath;
-  }
-
-  return summary;
-}
-
-function summarizeSkills(loadedSkills: LoadedCodeDecaySkills | undefined): RedteamSkillSummary[] {
-  return (loadedSkills?.skills ?? []).map((skill) => ({
-    id: skill.id,
-    title: skill.title,
-    path: skill.path,
-    summary: skill.summary,
-    untrusted: true
-  }));
 }
 
 function suggestEdgeCases(report: CodeDecayReport): string[] {
