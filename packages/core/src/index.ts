@@ -1,4 +1,16 @@
 export { dedupeStrings } from "./collections";
+export {
+  auditProjectPath,
+  CODEDECAY_AUDIT_DATA_DIR,
+  CODEDECAY_AUDIT_SCHEMA_VERSION,
+  createAuditContentHash,
+  createAuditProjectRecord,
+  loadAuditProjectRecord,
+  sanitizeAuditProjectId,
+  saveAuditProjectRecord,
+  upsertAuditFileRecord,
+  upsertAuditRun
+} from "./audit";
 export { findingCounts, sortFindings } from "./findings";
 export { productFailureBundlesFromProductTargetReport } from "./product-failures";
 export { compareRiskLevels, riskLevelFromScore, shouldFailForRisk } from "./risk";
@@ -8,6 +20,13 @@ export type { ScoreBreakdown, ScoreContributor, ScoreEvidenceKind } from "./scor
 export { CODEDECAY_PRODUCT_LATEST_REPORT_PATH } from "./types";
 export type {
   AnalyzerResult,
+  AuditFileHistoryEntry,
+  AuditFileRecord,
+  AuditFileStatus,
+  AuditLockMetadata,
+  AuditProjectRecord,
+  AuditRunRecord,
+  AuditRunStatus,
   ChangedLine,
   ChangedSourceCoverage,
   ChangedSourceCoverageStatus,

@@ -11,6 +11,15 @@ export type {
   ProductFailureTarget
 } from "./product-failures/types";
 export type { AnalyzerResult } from "./types/analysis";
+export type {
+  AuditFileHistoryEntry,
+  AuditFileRecord,
+  AuditFileStatus,
+  AuditLockMetadata,
+  AuditProjectRecord,
+  AuditRunRecord,
+  AuditRunStatus
+} from "./audit";
 export type { ChangedLine, FileChange, FileStatus } from "./types/file-change";
 export type { Finding, FindingCategory } from "./types/findings";
 export type { ImpactedArea, ImpactedRoute } from "./types/impact";
