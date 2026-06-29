@@ -1,43 +1,13 @@
-import {
-  compareRiskLevels,
-  type CodeDecayReport,
-  type Finding,
-  type ImpactedArea,
-  type RiskLevel
-} from "@submuxhq/codedecay-core";
+import type { CodeDecayReport, Finding } from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
-import { weakTestRuleIds as testAuditWeakTestRuleIds } from "@submuxhq/codedecay-test-audit";
 import type {
   RedteamConfiguredCheck,
   RedteamFixTask,
   RedteamSkillSummary,
   RedteamToolAdapterPlan
 } from "./types";
-
-const WEAK_TEST_RULES = new Set(testAuditWeakTestRuleIds());
-
-const EDGE_CASE_TASK_RULES: Array<{ title: string; keywords: string[] }> = [
-  {
-    title: "Add auth negative-path proof",
-    keywords: ["auth", "credential", "privilege", "denied"]
-  },
-  {
-    title: "Exercise the real API boundary",
-    keywords: ["api", "route", "payload"]
-  },
-  {
-    title: "Verify database and schema behavior",
-    keywords: ["schema", "database", "migration", "record"]
-  },
-  {
-    title: "Verify runtime configuration behavior",
-    keywords: ["config", "environment", "build", "start"]
-  },
-  {
-    title: "Strengthen test proof",
-    keywords: ["test", "coverage", "assertion", "mock"]
-  }
-];
+import { dedupeTasks, edgeCasePriority, edgeCaseTaskTitle } from "./fix-tasks/helpers";
+import { WEAK_TEST_RULES } from "./fix-tasks/rules";
 
 export function createFixTasks(input: {
   analysisReport: CodeDecayReport;
@@ -130,52 +100,4 @@ export function createFixTasks(input: {
   }
 
   return dedupeTasks(tasks).slice(0, 20);
-}
-
-function edgeCaseTaskTitle(edgeCase: string): string {
-  const lower = edgeCase.toLowerCase();
-
-  for (const rule of EDGE_CASE_TASK_RULES) {
-    if (rule.keywords.some((keyword) => lower.includes(keyword))) {
-      return rule.title;
-    }
-  }
-
-  return "Add concrete edge-case proof";
-}
-
-function edgeCasePriority(areas: ImpactedArea[]): RiskLevel {
-  if (areas.some((area) => area.risk === "high")) {
-    return "high";
-  }
-
-  if (areas.some((area) => area.risk === "medium")) {
-    return "medium";
-  }
-
-  return "low";
-}
-
-function dedupeTasks(tasks: RedteamFixTask[]): RedteamFixTask[] {
-  const seen = new Set<string>();
-  const deduped: RedteamFixTask[] = [];
-
-  for (const task of tasks) {
-    const key = `${task.title}:${task.detail}:${task.file ?? ""}:${task.line ?? ""}`;
-    if (seen.has(key)) {
-      continue;
-    }
-
-    seen.add(key);
-    deduped.push(task);
-  }
-
-  return deduped.sort((left, right) => {
-    const risk = compareRiskLevels(right.priority, left.priority);
-    if (risk !== 0) {
-      return risk;
-    }
-
-    return left.title.localeCompare(right.title);
-  });
 }
