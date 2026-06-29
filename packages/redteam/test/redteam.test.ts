@@ -4,6 +4,7 @@ import { createAnalysisReport, type AnalyzerResult, type FileChange } from "@sub
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
 import { createRedteamReport, renderRedteamReport, weakTestRuleIds } from "../src/index";
 import { summarizeMemory, summarizeSkills } from "../src/context";
+import { suggestEdgeCases } from "../src/edge-cases";
 import { createRedteamSafetySummary } from "../src/safety";
 
 describe("redteam report", () => {
@@ -177,6 +178,29 @@ describe("redteam report", () => {
       }
     ]);
     expect(summarizeSkills(undefined)).toEqual([]);
+  });
+
+  it("suggests deterministic edge cases from impacted areas and recommended tests", () => {
+    expect(suggestEdgeCases(createFixtureAnalysisReport())).toEqual(
+      expect.arrayContaining([
+        "Check missing, expired, malformed, and privilege-escalation credentials.",
+        "Check whether changed tests exercise real production boundaries or only mocked helper logic.",
+        "Run or strengthen src/auth/session.test.ts with negative, malformed, boundary, or integration coverage."
+      ])
+    );
+    expect(
+      suggestEdgeCases(
+        createAnalysisReport({
+          changedFiles: [],
+          analyzerResult: {
+            impactedAreas: [],
+            findings: [],
+            recommendedTests: []
+          },
+          generatedAt: "2026-01-01T00:00:00.000Z"
+        })
+      )
+    ).toEqual(["Run the relevant unit, integration, and smoke checks for changed packages."]);
   });
 
   it("summarizes missing-test findings separately from weak-test findings", () => {
