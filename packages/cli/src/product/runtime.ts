@@ -1,14 +1,9 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import type { CodeDecayProductTarget, LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import { CODEDECAY_VERSION, type CodeDecayReport, type FileChange } from "@submuxhq/codedecay-core";
-import {
-  checkCommandSafety,
-  runConfiguredCommand,
-  type CommandExecutionResult
-} from "@submuxhq/codedecay-execution";
+import type { CommandExecutionResult } from "@submuxhq/codedecay-execution";
 import { getRepoRoot } from "@submuxhq/codedecay-git";
 import { loadCodeDecayMemory, type CodeDecayMemory, type MemoryMatcher } from "@submuxhq/codedecay-memory";
 import {
@@ -36,6 +31,8 @@ import {
   isProductTargetFailure,
   productStatusFromRequiredCommand
 } from "./runtime/summary";
+import { runProductOneShotCommand, startManagedProductProcess, stopManagedProductProcess } from "./runtime/service";
+import { delay, elapsed } from "./runtime/timing";
 import type {
   CliAnalysisContext,
   ManagedProductProcess,
@@ -329,135 +326,6 @@ function createProductTargetResult(
   }
 
   return result;
-}
-
-async function runProductOneShotCommand(
-  rootDir: string,
-  loadedConfig: LoadedCodeDecayConfig,
-  command: string,
-  timeoutMs: number
-): Promise<CommandExecutionResult> {
-  return await runConfiguredCommand({
-    command,
-    cwd: rootDir,
-    timeoutMs,
-    safety: {
-      allowCommands: loadedConfig.config.safety.allowCommands
-    }
-  });
-}
-
-async function startManagedProductProcess(
-  rootDir: string,
-  loadedConfig: LoadedCodeDecayConfig,
-  command: string,
-  timeoutMs: number
-): Promise<ManagedProductProcess> {
-  const startedAt = Date.now();
-  if (!loadedConfig.config.safety.allowCommands) {
-    return {
-      command,
-      status: "blocked",
-      durationMs: 0,
-      stdout: "",
-      stderr: "Product target startup is disabled by config safety.allowCommands.",
-      blockedReason: "safety.allowCommands is false"
-    };
-  }
-
-  const safety = checkCommandSafety(command);
-  if (!safety.safe) {
-    const message = `Command was blocked by CodeDecay safety policy: ${safety.reason}.`;
-    return {
-      command,
-      status: "blocked",
-      durationMs: 0,
-      stdout: "",
-      stderr: message,
-      error: message,
-      blockedReason: safety.reason
-    };
-  }
-
-  let stdout = "";
-  let stderr = "";
-  let spawnError: Error | undefined;
-  const child = spawn(command, {
-    cwd: rootDir,
-    shell: true,
-    env: {
-      ...process.env,
-      CI: process.env.CI ?? "1"
-    }
-  });
-
-  child.stdout.on("data", (chunk: Buffer) => {
-    stdout = appendLimitedOutput(stdout, chunk.toString("utf8"), 16 * 1024);
-  });
-
-  child.stderr.on("data", (chunk: Buffer) => {
-    stderr = appendLimitedOutput(stderr, chunk.toString("utf8"), 16 * 1024);
-  });
-
-  child.on("error", (error) => {
-    spawnError = error;
-  });
-
-  await delay(Math.min(250, Math.max(50, Math.floor(timeoutMs / 10))));
-
-  if (spawnError) {
-    return {
-      command,
-      status: "error",
-      durationMs: elapsed(startedAt),
-      stdout,
-      stderr,
-      error: spawnError.message
-    };
-  }
-
-  if (child.exitCode !== null) {
-    return {
-      command,
-      status: "error",
-      durationMs: elapsed(startedAt),
-      stdout,
-      stderr,
-      error: `Start command exited early with code ${child.exitCode}.`
-    };
-  }
-
-  return {
-    command,
-    status: "started",
-    durationMs: elapsed(startedAt),
-    stdout,
-    stderr,
-    pid: child.pid,
-    child
-  };
-}
-
-async function stopManagedProductProcess(child: ChildProcessWithoutNullStreams): Promise<void> {
-  if (child.exitCode !== null || child.killed) {
-    return;
-  }
-
-  await new Promise<void>((resolvePromise) => {
-    const timeout = setTimeout(() => {
-      if (child.exitCode === null && !child.killed) {
-        child.kill("SIGKILL");
-      }
-      resolvePromise();
-    }, 1000);
-
-    child.once("close", () => {
-      clearTimeout(timeout);
-      resolvePromise();
-    });
-
-    child.kill("SIGTERM");
-  });
 }
 
 async function pollProductHealth(url: string, timeoutMs: number): Promise<ProductHealthResult> {
@@ -826,27 +694,6 @@ function findImpactedProductFiles(rootDir: string, dependencies: ProductRuntimeD
   } catch {
     return [];
   }
-}
-
-function appendLimitedOutput(existing: string, next: string, limit: number): string {
-  const combined = `${existing}${next}`;
-  if (combined.length <= limit) {
-    return combined;
-  }
-
-  return combined.slice(combined.length - limit);
-}
-
-async function delay(ms: number): Promise<void> {
-  if (ms <= 0) {
-    return;
-  }
-
-  await new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
-}
-
-function elapsed(startedAt: number): number {
-  return Math.max(0, Date.now() - startedAt);
 }
 
 function writeOutput(cwd: string, path: string, contents: string): void {
