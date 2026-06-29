@@ -120,6 +120,8 @@ importers:
 
   packages/harness: {}
 
+  packages/knowledge: {}
+
   packages/llm:
     dependencies:
       '@submuxhq/codedecay-config':
@@ -199,6 +201,9 @@ importers:
       '@submuxhq/codedecay-core':
         specifier: workspace:*
         version: link:../core
+      '@submuxhq/codedecay-knowledge':
+        specifier: workspace:*
+        version: link:../knowledge
       '@submuxhq/codedecay-memory':
         specifier: workspace:*
         version: link:../memory

@@ -36,7 +36,7 @@ describe("redteam report assembly and rendering", () => {
       testProofStatus: "weak",
       configuredChecks: 2,
       toolAdapters: 3,
-      patternInsights: 2,
+      patternInsights: 3,
       productFailureBundles: 1,
       skills: 1
     });
@@ -49,6 +49,9 @@ describe("redteam report assembly and rendering", () => {
     });
     expect(report.edgeCases).toContain("Check missing, expired, malformed, and privilege-escalation credentials.");
     expect(report.edgeCases).toContain("Check missing, expired, malformed, replayed, and wrong-scope credentials.");
+    expect(report.edgeCases).toContain(
+      "Check decoded token trusted before signature verification: Look for jwt.decode, decodeJwt, atob, or manual base64 claim parsing feeding auth decisions, session objects, or request context."
+    );
     expect(report.edgeCases).toContain("Add an API-level session regression test");
     expect(report.edgeCases).toContain(
       "Run or strengthen src/auth/session.test.ts with negative, malformed, boundary, or integration coverage."
@@ -94,9 +97,11 @@ describe("redteam report assembly and rendering", () => {
     expect(report.patternInsights.map((pattern) => pattern.id)).toEqual(
       expect.arrayContaining(["owasp-auth-session-negative-paths", "mutation-tested-test-quality"])
     );
+    expect(report.patternInsights.map((pattern) => pattern.id)).toContain("knowledge-jwt-auth");
     expect(report.fixTasks.map((task) => task.title)).toEqual(
       expect.arrayContaining([
         "Apply pattern: Auth and session boundaries fail closed",
+        "Apply pattern: JWT authentication edge cases",
         "Add auth negative-path proof",
         "Exercise the real API boundary",
         "Strengthen test proof",
@@ -124,7 +129,7 @@ describe("redteam report assembly and rendering", () => {
     expect(json.summary.impactedRoutes).toBe(1);
     expect(json.summary.missingTestFindings).toBe(0);
     expect(json.summary.productFailureBundles).toBe(1);
-    expect(json.summary.patternInsights).toBe(2);
+    expect(json.summary.patternInsights).toBe(3);
     expect(json.patternInsights[0].trust).toBe("pattern-pack");
     expect(json.analysis.impactedRoutes[0]).toMatchObject({
       framework: "nextjs",
@@ -148,6 +153,8 @@ describe("redteam report assembly and rendering", () => {
     expect(markdown).toContain("### Pattern Intelligence");
     expect(markdown).toContain("Pattern-pack guidance is local curated context, not proof.");
     expect(markdown).toContain("OWASP Authentication Cheat Sheet");
+    expect(markdown).toContain("JWT authentication edge cases");
+    expect(markdown).toContain("https://www.rfc-editor.org/rfc/rfc8725.html");
     expect(markdown).toContain("Playwright");
     expect(markdown).toContain("Schemathesis");
     expect(markdown).toContain("PR Red-Team Skill");

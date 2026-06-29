@@ -137,6 +137,7 @@ describe("unified harness planted issue corpus", () => {
       "security-path-traversal",
       "security-ssrf",
       "security-command-injection",
+      "security-jwt-unsafe-verification",
       "security-unsafe-html",
       "risky-api-change",
       "risky-auth-change",
@@ -192,6 +193,60 @@ describe("unified harness planted issue corpus", () => {
     expect(redteam.summary.weakTestFindings).toBeGreaterThanOrEqual(2);
     expect(redteam.summary.missingTestFindings + missingTestRedteam.summary.missingTestFindings).toBeGreaterThanOrEqual(1);
     expect(redteam.safety).toMatchObject({
+      llmCalled: false,
+      telemetrySent: false,
+      cloudDependency: false
+    });
+  });
+
+  it("reports jwt-auth deterministic coverage and decoy false-positive rate", async () => {
+    const riskyRepo = createJwtAuthPlantedIssueRepo();
+    const decoyRepo = createJwtAuthDecoyRepo();
+    const riskyResult = await run(["redteam", "--format", "json"], riskyRepo);
+    const decoyResult = await run(["redteam", "--format", "json"], decoyRepo);
+    const riskyReport = JSON.parse(riskyResult.stdout) as {
+      analysis: { securityCandidates?: Array<{ ruleId: string }> };
+      patternInsights: Array<{ id: string }>;
+      safety: { llmCalled: boolean; telemetrySent: boolean; cloudDependency: boolean };
+    };
+    const decoyReport = JSON.parse(decoyResult.stdout) as {
+      analysis: { securityCandidates?: Array<{ ruleId: string }> };
+    };
+    const riskyJwtCandidates = (riskyReport.analysis.securityCandidates ?? []).filter(
+      (candidate) => candidate.ruleId === "security-jwt-unsafe-verification"
+    );
+    const decoyJwtCandidates = (decoyReport.analysis.securityCandidates ?? []).filter(
+      (candidate) => candidate.ruleId === "security-jwt-unsafe-verification"
+    );
+    const metrics = {
+      area: "jwt-auth",
+      deterministicExpected: 2,
+      deterministicMatched: Math.min(riskyJwtCandidates.length, 2),
+      deterministicRecall: Math.min(riskyJwtCandidates.length, 2) / 2,
+      decoys: 2,
+      falsePositives: decoyJwtCandidates.length,
+      falsePositiveRate: decoyJwtCandidates.length / 2,
+      investigateOnlyCases: 4,
+      providerCalls: 0
+    };
+
+    expect(riskyResult.exitCode).toBe(0);
+    expect(decoyResult.exitCode).toBe(0);
+    expect(riskyResult.stderr).toBe("");
+    expect(decoyResult.stderr).toBe("");
+    expect(riskyReport.patternInsights.map((pattern) => pattern.id)).toContain("knowledge-jwt-auth");
+    expect(metrics).toEqual({
+      area: "jwt-auth",
+      deterministicExpected: 2,
+      deterministicMatched: 2,
+      deterministicRecall: 1,
+      decoys: 2,
+      falsePositives: 0,
+      falsePositiveRate: 0,
+      investigateOnlyCases: 4,
+      providerCalls: 0
+    });
+    expect(riskyReport.safety).toMatchObject({
       llmCalled: false,
       telemetrySent: false,
       cloudDependency: false
@@ -328,6 +383,7 @@ function createUnifiedHarnessPlantedIssueRepo(): string {
     "src/api/archive.ts": "export function archive() { return 'ok'; }\n",
     "app/api/admin/route.ts": "export async function POST(request: Request) { return Response.json({ ok: true }); }\n",
     "src/auth/session.ts": "export function requireAdmin(session) { return session?.role === 'admin'; }\n",
+    "src/auth/jwt.ts": "export function readClaims(jwt, token) { return jwt.verify(token, 'secret'); }\n",
     "src/config/secrets.ts": "export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;\n",
     "src/db/schema.prisma": "model User { id String @id role String @default(\"member\") }\n",
     "next.config.js": "export default { reactStrictMode: true };\n",
@@ -417,6 +473,23 @@ function createUnifiedHarnessPlantedIssueRepo(): string {
       ""
     ].join("\n")
   );
+  writeFile(
+    repo,
+    "src/auth/jwt.ts",
+    [
+      "import jwt from 'jsonwebtoken';",
+      "",
+      "export function readClaims(token) {",
+      "  const claims = jwt.decode(token);",
+      "  return { userId: claims.sub, role: claims.role };",
+      "}",
+      "",
+      "export function verifyLegacy(token, secret) {",
+      "  return jwt.verify(token, secret, { ignoreExpiration: true });",
+      "}",
+      ""
+    ].join("\n")
+  );
   writeFile(repo, "src/config/secrets.ts", "export const STRIPE_SECRET_KEY = \"sk_live_1234567890abcdef\";\n");
   writeFile(repo, "src/db/schema.prisma", "model User { id String @id role String @default(\"admin\") }\n");
   writeFile(repo, "next.config.js", "export default { reactStrictMode: false, poweredByHeader: true };\n");
@@ -460,6 +533,55 @@ function createUnifiedHarnessPlantedIssueRepo(): string {
       ""
     ].join("\n")
   );
+
+  return repo;
+}
+
+function createJwtAuthPlantedIssueRepo(): string {
+  const repo = createRepo({
+    "src/auth/jwt.ts": "export function verify(token, publicKey) { return jwt.verify(token, publicKey, { algorithms: ['RS256'] }); }\n"
+  });
+
+  writeFile(
+    repo,
+    "src/auth/jwt.ts",
+    [
+      "import jwt from 'jsonwebtoken';",
+      "",
+      "export function authenticate(token, secret) {",
+      "  const claims = jwt.decode(token);",
+      "  return { userId: claims.sub, role: claims.role };",
+      "}",
+      "",
+      "export function verifyLegacy(token, secret) {",
+      "  return jwt.verify(token, secret, { algorithms: ['none'] });",
+      "}",
+      ""
+    ].join("\n")
+  );
+
+  return repo;
+}
+
+function createJwtAuthDecoyRepo(): string {
+  const repo = createRepo({
+    "src/auth/jwt.ts": "export function verify(token, publicKey) { return jwt.verify(token, publicKey, { algorithms: ['RS256'], issuer: 'issuer', audience: 'api' }); }\n",
+    "src/docs/jwt-notes.ts": "export const note = 'decode JWTs only for debugging, never for authentication';\n"
+  });
+
+  writeFile(
+    repo,
+    "src/auth/jwt.ts",
+    [
+      "import jwt from 'jsonwebtoken';",
+      "",
+      "export function verifyAccessToken(token, publicKey) {",
+      "  return jwt.verify(token, publicKey, { algorithms: ['RS256'], issuer: 'issuer', audience: 'api' });",
+      "}",
+      ""
+    ].join("\n")
+  );
+  writeFile(repo, "src/docs/jwt-notes.ts", "export const note = 'jwt.decode is for inspection only, not authentication';\n");
 
   return repo;
 }

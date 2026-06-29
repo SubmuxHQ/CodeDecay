@@ -14,9 +14,12 @@ The current benchmark set includes:
 - medium-risk behavior changes that should stay visible without being inflated
 - clearly risky auth or API changes that should remain high signal
 - a unified harness planted-issue corpus with SQL injection, hardcoded secret,
-  missing auth, path traversal, SSRF, command injection, unsafe HTML rendering,
+  missing auth, path traversal, SSRF, command injection, JWT unsafe verification,
+  unsafe HTML rendering,
   weak/fake tests, missing real API coverage, high complexity, duplicate logic,
   config changes, and database/schema regressions
+- a JWT-auth knowledge-pack template case with planted risky code and clean
+  decoys so deterministic recall and false-positive rate are measured together
 
 ## How It Is Enforced
 
@@ -27,6 +30,8 @@ The benchmark cases run in CI through the test suite. Each case locks:
 - key findings that must remain present
 - deterministic recall for planted security, regression, decay, and weak-test
   signals
+- deterministic recall and false-positive rate for knowledge-pack template
+  cases such as `jwt-auth`
 - skipped/capped file counts, unsupported-file limitations, duration, and cost
   metadata for the unified harness corpus
 

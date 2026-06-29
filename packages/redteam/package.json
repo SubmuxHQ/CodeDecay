@@ -14,6 +14,7 @@
   "dependencies": {
     "@submuxhq/codedecay-config": "workspace:*",
     "@submuxhq/codedecay-core": "workspace:*",
+    "@submuxhq/codedecay-knowledge": "workspace:*",
     "@submuxhq/codedecay-memory": "workspace:*",
     "@submuxhq/codedecay-skills": "workspace:*",
     "@submuxhq/codedecay-test-audit": "workspace:*",

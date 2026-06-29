@@ -111,4 +111,86 @@ describe("scanSecurityCandidates", () => {
     expect(result.candidates).toEqual([]);
     expect(result.findings).toEqual([]);
   });
+
+  it("does not self-match safe query calls as user-controlled SQL", () => {
+    const result = scanSecurityCandidates({
+      files: [
+        {
+          path: "src/db/report.ts",
+          content: [
+            "export async function loadReport(db) {",
+            "  return db.query('select * from reports where archived = false');",
+            "}",
+            ""
+          ].join("\n")
+        }
+      ]
+    });
+
+    expect(result.candidates.map((candidate) => candidate.ruleId)).not.toContain("security-sql-injection");
+  });
+
+  it("tracks simple function parameters into high-risk sinks", () => {
+    const result = scanSecurityCandidates({
+      files: [
+        {
+          path: "src/api/proxy.ts",
+          content: "export async function proxy(targetUrl) { return fetch(targetUrl); }\n"
+        },
+        {
+          path: "src/api/archive.ts",
+          content: "export function archive(command) { return exec(command); }\n"
+        },
+        {
+          path: "src/api/files.ts",
+          content: "export function readUpload(filePath) { return readFileSync(filePath, 'utf8'); }\n"
+        }
+      ]
+    });
+
+    expect(result.candidates.map((candidate) => candidate.ruleId)).toEqual(
+      expect.arrayContaining(["security-ssrf", "security-command-injection", "security-path-traversal"])
+    );
+  });
+
+  it("detects JWT decode-without-verify and unsafe verification options while avoiding safe decoys", () => {
+    const risky = scanSecurityCandidates({
+      files: [
+        {
+          path: "src/auth/session.ts",
+          content: [
+            "import jwt from 'jsonwebtoken';",
+            "export function session(token) {",
+            "  const claims = jwt.decode(token);",
+            "  return { id: claims.sub, role: claims.role };",
+            "}",
+            ""
+          ].join("\n")
+        },
+        {
+          path: "src/auth/verify.ts",
+          content: "jwt.verify(token, secret, { algorithms: ['none'] });\n"
+        }
+      ]
+    });
+
+    expect(risky.candidates.map((candidate) => candidate.ruleId)).toEqual(
+      expect.arrayContaining(["security-jwt-unsafe-verification"])
+    );
+
+    const decoy = scanSecurityCandidates({
+      files: [
+        {
+          path: "src/auth/session.ts",
+          content: "jwt.verify(token, publicKey, { algorithms: ['RS256'], audience: 'api', issuer: 'issuer' });\n"
+        },
+        {
+          path: "src/lib/token-display.ts",
+          content: "export const helpText = 'JWT decode means inspect only, not authenticate';\n"
+        }
+      ]
+    });
+
+    expect(decoy.candidates.map((candidate) => candidate.ruleId)).not.toContain("security-jwt-unsafe-verification");
+  });
 });

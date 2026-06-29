@@ -1,7 +1,15 @@
 import type { SecurityMatcher } from "./types";
-import { containsAny, createCandidate, hasRouteEntryPoint, lineMatches, maskStringLiterals } from "./utils";
+import {
+  containsAny,
+  createCandidate,
+  findParameterTaintedSinkLines,
+  hasRouteEntryPoint,
+  hasTemplateUserInputExpression,
+  hasUserInputMarker,
+  lineMatches,
+  maskStringLiterals
+} from "./utils";
 
-const USER_INPUT_MARKERS = ["req.", "request.", "params", "query", "body", "headers", "process.argv", "${"];
 const AUTH_MARKERS = ["auth", "session", "jwt", "token", "currentuser", "current_user", "requireuser", "requireauth", "isallowed"];
 
 export const sqlInjectionMatcher: SecurityMatcher = {
@@ -20,14 +28,18 @@ export const sqlInjectionMatcher: SecurityMatcher = {
     }
   ],
   match(context) {
-    return lineMatches(context.content, (line, lowerLine) => {
+    const directMatches = lineMatches(context.content, (line) => {
       const codeLine = maskStringLiterals(line).toLowerCase();
       return (
         codeLine.includes("$queryrawunsafe") ||
         codeLine.includes("$executerawunsafe") ||
-        ((codeLine.includes(".query(") || codeLine.includes("execute(")) && containsAny(codeLine, USER_INPUT_MARKERS))
+        ((codeLine.includes(".query(") || codeLine.includes("execute(")) &&
+          (hasUserInputMarker(codeLine) || hasTemplateUserInputExpression(line)))
       );
-    }).map((match) =>
+    });
+    const taintedMatches = findParameterTaintedSinkLines(context.content, [".query(", "execute(", "$queryrawunsafe", "$executerawunsafe"]);
+
+    return uniqueMatches([...directMatches, ...taintedMatches]).map((match) =>
       createCandidate({
         ...this,
         file: context.filePath,
@@ -100,11 +112,14 @@ export const commandInjectionMatcher: SecurityMatcher = {
     }
   ],
   match(context) {
-    return lineMatches(context.content, (line, lowerLine) => {
+    const directMatches = lineMatches(context.content, (line, lowerLine) => {
       const codeLine = maskStringLiterals(line).toLowerCase();
-      const usesUserInput = containsAny(codeLine, USER_INPUT_MARKERS) || lowerLine.includes("${");
+      const usesUserInput = hasUserInputMarker(codeLine) || lowerLine.includes("${");
       return containsAny(codeLine, ["exec(", "execsync(", "spawn("]) && usesUserInput;
-    }).map((match) =>
+    });
+    const taintedMatches = findParameterTaintedSinkLines(context.content, ["exec(", "execsync(", "spawn("]);
+
+    return uniqueMatches([...directMatches, ...taintedMatches]).map((match) =>
       createCandidate({
         ...this,
         file: context.filePath,
@@ -132,11 +147,19 @@ export const pathTraversalMatcher: SecurityMatcher = {
     }
   ],
   match(context) {
-    return lineMatches(context.content, (line) => {
+    const directMatches = lineMatches(context.content, (line) => {
       const codeLine = maskStringLiterals(line).toLowerCase();
       const fileAccess = containsAny(codeLine, ["readfile", "writefile", "createreadstream", "createwritestream"]);
-      return fileAccess && containsAny(codeLine, USER_INPUT_MARKERS);
-    }).map((match) =>
+      return fileAccess && hasUserInputMarker(codeLine);
+    });
+    const taintedMatches = findParameterTaintedSinkLines(context.content, [
+      "readfile",
+      "writefile",
+      "createreadstream",
+      "createwritestream"
+    ]);
+
+    return uniqueMatches([...directMatches, ...taintedMatches]).map((match) =>
       createCandidate({
         ...this,
         file: context.filePath,
@@ -164,11 +187,14 @@ export const ssrfMatcher: SecurityMatcher = {
     }
   ],
   match(context) {
-    return lineMatches(context.content, (line) => {
+    const directMatches = lineMatches(context.content, (line) => {
       const codeLine = maskStringLiterals(line).toLowerCase();
       const outbound = containsAny(codeLine, ["fetch(", "axios.get(", "axios.post(", "got(", "request("]);
-      return outbound && containsAny(codeLine, USER_INPUT_MARKERS);
-    }).map((match) =>
+      return outbound && hasUserInputMarker(codeLine);
+    });
+    const taintedMatches = findParameterTaintedSinkLines(context.content, ["fetch(", "axios.get(", "axios.post(", "got(", "request("]);
+
+    return uniqueMatches([...directMatches, ...taintedMatches]).map((match) =>
       createCandidate({
         ...this,
         file: context.filePath,
@@ -291,6 +317,46 @@ export const insecureCookieMatcher: SecurityMatcher = {
   }
 };
 
+export const jwtUnsafeVerificationMatcher: SecurityMatcher = {
+  ruleId: "security-jwt-unsafe-verification",
+  cwe: "CWE-347",
+  title: "Unsafe JWT verification candidate",
+  description: "JWT handling appears to trust decoded claims or disable important verification controls.",
+  severity: "high",
+  confidence: "direct",
+  languages: ["javascript", "typescript"],
+  filePatterns: ["**/*.{js,jsx,mjs,cjs,ts,tsx}"],
+  examples: [
+    {
+      filePath: "src/auth/session.ts",
+      content: "const claims = jwt.decode(token); return { userId: claims.sub, role: claims.role };"
+    },
+    {
+      filePath: "src/auth/session.ts",
+      content: "jwt.verify(token, secret, { ignoreExpiration: true });"
+    }
+  ],
+  match(context) {
+    return lineMatches(context.content, (line) => {
+      const codeLine = maskStringLiterals(line).toLowerCase();
+      const lowerLine = line.toLowerCase();
+      return (
+        containsAny(codeLine, ["jwt.decode(", "decodejwt("]) ||
+        (containsAny(codeLine, ["jwt.verify(", ".verify("]) &&
+          (lowerLine.includes("ignoreexpiration") || lowerLine.includes("algorithms") && lowerLine.includes("none")))
+      );
+    }).map((match) =>
+      createCandidate({
+        ...this,
+        file: context.filePath,
+        line: match.line,
+        snippet: match.text,
+        evidence: "JWT code decodes claims without verification or weakens verification options."
+      })
+    );
+  }
+};
+
 export const DEFAULT_SECURITY_MATCHERS: SecurityMatcher[] = [
   sqlInjectionMatcher,
   hardcodedSecretMatcher,
@@ -299,7 +365,8 @@ export const DEFAULT_SECURITY_MATCHERS: SecurityMatcher[] = [
   ssrfMatcher,
   unsafeHtmlMatcher,
   missingAuthEntryPointMatcher,
-  insecureCookieMatcher
+  insecureCookieMatcher,
+  jwtUnsafeVerificationMatcher
 ];
 
 function hasCredentialAssignment(codeLine: string): boolean {
@@ -315,4 +382,12 @@ function hasCredentialAssignment(codeLine: string): boolean {
     const assignmentWindow = compact.slice(markerIndex + marker.length, markerIndex + marker.length + 80);
     return assignmentWindow.includes("=") || assignmentWindow.includes(":");
   });
+}
+
+function uniqueMatches(matches: Array<{ line: number; text: string }>): Array<{ line: number; text: string }> {
+  const byKey = new Map<string, { line: number; text: string }>();
+  for (const match of matches) {
+    byKey.set(`${match.line}:${match.text}`, match);
+  }
+  return [...byKey.values()];
 }

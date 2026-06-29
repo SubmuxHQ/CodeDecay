@@ -14,6 +14,7 @@
       "@submuxhq/codedecay-adapters": ["packages/adapters/src/index.ts"],
       "@submuxhq/codedecay-execution": ["packages/execution/src/index.ts"],
       "@submuxhq/codedecay-harness": ["packages/harness/src/index.ts"],
+      "@submuxhq/codedecay-knowledge": ["packages/knowledge/src/index.ts"],
       "@submuxhq/codedecay-llm": ["packages/llm/src/index.ts"],
       "@submuxhq/codedecay-mcp": ["packages/mcp/src/index.ts"],
       "@submuxhq/codedecay-memory": ["packages/memory/src/index.ts"],

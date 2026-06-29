@@ -1,4 +1,5 @@
 import type { CodeDecayReport, ImpactedArea } from "@submuxhq/codedecay-core";
+import { matchKnowledgePacks, type KnowledgePack } from "@submuxhq/codedecay-knowledge";
 import type { RedteamPatternInsight } from "./types";
 
 interface PatternPackEntry {
@@ -208,5 +209,55 @@ export function matchPatternIntelligence(report: CodeDecayReport): RedteamPatter
     });
   }
 
+  insights.push(...matchKnowledgePatterns(report));
+
   return insights.sort((left, right) => left.title.localeCompare(right.title));
+}
+
+function matchKnowledgePatterns(report: CodeDecayReport): RedteamPatternInsight[] {
+  return matchKnowledgePacks({
+    impactedAreas: report.impactedAreas.map((area) => area.kind),
+    changedPaths: report.changedFiles.map((file) => file.path)
+  }).map(knowledgePackToPattern);
+}
+
+function knowledgePackToPattern(pack: KnowledgePack): RedteamPatternInsight {
+  return {
+    id: `knowledge-${pack.area}`,
+    title: pack.title,
+    areas: pack.match.impactedAreas,
+    edgeCases: pack.edgeCases
+      .slice(0, 5)
+      .map((edgeCase) => `Check ${lowerFirst(edgeCase.title)}: ${edgeCase.detectionHint}`),
+    weakTestSigns: pack.edgeCases
+      .slice(0, 5)
+      .map((edgeCase) => `${edgeCase.title}: test the real auth/API path for this condition, not only helper output.`),
+    suggestedChecks: pack.edgeCases
+      .slice(0, 5)
+      .map((edgeCase) => `Add proof for ${lowerFirst(edgeCase.title)}: ${edgeCase.fixHint}`),
+    citations: uniqueCitations(
+      pack.edgeCases.flatMap((edgeCase) =>
+        edgeCase.sources.map((url) => ({
+          title: `${pack.title} source`,
+          url
+        }))
+      )
+    ),
+    trust: "pattern-pack",
+    proof: "suggestion"
+  };
+}
+
+function lowerFirst(value: string): string {
+  return value.length === 0 ? value : `${value[0]?.toLowerCase() ?? ""}${value.slice(1)}`;
+}
+
+function uniqueCitations(citations: Array<{ title: string; url: string }>): Array<{ title: string; url: string }> {
+  const byUrl = new Map<string, { title: string; url: string }>();
+  for (const citation of citations) {
+    if (!byUrl.has(citation.url)) {
+      byUrl.set(citation.url, citation);
+    }
+  }
+  return [...byUrl.values()];
 }
