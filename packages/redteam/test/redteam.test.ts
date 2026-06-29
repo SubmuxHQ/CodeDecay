@@ -3,6 +3,7 @@ import type { CodeDecayConfig } from "@submuxhq/codedecay-config";
 import { createAnalysisReport, type AnalyzerResult, type FileChange } from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
 import { createRedteamReport, renderRedteamReport, weakTestRuleIds } from "../src/index";
+import { summarizeMemory, summarizeSkills } from "../src/context";
 import { createRedteamSafetySummary } from "../src/safety";
 
 describe("redteam report", () => {
@@ -154,6 +155,28 @@ describe("redteam report", () => {
         "Use codedecay execute or codedecay differential explicitly when you want configured local checks to run."
       ]
     });
+  });
+
+  it("summarizes memory and skills as local untrusted context", () => {
+    expect(summarizeMemory(createFixtureMemory(), "/repo/.codedecay/memory.json")).toEqual({
+      flows: 1,
+      commands: 0,
+      invariants: 1,
+      architecture: 0,
+      regressions: 1,
+      sourcePath: "/repo/.codedecay/memory.json"
+    });
+    expect(summarizeMemory(createFixtureMemory(), undefined)).not.toHaveProperty("sourcePath");
+    expect(summarizeSkills(createFixtureSkills())).toEqual([
+      {
+        id: "pr-red-team",
+        title: "PR Red-Team Skill",
+        path: ".agents/skills/pr-red-team/SKILL.md",
+        summary: "Find missed PR risks.",
+        untrusted: true
+      }
+    ]);
+    expect(summarizeSkills(undefined)).toEqual([]);
   });
 
   it("summarizes missing-test findings separately from weak-test findings", () => {
