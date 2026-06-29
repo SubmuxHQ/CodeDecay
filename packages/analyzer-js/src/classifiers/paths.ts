@@ -1,5 +1,12 @@
-import { basename, extname } from "node:path";
 import type { FileChange, ImpactedArea, RiskLevel } from "@submuxhq/codedecay-core";
+import { isPackageMetadataOnlyChange } from "./package-metadata";
+import {
+  isAssetPath,
+  isDocsPath,
+  isLockfilePath,
+  isSourcePath,
+  isTestPath
+} from "./path-matchers";
 
 export type AreaKind = ImpactedArea["kind"];
 
@@ -8,45 +15,6 @@ export interface PathClassification {
   name: string;
   risk: RiskLevel;
 }
-
-const SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".py"]);
-const ASSET_EXTENSIONS = new Set([
-  ".avif",
-  ".bmp",
-  ".eot",
-  ".gif",
-  ".ico",
-  ".jpeg",
-  ".jpg",
-  ".mp3",
-  ".mp4",
-  ".ogg",
-  ".otf",
-  ".pdf",
-  ".png",
-  ".svg",
-  ".ttf",
-  ".wav",
-  ".webm",
-  ".webp",
-  ".woff",
-  ".woff2"
-]);
-const TEST_DIR_NAMES = new Set(["test", "tests", "spec", "specs", "e2e", "integration", "__tests__", "__specs__"]);
-const TEST_FILE_STEM_PATTERN = /(^|[._-])(test|spec|e2e|integration)([._-]|$)/i;
-const PACKAGE_METADATA_KEYS = new Set([
-  "author",
-  "bugs",
-  "description",
-  "funding",
-  "homepage",
-  "keywords",
-  "license",
-  "name",
-  "private",
-  "repository",
-  "version"
-]);
 
 export function classifyChange(change: FileChange): PathClassification | undefined {
   if (isLockfilePath(change.path)) {
@@ -108,17 +76,7 @@ export function classifyPath(path: string): PathClassification | undefined {
   return undefined;
 }
 
-export function isSourcePath(path: string): boolean {
-  return SOURCE_EXTENSIONS.has(extname(path).toLowerCase());
-}
-
-export function isAssetPath(path: string): boolean {
-  return ASSET_EXTENSIONS.has(extname(path).toLowerCase());
-}
-
-export function isDocsPath(path: string): boolean {
-  return /(^|\/)(docs?|readme|changelog|adr)(\/|\.|$)/i.test(path) || /\.(md|mdx|txt)$/i.test(path);
-}
+export { isAssetPath, isDocsPath, isLockfilePath, isPackageMetadataOnlyChange, isSourcePath, isTestPath };
 
 export function isLowSignalChange(change: FileChange): boolean {
   return (
@@ -127,64 +85,4 @@ export function isLowSignalChange(change: FileChange): boolean {
     isLockfilePath(change.path) ||
     isPackageMetadataOnlyChange(change)
   );
-}
-
-export function isLockfilePath(path: string): boolean {
-  const normalized = normalizePath(path).toLowerCase();
-  const fileName = basename(normalized);
-  return (
-    fileName === "pnpm-lock.yaml" ||
-    fileName === "yarn.lock" ||
-    fileName === "package-lock.json" ||
-    fileName === "npm-shrinkwrap.json" ||
-    fileName === "bun.lock" ||
-    fileName === "bun.lockb"
-  );
-}
-
-export function isPackageMetadataOnlyChange(change: FileChange): boolean {
-  if (basename(normalizePath(change.path)).toLowerCase() !== "package.json") {
-    return false;
-  }
-
-  const meaningfulLines = change.addedLines
-    .map((line) => line.content.trim())
-    .filter((line) => line.length > 0 && !line.startsWith("//"));
-
-  if (meaningfulLines.length === 0) {
-    return true;
-  }
-
-  return meaningfulLines.every((line) => {
-    if (/^[{}\[\],]+$/.test(line)) {
-      return true;
-    }
-
-    const keyMatch = /^"([^"]+)"\s*:/.exec(line);
-    if (keyMatch) {
-      return PACKAGE_METADATA_KEYS.has(keyMatch[1] ?? "");
-    }
-
-    return /^"[^"]+"\s*,?$/.test(line) || /^(true|false|null)\s*,?$/.test(line);
-  });
-}
-
-export function isTestPath(path: string): boolean {
-  const normalized = normalizePath(path).toLowerCase();
-  const segments = normalized.split("/").filter(Boolean);
-  const directorySegments = segments.slice(0, -1);
-  if (directorySegments.some((segment) => TEST_DIR_NAMES.has(segment))) {
-    return true;
-  }
-
-  const fileName = segments.at(-1) ?? normalized;
-  return TEST_FILE_STEM_PATTERN.test(stripExtension(fileName));
-}
-
-function stripExtension(path: string): string {
-  return path.replace(/\.[^.]+$/, "");
-}
-
-function normalizePath(path: string): string {
-  return path.replaceAll("\\", "/");
 }

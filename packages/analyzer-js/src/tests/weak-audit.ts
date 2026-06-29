@@ -1,40 +1,28 @@
-import { readFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
-import type { ChangedLine, FileChange, Finding } from "@submuxhq/codedecay-core";
+import type { FileChange, Finding } from "@submuxhq/codedecay-core";
 import { classifyPath } from "../classifiers/paths";
-import { normalizeImplementationLine } from "../code/normalize";
 import { firstLine } from "../findings/builders";
+import {
+  createSourceLogicBlocks,
+  findCopiedImplementationBlock
+} from "./copied-implementation";
+import { findLineMatches, readChangedFile } from "./line-matches";
+import {
+  ASSERTION_PATTERN,
+  MOCK_PATTERN,
+  SNAPSHOT_ASSERTION_PATTERN,
+  hasNegativeOrEdgeCaseSignal,
+  looksLikeRunnableTest
+} from "./weak-patterns";
+import {
+  createSourceProfile,
+  referencesAnyChangedSource,
+  referencesSourceProfile
+} from "./source-profiles";
 
 export interface TestAuditResult {
   findings: Finding[];
   recommendedTests: string[];
 }
-
-interface SourceProfile {
-  path: string;
-  dirname: string;
-  basename: string;
-  stem: string;
-  importPath: string;
-}
-
-interface SourceLogicBlock {
-  sourcePath: string;
-  key: string;
-}
-
-interface CopiedImplementationBlock {
-  sourcePath: string;
-  testLine: number;
-}
-
-const ASSERTION_PATTERN =
-  /\b(expect|assert|strictEqual|deepStrictEqual|ok)\s*\(|\bshould\(|\bto(Be|Equal|StrictEqual|Contain|Match|Have|Throw|BeTruthy|BeFalsy)\b/;
-const SNAPSHOT_ASSERTION_PATTERN = /\b(toMatchSnapshot|toMatchInlineSnapshot|toHaveScreenshot)\s*\(/;
-const MOCK_PATTERN =
-  /\b(jest\.mock|vi\.mock|sinon\.stub|sinon\.mock|mockResolvedValue|mockRejectedValue|mockReturnValue|mockImplementation|createMock|mockFn)\b/;
-const TEST_CASE_PATTERN = /\b(it|test|specify)\s*\(/;
-const GENERIC_SOURCE_STEMS = new Set(["index", "main", "app", "page", "route", "layout", "config"]);
 
 export function detectWeakTests(rootDir: string, changedTestFiles: FileChange[], changedSourceFiles: FileChange[]): TestAuditResult {
   const findings: Finding[] = [];
@@ -124,9 +112,7 @@ export function detectWeakTests(rootDir: string, changedTestFiles: FileChange[],
     }
 
     if (assertionLines.length > 0 && changedSourceFiles.some((change) => classifyPath(change.path)?.risk !== "low")) {
-      const contentLower = content.toLowerCase();
-      const hasNegativeOrEdgeCase = /(invalid|missing|null|undefined|empty|error|fail|reject|unauthorized|forbidden|boundary|overflow|malformed)/.test(contentLower);
-      if (!hasNegativeOrEdgeCase) {
+      if (!hasNegativeOrEdgeCaseSignal(content)) {
         findings.push({
           ruleId: "happy-path-only-test",
           title: "Changed test looks happy-path only",
@@ -145,125 +131,4 @@ export function detectWeakTests(rootDir: string, changedTestFiles: FileChange[],
     findings,
     recommendedTests
   };
-}
-
-function createSourceProfile(change: FileChange): SourceProfile {
-  const stem = stripExtension(basename(change.path));
-  return {
-    path: change.path,
-    dirname: dirname(change.path),
-    basename: basename(change.path),
-    stem,
-    importPath: stripExtension(change.path)
-  };
-}
-
-function referencesAnyChangedSource(
-  testChange: FileChange,
-  content: string,
-  sourceProfiles: SourceProfile[]
-): boolean {
-  return sourceProfiles.some((profile) => isNearbyTestForSource(testChange.path, profile) || referencesSourceProfile(content, profile));
-}
-
-function referencesSourceProfile(content: string, profile: SourceProfile): boolean {
-  const normalized = content.replaceAll("\\", "/");
-  const importPathWithoutSrc = profile.importPath.replace(/^src\//, "");
-  const hasMeaningfulStem = !GENERIC_SOURCE_STEMS.has(profile.stem.toLowerCase());
-
-  return (
-    normalized.includes(profile.path) ||
-    normalized.includes(profile.importPath) ||
-    normalized.includes(importPathWithoutSrc) ||
-    normalized.includes(profile.basename) ||
-    (hasMeaningfulStem && new RegExp(`\\b${escapeRegExp(profile.stem)}\\b`, "i").test(normalized))
-  );
-}
-
-function isNearbyTestForSource(testPath: string, profile: SourceProfile): boolean {
-  const testDir = dirname(testPath);
-  const testStem = stripExtension(basename(testPath))
-    .replace(/(\.|-|_)test$/i, "")
-    .replace(/(\.|-|_)spec$/i, "");
-
-  return (
-    testStem.includes(profile.stem) ||
-    profile.stem.includes(testStem) ||
-    testDir.startsWith(profile.dirname) ||
-    profile.dirname.startsWith(testDir)
-  );
-}
-
-function createSourceLogicBlocks(changedSourceFiles: FileChange[]): SourceLogicBlock[] {
-  const blocks: SourceLogicBlock[] = [];
-
-  for (const change of changedSourceFiles) {
-    const normalizedLines = change.addedLines
-      .map((line) => normalizeImplementationLine(line.content))
-      .filter((line) => line.length >= 8);
-
-    for (let index = 0; index <= normalizedLines.length - 3; index += 1) {
-      const key = normalizedLines.slice(index, index + 3).join("\n");
-      blocks.push({
-        sourcePath: change.path,
-        key
-      });
-    }
-  }
-
-  return blocks;
-}
-
-function findCopiedImplementationBlock(
-  testLines: string[],
-  sourceBlocks: SourceLogicBlock[]
-): CopiedImplementationBlock | undefined {
-  if (sourceBlocks.length === 0) {
-    return undefined;
-  }
-
-  const normalizedTestLines = testLines
-    .map((content, index) => ({
-      line: index + 1,
-      content: normalizeImplementationLine(content)
-    }))
-    .filter((line) => line.content.length >= 8);
-
-  for (let index = 0; index <= normalizedTestLines.length - 3; index += 1) {
-    const blockLines = normalizedTestLines.slice(index, index + 3);
-    const key = blockLines.map((line) => line.content).join("\n");
-    const match = sourceBlocks.find((sourceBlock) => sourceBlock.key === key);
-    if (match) {
-      return {
-        sourcePath: match.sourcePath,
-        testLine: blockLines[0]?.line ?? 1
-      };
-    }
-  }
-
-  return undefined;
-}
-
-function findLineMatches(lines: string[], pattern: RegExp): ChangedLine[] {
-  return lines.flatMap((content, index) => (pattern.test(content) ? [{ line: index + 1, content }] : []));
-}
-
-function looksLikeRunnableTest(content: string): boolean {
-  return TEST_CASE_PATTERN.test(content);
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function readChangedFile(rootDir: string, path: string): string | undefined {
-  try {
-    return readFileSync(join(rootDir, path), "utf8");
-  } catch {
-    return undefined;
-  }
-}
-
-function stripExtension(path: string): string {
-  return path.replace(/\.[^.]+$/, "");
 }
