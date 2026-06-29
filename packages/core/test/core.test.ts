@@ -211,6 +211,83 @@ describe("createAnalysisReport", () => {
     expect(report.recommendedTests).toEqual(["Add API route coverage for POST /api/users"]);
   });
 
+  it("merges duplicate impacted routes and areas deterministically", () => {
+    const report = createAnalysisReport({
+      changedFiles: [
+        {
+          path: "src/app/api/users/route.ts",
+          status: "modified",
+          additions: 2,
+          deletions: 1,
+          addedLines: [{ line: 4, content: "export async function GET() { return Response.json([]); }" }]
+        }
+      ],
+      analyzerResult: {
+        impactedAreas: [
+          {
+            name: "API routes",
+            kind: "api",
+            risk: "medium",
+            files: ["src/app/api/users/route.ts"]
+          },
+          {
+            name: "API routes",
+            kind: "api",
+            risk: "high",
+            files: ["src/app/api/users/service.ts", "src/app/api/users/route.ts"]
+          }
+        ],
+        impactedRoutes: [
+          {
+            framework: "nextjs",
+            kind: "api-route",
+            route: "/api/users",
+            methods: ["GET"],
+            files: ["src/app/api/users/route.ts"],
+            risk: "medium",
+            reasons: ["Route handler changed"],
+            recommendedTests: ["Add GET /api/users coverage"]
+          },
+          {
+            framework: "nextjs",
+            kind: "api-route",
+            route: "/api/users",
+            methods: ["POST", "GET"],
+            files: ["src/app/api/users/service.ts"],
+            risk: "high",
+            reasons: ["Service dependency changed"],
+            recommendedTests: ["Add POST /api/users coverage"]
+          }
+        ],
+        findings: [],
+        recommendedTests: []
+      },
+      generatedAt: "2026-06-22T00:00:00.000Z"
+    });
+
+    expect(report.impactedAreas).toEqual([
+      {
+        name: "API routes",
+        kind: "api",
+        risk: "high",
+        files: ["src/app/api/users/route.ts", "src/app/api/users/service.ts"]
+      }
+    ]);
+    expect(report.impactedRoutes).toEqual([
+      {
+        framework: "nextjs",
+        kind: "api-route",
+        route: "/api/users",
+        methods: ["GET", "POST"],
+        files: ["src/app/api/users/route.ts", "src/app/api/users/service.ts"],
+        risk: "high",
+        reasons: ["Route handler changed", "Service dependency changed"],
+        recommendedTests: ["Add GET /api/users coverage", "Add POST /api/users coverage"]
+      }
+    ]);
+    expect(report.recommendedTests).toEqual(["Add GET /api/users coverage", "Add POST /api/users coverage"]);
+  });
+
   it("sorts product failure bundles and normalizes nested evidence", () => {
     const report = createAnalysisReport({
       changedFiles: [
