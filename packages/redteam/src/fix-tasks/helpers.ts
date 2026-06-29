@@ -31,7 +31,7 @@ export function dedupeTasks(tasks: RedteamFixTask[]): RedteamFixTask[] {
   const deduped: RedteamFixTask[] = [];
 
   for (const task of tasks) {
-    const key = `${task.title}:${task.detail}:${task.file ?? ""}:${task.line ?? ""}`;
+    const key = `${task.source}:${task.title}:${task.file ?? ""}:${task.line ?? ""}`;
     if (seen.has(key)) {
       continue;
     }

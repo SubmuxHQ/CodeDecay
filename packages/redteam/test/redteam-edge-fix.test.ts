@@ -47,6 +47,7 @@ describe("redteam edge cases and fix tasks", () => {
       ],
       configuredChecks: [],
       toolAdapterPlans: [],
+      patternInsights: [],
       memory: createEmptyMemory(),
       skills: []
     });

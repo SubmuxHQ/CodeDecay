@@ -16,6 +16,7 @@ export type RedteamTaskSource =
   | "configured-check"
   | "tool-adapter"
   | "memory"
+  | "pattern"
   | "product-failure";
 
 export interface RedteamReportInput {
@@ -43,6 +44,7 @@ export interface RedteamReport {
   edgeCases: string[];
   configuredChecks: RedteamConfiguredCheck[];
   toolAdapterPlans: RedteamToolAdapterPlan[];
+  patternInsights: RedteamPatternInsight[];
   memory: RedteamMemorySummary;
   skills: RedteamSkillSummary[];
   investigation?: RedteamInvestigation | undefined;
@@ -65,6 +67,7 @@ export interface RedteamSummary {
   edgeCases: number;
   configuredChecks: number;
   toolAdapters: number;
+  patternInsights: number;
   productFailureBundles: number;
   skills: number;
   fixTasks: number;
@@ -105,6 +108,18 @@ export interface RedteamSkillSummary {
   path: string;
   summary: string;
   untrusted: true;
+}
+
+export interface RedteamPatternInsight {
+  id: string;
+  title: string;
+  areas: string[];
+  edgeCases: string[];
+  weakTestSigns: string[];
+  suggestedChecks: string[];
+  citations: Array<{ title: string; url: string }>;
+  trust: "pattern-pack";
+  proof: "suggestion";
 }
 
 export interface RedteamInvestigationSuggestion {

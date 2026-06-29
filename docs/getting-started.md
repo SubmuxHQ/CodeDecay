@@ -76,6 +76,21 @@ npx codedecay redteam --base main --head HEAD --format markdown
 The current redteam MVP is report-only. It does not run commands or call an
 LLM.
 
+## Discover OSS Tools To Reuse
+
+Use `doctor` when you want CodeDecay to recommend existing open-source tools
+for the repository shape instead of building custom checks from scratch.
+
+```bash
+npx codedecay doctor --format markdown
+npx codedecay doctor --write-config-preview
+```
+
+`doctor` only reads local files. It does not install tools, execute commands,
+call models, use network access, or edit `.codedecay/config.yml`. The config
+preview is written to `.codedecay/local/config-preview.yml` so you can review it
+first.
+
 ## Hand Evidence To Your Agent
 
 Use `agent` when you want Codex, Claude Code, Cursor, a desktop agent, or

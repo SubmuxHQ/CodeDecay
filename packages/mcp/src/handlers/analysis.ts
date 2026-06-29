@@ -3,9 +3,10 @@ import {
   renderAgentTaskBundle
 } from "@submuxhq/codedecay-agent";
 import type { CodeDecayReport } from "@submuxhq/codedecay-core";
-import { renderRedteamReport } from "@submuxhq/codedecay-redteam";
+import { matchPatternIntelligence, renderRedteamReport } from "@submuxhq/codedecay-redteam";
 import { renderMarkdownReport } from "@submuxhq/codedecay-report";
 import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
+import { createDoctorReport, renderDoctorReport } from "@submuxhq/codedecay-tool-adapters";
 import type { StartMcpServerOptions } from "../server/types";
 import type {
   AgentTaskBundleToolInput,
@@ -67,6 +68,24 @@ export function runSuggestEdgeCasesTool(serverOptions: StartMcpServerOptions, in
     {
       recommendedChecks: report.recommendedTests,
       edgeCases: suggestEdgeCases(report)
+    },
+    null,
+    2
+  );
+}
+
+export function runToolRecommendationsTool(serverOptions: StartMcpServerOptions, input: AnalyzePrToolInput): string {
+  const cwd = input.cwd ?? serverOptions.cwd;
+  const report = createDoctorReport(cwd);
+
+  return renderDoctorReport(report, input.format ?? "json");
+}
+
+export function runPatternSearchTool(serverOptions: StartMcpServerOptions, input: McpToolInput): string {
+  const report = createReport(serverOptions, input);
+  return JSON.stringify(
+    {
+      patterns: matchPatternIntelligence(report)
     },
     null,
     2

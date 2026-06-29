@@ -148,6 +148,7 @@ npx codedecay product --target web --generate-tests --run-generated-tests --form
 | `codedecay redteam` | Merge-safety report with impact, weak-test evidence, edge cases, memory, skills, and fix tasks. |
 | `codedecay llm-review` | Explicit opt-in LLM-assisted review suggestions grounded in deterministic CodeDecay analysis. |
 | `codedecay agent` | Portable task bundle for user-owned agents such as Codex, Claude Code, Cursor, Pi, OpenCode, desktop agents, or MCP clients. |
+| `codedecay doctor` | Recommend OSS tools and local setup for stronger PR safety evidence without installing or running anything. |
 | `codedecay config` | Inspect normalized CodeDecay config. |
 | `codedecay memory` | Inspect local repo memory from `.codedecay/memory.json`. |
 | `codedecay memory-import` | Preview or apply structured learnings into `.codedecay/memory.json`. |
@@ -318,10 +319,24 @@ Example client config:
 ```
 
 The MCP server exposes tools for PR analysis, impact maps, test audits,
-edge-case suggestions, red-team reports, agent task bundles, and confirmed
-configured checks.
+edge-case suggestions, OSS tool recommendations, pattern-pack context,
+red-team reports, agent task bundles, and confirmed configured checks.
 
 See [MCP docs](docs/mcp.md).
+
+## OSS Tool Discovery
+
+CodeDecay should reuse mature open-source tools instead of rebuilding every
+scanner, fuzzer, mutation tester, browser runner, or supply-chain check.
+
+```bash
+npx codedecay doctor
+npx codedecay doctor --write-config-preview
+```
+
+`doctor` only reads local files. It does not install tools, execute commands,
+call models, use network access, or edit `.codedecay/config.yml`. The optional
+preview is written to `.codedecay/local/config-preview.yml` for review.
 
 ## Configuration
 

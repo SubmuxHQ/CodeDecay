@@ -106,6 +106,29 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       "Agent bundles package evidence and instructions only. They do not trigger agent or model calls by themselves."
     ]
   },
+  doctor: {
+    name: "doctor",
+    summary: "Recommend OSS tools and local setup for stronger PR safety evidence.",
+    usage: ["codedecay doctor [options]"],
+    description: [
+      "Inspect the repository shape and recommend mature open-source tools CodeDecay can orchestrate, such as Semgrep, Playwright, StrykerJS, Schemathesis, Pact, coverage tools, OSV-Scanner, and OpenSSF Scorecard."
+    ],
+    options: [
+      { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
+      { flag: "--format <format>", description: "json or markdown (default: markdown)" },
+      { flag: "--output <path>", description: "Write doctor report to a file instead of stdout" },
+      { flag: "--write-config-preview", description: "Write .codedecay/local/config-preview.yml with suggested adapter config" }
+    ],
+    examples: [
+      "codedecay doctor",
+      "codedecay doctor --cwd ../my-repo --format json",
+      "codedecay doctor --write-config-preview"
+    ],
+    notes: [
+      "Doctor does not install tools, execute commands, call models, use network access, or change .codedecay/config.yml.",
+      "The config preview is written under .codedecay/local/ so users can review it before copying anything into tracked config."
+    ]
+  },
   execute: {
     name: "execute",
     summary: "Run explicitly configured local checks and tool adapters.",

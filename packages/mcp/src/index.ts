@@ -6,8 +6,10 @@ import {
   runAnalyzePrTool,
   runAuditTestsTool,
   runImpactMapTool,
+  runPatternSearchTool,
   runRedteamReportTool,
-  runSuggestEdgeCasesTool
+  runSuggestEdgeCasesTool,
+  runToolRecommendationsTool
 } from "./handlers/analysis";
 import { runExecuteConfiguredChecksTool } from "./handlers/execution";
 import {
@@ -25,8 +27,10 @@ export {
   runAnalyzePrTool,
   runAuditTestsTool,
   runImpactMapTool,
+  runPatternSearchTool,
   runRedteamReportTool,
-  runSuggestEdgeCasesTool
+  runSuggestEdgeCasesTool,
+  runToolRecommendationsTool
 } from "./handlers/analysis";
 export { runExecuteConfiguredChecksTool } from "./handlers/execution";
 export {
@@ -53,6 +57,8 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
     impactMap: (input) => runImpactMapTool(options, input),
     auditTests: (input) => runAuditTestsTool(options, input),
     suggestEdgeCases: (input) => runSuggestEdgeCasesTool(options, input),
+    toolRecommendations: (input) => runToolRecommendationsTool(options, input),
+    patternSearch: (input) => runPatternSearchTool(options, input),
     redteamReport: (input) => runRedteamReportTool(options, input),
     agentTaskBundle: (input) => runAgentTaskBundleTool(options, input),
     executeConfiguredChecks: (input) => runExecuteConfiguredChecksTool(options, input),

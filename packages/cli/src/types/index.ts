@@ -4,6 +4,7 @@ export * from "./common";
 export * from "./config";
 export * from "./dashboard";
 export * from "./differential";
+export * from "./doctor";
 export * from "./execution";
 export * from "./llm-review";
 export * from "./maintenance";

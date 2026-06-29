@@ -3,6 +3,7 @@ export { parseAnalyzeArgs } from "./analyze";
 export { parseConfigArgs } from "./config";
 export { parseDashboardArgs } from "./dashboard";
 export { parseDifferentialArgs } from "./differential";
+export { parseDoctorArgs } from "./doctor";
 export { parseExecuteArgs } from "./execute";
 export { parseLlmReviewArgs } from "./llm-review";
 export { parseMcpArgs } from "./mcp";

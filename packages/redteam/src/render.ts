@@ -11,6 +11,7 @@ import {
   appendImpactedRoutes,
   appendInvestigation,
   appendMemorySummary,
+  appendPatternInsights,
   appendProductFailures,
   appendSkills,
   appendTestAudit,
@@ -45,6 +46,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
     `| Edge cases suggested | ${report.summary.edgeCases} |`,
     `| Configured checks listed | ${report.summary.configuredChecks} |`,
     `| Tool adapters planned | ${report.summary.toolAdapters} |`,
+    `| Pattern insights | ${report.summary.patternInsights} |`,
     `| Product failure bundles | ${report.summary.productFailureBundles} |`,
     ""
   ];
@@ -54,6 +56,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
   appendTestAudit(lines, report.testAudit);
   appendProductFailures(lines, report.analysis.productFailureBundles ?? []);
   appendEdgeCases(lines, report.edgeCases);
+  appendPatternInsights(lines, report.patternInsights);
   appendConfiguredChecks(lines, report.configuredChecks);
   appendToolAdapterPlans(lines, report.toolAdapterPlans);
   appendInvestigation(lines, report.investigation);

@@ -6,12 +6,14 @@ import {
   runAuditTestsTool,
   runExecuteConfiguredChecksTool,
   runImpactMapTool,
+  runPatternSearchTool,
   runProductFailuresTool,
   runProductPlanTool,
   runProductRerunTool,
   runProductRunTool,
   runRedteamReportTool,
-  runSuggestEdgeCasesTool
+  runSuggestEdgeCasesTool,
+  runToolRecommendationsTool
 } from "../src/index";
 import {
   createExecutionRepo,
@@ -133,5 +135,38 @@ describe("CodeDecay MCP analysis tools", () => {
         "Add or run tests covering src/app/dashboard/page.tsx"
       ])
     );
+  });
+
+  it("returns OSS tool recommendations and pattern-pack matches", () => {
+    const repo = createRouteImpactRepo();
+    writeFile(
+      repo,
+      "package.json",
+      JSON.stringify(
+        {
+          packageManager: "pnpm@11.8.0",
+          scripts: { test: "vitest run" },
+          dependencies: {
+            next: "15.0.0",
+            react: "19.0.0"
+          },
+          devDependencies: {
+            vitest: "3.0.0"
+          }
+        },
+        null,
+        2
+      )
+    );
+    writeFile(repo, "docs/openapi.yaml", "openapi: 3.1.0\ninfo:\n  title: Demo\n  version: 1.0.0\npaths: {}\n");
+
+    const recommendations = JSON.parse(runToolRecommendationsTool({ cwd: repo }, { format: "json" }));
+    expect(recommendations.safety.commandsExecuted).toBe(false);
+    expect(recommendations.recommendations.map((recommendation: { tool: { id: string } }) => recommendation.tool.id)).toEqual(
+      expect.arrayContaining(["playwright", "schemathesis", "semgrep"])
+    );
+
+    const patterns = JSON.parse(runPatternSearchTool({ cwd: repo }, {}));
+    expect(patterns.patterns.map((pattern: { id: string }) => pattern.id)).toContain("api-schema-fuzz-boundaries");
   });
 });
