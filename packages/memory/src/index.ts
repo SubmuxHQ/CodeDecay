@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type {
   AnalyzerResult,
@@ -7,10 +7,27 @@ import type {
   RiskLevel
 } from "@submuxhq/codedecay-core";
 import { dedupeStrings } from "@submuxhq/codedecay-core";
+import {
+  cloneMemory,
+  isEmptyMemory,
+  isPlainObject,
+  normalizeArray,
+  normalizeArchitectureNote,
+  normalizeCommand,
+  normalizeFlow,
+  normalizeInvariant,
+  normalizeMatcher,
+  normalizeObject,
+  normalizeProductPath,
+  normalizeRegression,
+  optionalRiskLevel,
+  optionalString,
+  optionalStringArray,
+  requiredString
+} from "./schema";
 import { DEFAULT_CODEDECAY_MEMORY } from "./types";
 import type {
   CodeDecayMemory,
-  LoadedCodeDecayMemory,
   MemoryArchitectureNote,
   MemoryCommand,
   MemoryContextInput,
@@ -20,11 +37,16 @@ import type {
   MemoryInvariant,
   MemoryLearnResult,
   MemoryMatcher,
-  MemoryProvider,
-  MemoryProviderLoadOptions,
   MemoryRegression
 } from "./types";
 
+export {
+  createLocalMemoryProvider,
+  createMemoryProviderRegistry,
+  loadCodeDecayMemory,
+  loadCodeDecayMemoryFromProvider,
+  MemoryProviderRegistry
+} from "./providers";
 export { DEFAULT_CODEDECAY_MEMORY } from "./types";
 export type {
   CodeDecayMemory,
@@ -43,74 +65,6 @@ export type {
   MemoryProviderLoadOptions,
   MemoryRegression
 } from "./types";
-
-export function loadCodeDecayMemory(rootDir: string): LoadedCodeDecayMemory {
-  return createLocalMemoryProvider().load({ rootDir });
-}
-
-export function loadCodeDecayMemoryFromProvider(
-  provider: MemoryProvider,
-  options: MemoryProviderLoadOptions
-): LoadedCodeDecayMemory {
-  validateMemoryProvider(provider);
-  validateMemoryProviderLoadOptions(options);
-  return provider.load(options);
-}
-
-export function createLocalMemoryProvider(): MemoryProvider {
-  return {
-    id: "local",
-    name: "Local .codedecay memory",
-    kind: "local",
-    load: ({ rootDir }) => loadLocalMemory(rootDir)
-  };
-}
-
-export class MemoryProviderRegistry {
-  private readonly providers = new Map<string, MemoryProvider>();
-
-  constructor(providers: MemoryProvider[] = []) {
-    for (const provider of providers) {
-      this.register(provider);
-    }
-  }
-
-  register(provider: MemoryProvider): void {
-    validateMemoryProvider(provider);
-
-    if (this.providers.has(provider.id)) {
-      throw new Error(`Memory provider already registered: ${provider.id}`);
-    }
-
-    this.providers.set(provider.id, provider);
-  }
-
-  get(id: string): MemoryProvider | undefined {
-    validateNonEmptyString(id, "Memory provider id");
-    return this.providers.get(id);
-  }
-
-  require(id: string): MemoryProvider {
-    const provider = this.get(id);
-    if (!provider) {
-      throw new Error(`Memory provider not found: ${id}`);
-    }
-
-    return provider;
-  }
-
-  list(): MemoryProvider[] {
-    return [...this.providers.values()].sort((left, right) => left.id.localeCompare(right.id));
-  }
-
-  load(id: string, options: MemoryProviderLoadOptions): LoadedCodeDecayMemory {
-    return loadCodeDecayMemoryFromProvider(this.require(id), options);
-  }
-}
-
-export function createMemoryProviderRegistry(providers: MemoryProvider[] = [createLocalMemoryProvider()]): MemoryProviderRegistry {
-  return new MemoryProviderRegistry(providers);
-}
 
 export function importCodeDecayMemory(
   baseMemory: CodeDecayMemory,
@@ -709,23 +663,6 @@ function productPathFromUnknown(value: unknown): string | undefined {
   }
 }
 
-function normalizeProductPath(path: string): string {
-  const normalized = path.trim().split(/[?#]/, 1)[0] || "/";
-  if (normalized === "/") {
-    return normalized;
-  }
-
-  return trimTrailingSlashes(normalized) || "/";
-}
-
-function trimTrailingSlashes(value: string): string {
-  let end = value.length;
-  while (end > 1 && value[end - 1] === "/") {
-    end -= 1;
-  }
-  return end === value.length ? value : value.slice(0, end);
-}
-
 function productRerunCommand(
   targetId: string,
   runFlag: "--run-generated-tests" | "--run-generated-api-tests",
@@ -971,143 +908,6 @@ function inferCheckFromText(title: string, text: string): string {
   return `Verify regression path for ${trimmedTitle}`;
 }
 
-function loadLocalMemory(rootDir: string): LoadedCodeDecayMemory {
-  const sourcePath = join(rootDir, ".codedecay", "memory.json");
-  if (!existsSync(sourcePath)) {
-    return {
-      memory: cloneMemory(DEFAULT_CODEDECAY_MEMORY)
-    };
-  }
-
-  const raw = readFileSync(sourcePath, "utf8");
-  return {
-    memory: normalizeMemory(parseJsonMemory(raw, sourcePath), sourcePath),
-    sourcePath
-  };
-}
-
-function validateMemoryProvider(provider: MemoryProvider): void {
-  validateNonEmptyString(provider.id, "Memory provider id");
-  validateNonEmptyString(provider.name, "Memory provider name");
-
-  if (provider.kind !== "local" && provider.kind !== "external") {
-    throw new Error(`Invalid memory provider kind: ${String(provider.kind)}`);
-  }
-
-  if (typeof provider.load !== "function") {
-    throw new Error(`Memory provider "${provider.id}" must define load().`);
-  }
-}
-
-function validateMemoryProviderLoadOptions(options: MemoryProviderLoadOptions): void {
-  validateNonEmptyString(options.rootDir, "Memory provider rootDir");
-}
-
-function validateNonEmptyString(value: string, field: string): void {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`${field} is required.`);
-  }
-}
-
-function parseJsonMemory(raw: string, sourcePath: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Invalid CodeDecay memory at ${sourcePath}: ${message}`);
-  }
-}
-
-function normalizeMemory(value: unknown, sourcePath: string): CodeDecayMemory {
-  if (!isPlainObject(value)) {
-    throw new Error(`Invalid CodeDecay memory at ${sourcePath}: expected an object.`);
-  }
-
-  if (value.version !== 1) {
-    throw new Error(`Invalid CodeDecay memory at ${sourcePath}: version must be 1.`);
-  }
-
-  return {
-    version: 1,
-    flows: normalizeArray(value.flows, sourcePath, "flows").map((item, index) => normalizeFlow(item, index, sourcePath)),
-    commands: normalizeArray(value.commands, sourcePath, "commands").map((item, index) => normalizeCommand(item, index, sourcePath)),
-    invariants: normalizeArray(value.invariants, sourcePath, "invariants").map((item, index) => normalizeInvariant(item, index, sourcePath)),
-    architecture: normalizeArray(value.architecture, sourcePath, "architecture").map((item, index) => normalizeArchitectureNote(item, index, sourcePath)),
-    regressions: normalizeArray(value.regressions, sourcePath, "regressions").map((item, index) => normalizeRegression(item, index, sourcePath))
-  };
-}
-
-function normalizeFlow(value: unknown, index: number, sourcePath: string): MemoryFlow {
-  const object = normalizeObject(value, sourcePath, `flows[${index}]`);
-  return {
-    name: requiredString(object.name, sourcePath, `flows[${index}].name`),
-    description: optionalString(object.description, sourcePath, `flows[${index}].description`),
-    checks: optionalStringArray(object.checks, sourcePath, `flows[${index}].checks`),
-    ...normalizeMatcher(object, sourcePath, `flows[${index}]`)
-  };
-}
-
-function normalizeCommand(value: unknown, index: number, sourcePath: string): MemoryCommand {
-  const object = normalizeObject(value, sourcePath, `commands[${index}]`);
-  return {
-    name: requiredString(object.name, sourcePath, `commands[${index}].name`),
-    command: requiredString(object.command, sourcePath, `commands[${index}].command`),
-    description: optionalString(object.description, sourcePath, `commands[${index}].description`),
-    ...normalizeMatcher(object, sourcePath, `commands[${index}]`)
-  };
-}
-
-function normalizeInvariant(value: unknown, index: number, sourcePath: string): MemoryInvariant {
-  const object = normalizeObject(value, sourcePath, `invariants[${index}]`);
-  return {
-    name: requiredString(object.name, sourcePath, `invariants[${index}].name`),
-    description: requiredString(object.description, sourcePath, `invariants[${index}].description`),
-    severity: optionalRiskLevel(object.severity, sourcePath, `invariants[${index}].severity`),
-    ...normalizeMatcher(object, sourcePath, `invariants[${index}]`)
-  };
-}
-
-function normalizeArchitectureNote(value: unknown, index: number, sourcePath: string): MemoryArchitectureNote {
-  const object = normalizeObject(value, sourcePath, `architecture[${index}]`);
-  return {
-    title: requiredString(object.title, sourcePath, `architecture[${index}].title`),
-    note: requiredString(object.note, sourcePath, `architecture[${index}].note`),
-    ...normalizeMatcher(object, sourcePath, `architecture[${index}]`)
-  };
-}
-
-function normalizeRegression(value: unknown, index: number, sourcePath: string): MemoryRegression {
-  const object = normalizeObject(value, sourcePath, `regressions[${index}]`);
-  return {
-    title: requiredString(object.title, sourcePath, `regressions[${index}].title`),
-    description: requiredString(object.description, sourcePath, `regressions[${index}].description`),
-    check: optionalString(object.check, sourcePath, `regressions[${index}].check`),
-    severity: optionalRiskLevel(object.severity, sourcePath, `regressions[${index}].severity`),
-    ...normalizeMatcher(object, sourcePath, `regressions[${index}]`)
-  };
-}
-
-function normalizeMatcher(object: Record<string, unknown>, sourcePath: string, field: string): MemoryMatcher {
-  const matcher: MemoryMatcher = {};
-  const files = optionalStringArray(object.files, sourcePath, `${field}.files`);
-  const areas = optionalAreas(object.areas, sourcePath, `${field}.areas`);
-  const productPaths = optionalStringArray(object.productPaths, sourcePath, `${field}.productPaths`);
-
-  if (files) {
-    matcher.files = files;
-  }
-
-  if (areas) {
-    matcher.areas = areas;
-  }
-
-  if (productPaths) {
-    matcher.productPaths = productPaths.map(normalizeProductPath);
-  }
-
-  return matcher;
-}
-
 function mergeFlowEntries(
   baseEntries: MemoryFlow[],
   importedEntries: MemoryFlow[],
@@ -1293,83 +1093,6 @@ function matchesPathPattern(path: string, pattern: string): boolean {
   return regex.test(path);
 }
 
-function normalizeArray(value: unknown, sourcePath: string, field: string): unknown[] {
-  if (value === undefined) {
-    return [];
-  }
-
-  if (Array.isArray(value)) {
-    return value;
-  }
-
-  throw new Error(`Invalid CodeDecay memory at ${sourcePath}: ${field} must be an array.`);
-}
-
-function normalizeObject(value: unknown, sourcePath: string, field: string): Record<string, unknown> {
-  if (isPlainObject(value)) {
-    return value;
-  }
-
-  throw new Error(`Invalid CodeDecay memory at ${sourcePath}: ${field} must be an object.`);
-}
-
-function requiredString(value: unknown, sourcePath: string, field: string): string {
-  if (typeof value === "string" && value.trim().length > 0) {
-    return value;
-  }
-
-  throw new Error(`Invalid CodeDecay memory at ${sourcePath}: ${field} is required.`);
-}
-
-function optionalString(value: unknown, sourcePath: string, field: string): string | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  if (typeof value === "string") {
-    return value;
-  }
-
-  throw new Error(`Invalid CodeDecay memory at ${sourcePath}: ${field} must be a string.`);
-}
-
-function optionalStringArray(value: unknown, sourcePath: string, field: string): string[] | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  if (Array.isArray(value) && value.every((item) => typeof item === "string")) {
-    return [...value];
-  }
-
-  throw new Error(`Invalid CodeDecay memory at ${sourcePath}: ${field} must be a string array.`);
-}
-
-function optionalRiskLevel(value: unknown, sourcePath: string, field: string): RiskLevel | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  if (value === "low" || value === "medium" || value === "high") {
-    return value;
-  }
-
-  throw new Error(`Invalid CodeDecay memory at ${sourcePath}: ${field} must be low, medium, or high.`);
-}
-
-function optionalAreas(value: unknown, sourcePath: string, field: string): ImpactedArea["kind"][] | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  const validAreas = new Set(["api", "ui", "database", "auth", "config", "test", "source", "docs"]);
-  if (Array.isArray(value) && value.every((item) => typeof item === "string" && validAreas.has(item))) {
-    return [...value] as ImpactedArea["kind"][];
-  }
-
-  throw new Error(`Invalid CodeDecay memory at ${sourcePath}: ${field} must contain valid impacted area names.`);
-}
-
 function createEmptyMemoryImportCounts(): MemoryImportCounts {
   return {
     flows: 0,
@@ -1502,57 +1225,6 @@ function sortArchitecture(entries: MemoryArchitectureNote[]): MemoryArchitecture
 
 function sortRegressions(entries: MemoryRegression[]): MemoryRegression[] {
   return [...entries].sort((left, right) => left.title.localeCompare(right.title));
-}
-
-function cloneMemory(memory: CodeDecayMemory): CodeDecayMemory {
-  return {
-    version: 1,
-    flows: memory.flows.map((flow) => ({
-      ...flow,
-      files: flow.files ? [...flow.files] : undefined,
-      areas: flow.areas ? [...flow.areas] : undefined,
-      productPaths: flow.productPaths ? [...flow.productPaths] : undefined,
-      checks: flow.checks ? [...flow.checks] : undefined
-    })),
-    commands: memory.commands.map((command) => ({
-      ...command,
-      files: command.files ? [...command.files] : undefined,
-      areas: command.areas ? [...command.areas] : undefined,
-      productPaths: command.productPaths ? [...command.productPaths] : undefined
-    })),
-    invariants: memory.invariants.map((invariant) => ({
-      ...invariant,
-      files: invariant.files ? [...invariant.files] : undefined,
-      areas: invariant.areas ? [...invariant.areas] : undefined,
-      productPaths: invariant.productPaths ? [...invariant.productPaths] : undefined
-    })),
-    architecture: memory.architecture.map((note) => ({
-      ...note,
-      files: note.files ? [...note.files] : undefined,
-      areas: note.areas ? [...note.areas] : undefined,
-      productPaths: note.productPaths ? [...note.productPaths] : undefined
-    })),
-    regressions: memory.regressions.map((regression) => ({
-      ...regression,
-      files: regression.files ? [...regression.files] : undefined,
-      areas: regression.areas ? [...regression.areas] : undefined,
-      productPaths: regression.productPaths ? [...regression.productPaths] : undefined
-    }))
-  };
-}
-
-function isEmptyMemory(memory: CodeDecayMemory): boolean {
-  return (
-    memory.flows.length === 0 &&
-    memory.commands.length === 0 &&
-    memory.invariants.length === 0 &&
-    memory.architecture.length === 0 &&
-    memory.regressions.length === 0
-  );
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function firstLine(change: FileChange): number | undefined {
