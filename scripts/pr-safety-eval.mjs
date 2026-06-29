@@ -1,12 +1,15 @@
 #!/usr/bin/env node
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRunId, readOptionValue, splitCommand } from "./lib/args.mjs";
+import { readJsonFile, resetDir, writeFiles, writeJsonFile } from "./lib/files.mjs";
+import { initFixtureGitRepo } from "./lib/git.mjs";
+import { runCommand } from "./lib/process.mjs";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const options = parseArgs(process.argv.slice(2));
-const runId = options.runId ?? new Date().toISOString().replaceAll(":", "-").replace(/\.\d{3}Z$/, "Z");
+const runId = options.runId ?? createRunId();
 const outputRoot = resolve(repoRoot, options.outputDir ?? ".codedecay/local/evals");
 const runDir = resolve(outputRoot, runId);
 const reposDir = join(runDir, "repos");
@@ -286,7 +289,7 @@ function main() {
     });
   } finally {
     evalReport.finishedAt = new Date().toISOString();
-    writeJson(join(runDir, "summary.json"), evalReport);
+    writeJsonFile(join(runDir, "summary.json"), evalReport);
 
     if (options.updateDocs) {
       writeDocsReport(evalReport);
@@ -301,17 +304,15 @@ function main() {
 function runScenario(scenario) {
   const scenarioDir = join(reposDir, scenario.id);
   const scenarioReportsDir = join(reportsDir, scenario.id);
-  rmSync(scenarioDir, { recursive: true, force: true });
-  mkdirSync(scenarioDir, { recursive: true });
+  resetDir(scenarioDir);
   mkdirSync(scenarioReportsDir, { recursive: true });
 
   writeFiles(scenarioDir, scenario.baselineFiles);
-  git(scenarioDir, ["init"]);
-  git(scenarioDir, ["config", "user.email", "codedecay-eval@example.com"]);
-  git(scenarioDir, ["config", "user.name", "CodeDecay Eval"]);
-  git(scenarioDir, ["add", "."]);
-  git(scenarioDir, ["commit", "-m", "baseline"]);
-  const baseSha = git(scenarioDir, ["rev-parse", "HEAD"]).stdout.trim();
+  const baseSha = initFixtureGitRepo(scenarioDir, {
+    initialBranch: null,
+    userEmail: "codedecay-eval@example.com",
+    userName: "CodeDecay Eval"
+  });
 
   const baselineTest = runLoggedCommand({
     id: `${scenario.id}-baseline-tests`,
@@ -379,8 +380,8 @@ function runScenario(scenario) {
     expectedExitCodes: [0]
   });
 
-  const analysis = readJson(join(scenarioReportsDir, "analyze.json"));
-  const redteam = readJson(join(scenarioReportsDir, "redteam.json"));
+  const analysis = readJsonFile(join(scenarioReportsDir, "analyze.json"));
+  const redteam = readJsonFile(join(scenarioReportsDir, "redteam.json"));
   const assertions = evaluateScenario(scenario, analysis, redteam, {
     baselineTest,
     baselineProbe,
@@ -421,7 +422,7 @@ function runScenario(scenario) {
     assertions
   };
 
-  writeJson(join(scenarioReportsDir, "scenario-result.json"), result);
+  writeJsonFile(join(scenarioReportsDir, "scenario-result.json"), result);
 
   for (const assertion of assertions) {
     if (!assertion.passed) {
@@ -536,28 +537,8 @@ function assertCondition({ name, passed, detail }) {
   return { name, passed, detail };
 }
 
-function writeFiles(root, files) {
-  for (const [relativePath, content] of Object.entries(files)) {
-    const absolutePath = join(root, relativePath);
-    mkdirSync(dirname(absolutePath), { recursive: true });
-    writeFileSync(absolutePath, content, "utf8");
-  }
-}
-
-function git(cwd, args) {
-  const result = spawnSync("git", args, { cwd, encoding: "utf8" });
-  if (result.status !== 0) {
-    throw new Error(`git ${args.join(" ")} failed in ${cwd}\n${result.stderr}`);
-  }
-
-  return result;
-}
-
 function runLoggedCommand({ id, cwd, command, args, expectedExitCodes }) {
-  const startedAt = Date.now();
-  const result = spawnSync(command, args, { cwd, encoding: "utf8" });
-  const durationMs = Date.now() - startedAt;
-  const exitCode = typeof result.status === "number" ? result.status : 1;
+  const { durationMs, exitCode, stdout, stderr } = runCommand(command, args, { cwd });
   const record = {
     id,
     cwd,
@@ -570,8 +551,8 @@ function runLoggedCommand({ id, cwd, command, args, expectedExitCodes }) {
     stderrLog: join(logsDir, `${id}.stderr.log`)
   };
 
-  writeFileSync(record.stdoutLog, result.stdout ?? "", "utf8");
-  writeFileSync(record.stderrLog, result.stderr ?? "", "utf8");
+  writeFileSync(record.stdoutLog, stdout, "utf8");
+  writeFileSync(record.stderrLog, stderr, "utf8");
 
   if (!record.passed) {
     evalReport.issues.push({
@@ -582,15 +563,6 @@ function runLoggedCommand({ id, cwd, command, args, expectedExitCodes }) {
   }
 
   return record;
-}
-
-function writeJson(path, value) {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
-}
-
-function readJson(path) {
-  return JSON.parse(readFileSync(path, "utf8"));
 }
 
 function writeDocsReport(report) {
@@ -681,7 +653,7 @@ function parseArgs(args) {
       continue;
     }
     if (arg === "--output-dir") {
-      parsed.outputDir = readValue(args, ++index, arg);
+      parsed.outputDir = readOptionValue(args, ++index, arg);
       continue;
     }
     if (arg?.startsWith("--output-dir=")) {
@@ -689,7 +661,7 @@ function parseArgs(args) {
       continue;
     }
     if (arg === "--run-id") {
-      parsed.runId = readValue(args, ++index, arg);
+      parsed.runId = readOptionValue(args, ++index, arg);
       continue;
     }
     if (arg?.startsWith("--run-id=")) {
@@ -697,7 +669,7 @@ function parseArgs(args) {
       continue;
     }
     if (arg === "--cli") {
-      parsed.cli = readValue(args, ++index, arg);
+      parsed.cli = readOptionValue(args, ++index, arg);
       continue;
     }
     if (arg?.startsWith("--cli=")) {
@@ -729,23 +701,10 @@ function parseArgs(args) {
   return parsed;
 }
 
-function readValue(args, index, flag) {
-  const value = args[index];
-  if (!value || value.startsWith("--")) {
-    throw new Error(`Expected value after ${flag}`);
-  }
-
-  return value;
-}
-
-function splitCommand(command) {
-  return command.match(/(?:[^\s"]+|"[^"]*")+/g)?.map((part) => part.replace(/^"|"$/g, "")) ?? [command];
-}
-
 function failHarness(message) {
   evalReport.status = "failed";
   evalReport.issues.push({ severity: "error", title: "Harness setup failed", detail: message });
-  writeJson(join(runDir, "summary.json"), evalReport);
+  writeJsonFile(join(runDir, "summary.json"), evalReport);
   console.error(message);
   process.exit(2);
 }

@@ -1,14 +1,15 @@
 #!/usr/bin/env node
-import { createHash } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { createRunId, readOptionValue } from "./lib/args.mjs";
+import { readJsonFile, readTextIfExists, resetDir, sha256, writeJsonFile } from "./lib/files.mjs";
+import { runCommand } from "./lib/process.mjs";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const options = parseArgs(process.argv.slice(2));
-const runId = options.runId ?? new Date().toISOString().replaceAll(":", "-").replace(/\.\d{3}Z$/, "Z");
+const runId = options.runId ?? createRunId();
 const outputRoot = resolve(repoRoot, options.outputDir ?? ".codedecay/local/published-package-demo");
 const runDir = resolve(outputRoot, runId);
 const logsDir = join(runDir, "logs");
@@ -39,7 +40,7 @@ const runLog = {
 main();
 
 function main() {
-  rmSync(runDir, { recursive: true, force: true });
+  resetDir(runDir);
   mkdirSync(logsDir, { recursive: true });
   mkdirSync(workDir, { recursive: true });
   mkdirSync(toolInstallDir, { recursive: true });
@@ -318,11 +319,11 @@ function runAnalysisChecks(codedecayBin, repoDir, prefix) {
 }
 
 function assertDemoOutputs(nextRepo, nodeApiRepo) {
-  const nextAnalyze = readJson(join(nextRepo, "codedecay-output", "analyze.json"));
-  const nodeAnalyze = readJson(join(nodeApiRepo, "codedecay-output", "analyze.json"));
-  const nextSarif = readJson(join(nextRepo, "codedecay-output", "analyze.sarif"));
-  const nodeSarif = readJson(join(nodeApiRepo, "codedecay-output", "analyze.sarif"));
-  const nodeExecute = readJson(join(nodeApiRepo, "codedecay-output", "execute.json"));
+  const nextAnalyze = readJsonFile(join(nextRepo, "codedecay-output", "analyze.json"));
+  const nodeAnalyze = readJsonFile(join(nodeApiRepo, "codedecay-output", "analyze.json"));
+  const nextSarif = readJsonFile(join(nextRepo, "codedecay-output", "analyze.sarif"));
+  const nodeSarif = readJsonFile(join(nodeApiRepo, "codedecay-output", "analyze.sarif"));
+  const nodeExecute = readJsonFile(join(nodeApiRepo, "codedecay-output", "execute.json"));
 
   assertCondition("Next.js demo should be high risk.", nextAnalyze.summary?.riskLevel === "high");
   assertCondition("Node API demo should be high risk.", nodeAnalyze.summary?.riskLevel === "high");
@@ -332,17 +333,11 @@ function assertDemoOutputs(nextRepo, nodeApiRepo) {
 }
 
 function recordCommand(commandSpec) {
-  const startedAt = new Date().toISOString();
-  const result = spawnSync(commandSpec.command, commandSpec.args, {
+  const { startedAt, finishedAt, exitCode, stdout, stderr } = runCommand(commandSpec.command, commandSpec.args, {
     cwd: commandSpec.cwd,
-    encoding: "utf8",
     env: packageManagerEnv,
     maxBuffer: 10 * 1024 * 1024
   });
-  const finishedAt = new Date().toISOString();
-  const exitCode = typeof result.status === "number" ? result.status : 1;
-  const stdout = result.stdout ?? "";
-  const stderr = result.stderr ?? "";
   const stdoutPath = join(logsDir, `${commandSpec.id}.stdout.txt`);
   const stderrPath = join(logsDir, `${commandSpec.id}.stderr.txt`);
 
@@ -408,7 +403,7 @@ function readOutputFile(outputFile) {
 
   const contents = readFileSync(absolutePath, "utf8");
   result.bytes = Buffer.byteLength(contents);
-  result.sha256 = createSimpleHash(contents);
+  result.sha256 = sha256(contents);
 
   if (outputFile.parseJson) {
     try {
@@ -443,7 +438,7 @@ function writeSummary() {
     summary.nodeApi = summarizeExample(nodeApiRepo);
     const executePath = join(nodeApiRepo, "codedecay-output", "execute.json");
     if (existsSync(executePath)) {
-      summary.nodeApi.execute = readJson(executePath).summary;
+      summary.nodeApi.execute = readJsonFile(executePath).summary;
     }
   }
 
@@ -452,8 +447,8 @@ function writeSummary() {
 }
 
 function summarizeExample(repoDir) {
-  const analyze = readJson(join(repoDir, "codedecay-output", "analyze.json"));
-  const redteam = readJson(join(repoDir, "codedecay-output", "redteam.json"));
+  const analyze = readJsonFile(join(repoDir, "codedecay-output", "analyze.json"));
+  const redteam = readJsonFile(join(repoDir, "codedecay-output", "redteam.json"));
 
   return {
     analyze: {
@@ -528,19 +523,7 @@ function assertCondition(title, condition) {
 
 function writeRunLog() {
   mkdirSync(runDir, { recursive: true });
-  writeFileSync(join(runDir, "run.json"), `${JSON.stringify(runLog, null, 2)}\n`, "utf8");
-}
-
-function readJson(path) {
-  return JSON.parse(readFileSync(path, "utf8"));
-}
-
-function readTextIfExists(path) {
-  return existsSync(path) ? readFileSync(path, "utf8") : "";
-}
-
-function createSimpleHash(contents) {
-  return createHash("sha256").update(contents).digest("hex");
+  writeJsonFile(join(runDir, "run.json"), runLog);
 }
 
 function resolvePackageSource(parsedOptions) {
@@ -580,7 +563,7 @@ function parseArgs(args) {
       continue;
     }
     if (arg === "--output-dir") {
-      parsed.outputDir = readValue(args, ++index, arg);
+      parsed.outputDir = readOptionValue(args, ++index, arg, "Missing value for");
       continue;
     }
     if (arg?.startsWith("--output-dir=")) {
@@ -588,7 +571,7 @@ function parseArgs(args) {
       continue;
     }
     if (arg === "--run-id") {
-      parsed.runId = readValue(args, ++index, arg);
+      parsed.runId = readOptionValue(args, ++index, arg, "Missing value for");
       continue;
     }
     if (arg?.startsWith("--run-id=")) {
@@ -596,7 +579,7 @@ function parseArgs(args) {
       continue;
     }
     if (arg === "--package") {
-      parsed.packageSpec = readValue(args, ++index, arg);
+      parsed.packageSpec = readOptionValue(args, ++index, arg, "Missing value for");
       continue;
     }
     if (arg?.startsWith("--package=")) {
@@ -604,7 +587,7 @@ function parseArgs(args) {
       continue;
     }
     if (arg === "--tarball") {
-      parsed.tarball = readValue(args, ++index, arg);
+      parsed.tarball = readOptionValue(args, ++index, arg, "Missing value for");
       continue;
     }
     if (arg?.startsWith("--tarball=")) {
@@ -631,13 +614,4 @@ function parseArgs(args) {
   }
 
   return parsed;
-}
-
-function readValue(args, index, flag) {
-  const value = args[index];
-  if (!value || value.startsWith("--")) {
-    throw new Error(`Missing value for ${flag}`);
-  }
-
-  return value;
 }
