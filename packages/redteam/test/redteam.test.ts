@@ -3,6 +3,7 @@ import type { CodeDecayConfig } from "@submuxhq/codedecay-config";
 import { createAnalysisReport, type AnalyzerResult, type FileChange } from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
 import { createRedteamReport, renderRedteamReport, weakTestRuleIds } from "../src/index";
+import { createRedteamSafetySummary } from "../src/safety";
 
 describe("redteam report", () => {
   it("assembles deterministic merge-safety evidence", () => {
@@ -139,6 +140,20 @@ describe("redteam report", () => {
   it("exports weak-test rule ids for integrations", () => {
     expect(weakTestRuleIds()).toContain("test-without-assertions");
     expect(weakTestRuleIds()).toEqual([...weakTestRuleIds()].sort((left, right) => left.localeCompare(right)));
+  });
+
+  it("keeps report-only safety flags explicit", () => {
+    expect(createRedteamSafetySummary()).toEqual({
+      commandsExecuted: false,
+      llmCalled: false,
+      telemetrySent: false,
+      cloudDependency: false,
+      notes: [
+        "codedecay redteam is report-only in this MVP.",
+        "No configured commands, probes, tool adapters, LLM providers, hosted services, or memory providers are executed.",
+        "Use codedecay execute or codedecay differential explicitly when you want configured local checks to run."
+      ]
+    });
   });
 
   it("summarizes missing-test findings separately from weak-test findings", () => {

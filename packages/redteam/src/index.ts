@@ -17,6 +17,7 @@ import {
   type TestProofAudit
 } from "@submuxhq/codedecay-test-audit";
 import { collectConfiguredChecks, collectToolAdapterPlans } from "./checks";
+import { createRedteamSafetySummary } from "./safety";
 import type {
   RedteamConfiguredCheck,
   RedteamFixTask,
@@ -143,17 +144,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
     memory,
     skills,
     fixTasks,
-    safety: {
-      commandsExecuted: false,
-      llmCalled: false,
-      telemetrySent: false,
-      cloudDependency: false,
-      notes: [
-        "codedecay redteam is report-only in this MVP.",
-        "No configured commands, probes, tool adapters, LLM providers, hosted services, or memory providers are executed.",
-        "Use codedecay execute or codedecay differential explicitly when you want configured local checks to run."
-      ]
-    }
+    safety: createRedteamSafetySummary()
   };
 
   if (input.analysisReport.base) {
