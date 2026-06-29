@@ -1,0 +1,2 @@
+export const DEFAULT_OLLAMA_ENDPOINT = "http://127.0.0.1:11434";
+export const DEFAULT_LLM_TIMEOUT_MS = 30_000;
