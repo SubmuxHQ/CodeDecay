@@ -238,6 +238,11 @@ describe("built codedecay CLI", () => {
     expect(help.stdout).toContain("CodeDecay analyze");
     expect(help.stdout).toContain("--fail-on <level>");
 
+    const analyzeHelp = runBuilt(["analyze", "--help"]);
+    expect(analyzeHelp.status).toBe(0);
+    expect(analyzeHelp.stdout).toContain("CodeDecay analyze");
+    expect(analyzeHelp.stdout).toContain("--fail-on <level>");
+
     const redteamHelp = runBuilt(["redteam", "--help"]);
     expect(redteamHelp.status).toBe(0);
     expect(redteamHelp.stdout).toContain("CodeDecay redteam");
