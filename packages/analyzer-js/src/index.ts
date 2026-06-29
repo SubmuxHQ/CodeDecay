@@ -1,5 +1,5 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, dirname, extname, join, relative } from "node:path";
+import { readFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { parse } from "@babel/parser";
 import type {
   AnalyzerResult,
@@ -19,12 +19,15 @@ import {
   isTestPath,
   type AreaKind
 } from "./classifiers/paths";
+import { getNodeType, walk } from "./ast/traverse";
+import { listRepoFiles } from "./files/repo";
 import {
   createMissingNearbyTestsFinding,
   createRiskyAreaFinding,
   firstLine
 } from "./findings/builders";
 import { dedupeFindings } from "./findings/sorting";
+import { buildReverseImportGraph, findReverseImportChains } from "./imports/graph";
 import { detectRoutesForFile, mergeImpactedRoutes } from "./routes/impact";
 import { analyzeRuntimeCoverage } from "./runtime-coverage";
 
@@ -52,8 +55,6 @@ interface PropagatedRouteImpactAnalysis {
   recommendedTests: string[];
 }
 
-const SOURCE_EXTENSION_CANDIDATES = [".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"];
-const IGNORED_DIRS = new Set([".git", "node_modules", "dist", "coverage", ".next", "build"]);
 const ASSERTION_PATTERN =
   /\b(expect|assert|strictEqual|deepStrictEqual|ok)\s*\(|\bshould\(|\bto(Be|Equal|StrictEqual|Contain|Match|Have|Throw|BeTruthy|BeFalsy)\b/;
 const SNAPSHOT_ASSERTION_PATTERN = /\b(toMatchSnapshot|toMatchInlineSnapshot|toHaveScreenshot)\s*\(/;
@@ -680,12 +681,13 @@ function analyzeFunctions(change: FileChange, content: string): FunctionMetric[]
 
     const metrics: FunctionMetric[] = [];
     walk(ast, (node) => {
-      if (!isFunctionNode(node) || !node.loc) {
+      const loc = readNodeLoc(node);
+      if (!isFunctionNode(node) || !loc) {
         return;
       }
 
-      const startLine = node.loc.start.line;
-      const endLine = node.loc.end.line;
+      const startLine = loc.start.line;
+      const endLine = loc.end.line;
       const touchesChangedLine =
         changedLines.size === 0 ||
         [...changedLines].some((line) => line >= startLine && line <= endLine);
@@ -743,40 +745,6 @@ function estimateComplexity(node: unknown): number {
   return complexity;
 }
 
-function walk(node: unknown, visitor: (node: any) => void): void {
-  if (!node || typeof node !== "object") {
-    return;
-  }
-
-  if (Array.isArray(node)) {
-    for (const item of node) {
-      walk(item, visitor);
-    }
-    return;
-  }
-
-  const typedNode = node as Record<string, unknown>;
-  visitor(typedNode);
-
-  for (const [key, value] of Object.entries(typedNode)) {
-    if (
-      key === "loc" ||
-      key === "start" ||
-      key === "end" ||
-      key === "extra" ||
-      key === "comments" ||
-      key === "leadingComments" ||
-      key === "trailingComments"
-    ) {
-      continue;
-    }
-
-    if (value && typeof value === "object") {
-      walk(value, visitor);
-    }
-  }
-}
-
 function isFunctionNode(node: any): boolean {
   const type = getNodeType(node);
   return (
@@ -789,8 +757,32 @@ function isFunctionNode(node: any): boolean {
   );
 }
 
-function getNodeType(node: any): string | undefined {
-  return typeof node?.type === "string" ? node.type : undefined;
+function readNodeLoc(node: unknown): { start: { line: number }; end: { line: number } } | undefined {
+  if (!node || typeof node !== "object") {
+    return undefined;
+  }
+
+  const loc = (node as { loc?: unknown }).loc;
+  if (!loc || typeof loc !== "object") {
+    return undefined;
+  }
+
+  const start = (loc as { start?: unknown }).start;
+  const end = (loc as { end?: unknown }).end;
+  if (!start || !end || typeof start !== "object" || typeof end !== "object") {
+    return undefined;
+  }
+
+  const startLine = (start as { line?: unknown }).line;
+  const endLine = (end as { line?: unknown }).line;
+  if (typeof startLine !== "number" || typeof endLine !== "number") {
+    return undefined;
+  }
+
+  return {
+    start: { line: startLine },
+    end: { line: endLine }
+  };
 }
 
 function getFunctionName(node: any): string {
@@ -811,170 +803,6 @@ function readChangedFile(rootDir: string, path: string): string | undefined {
   } catch {
     return undefined;
   }
-}
-
-function buildReverseImportGraph(rootDir: string): Map<string, string[]> {
-  const repoSourceFiles = listRepoFiles(rootDir)
-    .map((file) => normalizePath(file))
-    .filter((file) => isSourcePath(file) && !isTestPath(file));
-  const repoSourceSet = new Set(repoSourceFiles);
-  const importersBySource = new Map<string, Set<string>>();
-
-  for (const file of repoSourceFiles) {
-    const content = readChangedFile(rootDir, file);
-    if (!content) {
-      continue;
-    }
-
-    for (const specifier of extractLocalImportSpecifiers(content)) {
-      const resolved = resolveLocalImportSpecifier(file, specifier, repoSourceSet);
-      if (!resolved) {
-        continue;
-      }
-
-      const importers = importersBySource.get(resolved) ?? new Set<string>();
-      importers.add(file);
-      importersBySource.set(resolved, importers);
-    }
-  }
-
-  return new Map(
-    [...importersBySource.entries()].map(([source, importers]) => [source, [...importers].sort((left, right) => left.localeCompare(right))])
-  );
-}
-
-function extractLocalImportSpecifiers(content: string): string[] {
-  try {
-    const ast = parse(content, {
-      sourceType: "unambiguous",
-      plugins: ["typescript", "jsx", "decorators-legacy"],
-      errorRecovery: true,
-      ranges: false,
-      tokens: false
-    });
-    const specifiers = new Set<string>();
-
-    walk(ast, (node) => {
-      const type = getNodeType(node);
-      if (
-        (type === "ImportDeclaration" || type === "ExportNamedDeclaration" || type === "ExportAllDeclaration") &&
-        typeof node.source?.value === "string" &&
-        node.source.value.startsWith(".")
-      ) {
-        specifiers.add(node.source.value);
-      }
-
-      if (
-        type === "CallExpression" &&
-        getNodeType(node.callee) === "Identifier" &&
-        node.callee.name === "require" &&
-        Array.isArray(node.arguments) &&
-        typeof node.arguments[0]?.value === "string" &&
-        node.arguments[0].value.startsWith(".")
-      ) {
-        specifiers.add(node.arguments[0].value);
-      }
-
-      if (type === "ImportExpression" && typeof node.source?.value === "string" && node.source.value.startsWith(".")) {
-        specifiers.add(node.source.value);
-      }
-    });
-
-    return [...specifiers];
-  } catch {
-    return [];
-  }
-}
-
-function resolveLocalImportSpecifier(importerPath: string, specifier: string, repoSourceSet: Set<string>): string | undefined {
-  const relativeTarget = normalizePath(join(dirname(importerPath), specifier));
-  const candidates = new Set<string>();
-  candidates.add(relativeTarget);
-
-  if (!extname(relativeTarget)) {
-    for (const extension of SOURCE_EXTENSION_CANDIDATES) {
-      candidates.add(`${relativeTarget}${extension}`);
-      candidates.add(`${relativeTarget}/index${extension}`);
-    }
-  }
-
-  for (const candidate of candidates) {
-    if (repoSourceSet.has(candidate)) {
-      return candidate;
-    }
-  }
-
-  return undefined;
-}
-
-function findReverseImportChains(sourcePath: string, reverseImportGraph: Map<string, string[]>): string[][] {
-  const queue: string[][] = [[sourcePath]];
-  const visited = new Set<string>([sourcePath]);
-  const chains: string[][] = [];
-
-  while (queue.length > 0 && chains.length < 24) {
-    const chain = queue.shift();
-    if (!chain) {
-      continue;
-    }
-
-    const current = chain.at(-1);
-    if (!current) {
-      continue;
-    }
-
-    for (const importer of reverseImportGraph.get(current) ?? []) {
-      if (chain.includes(importer) || chain.length >= 6) {
-        continue;
-      }
-
-      const nextChain = [...chain, importer];
-      chains.push(nextChain);
-
-      if (!visited.has(importer)) {
-        visited.add(importer);
-        queue.push(nextChain);
-      }
-    }
-  }
-
-  return chains;
-}
-
-function listRepoFiles(rootDir: string): string[] {
-  const files: string[] = [];
-
-  function visit(currentDir: string): void {
-    let entries: string[];
-    try {
-      entries = readdirSync(currentDir);
-    } catch {
-      return;
-    }
-
-    for (const entry of entries) {
-      if (IGNORED_DIRS.has(entry)) {
-        continue;
-      }
-
-      const absolutePath = join(currentDir, entry);
-      let stats;
-      try {
-        stats = statSync(absolutePath);
-      } catch {
-        continue;
-      }
-
-      if (stats.isDirectory()) {
-        visit(absolutePath);
-      } else {
-        files.push(relative(rootDir, absolutePath).replaceAll("\\", "/"));
-      }
-    }
-  }
-
-  visit(rootDir);
-  return files;
 }
 
 function stripExtension(path: string): string {
