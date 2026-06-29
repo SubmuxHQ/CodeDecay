@@ -27,6 +27,10 @@ export type {
   ProductFailureTarget,
   ReportSummary,
   RuntimeCoverageSourceKind,
+  SecurityAnalysisSummary,
+  SecurityCandidate,
+  SecurityCandidateConfidence,
+  SecuritySkippedFile,
   TestEvidenceMode,
   TestEvidenceSource,
   TestEvidenceSummary

@@ -16,6 +16,12 @@ export type { Finding, FindingCategory } from "./types/findings";
 export type { ImpactedArea, ImpactedRoute } from "./types/impact";
 export type { CodeDecayReport, ReportSummary } from "./types/report";
 export type {
+  SecurityAnalysisSummary,
+  SecurityCandidate,
+  SecurityCandidateConfidence,
+  SecuritySkippedFile
+} from "./types/security";
+export type {
   ChangedSourceCoverage,
   ChangedSourceCoverageStatus,
   RuntimeCoverageSourceKind,

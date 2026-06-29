@@ -20,8 +20,12 @@ export function renderSarifReport(report: CodeDecayReport): string {
           properties: {
             mergeRiskScore: report.summary.mergeRiskScore,
             decayScore: report.summary.decayScore,
+            securityScore: report.summary.securityScore,
             mergeRiskBreakdown: report.summary.mergeRiskBreakdown,
             decayBreakdown: report.summary.decayBreakdown,
+            securityBreakdown: report.summary.securityBreakdown,
+            securityAnalysis: report.securityAnalysis,
+            securityCandidates: report.securityCandidates,
             testEvidence: report.testEvidence,
             productFailureBundles: report.productFailureBundles
           }

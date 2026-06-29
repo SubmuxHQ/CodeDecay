@@ -1,0 +1,19 @@
+{
+  "name": "@submuxhq/codedecay-matchers",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean --tsconfig ../../tsconfig.base.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@submuxhq/codedecay-core": "workspace:*"
+  }
+}

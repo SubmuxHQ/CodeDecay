@@ -5,7 +5,8 @@ export type FindingCategory =
   | "coverage"
   | "decay"
   | "scope"
-  | "configuration";
+  | "configuration"
+  | "security";
 
 export interface Finding {
   ruleId: string;

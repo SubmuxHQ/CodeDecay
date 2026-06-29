@@ -66,6 +66,9 @@ importers:
       '@submuxhq/codedecay-core':
         specifier: workspace:*
         version: link:../core
+      '@submuxhq/codedecay-matchers':
+        specifier: workspace:*
+        version: link:../matchers
 
   packages/cli:
     dependencies:
@@ -122,6 +125,12 @@ importers:
       '@submuxhq/codedecay-config':
         specifier: workspace:*
         version: link:../config
+      '@submuxhq/codedecay-core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/matchers:
+    dependencies:
       '@submuxhq/codedecay-core':
         specifier: workspace:*
         version: link:../core

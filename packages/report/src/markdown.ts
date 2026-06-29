@@ -10,6 +10,8 @@ import {
   appendRecommendedChecks,
   appendReportNotes,
   appendScoreBreakdown,
+  appendSecurityAnalysis,
+  appendSecurityCandidates,
   appendSummaryTables,
   appendTestEvidence
 } from "./markdown/sections";
@@ -30,6 +32,9 @@ export function renderMarkdownReport(report: CodeDecayReport): string {
   appendImpactedRoutes(lines, report);
   appendScoreBreakdown(lines, "Merge Risk Breakdown", report.summary.mergeRiskBreakdown);
   appendScoreBreakdown(lines, "Decay Risk Breakdown", report.summary.decayBreakdown);
+  appendScoreBreakdown(lines, "Security Risk Breakdown", report.summary.securityBreakdown);
+  appendSecurityAnalysis(lines, report.securityAnalysis);
+  appendSecurityCandidates(lines, report.securityCandidates);
   appendTestEvidence(lines, report.testEvidence);
   appendProductFailureBundles(lines, report.productFailureBundles);
 

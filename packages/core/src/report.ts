@@ -3,7 +3,7 @@ import { findingCounts, sortFindings } from "./findings";
 import { mergeImpactedAreas, mergeImpactedRoutes } from "./impact";
 import { sortProductFailureBundles } from "./product-failures";
 import { riskLevelFromScore } from "./risk";
-import { calculateDecayBreakdown, calculateMergeRiskBreakdown } from "./scoring";
+import { calculateDecayBreakdown, calculateMergeRiskBreakdown, calculateSecurityBreakdown } from "./scoring";
 import type { AnalyzerResult, CodeDecayReport, FileChange, ProductFailureBundle } from "./types";
 import { CODEDECAY_VERSION } from "./version";
 
@@ -18,9 +18,11 @@ export function createAnalysisReport(input: {
   const findings = sortFindings(input.analyzerResult.findings);
   const mergeRiskBreakdown = calculateMergeRiskBreakdown(findings, input.changedFiles);
   const decayBreakdown = calculateDecayBreakdown(findings, input.changedFiles);
+  const securityBreakdown = calculateSecurityBreakdown(findings, input.changedFiles);
   const mergeRiskScore = mergeRiskBreakdown.score;
   const decayScore = decayBreakdown.score;
-  const riskLevel = riskLevelFromScore(Math.max(mergeRiskScore, decayScore));
+  const securityScore = securityBreakdown.score;
+  const riskLevel = riskLevelFromScore(Math.max(mergeRiskScore, decayScore, securityScore));
   const impactedRoutes = mergeImpactedRoutes(input.analyzerResult.impactedRoutes ?? []);
   const routeRecommendedTests = impactedRoutes.flatMap((route) => route.recommendedTests);
 
@@ -31,10 +33,12 @@ export function createAnalysisReport(input: {
     summary: {
       mergeRiskScore,
       decayScore,
+      securityScore,
       riskLevel,
       findingCounts: findingCounts(findings),
       mergeRiskBreakdown,
-      decayBreakdown
+      decayBreakdown,
+      securityBreakdown
     },
     changedFiles: input.changedFiles,
     impactedAreas: mergeImpactedAreas(input.analyzerResult.impactedAreas),
@@ -56,6 +60,14 @@ export function createAnalysisReport(input: {
 
   if (input.analyzerResult.testEvidence) {
     report.testEvidence = input.analyzerResult.testEvidence;
+  }
+
+  if (input.analyzerResult.securityAnalysis) {
+    report.securityAnalysis = input.analyzerResult.securityAnalysis;
+  }
+
+  if (input.analyzerResult.securityCandidates && input.analyzerResult.securityCandidates.length > 0) {
+    report.securityCandidates = input.analyzerResult.securityCandidates;
   }
 
   if (input.productFailureBundles && input.productFailureBundles.length > 0) {

@@ -30,6 +30,7 @@ export interface AgentTaskSummary {
   riskLevel: RiskLevel;
   mergeRiskScore: number;
   decayScore: number;
+  securityScore: number;
   changedFiles: number;
   impactedAreas: number;
   impactedRoutes: number;

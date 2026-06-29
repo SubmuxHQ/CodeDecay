@@ -4,15 +4,18 @@ import type { ProductFailureBundle } from "../product-failures/types";
 import type { FileChange } from "./file-change";
 import type { Finding } from "./findings";
 import type { ImpactedArea, ImpactedRoute } from "./impact";
+import type { SecurityAnalysisSummary, SecurityCandidate } from "./security";
 import type { TestEvidenceSummary } from "./test-evidence";
 
 export interface ReportSummary {
   mergeRiskScore: number;
   decayScore: number;
+  securityScore: number;
   riskLevel: RiskLevel;
   findingCounts: Record<RiskLevel, number>;
   mergeRiskBreakdown?: ScoreBreakdown | undefined;
   decayBreakdown?: ScoreBreakdown | undefined;
+  securityBreakdown?: ScoreBreakdown | undefined;
 }
 
 export interface CodeDecayReport {
@@ -25,6 +28,8 @@ export interface CodeDecayReport {
   changedFiles: FileChange[];
   impactedAreas: ImpactedArea[];
   impactedRoutes?: ImpactedRoute[] | undefined;
+  securityAnalysis?: SecurityAnalysisSummary | undefined;
+  securityCandidates?: SecurityCandidate[] | undefined;
   findings: Finding[];
   recommendedTests: string[];
   testEvidence?: TestEvidenceSummary | undefined;

@@ -41,6 +41,10 @@ function scoreEvidenceForFinding(finding: Finding): ScoreEvidenceKind {
     return "direct";
   }
 
+  if (finding.category === "security") {
+    return "heuristic";
+  }
+
   if (finding.category === "regression" && !HEURISTIC_REGRESSION_RULE_IDS.has(finding.ruleId)) {
     return "direct";
   }

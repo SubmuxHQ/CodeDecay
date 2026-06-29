@@ -16,6 +16,7 @@ export function createAgentTaskBundle(report: RedteamReport, options: CreateAgen
     riskLevel: report.summary.riskLevel,
     mergeRiskScore: report.summary.mergeRiskScore,
     decayScore: report.summary.decayScore,
+    securityScore: report.summary.securityScore,
     changedFiles: report.summary.changedFiles,
     impactedAreas: report.summary.impactedAreas,
     impactedRoutes: report.summary.impactedRoutes,

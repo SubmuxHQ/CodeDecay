@@ -9,6 +9,7 @@ export function createFixtureReport(): RedteamReport {
     summary: {
       mergeRiskScore: 88,
       decayScore: 42,
+      securityScore: 0,
       riskLevel: "high",
       changedFiles: 1,
       impactedAreas: 1,
@@ -104,6 +105,7 @@ export function createFixtureReport(): RedteamReport {
       summary: {
         mergeRiskScore: 88,
         decayScore: 42,
+        securityScore: 0,
         riskLevel: "high",
         findingCounts: {
           low: 0,

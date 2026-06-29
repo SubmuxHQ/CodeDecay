@@ -1,6 +1,6 @@
 # Scoring Model
 
-CodeDecay produces two scores from 0 to 100.
+CodeDecay produces three scores from 0 to 100.
 
 ## Merge Risk
 
@@ -40,6 +40,30 @@ Signals include:
 - broad unrelated change sets
 - large test changes weakly connected to source changes
 
+## Security Score
+
+Security score estimates whether the PR introduces or changes
+security-sensitive behavior that should be reviewed before merge.
+
+Signals include deterministic matcher candidates for:
+
+- SQL injection
+- hardcoded secrets
+- command injection
+- path traversal
+- server-side request forgery
+- unsafe HTML rendering
+- public route/controller entry points without obvious auth guards
+- insecure cookie/session configuration
+
+Security matchers run in the free deterministic analysis pass. They do not call
+an LLM, API, cloud service, or hosted scanner.
+
+Matcher hits are candidates and findings, but they are not a gate. In diff
+mode, CodeDecay analyzes every changed source file in scope whether or not a
+security matcher fires. Matcher misses must not silently remove a changed file
+from analysis.
+
 ## Thresholds
 
 - `0-39`: low
@@ -65,6 +89,7 @@ Reports include:
 
 - `mergeRiskBreakdown`
 - `decayBreakdown`
+- `securityBreakdown`
 
 Each breakdown records:
 
@@ -84,6 +109,9 @@ As a rule of thumb:
   brittle test patterns
 - reduce decay risk by shrinking changed functions, removing duplicate logic,
   and avoiding suppressions or unchecked escape hatches
+- reduce security risk by removing unsafe sinks, adding validation or auth
+  guards, using safe APIs, and adding tests or configured checks that exercise
+  the real security-sensitive path
 
 ## Calibration
 
@@ -95,5 +123,5 @@ See [Benchmark corpus](benchmark-corpus.md).
 ## No LLM Required
 
 CodeDecay does not call a model to decide risk. It uses git diff data,
-path-based impact detection, local JS/TS source analysis, and deterministic
-rules.
+path-based impact detection, local JS/TS source analysis, deterministic
+security matchers, and deterministic rules.

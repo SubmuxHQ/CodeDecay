@@ -17,6 +17,7 @@ export default defineConfig({
       "@submuxhq/codedecay-execution": fromRoot("./packages/execution/src/index.ts"),
       "@submuxhq/codedecay-harness": fromRoot("./packages/harness/src/index.ts"),
       "@submuxhq/codedecay-llm": fromRoot("./packages/llm/src/index.ts"),
+      "@submuxhq/codedecay-matchers": fromRoot("./packages/matchers/src/index.ts"),
       "@submuxhq/codedecay-mcp": fromRoot("./packages/mcp/src/index.ts"),
       "@submuxhq/codedecay-memory": fromRoot("./packages/memory/src/index.ts"),
       "@submuxhq/codedecay-redteam": fromRoot("./packages/redteam/src/index.ts"),

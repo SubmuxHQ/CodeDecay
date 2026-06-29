@@ -35,6 +35,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
     "| --- | ---: |",
     `| Merge risk | ${report.summary.mergeRiskScore}/100 |`,
     `| Decay risk | ${report.summary.decayScore}/100 |`,
+    `| Security risk | ${report.summary.securityScore}/100 |`,
     `| Changed files | ${report.summary.changedFiles} |`,
     `| Impacted areas | ${report.summary.impactedAreas} |`,
     `| Impacted routes/APIs | ${report.summary.impactedRoutes} |`,

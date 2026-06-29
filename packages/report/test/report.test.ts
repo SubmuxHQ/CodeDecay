@@ -11,11 +11,12 @@ const report: CodeDecayReport = {
   summary: {
     mergeRiskScore: 72,
     decayScore: 44,
+    securityScore: 36,
     riskLevel: "high",
     findingCounts: {
       low: 0,
       medium: 1,
-      high: 1
+      high: 2
     },
     mergeRiskBreakdown: {
       score: 72,
@@ -56,6 +57,29 @@ const report: CodeDecayReport = {
           category: "decay",
           severity: "medium",
           ruleId: "high-complexity",
+          file: "src/auth/session.ts",
+          line: 3
+        }
+      ],
+      dampeners: [],
+      notes: []
+    },
+    securityBreakdown: {
+      score: 36,
+      rawScore: 36,
+      adjustedScore: 36,
+      highestSeverity: "high",
+      heuristicOnly: false,
+      contributors: [
+        {
+          id: "security-sql-injection:src/auth/session.ts:3",
+          label: "SQL injection candidate",
+          points: 30,
+          evidence: "direct",
+          reason: "Unsafe SQL construction.",
+          category: "security",
+          severity: "high",
+          ruleId: "security-sql-injection",
           file: "src/auth/session.ts",
           line: 3
         }
@@ -112,8 +136,35 @@ const report: CodeDecayReport = {
       category: "regression",
       file: "src/auth/session.ts",
       line: 3
+    },
+    {
+      ruleId: "security-sql-injection",
+      title: "SQL injection candidate",
+      description: "Unsafe SQL construction.",
+      severity: "high",
+      category: "security",
+      file: "src/auth/session.ts",
+      line: 3
     }
   ],
+  securityCandidates: [
+    {
+      ruleId: "security-sql-injection",
+      cwe: "CWE-89",
+      title: "SQL injection candidate",
+      description: "Unsafe SQL construction.",
+      severity: "high",
+      confidence: "direct",
+      file: "src/auth/session.ts",
+      line: 3,
+      evidence: "Raw SQL is built from request input."
+    }
+  ],
+  securityAnalysis: {
+    scannedFiles: ["src/auth/session.ts"],
+    candidateCount: 1,
+    skippedFiles: []
+  },
   recommendedTests: ["src/auth/session.test.ts", "Add or run tests covering next.config.js"],
   testEvidence: {
     mode: "runtime_augmented",
@@ -219,9 +270,15 @@ describe("reports", () => {
 
     expect(markdown).toContain("CodeDecay Report");
     expect(markdown).toContain("Merge risk");
+    expect(markdown).toContain("Security risk");
     expect(markdown).toContain("src/auth/session.ts");
     expect(markdown).toContain("### Likely Impacted Routes And APIs");
     expect(markdown).toContain("### Merge Risk Breakdown");
+    expect(markdown).toContain("### Security Risk Breakdown");
+    expect(markdown).toContain("### Security Matcher Coverage");
+    expect(markdown).toContain("Changed source files scanned: 1");
+    expect(markdown).toContain("### Security Candidates");
+    expect(markdown).toContain("CWE-89");
     expect(markdown).toContain("### Test Evidence");
     expect(markdown).toContain("### Product Failure Bundles");
     expect(markdown).toContain("#### High Login flow fails on preview");
@@ -241,9 +298,16 @@ describe("reports", () => {
     expect(json).toMatchObject({
       tool: "CodeDecay",
       summary: {
-        riskLevel: "high"
+        riskLevel: "high",
+        securityScore: 36
       }
     });
+    expect(json.securityCandidates[0]).toMatchObject({
+      ruleId: "security-sql-injection",
+      cwe: "CWE-89",
+      confidence: "direct"
+    });
+    expect(json.securityAnalysis.scannedFiles).toEqual(["src/auth/session.ts"]);
     expect(json.impactedRoutes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -271,8 +335,14 @@ describe("reports", () => {
     expect(sarif.runs[0].results[0].ruleId).toBe("risky-auth-change");
     expect(sarif.runs[0].results[0].locations[0].physicalLocation.region.startLine).toBe(3);
     expect(sarif.runs[0].properties.mergeRiskBreakdown.score).toBe(72);
+    expect(sarif.runs[0].properties.securityScore).toBe(36);
+    expect(sarif.runs[0].properties.securityAnalysis.scannedFiles).toEqual(["src/auth/session.ts"]);
+    expect(sarif.runs[0].properties.securityCandidates[0].ruleId).toBe("security-sql-injection");
     expect(sarif.runs[0].results).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "security-sql-injection"
+        }),
         expect.objectContaining({
           ruleId: "product-verification/ui/ui.login.success",
           locations: [

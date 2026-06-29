@@ -33,6 +33,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
     summary: {
       mergeRiskScore: input.analysisReport.summary.mergeRiskScore,
       decayScore: input.analysisReport.summary.decayScore,
+      securityScore: input.analysisReport.summary.securityScore,
       riskLevel: input.analysisReport.summary.riskLevel,
       changedFiles: input.analysisReport.changedFiles.length,
       impactedAreas: input.analysisReport.impactedAreas.length,

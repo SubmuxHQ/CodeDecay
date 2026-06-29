@@ -50,6 +50,7 @@ export interface RedteamReport {
 export interface RedteamSummary {
   mergeRiskScore: number;
   decayScore: number;
+  securityScore: number;
   riskLevel: RiskLevel;
   changedFiles: number;
   impactedAreas: number;

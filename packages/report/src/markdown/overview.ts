@@ -9,6 +9,7 @@ export function appendSummaryTables(lines: string[], report: CodeDecayReport): v
     "| --- | ---: |",
     `| Merge risk | ${report.summary.mergeRiskScore}/100 |`,
     `| Decay risk | ${report.summary.decayScore}/100 |`,
+    `| Security risk | ${report.summary.securityScore}/100 |`,
     "",
     "| Findings | Count |",
     "| --- | ---: |",

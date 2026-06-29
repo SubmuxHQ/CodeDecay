@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@babel/parser": "^7.27.5",
-    "@submuxhq/codedecay-core": "workspace:*"
+    "@submuxhq/codedecay-core": "workspace:*",
+    "@submuxhq/codedecay-matchers": "workspace:*"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean --tsconfig ../../tsconfig.base.json"

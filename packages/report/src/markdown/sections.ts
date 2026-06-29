@@ -9,4 +9,5 @@ export {
 } from "./overview";
 export { appendProductFailureBundles } from "./product-failures";
 export { appendScoreBreakdown } from "./score-breakdown";
+export { appendSecurityAnalysis, appendSecurityCandidates } from "./security";
 export { appendTestEvidence } from "./test-evidence";

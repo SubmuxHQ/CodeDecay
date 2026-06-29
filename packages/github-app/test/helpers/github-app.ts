@@ -73,6 +73,7 @@ export function createReport(riskLevel: "low" | "medium" | "high"): CodeDecayRep
     summary: {
       mergeRiskScore: riskLevel === "high" ? 80 : riskLevel === "medium" ? 50 : 10,
       decayScore: 10,
+      securityScore: 0,
       riskLevel,
       findingCounts: {
         low: 0,

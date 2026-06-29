@@ -1,5 +1,5 @@
 import type { FileChange, Finding, FindingCategory } from "../types";
-import { DECAY_CATEGORIES, MERGE_RISK_CATEGORIES } from "./constants";
+import { DECAY_CATEGORIES, MERGE_RISK_CATEGORIES, SECURITY_CATEGORIES } from "./constants";
 import { createFindingContributor, runtimePersistenceBoundaryScore } from "./contributors";
 import {
   capScoreByHighestSeverity,
@@ -17,11 +17,15 @@ export function calculateDecayBreakdown(findings: Finding[], changedFiles: FileC
   return calculateScoreBreakdown(findings, DECAY_CATEGORIES, changedFiles, "decay");
 }
 
+export function calculateSecurityBreakdown(findings: Finding[], changedFiles: FileChange[]): ScoreBreakdown {
+  return calculateScoreBreakdown(findings, SECURITY_CATEGORIES, changedFiles, "security");
+}
+
 function calculateScoreBreakdown(
   findings: Finding[],
   includedCategories: Set<FindingCategory>,
   changedFiles: FileChange[],
-  scoreKind: "merge" | "decay"
+  scoreKind: "merge" | "decay" | "security"
 ): ScoreBreakdown {
   const relevantFindings = findings.filter((finding) => includedCategories.has(finding.category));
   const contributors = relevantFindings.map((finding) => createFindingContributor(finding));
@@ -72,7 +76,7 @@ function calculateScoreBreakdown(
   let adjustedScore = rawScore;
 
   if (heuristicOnly) {
-    const scoreLabel = scoreKind === "merge" ? "Merge risk" : "Decay";
+    const scoreLabel = scoreKind === "merge" ? "Merge risk" : scoreKind === "security" ? "Security" : "Decay";
     const dampenerPoints = Math.min(16, Math.max(4, Math.round(rawScore * 0.25)));
     dampeners.push({
       id: "heuristic-only-dampener",
@@ -87,7 +91,7 @@ function calculateScoreBreakdown(
   let score = capScoreByHighestSeverity(adjustedScore, relevantFindings);
   const notes: string[] = [];
   if (heuristicOnly) {
-    const scoreLabel = scoreKind === "merge" ? "merge risk" : "decay";
+    const scoreLabel = scoreKind === "merge" ? "merge risk" : scoreKind === "security" ? "security risk" : "decay";
     score = Math.min(score, 54);
     notes.push(`Heuristic-only ${scoreLabel} is capped at 54/100 until direct evidence exists.`);
   }

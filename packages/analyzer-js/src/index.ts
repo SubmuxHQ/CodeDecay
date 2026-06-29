@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type {
   AnalyzerResult,
   FileChange,
@@ -6,6 +8,7 @@ import type {
   ImpactedArea
 } from "@submuxhq/codedecay-core";
 import { dedupeStrings } from "@submuxhq/codedecay-core";
+import { scanSecurityCandidates } from "@submuxhq/codedecay-matchers";
 import { analyzeImpactedAreas } from "./areas/analysis";
 import { isSourcePath, isTestPath } from "./classifiers/paths";
 import { detectFunctionMetricFindings } from "./decay/function-findings";
@@ -35,6 +38,12 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
   );
   const changedTestFiles = options.changedFiles.filter((change) => isTestPath(change.path));
   const runtimeCoverage = analyzeRuntimeCoverage(options.rootDir, changedSourceFiles);
+  const securityScan = scanSecurityCandidates({
+    files: changedSourceFiles.map((change) => ({
+      path: change.path,
+      content: readChangeContent(options.rootDir, change)
+    }))
+  });
   const fullyCoveredSourcePaths = new Set(
     runtimeCoverage.testEvidence.changedSources.filter((entry) => entry.status === "covered").map((entry) => entry.path)
   );
@@ -66,6 +75,7 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
   findings.push(...detectTestBloat(options.changedFiles, changedSourceFiles));
   findings.push(...detectDuplicateAddedLogic(options.changedFiles));
   findings.push(...runtimeCoverage.findings);
+  findings.push(...securityScan.findings);
   recommendedTests.push(...runtimeCoverage.recommendedTests);
 
   const testAudit = detectWeakTests(options.rootDir, changedTestFiles, changedSourceFiles);
@@ -73,11 +83,30 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
   recommendedTests.push(...testAudit.recommendedTests);
   findings.push(...detectFunctionMetricFindings(options.rootDir, changedSourceFiles));
 
-  return {
+  const result: AnalyzerResult = {
     findings: dedupeFindings(findings),
     impactedAreas,
     impactedRoutes: mergeImpactedRoutes(impactedRoutes),
+    securityAnalysis: {
+      scannedFiles: securityScan.scannedFiles,
+      candidateCount: securityScan.candidates.length,
+      skippedFiles: securityScan.skippedFiles
+    },
     recommendedTests: recommendedTests.length > 0 ? dedupeStrings(recommendedTests) : ["Run the test suite for changed packages or apps."],
     testEvidence: runtimeCoverage.testEvidence
   };
+
+  if (securityScan.candidates.length > 0) {
+    result.securityCandidates = securityScan.candidates;
+  }
+
+  return result;
+}
+
+function readChangeContent(rootDir: string, change: FileChange): string {
+  try {
+    return readFileSync(join(rootDir, change.path), "utf8");
+  } catch {
+    return change.addedLines.map((line) => line.content).join("\n");
+  }
 }

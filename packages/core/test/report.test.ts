@@ -46,6 +46,15 @@ describe("createAnalysisReport", () => {
           line: 3
         },
         {
+          ruleId: "security-sql-injection",
+          title: "SQL injection candidate",
+          description: "Unsafe SQL construction.",
+          severity: "high",
+          category: "security",
+          file: "src/auth/session.ts",
+          line: 4
+        },
+        {
           ruleId: "high-complexity",
           title: "High complexity",
           description: "Complexity increased.",
@@ -55,6 +64,24 @@ describe("createAnalysisReport", () => {
           line: 3
         }
       ],
+      securityCandidates: [
+        {
+          ruleId: "security-sql-injection",
+          cwe: "CWE-89",
+          title: "SQL injection candidate",
+          description: "Unsafe SQL construction.",
+          severity: "high",
+          confidence: "direct",
+          file: "src/auth/session.ts",
+          line: 4,
+          evidence: "Raw SQL is built from request input."
+        }
+      ],
+      securityAnalysis: {
+        scannedFiles: ["src/auth/session.ts"],
+        candidateCount: 1,
+        skippedFiles: []
+      },
       recommendedTests: ["src/auth/session.test.ts"]
     };
 
@@ -68,9 +95,13 @@ describe("createAnalysisReport", () => {
 
     expect(report.summary.mergeRiskScore).toBeGreaterThan(0);
     expect(report.summary.decayScore).toBeGreaterThan(0);
-    expect(report.summary.findingCounts.high).toBe(1);
+    expect(report.summary.securityScore).toBeGreaterThan(0);
+    expect(report.summary.findingCounts.high).toBe(2);
     expect(report.summary.mergeRiskBreakdown?.contributors.length).toBeGreaterThan(0);
     expect(report.summary.decayBreakdown?.contributors.length).toBeGreaterThan(0);
+    expect(report.summary.securityBreakdown?.contributors[0]?.ruleId).toBe("security-sql-injection");
+    expect(report.securityCandidates?.[0]?.cwe).toBe("CWE-89");
+    expect(report.securityAnalysis?.scannedFiles).toEqual(["src/auth/session.ts"]);
     expect(report.impactedRoutes).toEqual([
       {
         framework: "express",
