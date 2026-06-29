@@ -1,8 +1,10 @@
 import { resolve } from "node:path";
 import { loadCodeDecayConfig } from "@submuxhq/codedecay-config";
-import { CODEDECAY_VERSION, type CodeDecayReport } from "@submuxhq/codedecay-core";
+import { CODEDECAY_VERSION } from "@submuxhq/codedecay-core";
 import { createLlmProvider, type LlmCompletion } from "@submuxhq/codedecay-llm";
 import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
+import { formatLlmReviewError } from "./llm-review/errors";
+import { summarizeReportForLlmReview } from "./llm-review/summary";
 import { parseLlmReviewArgs } from "../parsers/args";
 import { renderLlmReviewReport } from "../renderers/llm-review";
 import type {
@@ -139,60 +141,4 @@ async function createLlmReviewForCli(
   }
 
   return report;
-}
-
-function summarizeReportForLlmReview(report: CodeDecayReport | undefined): Record<string, unknown> | undefined {
-  if (!report) {
-    return undefined;
-  }
-
-  const testAudit = createTestProofAudit(report);
-  return {
-    summary: {
-      mergeRiskScore: report.summary.mergeRiskScore,
-      decayScore: report.summary.decayScore,
-      riskLevel: report.summary.riskLevel,
-      findingCounts: report.summary.findingCounts,
-      mergeRiskBreakdown: report.summary.mergeRiskBreakdown,
-      decayBreakdown: report.summary.decayBreakdown,
-      testEvidence: report.testEvidence,
-      testAuditStatus: testAudit.status,
-      evidenceMode: testAudit.evidenceMode
-    },
-    changedFiles: report.changedFiles.map((file) => ({
-      path: file.path,
-      status: file.status,
-      additions: file.additions,
-      deletions: file.deletions
-    })),
-    impactedAreas: report.impactedAreas,
-    impactedRoutes: report.impactedRoutes ?? [],
-    findings: report.findings.slice(0, 20),
-    recommendedTests: report.recommendedTests.slice(0, 20)
-  };
-}
-
-function formatLlmReviewError(
-  error: unknown,
-  provider: "disabled" | "ollama" | "litellm"
-): Error {
-  const message = error instanceof Error ? error.message : String(error);
-
-  if (message.includes("llm.model") || message.includes("llm.endpoint")) {
-    return new Error(`${message} Run "codedecay config --format markdown" to verify your llm settings.`);
-  }
-
-  if (message.includes("could not read API key from environment variable")) {
-    return new Error(`${message} Export the configured variable, then rerun "codedecay llm-review --ping".`);
-  }
-
-  if (provider === "ollama" && /fetch support|ECONNREFUSED|request failed|abort/i.test(message)) {
-    return new Error(`${message} Ensure Ollama is running at the configured endpoint and the model is available before rerunning "codedecay llm-review --ping".`);
-  }
-
-  if (provider === "litellm" && /request failed|401|403|404|message content|choices/i.test(message)) {
-    return new Error(`${message} Verify the LiteLLM/OpenAI-compatible endpoint, model name, and API key configuration, then rerun "codedecay llm-review --ping".`);
-  }
-
-  return new Error(message);
 }
