@@ -1,3 +1,5 @@
+import { dedupeStrings } from "./collections";
+import { findingCounts, sortFindings } from "./findings";
 import { compareRiskLevels, riskLevelFromScore, type RiskLevel } from "./risk";
 import { calculateDecayBreakdown, calculateMergeRiskBreakdown, type ScoreBreakdown } from "./scoring";
 import type {
@@ -15,6 +17,8 @@ import type {
 import { CODEDECAY_VERSION } from "./version";
 
 export { compareRiskLevels, riskLevelFromScore, shouldFailForRisk } from "./risk";
+export { dedupeStrings } from "./collections";
+export { findingCounts, sortFindings } from "./findings";
 export type { RiskLevel } from "./risk";
 export type { ScoreBreakdown, ScoreContributor, ScoreEvidenceKind } from "./scoring";
 export { CODEDECAY_PRODUCT_LATEST_REPORT_PATH } from "./types";
@@ -44,31 +48,6 @@ export type {
   TestEvidenceSummary
 } from "./types";
 export { CODEDECAY_VERSION } from "./version";
-
-export function findingCounts(findings: Finding[]): Record<RiskLevel, number> {
-  return findings.reduce<Record<RiskLevel, number>>(
-    (counts, finding) => {
-      counts[finding.severity] += 1;
-      return counts;
-    },
-    { low: 0, medium: 0, high: 0 }
-  );
-}
-
-export function sortFindings(findings: Finding[]): Finding[] {
-  return [...findings].sort((left, right) => {
-    const severity = compareRiskLevels(right.severity, left.severity);
-    if (severity !== 0) {
-      return severity;
-    }
-
-    return left.ruleId.localeCompare(right.ruleId);
-  });
-}
-
-export function dedupeStrings(values: string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
-}
 
 export function createAnalysisReport(input: {
   base?: string | undefined;
