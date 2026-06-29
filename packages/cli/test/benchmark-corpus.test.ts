@@ -102,6 +102,103 @@ describe("public risk benchmark corpus", () => {
   }
 });
 
+describe("unified harness planted issue corpus", () => {
+  it("reports deterministic recall, limitations, duration, and zero model cost", async () => {
+    const repo = createUnifiedHarnessPlantedIssueRepo();
+    const missingTestRepo = createMissingRealApiTestRepo();
+    const startedAt = Date.now();
+    const result = await run(["redteam", "--format", "json"], repo);
+    const missingTestResult = await run(["redteam", "--format", "json"], missingTestRepo);
+    const durationMs = Date.now() - startedAt;
+    const redteam = JSON.parse(result.stdout) as {
+      analysis: {
+        findings: Array<{ ruleId: string }>;
+        securityCandidates?: Array<{ ruleId: string }>;
+        securityAnalysis?: { skippedFiles: unknown[] };
+        languageAnalysis?: { unsupportedFiles: string[] };
+        summary: { riskLevel: string };
+      };
+      safety: {
+        llmCalled: boolean;
+        telemetrySent: boolean;
+        cloudDependency: boolean;
+      };
+      summary: {
+        weakTestFindings: number;
+        missingTestFindings: number;
+      };
+    };
+    const missingTestRedteam = JSON.parse(missingTestResult.stdout) as typeof redteam;
+
+    const expectedRuleIds = [
+      "security-sql-injection",
+      "security-hardcoded-secret",
+      "security-missing-auth-entrypoint",
+      "security-path-traversal",
+      "security-ssrf",
+      "security-command-injection",
+      "security-unsafe-html",
+      "risky-api-change",
+      "risky-auth-change",
+      "risky-config-change",
+      "risky-database-change",
+      "missing-nearby-tests",
+      "test-without-assertions",
+      "happy-path-only-test",
+      "large-function",
+      "high-complexity",
+      "duplicated-added-logic"
+    ];
+    const actualRuleIds = uniqueSorted([
+      ...redteam.analysis.findings.map((finding) => finding.ruleId),
+      ...(redteam.analysis.securityCandidates ?? []).map((candidate) => candidate.ruleId),
+      ...missingTestRedteam.analysis.findings.map((finding) => finding.ruleId),
+      ...(missingTestRedteam.analysis.securityCandidates ?? []).map((candidate) => candidate.ruleId)
+    ]);
+    const matchedRuleIds = expectedRuleIds.filter((ruleId) => actualRuleIds.includes(ruleId));
+    const metrics = {
+      expected: expectedRuleIds.length,
+      matched: matchedRuleIds.length,
+      recall: matchedRuleIds.length / expectedRuleIds.length,
+      skippedFiles:
+        (redteam.analysis.securityAnalysis?.skippedFiles.length ?? 0) +
+        (missingTestRedteam.analysis.securityAnalysis?.skippedFiles.length ?? 0),
+      cappedFiles: 0,
+      unsupportedFiles:
+        (redteam.analysis.languageAnalysis?.unsupportedFiles.length ?? 0) +
+        (missingTestRedteam.analysis.languageAnalysis?.unsupportedFiles.length ?? 0),
+      durationMs,
+      costUsd: 0,
+      providerCalls: 0
+    };
+
+    expect(result.exitCode).toBe(0);
+    expect(missingTestResult.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(missingTestResult.stderr).toBe("");
+    expect(redteam.analysis.summary.riskLevel).toBe("high");
+    expect(["medium", "high"]).toContain(missingTestRedteam.analysis.summary.riskLevel);
+    expect(matchedRuleIds).toEqual(expectedRuleIds);
+    expect(metrics).toMatchObject({
+      expected: expectedRuleIds.length,
+      matched: expectedRuleIds.length,
+      recall: 1,
+      costUsd: 0,
+      providerCalls: 0
+    });
+    expect(metrics.durationMs).toBeGreaterThanOrEqual(0);
+    expect(metrics.skippedFiles).toBeGreaterThanOrEqual(0);
+    expect(metrics.cappedFiles).toBe(0);
+    expect(redteam.summary.weakTestFindings).toBeGreaterThanOrEqual(2);
+    expect(redteam.summary.missingTestFindings + missingTestRedteam.summary.missingTestFindings).toBeGreaterThanOrEqual(1);
+    expect(redteam.safety).toMatchObject({
+      llmCalled: false,
+      telemetrySent: false,
+      cloudDependency: false
+    });
+  });
+});
+
 async function run(args: string[], cwd: string): Promise<CliResult> {
   let stdout = "";
   let stderr = "";
@@ -223,6 +320,182 @@ function createHighRiskRepo(): string {
   return repo;
 }
 
+function createUnifiedHarnessPlantedIssueRepo(): string {
+  const repo = createRepo({
+    "src/api/search.ts": "export async function searchUsers(db, req) { return db.query('select 1'); }\n",
+    "src/api/files.ts": "export function readUpload() { return 'ok'; }\n",
+    "src/api/proxy.ts": "export async function proxy() { return fetch('https://example.com'); }\n",
+    "src/api/archive.ts": "export function archive() { return 'ok'; }\n",
+    "app/api/admin/route.ts": "export async function POST(request: Request) { return Response.json({ ok: true }); }\n",
+    "src/auth/session.ts": "export function requireAdmin(session) { return session?.role === 'admin'; }\n",
+    "src/config/secrets.ts": "export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;\n",
+    "src/db/schema.prisma": "model User { id String @id role String @default(\"member\") }\n",
+    "next.config.js": "export default { reactStrictMode: true };\n",
+    "src/app/comment.tsx": "export function Comment({ html }) { return <p>{html}</p>; }\n",
+    "src/api/risk.ts": "export function score(input) { return input ? 1 : 0; }\n",
+    "src/api/users.ts": "export async function canUseAccount(input) { return Boolean(input.userId); }\n",
+    "src/api/admin.ts": "export async function canUseAdmin(input) { return Boolean(input.userId); }\n",
+    "test/search.test.ts": [
+      "import { test } from 'node:test';",
+      "import { searchUsers } from '../src/api/search';",
+      "",
+      "test('searches users', () => {",
+      "  searchUsers({}, { query: { q: 'alice' } });",
+      "});",
+      ""
+    ].join("\n")
+  });
+
+  const duplicateBlock = [
+    "  const userId = input.userId;",
+    "  const account = await loadAccount(userId);",
+    "  if (!account) throw new Error('missing account');",
+    "  return account.status === 'active';"
+  ];
+  writeFile(
+    repo,
+    "src/api/search.ts",
+    [
+      "export async function searchUsers(db, req) {",
+      "  return db.query(`select * from users where name = '${req.query.q}'`);",
+      "}",
+      ""
+    ].join("\n")
+  );
+  writeFile(
+    repo,
+    "src/api/files.ts",
+    [
+      "import { readFileSync } from 'node:fs';",
+      "",
+      "export function readUpload(req) {",
+      "  return readFileSync(req.query.file, 'utf8');",
+      "}",
+      ""
+    ].join("\n")
+  );
+  writeFile(
+    repo,
+    "src/api/proxy.ts",
+    [
+      "export async function proxy(req) {",
+      "  return fetch(req.query.url);",
+      "}",
+      ""
+    ].join("\n")
+  );
+  writeFile(
+    repo,
+    "src/api/archive.ts",
+    [
+      "import { exec } from 'node:child_process';",
+      "",
+      "export function archive(req) {",
+      "  return exec(`tar -czf ${req.query.name}.tgz uploads/${req.query.name}`);",
+      "}",
+      ""
+    ].join("\n")
+  );
+  writeFile(
+    repo,
+    "app/api/admin/route.ts",
+    [
+      "export async function POST(request: Request) {",
+      "  const body = await request.json();",
+      "  return Response.json({ created: true, user: body.email });",
+      "}",
+      ""
+    ].join("\n")
+  );
+  writeFile(
+    repo,
+    "src/auth/session.ts",
+    [
+      "export function requireAdmin(session) {",
+      "  return Boolean(session?.userId);",
+      "}",
+      ""
+    ].join("\n")
+  );
+  writeFile(repo, "src/config/secrets.ts", "export const STRIPE_SECRET_KEY = \"sk_live_1234567890abcdef\";\n");
+  writeFile(repo, "src/db/schema.prisma", "model User { id String @id role String @default(\"admin\") }\n");
+  writeFile(repo, "next.config.js", "export default { reactStrictMode: false, poweredByHeader: true };\n");
+  writeFile(
+    repo,
+    "src/app/comment.tsx",
+    "export function Comment({ html }) { return <div dangerouslySetInnerHTML={{ __html: html }} />; }\n"
+  );
+  writeFile(repo, "src/api/risk.ts", createBranchingFunction("score", 20));
+  writeFile(repo, "src/api/users.ts", ["export async function canUseAccount(input) {", ...duplicateBlock, "}", ""].join("\n"));
+  writeFile(repo, "src/api/admin.ts", ["export async function canUseAdmin(input) {", ...duplicateBlock, "}", ""].join("\n"));
+  writeFile(
+    repo,
+    "test/search.test.ts",
+    [
+      "import { test } from 'node:test';",
+      "import { strictEqual } from 'node:assert';",
+      "import { searchUsers } from '../src/api/search';",
+      "",
+      "test('searches users', () => {",
+      "  searchUsers({}, { query: { q: 'alice' } });",
+      "});",
+      "",
+      "test('allows happy path admin', () => {",
+      "  const session = { userId: 'u1', role: 'admin' };",
+      "  strictEqual(session.role, 'admin');",
+      "});",
+      ""
+    ].join("\n")
+  );
+  writeFile(
+    repo,
+    "test/proxy.test.ts",
+    [
+      "import { test } from 'node:test';",
+      "import { proxy } from '../src/api/proxy';",
+      "",
+      "test('proxies a url', () => {",
+      "  proxy({ query: { url: 'https://example.com' } });",
+      "});",
+      ""
+    ].join("\n")
+  );
+
+  return repo;
+}
+
+function createMissingRealApiTestRepo(): string {
+  const repo = createRepo({
+    "src/api/orders.ts": "export function listOrders() { return []; }\n"
+  });
+
+  writeFile(
+    repo,
+    "src/api/orders.ts",
+    [
+      "export function listOrders(req) {",
+      "  if (req.query.includeDeleted) return [{ id: 'deleted' }];",
+      "  return [{ id: 'active' }];",
+      "}",
+      ""
+    ].join("\n")
+  );
+
+  return repo;
+}
+
+function createBranchingFunction(name: string, ifCount: number): string {
+  return [
+    `export function ${name}(input) {`,
+    "  let score = 0;",
+    ...Array.from({ length: 130 }, (_, index) => `  const baseline${index} = ${index};`),
+    ...Array.from({ length: ifCount }, (_, index) => `  if (input.flag${index}) score += ${index};`),
+    "  return score + baseline0;",
+    "}",
+    ""
+  ].join("\n");
+}
+
 function createRepo(files: Record<string, string>): string {
   const repo = createTempDir();
   git(repo, ["init", "-b", "main"]);
@@ -257,4 +530,8 @@ function git(cwd: string, args: string[]): void {
     cwd,
     stdio: "ignore"
   });
+}
+
+function uniqueSorted(values: string[]): string[] {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
