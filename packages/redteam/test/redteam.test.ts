@@ -5,6 +5,7 @@ import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
 import { createRedteamReport, renderRedteamReport, weakTestRuleIds } from "../src/index";
 import { summarizeMemory, summarizeSkills } from "../src/context";
 import { suggestEdgeCases } from "../src/edge-cases";
+import { createFixTasks } from "../src/fix-tasks";
 import { createRedteamSafetySummary } from "../src/safety";
 
 describe("redteam report", () => {
@@ -201,6 +202,37 @@ describe("redteam report", () => {
         })
       )
     ).toEqual(["Run the relevant unit, integration, and smoke checks for changed packages."]);
+  });
+
+  it("creates deterministic fix tasks for weak tests and deduped edge cases", () => {
+    const tasks = createFixTasks({
+      analysisReport: createFixtureAnalysisReport(),
+      weakTestFindings: [],
+      edgeCases: [
+        "Check missing, expired, malformed, and privilege-escalation credentials.",
+        "Check missing, expired, malformed, and privilege-escalation credentials."
+      ],
+      configuredChecks: [],
+      toolAdapterPlans: [],
+      memory: createEmptyMemory(),
+      skills: []
+    });
+
+    expect(tasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Investigate Changed test has no assertions",
+          source: "weak-test",
+          priority: "medium"
+        }),
+        expect.objectContaining({
+          title: "Add auth negative-path proof",
+          source: "edge-case",
+          priority: "high"
+        })
+      ])
+    );
+    expect(tasks.filter((task) => task.title === "Add auth negative-path proof")).toHaveLength(1);
   });
 
   it("summarizes missing-test findings separately from weak-test findings", () => {
@@ -428,6 +460,17 @@ function createFixtureMemory(): CodeDecayMemory {
         check: "request protected route without token"
       }
     ]
+  };
+}
+
+function createEmptyMemory(): CodeDecayMemory {
+  return {
+    version: 1,
+    flows: [],
+    commands: [],
+    invariants: [],
+    architecture: [],
+    regressions: []
   };
 }
 
