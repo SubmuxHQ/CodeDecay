@@ -31,10 +31,9 @@ import { runMcpCommand as runMcpCommandWithDependencies } from "./commands/mcp";
 import { runProductCommand as runProductCommandWithDependencies } from "./commands/product";
 import { runRedteamCommand as runRedteamCommandWithDependencies } from "./commands/redteam";
 import { runSnapshotCommand as runSnapshotCommandWithDependencies } from "./commands/snapshot";
-import { COMMAND_ORDER, HELP_DOCS, ROOT_FLAG_ALIASES, UTILITY_COMMAND_ORDER } from "./docs/commands";
+import { printHelp, printManual, throwUnknownCommand } from "./commands/help";
 import { CliExit } from "./errors";
-import { write, writeStderr, writeStdout } from "./io";
-import { throwUnknownCommand as throwUnknownCommandWithDocs } from "./parsers/diagnostics";
+import { write, writeStderr } from "./io";
 import { HelpRequested } from "./parsers/args";
 import { createProductTargetReport as createProductTargetReportWithRuntime } from "./product/runtime";
 import type {
@@ -45,18 +44,9 @@ import type {
   CliCommandHandler,
   CliRuntime,
   LlmReviewOptions,
-  McpOptions,
   RedteamOptions,
   SnapshotOptions
 } from "./types";
-import {
-  renderCommandHelp,
-  renderCommandManual,
-  renderRootHelp as renderRootHelpDocument,
-  renderRootManual as renderRootManualDocument,
-  type CommandDoc
-} from "./renderers/discovery";
-import { formatStatus } from "./renderers/command-output";
 import { renderProductTargetReport } from "./renderers/product-target-report";
 
 const COMMAND_HANDLERS: Record<string, CliCommandHandler> = {
@@ -263,14 +253,6 @@ function loadLatestProductFailureBundles(rootDir: string): ProductFailureBundle[
   }
 }
 
-function throwUnknownCommand(command: string): never {
-  return throwUnknownCommandWithDocs({
-    command,
-    docs: HELP_DOCS,
-    rootFlagAliases: ROOT_FLAG_ALIASES
-  });
-}
-
 function writeOutput(cwd: string, path: string, contents: string): void {
   const outputPath = resolve(cwd, path);
   const outputDir = dirname(outputPath);
@@ -345,47 +327,6 @@ function findUnresolvedRef(
   }
 
   return undefined;
-}
-
-function printHelp(runtime: CliRuntime, topic?: string): void {
-  if (!topic) {
-    writeStdout(
-      runtime,
-      renderRootHelpDocument({
-        docs: HELP_DOCS,
-        commandOrder: COMMAND_ORDER,
-        utilityCommandOrder: UTILITY_COMMAND_ORDER
-      })
-    );
-    return;
-  }
-
-  writeStdout(runtime, renderCommandHelp(resolveHelpTopic(topic)));
-}
-
-function printManual(runtime: CliRuntime, topic?: string): void {
-  if (!topic) {
-    writeStdout(
-      runtime,
-      renderRootManualDocument({
-        docs: HELP_DOCS,
-        commandOrder: COMMAND_ORDER,
-        utilityCommandOrder: UTILITY_COMMAND_ORDER
-      })
-    );
-    return;
-  }
-
-  writeStdout(runtime, renderCommandManual(resolveHelpTopic(topic)));
-}
-
-function resolveHelpTopic(topic: string): CommandDoc {
-  const doc = HELP_DOCS[topic];
-  if (doc) {
-    return doc;
-  }
-
-  throwUnknownCommand(topic);
 }
 
 function isDirectRun(): boolean {
