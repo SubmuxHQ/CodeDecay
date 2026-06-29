@@ -104,10 +104,35 @@ describe("CodeDecay memory", () => {
     expect(registry.require("alpha").name).toBe("alpha provider");
   });
 
+  it("loads local memory from the default provider registry", () => {
+    const root = createTempDir();
+    writeJson(root, ".codedecay/memory.json", {
+      version: 1,
+      commands: [{ name: "Auth smoke", command: "pnpm test auth", areas: ["auth"] }]
+    });
+
+    const registry = createMemoryProviderRegistry();
+    const loaded = registry.load("local", { rootDir: root });
+
+    expect(registry.list().map((provider) => provider.id)).toEqual(["local"]);
+    expect(loaded.sourcePath).toBe(join(root, ".codedecay/memory.json"));
+    expect(loaded.memory.commands[0]).toMatchObject({
+      name: "Auth smoke",
+      command: "pnpm test auth"
+    });
+  });
+
   it("prevents duplicate memory provider ids", () => {
     expect(() => createMemoryProviderRegistry([fakeProvider("local"), fakeProvider("local")])).toThrow(
       /already registered/
     );
+  });
+
+  it("validates provider ids and load options", () => {
+    const registry = createMemoryProviderRegistry();
+
+    expect(() => registry.require("")).toThrow(/Memory provider id is required/);
+    expect(() => registry.load("local", { rootDir: "" })).toThrow(/Memory provider rootDir is required/);
   });
 
   it("fails clearly for invalid memory", () => {
