@@ -1,6 +1,7 @@
 import type {
   CodeDecayCommands,
   CodeDecayConfig,
+  CodeDecayPluginsConfig,
   CodeDecayProductTestingConfig,
   CodeDecayToolAdapters
 } from "./types";
@@ -13,7 +14,8 @@ export function cloneConfig(config: CodeDecayConfig): CodeDecayConfig {
     safety: { ...config.safety },
     llm: { ...config.llm },
     toolAdapters: cloneToolAdapters(config.toolAdapters),
-    productTesting: cloneProductTesting(config.productTesting)
+    productTesting: cloneProductTesting(config.productTesting),
+    plugins: clonePlugins(config.plugins)
   };
 }
 
@@ -82,5 +84,11 @@ export function cloneProductTesting(productTesting: CodeDecayProductTestingConfi
         }
       ])
     )
+  };
+}
+
+export function clonePlugins(plugins: CodeDecayPluginsConfig): CodeDecayPluginsConfig {
+  return {
+    enabled: [...plugins.enabled]
   };
 }

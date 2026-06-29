@@ -29,6 +29,9 @@ describe("CodeDecay config defaults and loading", () => {
       toolAdapters: {},
       productTesting: {
         targets: {}
+      },
+      plugins: {
+        enabled: []
       }
     });
   });
@@ -99,5 +102,25 @@ describe("CodeDecay config defaults and loading", () => {
       apiKeyEnv: "LITELLM_API_KEY",
       timeoutMs: 15000
     });
+  });
+
+  it("loads explicit plugin allowlists without activating plugins", () => {
+    const root = createTempDir();
+    writeFile(
+      root,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "plugins:",
+        "  enabled:",
+        "    - local-security-pack",
+        "    - ownership-pack",
+        ""
+      ].join("\n")
+    );
+
+    const loaded = loadCodeDecayConfig({ cwd: root });
+
+    expect(loaded.config.plugins.enabled).toEqual(["local-security-pack", "ownership-pack"]);
   });
 });

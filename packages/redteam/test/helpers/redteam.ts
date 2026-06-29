@@ -152,6 +152,9 @@ export function createFixtureConfig(): CodeDecayConfig {
     },
     productTesting: {
       targets: {}
+    },
+    plugins: {
+      enabled: []
     }
   };
 }

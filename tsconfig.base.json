@@ -18,6 +18,7 @@
       "@submuxhq/codedecay-mcp": ["packages/mcp/src/index.ts"],
       "@submuxhq/codedecay-memory": ["packages/memory/src/index.ts"],
       "@submuxhq/codedecay-matchers": ["packages/matchers/src/index.ts"],
+      "@submuxhq/codedecay-plugins": ["packages/plugins/src/index.ts"],
       "@submuxhq/codedecay-redteam": ["packages/redteam/src/index.ts"],
       "@submuxhq/codedecay-skills": ["packages/skills/src/index.ts"],
       "@submuxhq/codedecay-test-audit": ["packages/test-audit/src/index.ts"],

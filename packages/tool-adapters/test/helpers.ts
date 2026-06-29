@@ -69,6 +69,9 @@ export function createConfig(): CodeDecayConfig {
     toolAdapters: {},
     productTesting: {
       targets: {}
+    },
+    plugins: {
+      enabled: []
     }
   };
 }
