@@ -47,7 +47,9 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
       toolAdapters: toolAdapterPlans.length,
       productFailureBundles: input.analysisReport.productFailureBundles?.length ?? 0,
       skills: skills.length,
-      fixTasks: fixTasks.length
+      fixTasks: fixTasks.length,
+      investigationSuggestions: input.investigation?.suggestions.length ?? 0,
+      investigationLimitations: input.investigation?.limitations.length ?? 0
     },
     analysis: input.analysisReport,
     testAudit,
@@ -57,8 +59,9 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
     toolAdapterPlans,
     memory,
     skills,
+    investigation: input.investigation,
     fixTasks,
-    safety: createRedteamSafetySummary()
+    safety: createRedteamSafetySummary({ llmCalled: input.investigation?.llmCalled ?? false })
   };
 
   if (input.analysisReport.base) {

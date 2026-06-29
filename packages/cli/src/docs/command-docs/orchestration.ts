@@ -15,14 +15,16 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
       { flag: "--format <format>", description: "json or markdown (default: markdown)" },
       { flag: "--output <path>", description: "Write redteam report to a file instead of stdout" },
-      { flag: "--fail-on <level>", description: "Exit non-zero on low, medium, or high risk" }
+      { flag: "--fail-on <level>", description: "Exit non-zero on low, medium, or high risk" },
+      { flag: "--investigate", description: "Explicitly run the configured local/BYOK LLM provider for untrusted suggestions" }
     ],
     examples: [
       "codedecay redteam --base main --head HEAD --format markdown",
+      "codedecay redteam --investigate --base main --head HEAD --format markdown",
       "codedecay redteam --cwd ../my-repo --format json"
     ],
     notes: [
-      "Redteam reports do not execute configured commands or call LLMs by default.",
+      "Redteam reports do not execute configured commands or call LLMs by default. Use --investigate to opt into the configured LLM provider.",
       "Configured checks are described in the report as recommendations unless you run execute or differential explicitly."
     ]
   },

@@ -139,6 +139,47 @@ describe("codedecay redteam CLI contract", () => {
     expect(report.analysis.changedFiles.map((file: { path: string }) => file.path)).toContain("src/api/users.ts");
   });
 
+  it("keeps investigation opt-in and records provider limitations", async () => {
+    const repo = createHighRiskRepo();
+    writeFile(
+      repo,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "llm:",
+        "  provider: litellm",
+        "  model: gpt-test",
+        "  timeoutMs: 10",
+        ""
+      ].join("\n")
+    );
+
+    const deterministic = await run(["redteam", "--format", "json"], repo);
+    const deterministicReport = JSON.parse(deterministic.stdout);
+
+    expect(deterministic.exitCode).toBe(0);
+    expect(deterministic.stderr).toBe("");
+    expect(deterministicReport.investigation).toBeUndefined();
+    expect(deterministicReport.safety.llmCalled).toBe(false);
+
+    const investigated = await run(["redteam", "--investigate", "--format", "json"], repo);
+    const investigatedReport = JSON.parse(investigated.stdout);
+
+    expect(investigated.exitCode).toBe(0);
+    expect(investigated.stderr).toBe("");
+    expect(investigatedReport.investigation).toMatchObject({
+      status: "failed",
+      provider: {
+        configuredProvider: "litellm"
+      },
+      suggestions: [],
+      llmCalled: false,
+      untrusted: true
+    });
+    expect(investigatedReport.investigation.limitations[0]).toContain("LiteLLM provider requires llm.endpoint");
+    expect(investigatedReport.safety.llmCalled).toBe(false);
+  });
+
   it("fails clearly for redteam git errors without emitting a low-risk report", async () => {
     const repo = createLowRiskRepo();
 

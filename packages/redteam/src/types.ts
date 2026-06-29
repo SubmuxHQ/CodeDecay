@@ -8,6 +8,7 @@ import type { ConfiguredToolAdapterKind } from "@submuxhq/codedecay-tool-adapter
 export type RedteamFormat = "json" | "markdown";
 export type RedteamMode = "deterministic";
 export type RedteamCheckKind = "test" | "build" | "start" | "probe";
+export type RedteamInvestigationStatus = "disabled" | "completed" | "failed";
 export type RedteamTaskSource =
   | "finding"
   | "weak-test"
@@ -24,6 +25,7 @@ export interface RedteamReportInput {
   configSource?: string | undefined;
   memorySource?: string | undefined;
   skills?: LoadedCodeDecaySkills | undefined;
+  investigation?: RedteamInvestigation | undefined;
   generatedAt?: string | undefined;
 }
 
@@ -43,6 +45,7 @@ export interface RedteamReport {
   toolAdapterPlans: RedteamToolAdapterPlan[];
   memory: RedteamMemorySummary;
   skills: RedteamSkillSummary[];
+  investigation?: RedteamInvestigation | undefined;
   fixTasks: RedteamFixTask[];
   safety: RedteamSafetySummary;
 }
@@ -65,6 +68,8 @@ export interface RedteamSummary {
   productFailureBundles: number;
   skills: number;
   fixTasks: number;
+  investigationSuggestions: number;
+  investigationLimitations: number;
 }
 
 export interface RedteamConfiguredCheck {
@@ -102,6 +107,32 @@ export interface RedteamSkillSummary {
   untrusted: true;
 }
 
+export interface RedteamInvestigationSuggestion {
+  title: string;
+  detail: string;
+  severity?: RiskLevel | undefined;
+  evidence?: string[] | undefined;
+}
+
+export interface RedteamInvestigationProvider {
+  configuredProvider: "disabled" | "ollama" | "litellm";
+  id?: string | undefined;
+  model?: string | undefined;
+  endpoint?: string | undefined;
+  apiKeyEnv?: string | undefined;
+  timeoutMs: number;
+}
+
+export interface RedteamInvestigation {
+  status: RedteamInvestigationStatus;
+  provider: RedteamInvestigationProvider;
+  suggestions: RedteamInvestigationSuggestion[];
+  limitations: string[];
+  rawText?: string | undefined;
+  untrusted: true;
+  llmCalled: boolean;
+}
+
 export interface RedteamFixTask {
   title: string;
   priority: RiskLevel;
@@ -113,7 +144,7 @@ export interface RedteamFixTask {
 
 export interface RedteamSafetySummary {
   commandsExecuted: false;
-  llmCalled: false;
+  llmCalled: boolean;
   telemetrySent: false;
   cloudDependency: false;
   notes: string[];

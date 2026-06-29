@@ -9,6 +9,7 @@ import {
   appendFixTasks,
   appendImpactedAreas,
   appendImpactedRoutes,
+  appendInvestigation,
   appendMemorySummary,
   appendProductFailures,
   appendSkills,
@@ -55,6 +56,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
   appendEdgeCases(lines, report.edgeCases);
   appendConfiguredChecks(lines, report.configuredChecks);
   appendToolAdapterPlans(lines, report.toolAdapterPlans);
+  appendInvestigation(lines, report.investigation);
   appendFixTasks(lines, report.fixTasks);
   appendMemorySummary(lines, report.memory);
   appendSkills(lines, report.skills);
@@ -63,7 +65,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
     "### Safety",
     "",
     "- Commands executed: no",
-    "- LLM/model called: no",
+    `- LLM/model called: ${report.safety.llmCalled ? "yes" : "no"}`,
     "- Telemetry sent: no",
     "- Cloud dependency: no",
     "",

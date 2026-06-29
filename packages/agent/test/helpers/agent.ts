@@ -27,7 +27,9 @@ export function createFixtureReport(): RedteamReport {
       toolAdapters: 1,
       productFailureBundles: 1,
       skills: 1,
-      fixTasks: 2
+      fixTasks: 2,
+      investigationSuggestions: 0,
+      investigationLimitations: 0
     },
     analysis: {
       tool: "CodeDecay",

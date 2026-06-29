@@ -15,13 +15,13 @@ export interface RunRedteamCommandDependencies extends RedteamReportDependencies
   }): void;
 }
 
-export function runRedteamCommand(
+export async function runRedteamCommand(
   context: CliCommandContext,
   dependencies: RunRedteamCommandDependencies
-): void {
+): Promise<void> {
   const options = parseRedteamArgs(context.args);
   const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
-  const report = createRedteamReportForCli(cwd, options, dependencies);
+  const report = await createRedteamReportForCli(cwd, options, dependencies);
 
   dependencies.writeOutput({
     cwd,

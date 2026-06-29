@@ -8,4 +8,5 @@ export interface RedteamOptions {
   format: RedteamFormat;
   output?: string | undefined;
   failOn?: RiskLevel | undefined;
+  investigate?: boolean | undefined;
 }

@@ -13,13 +13,13 @@ export interface RunAgentCommandDependencies extends RedteamReportDependencies {
   }): void;
 }
 
-export function runAgentCommand(
+export async function runAgentCommand(
   context: CliCommandContext,
   dependencies: RunAgentCommandDependencies
-): void {
+): Promise<void> {
   const options = parseAgentArgs(context.args);
   const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
-  const report = createRedteamReportForCli(cwd, options, dependencies);
+  const report = await createRedteamReportForCli(cwd, options, dependencies);
   const bundle = createAgentTaskBundle(report, { profile: options.profile });
 
   dependencies.writeOutput({

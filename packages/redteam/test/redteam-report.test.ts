@@ -143,4 +143,47 @@ describe("redteam report assembly and rendering", () => {
     expect(markdown).toContain("Commands executed: no");
     expect(markdown).toContain("LLM/model called: no");
   });
+
+  it("renders opt-in AI investigation separately from deterministic evidence", () => {
+    const report = createRedteamReport({
+      analysisReport: createFixtureAnalysisReport(),
+      config: createFixtureConfig(),
+      memory: createFixtureMemory(),
+      skills: createFixtureSkills(),
+      investigation: {
+        status: "completed",
+        provider: {
+          configuredProvider: "ollama",
+          id: "ollama",
+          model: "qwen2.5-coder",
+          endpoint: "http://127.0.0.1:11434",
+          timeoutMs: 30000
+        },
+        suggestions: [
+          {
+            title: "Add malformed token API proof",
+            detail: "Exercise the real /api/session route with a malformed token.",
+            severity: "high",
+            evidence: ["src/auth/session.ts"]
+          }
+        ],
+        limitations: [],
+        rawText: "structured suggestions returned",
+        untrusted: true,
+        llmCalled: true
+      },
+      generatedAt: "2026-01-01T00:00:00.000Z"
+    });
+
+    const json = JSON.parse(renderRedteamReport(report, "json"));
+    expect(json.summary.investigationSuggestions).toBe(1);
+    expect(json.safety.llmCalled).toBe(true);
+    expect(json.investigation.suggestions[0].title).toBe("Add malformed token API proof");
+
+    const markdown = renderRedteamReport(report, "markdown");
+    expect(markdown).toContain("### AI Investigation");
+    expect(markdown).toContain("**Trust:** untrusted suggestions");
+    expect(markdown).toContain("Add malformed token API proof");
+    expect(markdown).toContain("LLM/model called: yes");
+  });
 });
