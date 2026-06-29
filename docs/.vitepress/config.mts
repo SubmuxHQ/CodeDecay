@@ -82,6 +82,10 @@ export default defineConfig({
             text: "RFC 0001: Agent-Agnostic Redteam Harness",
             link: "/rfcs/0001-agent-agnostic-redteam-harness"
           },
+          {
+            text: "RFC 0002: Unified Local-First Safety Harness",
+            link: "/rfcs/0002-unified-harness"
+          },
           { text: "Releasing", link: "/releasing" },
           { text: "Launch Post", link: "/launch-post" }
         ]

@@ -467,6 +467,7 @@ keeps the wiki `Home` and sidebar aligned with the docs site.
 - [Deployment surfaces](docs/deployment-surfaces.md)
 - [Framework-aware impact map proposal](docs/proposals/framework-aware-impact-map.md)
 - [Agent-agnostic redteam harness RFC](docs/rfcs/0001-agent-agnostic-redteam-harness.md)
+- [Unified local-first safety harness RFC](docs/rfcs/0002-unified-harness.md)
 - [Research basis](docs/research.md)
 - [Release policy](docs/release-policy.md)
 - [Releasing](docs/releasing.md)
