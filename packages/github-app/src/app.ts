@@ -1,5 +1,6 @@
 import type { Probot } from "probot";
-import { handlePullRequestEvent, type HandlerDependencies } from "./handler.js";
+import { handlePullRequestEvent } from "./handler.js";
+import type { HandlerDependencies } from "./handler/dependencies.js";
 import type { GitHubAppContext } from "./types.js";
 
 const PULL_REQUEST_EVENTS = [

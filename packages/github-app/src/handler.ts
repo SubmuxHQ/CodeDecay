@@ -1,42 +1,9 @@
-import { analyzePullRequest } from "./analyze.js";
-import { getInstallationToken } from "./auth.js";
-import { checkoutPullRequest, cleanupCheckout } from "./git.js";
-import {
-  checkSummaryForReport,
-  completeAnalysisCheck,
-  createAnalysisCheck,
-  upsertPullRequestComment,
-  type GitHubTarget
-} from "./github.js";
-import type {
-  AnalyzePullRequestOptions,
-  AnalyzePullRequestResult,
-  CheckConclusion,
-  GitHubAppContext,
-  HandlerResult
-} from "./types.js";
-
-const SUPPORTED_PULL_REQUEST_ACTIONS = new Set(["opened", "synchronize", "reopened", "ready_for_review"]);
-
-export interface HandlerDependencies {
-  getToken: typeof getInstallationToken;
-  checkout: typeof checkoutPullRequest;
-  cleanup: typeof cleanupCheckout;
-  analyze: (options: AnalyzePullRequestOptions) => AnalyzePullRequestResult;
-  createCheck: typeof createAnalysisCheck;
-  completeCheck: typeof completeAnalysisCheck;
-  upsertComment: typeof upsertPullRequestComment;
-}
-
-const defaultDependencies: HandlerDependencies = {
-  getToken: getInstallationToken,
-  checkout: checkoutPullRequest,
-  cleanup: cleanupCheckout,
-  analyze: analyzePullRequest,
-  createCheck: createAnalysisCheck,
-  completeCheck: completeAnalysisCheck,
-  upsertComment: upsertPullRequestComment
-};
+import { checkSummaryForReport } from "./github.js";
+import { isSupportedPullRequestAction } from "./handler/actions.js";
+import { defaultDependencies, type HandlerDependencies } from "./handler/dependencies.js";
+import { sanitizeError } from "./handler/errors.js";
+import { getPullRequestTarget } from "./handler/target.js";
+import type { CheckConclusion, GitHubAppContext, HandlerResult } from "./types.js";
 
 export async function handlePullRequestEvent(
   context: GitHubAppContext,
@@ -45,11 +12,11 @@ export async function handlePullRequestEvent(
   const deps = { ...defaultDependencies, ...dependencies };
   const payload = context.payload;
 
-  if (!SUPPORTED_PULL_REQUEST_ACTIONS.has(payload.action)) {
+  if (!isSupportedPullRequestAction(payload.action)) {
     return { status: "ignored" };
   }
 
-  const target = getTarget(payload);
+  const target = getPullRequestTarget(payload);
   const checkRunId = await deps.createCheck(context.octokit, target);
   let checkoutDir: string | undefined;
 
@@ -111,20 +78,6 @@ export async function handlePullRequestEvent(
   }
 }
 
-function getTarget(payload: GitHubAppContext["payload"]): GitHubTarget {
-  return {
-    owner: payload.repository.owner.login,
-    repo: payload.repository.name,
-    pullNumber: payload.pull_request.number,
-    headSha: payload.pull_request.head.sha
-  };
-}
-
 function conclusionForCompletedAnalysis(): CheckConclusion {
   return "success";
-}
-
-function sanitizeError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return message.replace(/x-access-token:[^@\s]+@github\.com/g, "x-access-token:[redacted]@github.com");
 }

@@ -9,7 +9,8 @@ export {
   createAnalysisCheck,
   upsertPullRequestComment
 } from "./github.js";
-export { handlePullRequestEvent, type HandlerDependencies } from "./handler.js";
+export { handlePullRequestEvent } from "./handler.js";
+export type { HandlerDependencies } from "./handler/dependencies.js";
 export type {
   AnalyzePullRequestOptions,
   AnalyzePullRequestResult,
