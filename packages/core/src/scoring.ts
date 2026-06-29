@@ -1,65 +1,15 @@
-import type { FileChange, Finding, FindingCategory } from "./index";
-import { compareRiskLevels, type RiskLevel } from "./risk";
+import type { FileChange, Finding, FindingCategory } from "./types";
+import { DECAY_CATEGORIES, MERGE_RISK_CATEGORIES } from "./scoring/constants";
+import { createFindingContributor, runtimePersistenceBoundaryScore } from "./scoring/contributors";
+import {
+  capScoreByHighestSeverity,
+  clampScore,
+  highestFindingSeverity,
+  sortScoreContributors
+} from "./scoring/score-math";
+import type { ScoreBreakdown, ScoreContributor } from "./scoring/types";
 
-export type ScoreEvidenceKind = "direct" | "heuristic" | "structural";
-
-export interface ScoreContributor {
-  id: string;
-  label: string;
-  points: number;
-  evidence: ScoreEvidenceKind;
-  reason: string;
-  category?: FindingCategory | undefined;
-  severity?: RiskLevel | undefined;
-  ruleId?: string | undefined;
-  file?: string | undefined;
-  line?: number | undefined;
-}
-
-export interface ScoreBreakdown {
-  score: number;
-  rawScore: number;
-  adjustedScore: number;
-  highestSeverity?: RiskLevel | undefined;
-  heuristicOnly: boolean;
-  contributors: ScoreContributor[];
-  dampeners: ScoreContributor[];
-  notes: string[];
-}
-
-const DIRECT_FINDING_WEIGHTS: Record<RiskLevel, number> = {
-  low: 6,
-  medium: 16,
-  high: 30
-};
-
-const HEURISTIC_FINDING_WEIGHTS: Record<RiskLevel, number> = {
-  low: 4,
-  medium: 10,
-  high: 18
-};
-
-const DECAY_CATEGORIES = new Set<FindingCategory>(["decay", "scope"]);
-const MERGE_RISK_CATEGORIES = new Set<FindingCategory>(["regression", "coverage", "configuration"]);
-
-const DIRECT_FINDING_RULE_IDS = new Set([
-  "risky-auth-change",
-  "risky-database-change",
-  "risky-api-change",
-  "risky-config-change",
-  "memory-invariant-impacted",
-  "memory-past-regression-area",
-  "runtime-coverage-miss",
-  "runtime-coverage-partial"
-]);
-
-const HEURISTIC_REGRESSION_RULE_IDS = new Set([
-  "risky-ui-change",
-  "risky-test-change",
-  "risky-source-change",
-  "risky-docs-change",
-  "memory-architecture-note"
-]);
+export type { ScoreBreakdown, ScoreContributor, ScoreEvidenceKind } from "./scoring/types";
 
 export function calculateMergeRiskBreakdown(findings: Finding[], changedFiles: FileChange[]): ScoreBreakdown {
   return calculateScoreBreakdown(findings, MERGE_RISK_CATEGORIES, changedFiles, "merge");
@@ -158,85 +108,4 @@ function calculateScoreBreakdown(
     dampeners: sortScoreContributors(dampeners),
     notes
   };
-}
-
-function createFindingContributor(finding: Finding): ScoreContributor {
-  const evidence = scoreEvidenceForFinding(finding);
-  const points = (evidence === "direct" ? DIRECT_FINDING_WEIGHTS : HEURISTIC_FINDING_WEIGHTS)[finding.severity];
-  return {
-    id: `${finding.ruleId}:${finding.file ?? ""}:${finding.line ?? ""}`,
-    label: finding.title,
-    points,
-    evidence,
-    reason: finding.description,
-    category: finding.category,
-    severity: finding.severity,
-    ruleId: finding.ruleId,
-    file: finding.file,
-    line: finding.line
-  };
-}
-
-function runtimePersistenceBoundaryScore(contributors: ScoreContributor[]): number {
-  const hasDatabaseChange = contributors.some((contributor) => contributor.ruleId === "risky-database-change");
-  const hasConfigChange = contributors.some((contributor) => contributor.ruleId === "risky-config-change");
-  const hasHighSeveritySignal = contributors.some((contributor) => contributor.severity === "high");
-
-  return hasDatabaseChange && hasConfigChange && hasHighSeveritySignal ? 8 : 0;
-}
-
-function scoreEvidenceForFinding(finding: Finding): ScoreEvidenceKind {
-  if ([...DIRECT_FINDING_RULE_IDS].some((ruleId) => finding.ruleId === ruleId || finding.ruleId.startsWith(`${ruleId}-`))) {
-    return "direct";
-  }
-
-  if (finding.category === "configuration") {
-    return "direct";
-  }
-
-  if (finding.category === "regression" && !HEURISTIC_REGRESSION_RULE_IDS.has(finding.ruleId)) {
-    return "direct";
-  }
-
-  return "heuristic";
-}
-
-function sortScoreContributors(contributors: ScoreContributor[]): ScoreContributor[] {
-  return [...contributors].sort((left, right) => {
-    const points = Math.abs(right.points) - Math.abs(left.points);
-    if (points !== 0) {
-      return points;
-    }
-
-    return left.label.localeCompare(right.label);
-  });
-}
-
-function clampScore(score: number): number {
-  return Math.max(0, Math.min(100, Math.round(score)));
-}
-
-function capScoreByHighestSeverity(score: number, findings: Finding[]): number {
-  const highestSeverity = highestFindingSeverity(findings);
-  if (highestSeverity === "low") {
-    return Math.min(score, 39);
-  }
-
-  if (highestSeverity === "medium") {
-    return Math.min(score, 69);
-  }
-
-  return score;
-}
-
-function highestFindingSeverity(findings: Finding[]): RiskLevel | undefined {
-  let highest: RiskLevel | undefined;
-
-  for (const finding of findings) {
-    if (!highest || compareRiskLevels(finding.severity, highest) > 0) {
-      highest = finding.severity;
-    }
-  }
-
-  return highest;
 }
