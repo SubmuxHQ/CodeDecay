@@ -1,6 +1,6 @@
 {
   "name": "@submuxhq/codedecay",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Catch what your AI coding agent missed before merge with local PR safety checks",
   "license": "Apache-2.0",
   "author": "SubmuxHQ",
