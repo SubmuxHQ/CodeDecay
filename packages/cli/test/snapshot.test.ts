@@ -77,13 +77,17 @@ describe("codedecay snapshot CLI contract", () => {
     expect(comparison.stdout).toBe("");
   });
 
-  it("returns a clean error for git repositories with no commits", async () => {
+  it("emits a clean snapshot for git repositories with no commits", async () => {
     const repo = createTempDir();
     git(repo, ["init", "-b", "main"]);
+    writeFile(repo, "src/app.ts", "export const value = 1;\n");
 
     const result = await run(["snapshot", "--format", "json"], repo);
-    expect(result.exitCode).toBe(2);
-    expect(result.stderr).toContain("Git command failed");
-    expect(result.stdout).toBe("");
+    const snapshot = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(snapshot.tool).toBe("CodeDecay");
+    expect(snapshot.summary.changedFiles).toBe(1);
   });
 });

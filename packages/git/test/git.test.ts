@@ -121,6 +121,22 @@ describe("live git integration", () => {
     ]);
   });
 
+  it("handles repositories with no commits without leaking raw HEAD errors", () => {
+    const repo = createEmptyRepo();
+    writeFile(repo, "src/app.ts", "export const value = 1;\n");
+
+    expect(() => getGitChangedFiles({ cwd: repo })).not.toThrow(/ambiguous argument 'HEAD'/);
+    expect(getGitChangedFiles({ cwd: repo })).toEqual([
+      {
+        path: "src/app.ts",
+        status: "added",
+        additions: 1,
+        deletions: 0,
+        addedLines: [{ line: 1, content: "export const value = 1;" }]
+      }
+    ]);
+  });
+
   it("throws a clear error for invalid refs", () => {
     const repo = createRepo({
       "src/app.ts": "export const value = 1;\n"
@@ -212,6 +228,16 @@ function createRepo(files: Record<string, string>): string {
 
   git(repo, ["add", "."]);
   git(repo, ["commit", "-m", "initial"]);
+  return repo;
+}
+
+function createEmptyRepo(): string {
+  const repo = mkdtempSync(join(tmpdir(), "codedecay-git-empty-"));
+  tempRoots.push(repo);
+
+  git(repo, ["init", "-b", "main"]);
+  git(repo, ["config", "user.email", "codedecay@example.com"]);
+  git(repo, ["config", "user.name", "CodeDecay Test"]);
   return repo;
 }
 
