@@ -2,8 +2,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import YAML from "yaml";
 import { cloneConfig } from "./clone";
-import { CONFIG_CANDIDATES, DEFAULT_CODEDECAY_CONFIG } from "./defaults";
+import { CONFIG_CANDIDATES, CONTRACT_CANDIDATES, DEFAULT_CODEDECAY_CONFIG } from "./defaults";
 import { normalizeCommands, normalizeProbes } from "./normalize/commands";
+import { normalizeDesignContract } from "./normalize/design-contract";
 import { normalizeLlm } from "./normalize/llm";
 import { normalizeMemoryProviders } from "./normalize/memory-providers";
 import { normalizePlugins } from "./normalize/plugins";
@@ -15,23 +16,46 @@ import type { CodeDecayConfig, LoadedCodeDecayConfig, LoadCodeDecayConfigOptions
 
 export function loadCodeDecayConfig(options: LoadCodeDecayConfigOptions): LoadedCodeDecayConfig {
   const sourcePath = findCodeDecayConfig(options.cwd);
+  const contractSourcePath = findCodeDecayContract(options.cwd);
   if (!sourcePath) {
+    const config = cloneConfig(DEFAULT_CODEDECAY_CONFIG);
+    if (contractSourcePath) {
+      config.designContract = normalizeDesignContract(parseYamlConfig(readFileSync(contractSourcePath, "utf8"), contractSourcePath), contractSourcePath);
+    }
+
     return {
-      config: cloneConfig(DEFAULT_CODEDECAY_CONFIG)
+      config,
+      designContractSourcePath: contractSourcePath
     };
   }
 
   const raw = readFileSync(sourcePath, "utf8");
   const parsed = parseYamlConfig(raw, sourcePath);
+  const config = normalizeConfig(parsed, sourcePath);
+  if (contractSourcePath) {
+    config.designContract = normalizeDesignContract(parseYamlConfig(readFileSync(contractSourcePath, "utf8"), contractSourcePath), contractSourcePath);
+  }
 
   return {
-    config: normalizeConfig(parsed, sourcePath),
-    sourcePath
+    config,
+    sourcePath,
+    designContractSourcePath: contractSourcePath
   };
 }
 
 export function findCodeDecayConfig(cwd: string): string | undefined {
   for (const candidate of CONFIG_CANDIDATES) {
+    const path = resolve(cwd, candidate);
+    if (existsSync(path)) {
+      return path;
+    }
+  }
+
+  return undefined;
+}
+
+export function findCodeDecayContract(cwd: string): string | undefined {
+  for (const candidate of CONTRACT_CANDIDATES) {
     const path = resolve(cwd, candidate);
     if (existsSync(path)) {
       return path;
@@ -68,8 +92,9 @@ function normalizeConfig(value: unknown, sourcePath: string): CodeDecayConfig {
   const toolAdapters = normalizeToolAdapters(value.toolAdapters, sourcePath);
   const productTesting = normalizeProductTesting(value.productTesting, safety, sourcePath);
   const plugins = normalizePlugins(value.plugins, sourcePath);
+  const designContract = normalizeDesignContract(value.designContract, sourcePath);
 
-  return {
+  const config: CodeDecayConfig = {
     version: 1,
     commands,
     probes,
@@ -80,4 +105,10 @@ function normalizeConfig(value: unknown, sourcePath: string): CodeDecayConfig {
     productTesting,
     plugins
   };
+
+  if (designContract) {
+    config.designContract = designContract;
+  }
+
+  return config;
 }

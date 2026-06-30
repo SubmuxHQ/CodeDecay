@@ -26,6 +26,7 @@ export const DIRECT_FINDING_RULE_IDS = new Set([
   "memory-past-regression-area",
   "runtime-coverage-miss",
   "runtime-coverage-partial",
+  "contract",
   "security-sql-injection",
   "security-hardcoded-secret",
   "security-command-injection",

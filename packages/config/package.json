@@ -12,6 +12,7 @@
     }
   },
   "dependencies": {
+    "@submuxhq/codedecay-core": "workspace:*",
     "yaml": "^2.8.1"
   },
   "scripts": {

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
+import { loadCodeDecayConfig } from "@submuxhq/codedecay-config";
 import {
   CODEDECAY_PRODUCT_LATEST_REPORT_PATH,
   createAnalysisReport,
@@ -26,9 +27,11 @@ export function createAnalysisContextForCli(
   options: AnalyzeOptions | AgentOptions | RedteamOptions | SnapshotOptions | LlmReviewOptions
 ): CliAnalysisContext {
   const changedFiles = getChangedFilesForCli(rootDir, options);
+  const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
   const analyzerResult = analyzeJsProject({
     rootDir,
-    changedFiles
+    changedFiles,
+    designContract: loadedConfig.config.designContract
   });
   const loadedMemory = loadCodeDecayMemory(rootDir);
   const analyzerResultWithMemory = applyMemoryContext({

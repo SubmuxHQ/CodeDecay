@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type {
   AnalyzerResult,
+  DesignContract,
   FileChange,
   Finding,
   ImpactedRoute,
@@ -20,6 +21,7 @@ import { analyzeRouteImpacts } from "./routes/analysis";
 import { mergeImpactedRoutes } from "./routes/impact";
 import { analyzeRuntimeCoverage } from "./runtime-coverage";
 import { detectBroadUnrelatedChanges } from "./scope/broad-change";
+import { checkDesignContract } from "./contract";
 import { detectTestBloat } from "./tests/bloat";
 import { analyzeTestRecommendations } from "./tests/recommendations";
 import { detectWeakTests } from "./tests/weak-audit";
@@ -27,6 +29,7 @@ import { detectWeakTests } from "./tests/weak-audit";
 export interface AnalyzeJsOptions {
   rootDir: string;
   changedFiles: FileChange[];
+  designContract?: DesignContract | undefined;
 }
 
 export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
@@ -74,6 +77,15 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
   if (broadChangeFinding) {
     findings.push(broadChangeFinding);
   }
+
+  findings.push(
+    ...checkDesignContract({
+      rootDir: options.rootDir,
+      changedFiles: options.changedFiles,
+      impactedAreas,
+      contract: options.designContract
+    }).findings
+  );
 
   findings.push(...detectFragilePatterns(options.changedFiles));
   findings.push(...detectTestBloat(options.changedFiles, changedSourceFiles));

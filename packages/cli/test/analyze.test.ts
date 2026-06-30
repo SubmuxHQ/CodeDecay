@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createBroadLowOnlyRepo, createHighRiskRepo, createLowRiskRepo, createMediumRiskRepo, createNextRouteRiskRepo, createTempDir, expectExit, git, run, stableReport } from "./helpers";
+import { createBroadLowOnlyRepo, createHighRiskRepo, createLowRiskRepo, createMediumRiskRepo, createNextRouteRiskRepo, createTempDir, expectExit, git, run, stableReport, writeFile } from "./helpers";
 
 describe("codedecay analyze CLI contract", () => {
   it("renders JSON and markdown to stdout", async () => {
@@ -125,6 +125,43 @@ describe("codedecay analyze CLI contract", () => {
     await expectExit(["analyze", "--fail-on", "high"], highRepo, 1);
     await expectExit(["analyze", "--fail-on", "medium"], highRepo, 1);
     await expectExit(["analyze", "--fail-on", "low"], highRepo, 1);
+  });
+
+  it("includes design contract violations and gates them under fail-on", async () => {
+    const repo = createMediumRiskRepo();
+    writeFile(
+      repo,
+      "codedecay.contract.json",
+      JSON.stringify(
+        {
+          version: 1,
+          activeScopeFence: "auth-only",
+          scopeFences: [
+            {
+              id: "auth-only",
+              allowedAreas: ["auth"]
+            }
+          ]
+        },
+        null,
+        2
+      )
+    );
+
+    const result = await run(["analyze", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(report.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "contract-scope-fence",
+          category: "scope",
+          file: "src/api/users.ts"
+        })
+      ])
+    );
+    await expectExit(["analyze", "--fail-on", "low"], repo, 1);
   });
 
   it("does not fail the high gate for broad low-severity docs/source/test changes", async () => {
