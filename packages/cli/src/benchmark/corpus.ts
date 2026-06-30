@@ -81,6 +81,12 @@ export function createDefaultBenchmarkCorpus(): BenchmarkCorpus {
         expectedRuleIds: ["security-missing-auth-entrypoint"]
       },
       {
+        id: "auth-comment-destructive-missing-auth",
+        kind: "positive",
+        setup: createAuthCommentDestructiveMissingAuthRepo,
+        expectedRuleIds: ["security-missing-auth-entrypoint"]
+      },
+      {
         id: "one-hop-path-join-traversal",
         kind: "positive",
         setup: createOneHopPathJoinTraversalRepo,
@@ -102,6 +108,12 @@ export function createDefaultBenchmarkCorpus(): BenchmarkCorpus {
         id: "request-name-collision-decoy",
         kind: "decoy",
         setup: createRequestNameCollisionDecoyRepo,
+        expectedRuleIds: []
+      },
+      {
+        id: "guarded-destructive-auth-decoy",
+        kind: "decoy",
+        setup: createGuardedDestructiveAuthDecoyRepo,
         expectedRuleIds: []
       }
     ],
@@ -336,6 +348,29 @@ export function createPlainExportedDestructiveMissingAuthRepo(): string {
   return repo;
 }
 
+export function createAuthCommentDestructiveMissingAuthRepo(): string {
+  const repo = createRepo({
+    "src/admin.ts": "export function listUsers() { return []; }\n"
+  });
+
+  writeFile(
+    repo,
+    "src/admin.ts",
+    [
+      "import { Pool } from 'pg';",
+      "const pool = new Pool();",
+      "// destructive admin action with NO authentication/authorization check",
+      "export async function deleteAllUsers(req: { body: unknown }) {",
+      "  await pool.query('DELETE FROM users');",
+      "  return { ok: true };",
+      "}",
+      ""
+    ].join("\n")
+  );
+
+  return repo;
+}
+
 export function createOneHopPathJoinTraversalRepo(): string {
   const repo = createRepo({
     "src/api/files.ts": "export function readUpload() { return 'ok'; }\n"
@@ -420,6 +455,29 @@ export function createRequestNameCollisionDecoyRepo(): string {
       "",
       "strictEqual(classifyRequestKind('internal'), 'internal');",
       "strictEqual(labelRequest({ query: { kind: 'external' } }), 'external');",
+      ""
+    ].join("\n")
+  );
+
+  return repo;
+}
+
+export function createGuardedDestructiveAuthDecoyRepo(): string {
+  const repo = createRepo({
+    "src/admin.ts": "export function listUsers() { return []; }\n"
+  });
+
+  writeFile(
+    repo,
+    "src/admin.ts",
+    [
+      "import { Pool } from 'pg';",
+      "const pool = new Pool();",
+      "export async function deleteAllUsers(req: { body: unknown }) {",
+      "  requireAuth(req);",
+      "  await pool.query('DELETE FROM users');",
+      "  return { ok: true };",
+      "}",
       ""
     ].join("\n")
   );

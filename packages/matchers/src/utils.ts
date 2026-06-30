@@ -216,6 +216,82 @@ export function maskStringLiterals(line: string): string {
   return output;
 }
 
+export function stripComments(content: string): string {
+  let output = "";
+  let quote: "'" | "\"" | "`" | undefined;
+  let escaped = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index] ?? "";
+    const next = content[index + 1] ?? "";
+
+    if (inLineComment) {
+      if (char === "\n") {
+        inLineComment = false;
+        output += "\n";
+      } else {
+        output += " ";
+      }
+      continue;
+    }
+
+    if (inBlockComment) {
+      if (char === "*" && next === "/") {
+        inBlockComment = false;
+        output += "  ";
+        index += 1;
+      } else {
+        output += char === "\n" ? "\n" : " ";
+      }
+      continue;
+    }
+
+    if (quote !== undefined) {
+      output += char;
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+
+      if (char === quote) {
+        quote = undefined;
+      }
+      continue;
+    }
+
+    if (char === "'" || char === "\"" || char === "`") {
+      quote = char;
+      output += char;
+      continue;
+    }
+
+    if (char === "/" && next === "/") {
+      inLineComment = true;
+      output += "  ";
+      index += 1;
+      continue;
+    }
+
+    if (char === "/" && next === "*") {
+      inBlockComment = true;
+      output += "  ";
+      index += 1;
+      continue;
+    }
+
+    output += char;
+  }
+
+  return output;
+}
+
 export function hasRouteEntryPoint(filePath: string, content: string): boolean {
   const normalized = filePath.toLowerCase();
   const lowerContent = content.toLowerCase();
