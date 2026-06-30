@@ -248,6 +248,26 @@ memoryProviders:
       projectId: codedecay
 ```
 
+The Supermemory adapter follows the same optional boundary. CodeDecay does not
+install, import, or call `supermemory` unless a future workflow explicitly
+constructs the provider from config. To prepare a repo for Supermemory-backed
+context, install the official SDK in the analyzed project and configure an
+API-key environment variable:
+
+```bash
+npm install -D supermemory
+```
+
+```yaml
+memoryProviders:
+  providers:
+    - local
+    - provider: supermemory
+      endpoint: http://127.0.0.1:8787
+      apiKeyEnv: SUPERMEMORY_API_KEY
+      collection: codedecay
+```
+
 External providers are not enabled by default. They must not add telemetry,
 hidden network calls, API key requirements, LLM calls, or CodeDecayCloud
 dependencies to the OSS workflow.

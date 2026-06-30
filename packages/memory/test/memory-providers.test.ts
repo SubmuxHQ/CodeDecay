@@ -6,6 +6,7 @@ import {
   createLocalMemoryProvider,
   createMem0MemoryProvider,
   createMemoryProviderRegistry,
+  createSupermemoryMemoryProvider,
   importCodeDecayMemory,
   learnCodeDecayMemory,
   loadCodeDecayMemory,
@@ -166,6 +167,123 @@ describe("CodeDecay memory providers", () => {
 
     await expect(loadCodeDecayMemoryFromProviderAsync(provider, { rootDir: createTempDir() })).rejects.toThrow(
       /requires the optional mem0ai package/
+    );
+  });
+
+  it("loads Supermemory through an optional async provider", async () => {
+    const calls: unknown[] = [];
+    class FakeSupermemory {
+      search = {
+        memories: async (body: unknown) => {
+          calls.push(body);
+          return {
+            results: [
+              {
+                memory: "Admin settings must reject non-owner users.",
+                filepath: "src/auth/admin.ts",
+                metadata: {
+                  codedecay: {
+                    type: "invariant",
+                    name: "Admin owner boundary",
+                    areas: ["auth"]
+                  }
+                }
+              },
+              {
+                chunk: "Run billing API smoke checks after invoice schema changes.",
+                metadata: {
+                  codedecay: {
+                    type: "command",
+                    name: "Billing API smoke",
+                    command: "pnpm test billing-api",
+                    files: ["src/billing/invoices.ts"]
+                  }
+                }
+              }
+            ]
+          };
+        }
+      };
+
+      constructor(options: unknown) {
+        calls.push(options);
+      }
+    }
+
+    const provider = createSupermemoryMemoryProvider({
+      endpoint: "http://127.0.0.1:8787",
+      apiKeyEnv: "SUPERMEMORY_API_KEY",
+      collection: "codedecay",
+      env: { SUPERMEMORY_API_KEY: "test-key" },
+      importModule: async () => ({ Supermemory: FakeSupermemory })
+    });
+    const loaded = await loadCodeDecayMemoryFromProviderAsync(provider, { rootDir: createTempDir() });
+
+    expect(provider).toMatchObject({
+      id: "supermemory",
+      name: "Supermemory",
+      kind: "external"
+    });
+    expect(calls[0]).toEqual({
+      apiKey: "test-key",
+      baseURL: "http://127.0.0.1:8787"
+    });
+    expect(calls[1]).toEqual({
+      q: "CodeDecay project memory",
+      limit: 20,
+      containerTag: "codedecay"
+    });
+    expect(loaded.sourcePath).toBe("supermemory:http://127.0.0.1:8787");
+    expect(loaded.memory.invariants[0]).toMatchObject({
+      name: "Admin owner boundary",
+      files: ["src/auth/admin.ts"],
+      areas: ["auth"]
+    });
+    expect(loaded.memory.commands[0]).toMatchObject({
+      name: "Billing API smoke",
+      command: "pnpm test billing-api",
+      files: ["src/billing/invoices.ts"]
+    });
+  });
+
+  it("keeps sync provider loading from accidentally running async Supermemory providers", () => {
+    const provider = createSupermemoryMemoryProvider({
+      env: { SUPERMEMORY_API_KEY: "test-key" },
+      importModule: async () => ({
+        Supermemory: class {
+          search = {
+            memories: async () => ({ results: [] })
+          };
+        }
+      })
+    });
+
+    expect(() => loadCodeDecayMemoryFromProvider(provider, { rootDir: createTempDir() })).toThrow(
+      /provider "supermemory" is async/
+    );
+  });
+
+  it("fails clearly when Supermemory is configured without an API key env value", async () => {
+    const provider = createSupermemoryMemoryProvider({
+      apiKeyEnv: "SUPERMEMORY_API_KEY",
+      env: {}
+    });
+
+    await expect(loadCodeDecayMemoryFromProviderAsync(provider, { rootDir: createTempDir() })).rejects.toThrow(
+      /requires API key environment variable SUPERMEMORY_API_KEY/
+    );
+  });
+
+  it("fails clearly when the optional Supermemory package is unavailable", async () => {
+    const provider = createSupermemoryMemoryProvider({
+      env: { SUPERMEMORY_API_KEY: "test-key" },
+      importModule: async () => {
+        throw new Error("Cannot find package 'supermemory'");
+      }
+    });
+
+    await expect(loadCodeDecayMemoryFromProviderAsync(provider, { rootDir: createTempDir() })).rejects.toThrow(
+      /requires the optional supermemory package/
     );
   });
 

@@ -4,6 +4,7 @@ export { learnCodeDecayMemory } from "./learn-memory";
 export {
   createLocalMemoryProvider,
   createMem0MemoryProvider,
+  createSupermemoryMemoryProvider,
   createMemoryProviderRegistry,
   loadCodeDecayMemory,
   loadCodeDecayMemoryFromProviderAsync,
@@ -31,3 +32,4 @@ export type {
   MemoryRegression
 } from "./types";
 export type { Mem0MemoryProviderOptions } from "./provider-mem0";
+export type { SupermemoryMemoryProviderOptions } from "./provider-supermemory";
