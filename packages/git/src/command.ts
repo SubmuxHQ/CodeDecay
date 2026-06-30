@@ -4,6 +4,7 @@ export function runGit(cwd: string, args: string[]): string {
   try {
     const options: ExecFileSyncOptionsWithStringEncoding = {
       encoding: "utf8",
+      maxBuffer: 10 * 1024 * 1024,
       stdio: ["ignore", "pipe", "pipe"]
     };
 

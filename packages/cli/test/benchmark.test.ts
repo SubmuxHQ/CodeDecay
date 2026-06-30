@@ -27,28 +27,50 @@ describe("codedecay benchmark CLI contract", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(report.corpus).toBe("default");
-    expect(report.summary).toMatchObject({
-      totalExpected: 18,
-      totalMatched: 18,
-      overallRecall: 1,
-      falsePositives: 2,
-      falsePositiveRate: 0.0556,
-      costUsd: 0,
-      llmCalled: false,
-      telemetrySent: false
-    });
+      expect(report.summary).toMatchObject({
+        totalExpected: 21,
+        totalMatched: 21,
+        overallRecall: 1,
+        falsePositives: 2,
+        falsePositiveRate: 0.037,
+        costUsd: 0,
+        llmCalled: false,
+        telemetrySent: false
+      });
     expect(report.summary.falsePositiveRate).toBeLessThan(0.1);
     expect(report.summary.durationMs).toBeGreaterThanOrEqual(0);
     expect(report.metrics.byArea).toEqual([
-      expect.objectContaining({ area: "security", expected: 8, matched: 8, recall: 1, falsePositives: 0 }),
+      expect.objectContaining({ area: "security", expected: 11, matched: 11, recall: 1, falsePositives: 0 }),
       expect.objectContaining({ area: "regression", expected: 5, matched: 5, recall: 1, falsePositives: 2 }),
       expect.objectContaining({ area: "quality", expected: 5, matched: 5, recall: 1, falsePositives: 0 })
     ]);
     expect(report.metrics.byRuleId).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ ruleId: "security-sql-injection", expected: 1, matched: 1 }),
+        expect.objectContaining({ ruleId: "security-sql-injection", expected: 2, matched: 2 }),
+        expect.objectContaining({ ruleId: "security-missing-auth-entrypoint", expected: 2, matched: 2 }),
+        expect.objectContaining({ ruleId: "security-path-traversal", expected: 2, matched: 2 }),
         expect.objectContaining({ ruleId: "happy-path-only-test", expected: 1, matched: 1 }),
         expect.objectContaining({ ruleId: "missing-nearby-tests", expected: 1, matched: 1 })
+      ])
+    );
+    expect(report.scenarios).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "one-hop-sqli",
+          matchedRuleIds: ["security-sql-injection"]
+        }),
+        expect.objectContaining({
+          id: "plain-exported-destructive-missing-auth",
+          matchedRuleIds: ["security-missing-auth-entrypoint"]
+        }),
+        expect.objectContaining({
+          id: "one-hop-path-join-traversal",
+          matchedRuleIds: ["security-path-traversal"]
+        }),
+        expect.objectContaining({
+          id: "request-name-collision-decoy",
+          falsePositiveRuleIds: []
+        })
       ])
     );
   });
@@ -64,7 +86,7 @@ describe("codedecay benchmark CLI contract", () => {
     expect(result.stderr).toBe("");
     expect(rendered).toContain("## CodeDecay Benchmark");
     expect(rendered).toContain("| Overall recall | 100% |");
-    expect(rendered).toContain("| False-positive rate | 5.56% |");
+    expect(rendered).toContain("| False-positive rate | 3.7% |");
     expect(rendered).toContain("- LLM/model called: no");
     expect(rendered).toContain("- Telemetry sent: no");
   });

@@ -1,6 +1,7 @@
 import type { SecurityMatcher } from "./types";
 import {
   containsAny,
+  containsAnySinkMarker,
   createCandidate,
   findParameterTaintedSinkLines,
   hasRouteEntryPoint,
@@ -189,7 +190,7 @@ export const ssrfMatcher: SecurityMatcher = {
   match(context) {
     const directMatches = lineMatches(context.content, (line) => {
       const codeLine = maskStringLiterals(line).toLowerCase();
-      const outbound = containsAny(codeLine, ["fetch(", "axios.get(", "axios.post(", "got(", "request("]);
+      const outbound = containsAnySinkMarker(codeLine, ["fetch(", "axios.get(", "axios.post(", "got(", "request("]);
       return outbound && hasUserInputMarker(codeLine);
     });
     const taintedMatches = findParameterTaintedSinkLines(context.content, ["fetch(", "axios.get(", "axios.post(", "got(", "request("]);

@@ -31,6 +31,9 @@ export function createTrendSnapshot(report: CodeDecayReport): TrendSnapshot {
 }
 
 export function createTrendSnapshotComparison(current: TrendSnapshot, previous: TrendSnapshot): TrendSnapshotComparison {
+  validateTrendSnapshot(current, "current");
+  validateTrendSnapshot(previous, "previous");
+
   return {
     tool: "CodeDecay",
     version: CODEDECAY_VERSION,
@@ -54,11 +57,60 @@ export function createTrendSnapshotComparison(current: TrendSnapshot, previous: 
 
 export function loadTrendSnapshot(path: string): TrendSnapshot {
   const parsed = JSON.parse(readFileSync(path, "utf8")) as TrendSnapshot;
-  if (!parsed || parsed.tool !== "CodeDecay" || !parsed.summary) {
+  try {
+    validateTrendSnapshot(parsed, path);
+  } catch {
     throw new Error(`Invalid CodeDecay snapshot: ${path}`);
   }
 
   return parsed;
+}
+
+function validateTrendSnapshot(snapshot: TrendSnapshot, label: string): void {
+  if (!snapshot || typeof snapshot !== "object" || snapshot.tool !== "CodeDecay" || !snapshot.summary) {
+    throw new Error(`Invalid CodeDecay snapshot: ${label}`);
+  }
+
+  const summary = snapshot.summary;
+  for (const field of [
+    "mergeRiskScore",
+    "decayScore",
+    "changedFiles",
+    "impactedAreas",
+    "impactedRoutes",
+    "missingTestFindings",
+    "weakTestFindings"
+  ] as const) {
+    if (!isFiniteNumber(summary[field])) {
+      throw new Error(`Invalid CodeDecay snapshot: ${label}`);
+    }
+  }
+
+  if (!summary.findingCounts || typeof summary.findingCounts !== "object") {
+    throw new Error(`Invalid CodeDecay snapshot: ${label}`);
+  }
+
+  for (const level of ["low", "medium", "high"] as const) {
+    if (!isFiniteNumber(summary.findingCounts[level])) {
+      throw new Error(`Invalid CodeDecay snapshot: ${label}`);
+    }
+  }
+
+  if (!["low", "medium", "high"].includes(summary.riskLevel)) {
+    throw new Error(`Invalid CodeDecay snapshot: ${label}`);
+  }
+
+  if (!["heuristic_only", "runtime_augmented"].includes(summary.evidenceMode)) {
+    throw new Error(`Invalid CodeDecay snapshot: ${label}`);
+  }
+
+  if (!Array.isArray(summary.highRiskFiles) || !Array.isArray(summary.impactedAreaKinds)) {
+    throw new Error(`Invalid CodeDecay snapshot: ${label}`);
+  }
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 export function renderTrendSnapshot(snapshot: TrendSnapshot, format: ConfigFormat): string {

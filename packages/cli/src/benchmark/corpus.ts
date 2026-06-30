@@ -69,6 +69,24 @@ export function createDefaultBenchmarkCorpus(): BenchmarkCorpus {
         expectedRuleIds: ["missing-nearby-tests"]
       },
       {
+        id: "one-hop-sqli",
+        kind: "positive",
+        setup: createOneHopSqlInjectionRepo,
+        expectedRuleIds: ["security-sql-injection"]
+      },
+      {
+        id: "plain-exported-destructive-missing-auth",
+        kind: "positive",
+        setup: createPlainExportedDestructiveMissingAuthRepo,
+        expectedRuleIds: ["security-missing-auth-entrypoint"]
+      },
+      {
+        id: "one-hop-path-join-traversal",
+        kind: "positive",
+        setup: createOneHopPathJoinTraversalRepo,
+        expectedRuleIds: ["security-path-traversal"]
+      },
+      {
         id: "docs-only-clean-decoy",
         kind: "decoy",
         setup: createDocsOnlyCleanDecoyRepo,
@@ -78,6 +96,12 @@ export function createDefaultBenchmarkCorpus(): BenchmarkCorpus {
         id: "jwt-auth-clean-decoy",
         kind: "decoy",
         setup: createJwtAuthDecoyRepo,
+        expectedRuleIds: []
+      },
+      {
+        id: "request-name-collision-decoy",
+        kind: "decoy",
+        setup: createRequestNameCollisionDecoyRepo,
         expectedRuleIds: []
       }
     ],
@@ -273,6 +297,68 @@ export function createMissingRealApiTestRepo(): string {
   return repo;
 }
 
+export function createOneHopSqlInjectionRepo(): string {
+  const repo = createRepo({
+    "src/api/search.ts": "export function searchUsers(db, req) { return db.query('select 1'); }\n"
+  });
+
+  writeFile(
+    repo,
+    "src/api/search.ts",
+    [
+      "export function searchUsers(db, req) {",
+      "  const sql = 'select * from users where id = ' + req.query.id;",
+      "  return db.query(sql);",
+      "}",
+      ""
+    ].join("\n")
+  );
+
+  return repo;
+}
+
+export function createPlainExportedDestructiveMissingAuthRepo(): string {
+  const repo = createRepo({
+    "src/services/users.ts": "export function listUsers() { return []; }\n"
+  });
+
+  writeFile(
+    repo,
+    "src/services/users.ts",
+    [
+      "export function deleteUser(userId) {",
+      "  return db.user.delete({ where: { id: userId } });",
+      "}",
+      ""
+    ].join("\n")
+  );
+
+  return repo;
+}
+
+export function createOneHopPathJoinTraversalRepo(): string {
+  const repo = createRepo({
+    "src/api/files.ts": "export function readUpload() { return 'ok'; }\n"
+  });
+
+  writeFile(
+    repo,
+    "src/api/files.ts",
+    [
+      "import path from 'node:path';",
+      "import { readFileSync } from 'node:fs';",
+      "",
+      "export function readUpload(req) {",
+      "  const file = path.join(uploadRoot, req.query.file);",
+      "  return readFileSync(file, 'utf8');",
+      "}",
+      ""
+    ].join("\n")
+  );
+
+  return repo;
+}
+
 export function createDocsOnlyCleanDecoyRepo(): string {
   const repo = createRepo({
     "README.md": "# Project\n"
@@ -301,6 +387,42 @@ export function createJwtAuthDecoyRepo(): string {
     ].join("\n")
   );
   writeFile(repo, "src/docs/jwt-notes.ts", "export const note = 'jwt.decode is for inspection only, not authentication';\n");
+
+  return repo;
+}
+
+export function createRequestNameCollisionDecoyRepo(): string {
+  const repo = createRepo({
+    "src/lib/request-labels.ts": "export function classifyRequestKind(kind) { return kind === 'internal' ? 'internal' : 'external'; }\n",
+    "test/request-labels.test.ts": "import { classifyRequestKind } from '../src/lib/request-labels';\n"
+  });
+
+  writeFile(
+    repo,
+    "src/lib/request-labels.ts",
+    [
+      "export function classifyRequestKind(kind) {",
+      "  return kind === 'internal' ? 'internal' : 'external';",
+      "}",
+      "",
+      "export function labelRequest(req) {",
+      "  return classifyRequestKind(req.query.kind);",
+      "}",
+      ""
+    ].join("\n")
+  );
+  writeFile(
+    repo,
+    "test/request-labels.test.ts",
+    [
+      "import { strictEqual } from 'node:assert';",
+      "import { classifyRequestKind, labelRequest } from '../src/lib/request-labels';",
+      "",
+      "strictEqual(classifyRequestKind('internal'), 'internal');",
+      "strictEqual(labelRequest({ query: { kind: 'external' } }), 'external');",
+      ""
+    ].join("\n")
+  );
 
   return repo;
 }

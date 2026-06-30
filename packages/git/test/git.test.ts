@@ -164,6 +164,24 @@ describe("live git integration", () => {
     );
   });
 
+  it("handles unified diffs larger than the Node execFileSync default buffer", () => {
+    const repo = createRepo({
+      "src/large.ts": "export const value = 'initial';\n"
+    });
+    const largeValue = "x".repeat(1_200_000);
+
+    writeFile(repo, "src/large.ts", `export const value = '${largeValue}';\n`);
+
+    const changes = getGitChangedFiles({ cwd: repo });
+    expect(changes).toEqual([
+      expect.objectContaining({
+        path: "src/large.ts",
+        status: "modified"
+      })
+    ]);
+    expect(changes[0]?.addedLines[0]?.content.length).toBeGreaterThan(1_000_000);
+  });
+
   it("creates and removes temporary git worktrees", () => {
     const repo = createRepo({
       "src/app.ts": "export const value = 1;\n"

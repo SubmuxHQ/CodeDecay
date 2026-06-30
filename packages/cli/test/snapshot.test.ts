@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createLowRiskRepo, run, writeFile } from "./helpers";
+import { createTrendSnapshotComparison, loadTrendSnapshot } from "../src/renderers/snapshot";
+import { createLowRiskRepo, createTempDir, git, run, writeFile } from "./helpers";
 
 describe("codedecay snapshot CLI contract", () => {
   it("emits stable JSON snapshots and compares them with a previous artifact", async () => {
@@ -35,5 +36,54 @@ describe("codedecay snapshot CLI contract", () => {
     expect(comparison.exitCode).toBe(0);
     expect(comparison.stdout).toContain("## CodeDecay Snapshot Comparison");
     expect(comparison.stdout).toContain("| Merge risk |");
+  });
+
+  it("rejects malformed snapshot summaries before comparing arithmetic fields", async () => {
+    const repo = createLowRiskRepo();
+    const current = await run(["snapshot", "--format", "json"], repo);
+    const currentSnapshot = JSON.parse(current.stdout);
+    const malformedPath = join(repo, "malformed-snapshot.json");
+
+    writeFile(
+      repo,
+      "malformed-snapshot.json",
+      JSON.stringify(
+        {
+          ...currentSnapshot,
+          summary: {
+            ...currentSnapshot.summary,
+            mergeRiskScore: "not-a-number"
+          }
+        },
+        null,
+        2
+      )
+    );
+
+    expect(() => loadTrendSnapshot(malformedPath)).toThrow(/Invalid CodeDecay snapshot/);
+    expect(() =>
+      createTrendSnapshotComparison(currentSnapshot, {
+        ...currentSnapshot,
+        summary: {
+          ...currentSnapshot.summary,
+          mergeRiskScore: Number.NaN
+        }
+      })
+    ).toThrow(/Invalid CodeDecay snapshot/);
+
+    const comparison = await run(["snapshot", "--compare", malformedPath, "--format", "json"], repo);
+    expect(comparison.exitCode).toBe(2);
+    expect(comparison.stderr).toContain("Invalid CodeDecay snapshot");
+    expect(comparison.stdout).toBe("");
+  });
+
+  it("returns a clean error for git repositories with no commits", async () => {
+    const repo = createTempDir();
+    git(repo, ["init", "-b", "main"]);
+
+    const result = await run(["snapshot", "--format", "json"], repo);
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("Git command failed");
+    expect(result.stdout).toBe("");
   });
 });

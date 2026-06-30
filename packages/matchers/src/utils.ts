@@ -53,6 +53,14 @@ export function containsAny(value: string, needles: string[]): boolean {
   return needles.some((needle) => value.includes(needle));
 }
 
+export function containsSinkMarker(value: string, marker: string): boolean {
+  return findSinkMarkerIndex(value, marker) >= 0;
+}
+
+export function containsAnySinkMarker(value: string, markers: string[]): boolean {
+  return markers.some((marker) => containsSinkMarker(value, marker));
+}
+
 export function hasUserInputMarker(value: string): boolean {
   const normalized = value.toLowerCase();
   return (
@@ -112,16 +120,21 @@ export function findParameterTaintedSinkLines(content: string, sinkMarkers: stri
   }
 
   const matches: LineMatch[] = [];
+  const taintedLocals = new Set<string>();
   const lines = content.split(/\n/);
   for (const [index, line] of lines.entries()) {
     const codeLine = maskStringLiterals(line).toLowerCase();
-    if (!containsAny(codeLine, sinkMarkers)) {
+    for (const local of collectLocalsAssignedFromTaint(codeLine, parameters)) {
+      taintedLocals.add(local);
+    }
+
+    if (!containsAnySinkMarker(codeLine, sinkMarkers)) {
       continue;
     }
 
     const sinkArgumentText = codeAfterFirstSink(codeLine, sinkMarkers);
-    const hasParameter = parameters.some((parameter) => containsIdentifier(sinkArgumentText, parameter));
-    if (hasParameter) {
+    const hasTaintedInput = [...parameters, ...taintedLocals].some((identifier) => containsIdentifier(sinkArgumentText, identifier));
+    if (hasTaintedInput) {
       matches.push({ line: index + 1, text: line.trim() });
     }
   }
@@ -132,7 +145,7 @@ export function findParameterTaintedSinkLines(content: string, sinkMarkers: stri
 function codeAfterFirstSink(codeLine: string, sinkMarkers: string[]): string {
   const indexes = sinkMarkers
     .map((marker) => {
-      const index = codeLine.indexOf(marker);
+      const index = findSinkMarkerIndex(codeLine, marker);
       return index >= 0 ? { index, marker } : undefined;
     })
     .filter((match): match is { index: number; marker: string } => match !== undefined)
@@ -144,6 +157,22 @@ function codeAfterFirstSink(codeLine: string, sinkMarkers: string[]): string {
   }
 
   return codeLine.slice(first.index + first.marker.length);
+}
+
+function collectLocalsAssignedFromTaint(codeLine: string, parameters: string[]): string[] {
+  const assignment = codeLine.match(/\b(?:const|let|var)\s+([$a-z_][$\w]*)\s*=\s*(.+)/i);
+  if (!assignment?.[1] || !assignment[2]) {
+    return [];
+  }
+
+  const local = assignment[1].toLowerCase();
+  const expression = assignment[2];
+  const taintedByParameter = parameters.some((parameter) => containsIdentifier(expression, parameter));
+  if (taintedByParameter || hasUserInputMarker(expression)) {
+    return [local];
+  }
+
+  return [];
 }
 
 export function maskStringLiterals(line: string): string {
@@ -204,7 +233,7 @@ export function hasRouteEntryPoint(filePath: string, content: string): boolean {
     );
   }
 
-  return false;
+  return hasExportedDestructiveFunction(lowerContent);
 }
 
 function collectFunctionParameters(content: string): string[] {
@@ -268,4 +297,29 @@ function isIdentifierChar(char: string): boolean {
     (char >= "A" && char <= "Z") ||
     (char >= "a" && char <= "z")
   );
+}
+
+function findSinkMarkerIndex(value: string, marker: string): number {
+  let start = value.indexOf(marker);
+  while (start >= 0) {
+    if (isAllowedSinkMarkerStart(value, marker, start)) {
+      return start;
+    }
+    start = value.indexOf(marker, start + marker.length);
+  }
+
+  return -1;
+}
+
+function isAllowedSinkMarkerStart(value: string, marker: string, start: number): boolean {
+  if (marker !== "request(") {
+    return true;
+  }
+
+  const before = start === 0 ? "" : value[start - 1] ?? "";
+  return !isIdentifierChar(before);
+}
+
+function hasExportedDestructiveFunction(lowerContent: string): boolean {
+  return /\bexport\s+(?:async\s+)?function\s+(?:delete|remove|drop)[$\w]*\s*\(/.test(lowerContent);
 }
