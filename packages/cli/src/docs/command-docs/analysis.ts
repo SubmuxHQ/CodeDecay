@@ -12,7 +12,7 @@ export const ANALYSIS_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--base <ref>", description: "Base git ref to compare from" },
       { flag: "--head <ref>", description: "Head git ref to compare to" },
       { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
-      { flag: "--format <format>", description: "json, markdown, or sarif (default: markdown)" },
+      { flag: "--format <format>", description: "json, markdown, sarif, or pr-comment (default: markdown)" },
       { flag: "--output <path>", description: "Write report to a file instead of stdout" },
       { flag: "--fail-on <level>", description: "Exit non-zero on low, medium, or high risk" }
     ],

@@ -2,7 +2,7 @@ import type { RedteamFormat } from "@submuxhq/codedecay-redteam";
 import type { ReportFormat } from "@submuxhq/codedecay-report";
 import type { ConfigFormat } from "../../types";
 
-const VALID_FORMATS = new Set<ReportFormat>(["json", "markdown", "sarif"]);
+const VALID_FORMATS = new Set<ReportFormat>(["json", "markdown", "sarif", "pr-comment"]);
 const VALID_CONFIG_FORMATS = new Set<ConfigFormat>(["json", "markdown"]);
 
 export function parseFormat(value: string): ReportFormat {
@@ -10,7 +10,7 @@ export function parseFormat(value: string): ReportFormat {
     return value as ReportFormat;
   }
 
-  throw new Error(`Invalid format "${value}". Expected json, markdown, or sarif.`);
+  throw new Error(`Invalid format "${value}". Expected json, markdown, sarif, or pr-comment.`);
 }
 
 export function parseConfigFormat(value: string): ConfigFormat {

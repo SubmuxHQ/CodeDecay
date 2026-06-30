@@ -8,6 +8,10 @@ name: CodeDecay
 on:
   pull_request:
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   codedecay:
     runs-on: ubuntu-latest
@@ -23,7 +27,14 @@ jobs:
           cwd: .
           format: markdown
           fail-on: high
+          github-token: ${{ github.token }}
 ```
+
+On pull request events, the action also posts or updates one sticky PR comment
+with the highest-signal CodeDecay catch and a collapsed full report. The comment
+uses the workflow `github-token` input, defaults to the GitHub Actions workflow
+token, and is skipped without failing the workflow when the token or PR context
+is unavailable. The Step Summary is still written on every run.
 
 ## SARIF Output
 
@@ -137,11 +148,11 @@ For API previews:
     output: codedecay-api-product.md
 ```
 
-### PR Comment
+### Product PR Comment
 
-The action writes markdown output to the Step Summary. To post a concise PR
-comment with pass/fail summary, failed checks, and rerun instructions, write an
-output file and comment it after the action:
+For `mode: product`, you may still want a product-specific comment with failed
+checks and rerun instructions. Write an output file and comment it after the
+action:
 
 ```yaml
 - name: Run product verification

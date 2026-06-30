@@ -142,6 +142,7 @@ describe("GitHub repository metadata", () => {
 
   it("dogfoods the local action in report-only redteam mode", () => {
     const workflow = parse(readFileSync(".github/workflows/codedecay-dogfood.yml", "utf8")) as {
+      permissions: Record<string, string>;
       jobs: {
         codedecay: {
           steps: Array<{
@@ -152,6 +153,11 @@ describe("GitHub repository metadata", () => {
       };
     };
 
+    expect(workflow.permissions).toMatchObject({
+      contents: "read",
+      "pull-requests": "write"
+    });
+
     const actionStep = workflow.jobs.codedecay.steps.find((step) => step.uses === "./packages/github-action");
 
     expect(actionStep?.with).toMatchObject({
@@ -159,7 +165,8 @@ describe("GitHub repository metadata", () => {
       base: "${{ github.event.pull_request.base.sha }}",
       head: "${{ github.event.pull_request.head.sha }}",
       cwd: ".",
-      format: "markdown"
+      format: "markdown",
+      "github-token": "${{ github.token }}"
     });
     expect(actionStep?.with).not.toHaveProperty("fail-on");
   });

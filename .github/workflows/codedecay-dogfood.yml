@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   codedecay:
@@ -24,3 +25,4 @@ jobs:
           head: ${{ github.event.pull_request.head.sha }}
           cwd: .
           format: markdown
+          github-token: ${{ github.token }}

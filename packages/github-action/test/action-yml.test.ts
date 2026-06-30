@@ -12,6 +12,7 @@ describe("GitHub Action metadata", () => {
       "cwd",
       "fail-on",
       "format",
+      "github-token",
       "head",
       "mode",
       "output",
@@ -25,6 +26,7 @@ describe("GitHub Action metadata", () => {
       "target"
     ]);
     expect(action.inputs.mode.default).toBe("analyze");
+    expect(action.inputs["github-token"].default).toBe("${{ github.token }}");
   });
 
   it("forwards cwd to every CLI invocation", () => {
@@ -43,6 +45,28 @@ describe("GitHub Action metadata", () => {
     expect(actionYaml).toContain("Unsupported CodeDecay mode");
     expect(actionYaml).toContain("does not support SARIF output");
     expect(actionYaml).not.toContain("analyze|redteam|agent|product|execute");
+  });
+
+  it("posts sticky pull request comments without colliding with the GitHub App marker", () => {
+    const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
+
+    expect(actionYaml).toContain("<!-- codedecay-action-report -->");
+    expect(actionYaml).not.toContain("<!-- codedecay-github-app-report -->");
+    expect(actionYaml).toContain("--format pr-comment");
+    expect(actionYaml).toContain("gh api \"repos/$owner/$repo/issues/$number/comments?per_page=100\" --paginate");
+    expect(actionYaml).toContain("--jq '.[] | select(.body != null");
+    expect(actionYaml).toContain("gh api --method PATCH \"repos/$owner/$repo/issues/comments/$comment_id\"");
+    expect(actionYaml).toContain("gh api --method POST \"repos/$owner/$repo/issues/$number/comments\"");
+  });
+
+  it("keeps pull request comments best effort", () => {
+    const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
+
+    expect(actionYaml).toContain("CodeDecay PR comment skipped: github-token input is empty.");
+    expect(actionYaml).toContain("CodeDecay PR comment skipped: event is not pull_request.");
+    expect(actionYaml).toContain("failed to render pr-comment report");
+    expect(actionYaml).toContain("failed to update existing PR comment");
+    expect(actionYaml).toContain("failed to create PR comment");
   });
 
   it("wires product verification inputs without arbitrary command passthrough", () => {

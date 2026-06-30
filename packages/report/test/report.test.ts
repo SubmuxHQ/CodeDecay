@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CodeDecayReport } from "@submuxhq/codedecay-core";
-import { renderJsonReport, renderMarkdownReport, renderSarifReport } from "../src/index";
+import { renderJsonReport, renderMarkdownReport, renderPrCommentReport, renderReport, renderSarifReport } from "../src/index";
 
 const report: CodeDecayReport = {
   tool: "CodeDecay",
@@ -351,6 +351,26 @@ describe("reports", () => {
         id: "web"
       }
     });
+  });
+
+  it("renders compact pr-comment markdown with a lead catch and collapsed full report", () => {
+    const markdown = renderPrCommentReport(report);
+
+    expect(markdown).toContain("## CodeDecay PR Check");
+    expect(markdown).toContain("**Lead catch:** Auth changed — `src/auth/session.ts:3`");
+    expect(markdown).toContain("Auth behavior changed.");
+    expect(markdown).toContain("<details>");
+    expect(markdown).toContain("<summary>Full CodeDecay report</summary>");
+    expect(markdown).toContain("## CodeDecay Report");
+    expect(markdown).toContain("Found by [CodeDecay](https://github.com/SubmuxHQ/CodeDecay) - deterministic, local-first, no telemetry.");
+    expect(markdown).not.toContain("https://github.com/SubmuxHQ/CodeDecay?");
+  });
+
+  it("dispatches pr-comment format through renderReport", () => {
+    const markdown = renderReport(report, "pr-comment");
+
+    expect(markdown).toContain("## CodeDecay PR Check");
+    expect(markdown).toContain("Full CodeDecay report");
   });
 
   it("renders minimal sarif", () => {

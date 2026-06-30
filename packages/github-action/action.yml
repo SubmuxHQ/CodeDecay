@@ -20,13 +20,17 @@ inputs:
     required: false
     default: "."
   format:
-    description: "Report format: json, markdown, or sarif"
+    description: "Report format: json, markdown, sarif, or pr-comment for analyze mode"
     required: false
     default: "markdown"
   output:
     description: "Optional output path. Relative paths resolve from cwd; absolute paths are honored exactly."
     required: false
     default: ""
+  github-token:
+    description: "GitHub token used to post or update the sticky pull request comment."
+    required: false
+    default: "${{ github.token }}"
   fail-on:
     description: "Fail the workflow on low, medium, or high risk"
     required: false
@@ -110,6 +114,81 @@ runs:
         cd "$GITHUB_WORKSPACE"
         node "$CLI_PATH" "${args[@]}" > "$SUMMARY_PATH" || true
         cat "$SUMMARY_PATH" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: "Post CodeDecay pull request comment"
+      shell: "bash"
+      env:
+        CODEDECAY_GITHUB_TOKEN: "${{ inputs.github-token }}"
+      run: |
+        set -uo pipefail
+        ACTION_ROOT="$(cd "$GITHUB_ACTION_PATH/../.." && pwd)"
+        CLI_PATH="$ACTION_ROOT/packages/cli/dist/index.js"
+        COMMENT_MARKER="<!-- codedecay-action-report -->"
+        COMMENT_RENDERED="$RUNNER_TEMP/codedecay-pr-comment-rendered.md"
+        COMMENT_BODY="$RUNNER_TEMP/codedecay-pr-comment.md"
+        COMMENT_PAYLOAD="$RUNNER_TEMP/codedecay-pr-comment.json"
+        PR_META="$RUNNER_TEMP/codedecay-pr-meta.env"
+
+        if [[ -z "${CODEDECAY_GITHUB_TOKEN:-}" ]]; then
+          echo "CodeDecay PR comment skipped: github-token input is empty."
+          exit 0
+        fi
+
+        if [[ "${GITHUB_EVENT_NAME:-}" != "pull_request" && "${GITHUB_EVENT_NAME:-}" != "pull_request_target" ]]; then
+          echo "CodeDecay PR comment skipped: event is not pull_request."
+          exit 0
+        fi
+
+        if [[ -z "${GITHUB_EVENT_PATH:-}" || ! -f "$GITHUB_EVENT_PATH" ]]; then
+          echo "CodeDecay PR comment skipped: GITHUB_EVENT_PATH is unavailable."
+          exit 0
+        fi
+
+        if ! node -e 'const fs = require("node:fs"); const event = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); const fullName = event.repository?.full_name; const number = event.pull_request?.number; if (!fullName || !number) process.exit(1); const [owner, repo] = fullName.split("/"); console.log("owner=" + owner); console.log("repo=" + repo); console.log("number=" + number);' "$GITHUB_EVENT_PATH" > "$PR_META"; then
+          echo "CodeDecay PR comment skipped: pull request metadata is unavailable."
+          exit 0
+        fi
+
+        # shellcheck disable=SC1090
+        source "$PR_META"
+
+        args=("analyze" --cwd "${{ inputs.cwd }}" --format pr-comment)
+        if [[ -n "${{ inputs.base }}" ]]; then
+          args+=(--base "${{ inputs.base }}")
+        fi
+        if [[ -n "${{ inputs.head }}" ]]; then
+          args+=(--head "${{ inputs.head }}")
+        fi
+
+        cd "$GITHUB_WORKSPACE"
+        if ! node "$CLI_PATH" "${args[@]}" > "$COMMENT_RENDERED"; then
+          echo "CodeDecay PR comment skipped: failed to render pr-comment report."
+          exit 0
+        fi
+
+        {
+          echo "$COMMENT_MARKER"
+          cat "$COMMENT_RENDERED"
+        } > "$COMMENT_BODY"
+
+        node -e 'const fs = require("node:fs"); const body = fs.readFileSync(process.argv[1], "utf8"); fs.writeFileSync(process.argv[2], JSON.stringify({ body }), "utf8");' "$COMMENT_BODY" "$COMMENT_PAYLOAD"
+
+        export GH_TOKEN="$CODEDECAY_GITHUB_TOKEN"
+        if ! comment_id="$(gh api "repos/$owner/$repo/issues/$number/comments?per_page=100" --paginate --jq '.[] | select(.body != null and (.body | contains("<!-- codedecay-action-report -->"))) | .id' | head -n 1)"; then
+          echo "CodeDecay PR comment skipped: failed to list existing PR comments."
+          exit 0
+        fi
+
+        if [[ -n "$comment_id" ]]; then
+          if ! gh api --method PATCH "repos/$owner/$repo/issues/comments/$comment_id" --input "$COMMENT_PAYLOAD" > /dev/null; then
+            echo "CodeDecay PR comment skipped: failed to update existing PR comment."
+          fi
+          exit 0
+        fi
+
+        if ! gh api --method POST "repos/$owner/$repo/issues/$number/comments" --input "$COMMENT_PAYLOAD" > /dev/null; then
+          echo "CodeDecay PR comment skipped: failed to create PR comment."
+        fi
 
     - name: "Run CodeDecay"
       shell: "bash"

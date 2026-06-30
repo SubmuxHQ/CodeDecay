@@ -23,6 +23,18 @@ describe("codedecay analyze CLI contract", () => {
     expect(markdown.stdout).toContain("Merge risk");
   });
 
+  it("renders PR comment markdown to stdout", async () => {
+    const repo = createMediumRiskRepo();
+    const result = await run(["analyze", "--format", "pr-comment"], repo);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("## CodeDecay PR Check");
+    expect(result.stdout).toContain("**Lead catch:**");
+    expect(result.stdout).toContain("<summary>Full CodeDecay report</summary>");
+    expect(result.stdout).toContain("Found by [CodeDecay](https://github.com/SubmuxHQ/CodeDecay)");
+  });
+
   it("writes SARIF with --output and resolves relative output from --cwd", async () => {
     const repo = createLowRiskRepo();
     const outsideCwd = createTempDir();
