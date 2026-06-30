@@ -191,6 +191,14 @@ function createConfig(input: { allowCommands: boolean }): CodeDecayConfig {
       provider: "disabled",
       timeoutMs: 30_000
     },
+    memoryProviders: {
+      providers: [
+        {
+          provider: "local",
+          enabled: true
+        }
+      ]
+    },
     toolAdapters: {},
     productTesting: {
       targets: {}

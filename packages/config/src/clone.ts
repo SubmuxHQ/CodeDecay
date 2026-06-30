@@ -1,10 +1,12 @@
 import type {
   CodeDecayCommands,
   CodeDecayConfig,
+  CodeDecayMemoryProvidersConfig,
   CodeDecayPluginsConfig,
   CodeDecayProductTestingConfig,
   CodeDecayToolAdapters
 } from "./types";
+import { cloneMemoryProviders } from "./normalize/memory-providers";
 
 export function cloneConfig(config: CodeDecayConfig): CodeDecayConfig {
   return {
@@ -13,10 +15,17 @@ export function cloneConfig(config: CodeDecayConfig): CodeDecayConfig {
     probes: config.probes.map((probe) => ({ ...probe })),
     safety: { ...config.safety },
     llm: { ...config.llm },
+    memoryProviders: cloneMemoryProviders(config.memoryProviders),
     toolAdapters: cloneToolAdapters(config.toolAdapters),
     productTesting: cloneProductTesting(config.productTesting),
     plugins: clonePlugins(config.plugins)
   };
+}
+
+export function cloneConfiguredMemoryProviders(
+  memoryProviders: CodeDecayMemoryProvidersConfig
+): CodeDecayMemoryProvidersConfig {
+  return cloneMemoryProviders(memoryProviders);
 }
 
 export function cloneCommands(commands: CodeDecayCommands): CodeDecayCommands {

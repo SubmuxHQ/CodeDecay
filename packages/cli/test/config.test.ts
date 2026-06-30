@@ -26,6 +26,14 @@ describe("codedecay config CLI contract", () => {
           provider: "disabled",
           timeoutMs: 30000
         },
+        memoryProviders: {
+          providers: [
+            {
+              provider: "local",
+              enabled: true
+            }
+          ]
+        },
         toolAdapters: {},
         productTesting: {
           targets: {}
@@ -61,6 +69,12 @@ describe("codedecay config CLI contract", () => {
         "  model: gpt-4.1-mini",
         "  endpoint: http://127.0.0.1:4000/v1",
         "  apiKeyEnv: LITELLM_API_KEY",
+        "memoryProviders:",
+        "  providers:",
+        "    - local",
+        "    - provider: mem0",
+        "      endpoint: http://127.0.0.1:8000",
+        "      apiKeyEnv: MEM0_API_KEY",
         "safety:",
         "  commandTimeoutMs: 45000",
         ""
@@ -77,6 +91,9 @@ describe("codedecay config CLI contract", () => {
     expect(result.stdout).toContain("### LLM");
     expect(result.stdout).toContain("| Provider | litellm |");
     expect(result.stdout).toContain("| API key env | `LITELLM_API_KEY` |");
+    expect(result.stdout).toContain("### Memory Providers");
+    expect(result.stdout).toContain("| local | yes | local/default |");
+    expect(result.stdout).toContain("| mem0 | yes | endpoint: `http://127.0.0.1:8000`<br>apiKeyEnv: `MEM0_API_KEY` |");
     expect(result.stdout).toContain("### Tool Adapters");
     expect(result.stdout).toContain("| Playwright | yes | command: default | default |");
     expect(result.stdout).toContain("schema: `docs/openapi.yaml`");

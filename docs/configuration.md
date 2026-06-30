@@ -80,6 +80,21 @@ safety:
 llm:
   provider: disabled
   timeoutMs: 30000
+
+memoryProviders:
+  providers:
+    - local
+    # Optional external memory providers are opt-in.
+    # They are not used by deterministic analyze defaults.
+    - provider: mem0
+      enabled: false
+      endpoint: http://127.0.0.1:8000
+      apiKeyEnv: MEM0_API_KEY
+    - provider: supermemory
+      enabled: false
+      endpoint: http://127.0.0.1:3001
+      apiKeyEnv: SUPERMEMORY_API_KEY
+      collection: codedecay
 ```
 
 Optional user-owned model providers must be configured explicitly. For a local
@@ -96,6 +111,41 @@ llm:
 
 Use `apiKeyEnv` to point at an environment variable name. Do not store literal
 API keys in CodeDecay config.
+
+## Memory Providers
+
+CodeDecay uses local repo memory by default:
+
+```yaml
+memoryProviders:
+  providers:
+    - local
+```
+
+The local provider reads `.codedecay/memory.json` and does not require network
+access, API keys, hosted services, or model calls.
+
+External memory providers are explicit opt-ins for future Mem0 and Supermemory
+adapters. Configure them only when you want CodeDecay to use user-owned memory
+systems in red-team or agent workflows:
+
+```yaml
+memoryProviders:
+  providers:
+    - local
+    - provider: mem0
+      endpoint: http://127.0.0.1:8000
+      apiKeyEnv: MEM0_API_KEY
+      projectId: codedecay
+    - provider: supermemory
+      endpoint: http://127.0.0.1:3001
+      apiKeyEnv: SUPERMEMORY_API_KEY
+      collection: codedecay
+```
+
+`apiKeyEnv` must be an environment variable name. Do not store literal tokens in
+config. External memory context must remain separate from deterministic tool
+evidence and must not change local-only `codedecay analyze` defaults.
 
 ## Product Testing Targets
 

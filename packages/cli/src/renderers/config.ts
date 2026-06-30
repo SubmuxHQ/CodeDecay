@@ -41,9 +41,16 @@ function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig): string {
     `| API key env | ${config.llm.apiKeyEnv ? `\`${config.llm.apiKeyEnv}\`` : "none"} |`,
     `| Timeout | ${config.llm.timeoutMs}ms |`,
     "",
-    "### Tool Adapters",
+    "### Memory Providers",
     ""
   ];
+
+  appendConfigMemoryProviders(lines, config.memoryProviders.providers);
+
+  lines.push(
+    "### Tool Adapters",
+    ""
+  );
 
   appendConfigToolAdapters(lines, config.toolAdapters);
 
@@ -69,6 +76,26 @@ function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig): string {
   lines.push("");
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendConfigMemoryProviders(
+  lines: string[],
+  providers: LoadedCodeDecayConfig["config"]["memoryProviders"]["providers"]
+): void {
+  lines.push("| Provider | Enabled | Details |", "| --- | --- | --- |");
+  for (const provider of providers) {
+    const details = [
+      "endpoint" in provider && provider.endpoint ? `endpoint: \`${provider.endpoint}\`` : undefined,
+      "apiKeyEnv" in provider && provider.apiKeyEnv ? `apiKeyEnv: \`${provider.apiKeyEnv}\`` : undefined,
+      "projectId" in provider && provider.projectId ? `projectId: \`${provider.projectId}\`` : undefined,
+      "collection" in provider && provider.collection ? `collection: \`${provider.collection}\`` : undefined
+    ]
+      .filter((item): item is string => item !== undefined)
+      .join("<br>");
+
+    lines.push(`| ${provider.provider} | ${provider.enabled ? "yes" : "no"} | ${details || "local/default"} |`);
+  }
+  lines.push("", "External memory providers are opt-in and must not run in local-only defaults.", "");
 }
 
 function appendConfigToolAdapters(

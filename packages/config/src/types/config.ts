@@ -1,5 +1,6 @@
 import type { CodeDecayCommands, CodeDecayProbe } from "./commands";
 import type { CodeDecayLlmConfig } from "./llm";
+import type { CodeDecayMemoryProvidersConfig } from "./memory-providers";
 import type { CodeDecayPluginsConfig } from "./plugins";
 import type { CodeDecayProductTestingConfig } from "./product";
 import type { CodeDecaySafety } from "./safety";
@@ -11,6 +12,7 @@ export interface CodeDecayConfig {
   probes: CodeDecayProbe[];
   safety: CodeDecaySafety;
   llm: CodeDecayLlmConfig;
+  memoryProviders: CodeDecayMemoryProvidersConfig;
   toolAdapters: CodeDecayToolAdapters;
   productTesting: CodeDecayProductTestingConfig;
   plugins: CodeDecayPluginsConfig;

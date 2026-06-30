@@ -211,10 +211,11 @@ project-specific checks for the user or future execution adapters.
 
 ## Future Adapters
 
-The v1 memory provider is the local `.codedecay/memory.json` file. CodeDecay
-formalizes this behind a `MemoryProvider` interface so future adapters can map
-the same provider shape to open-source or user-owned memory systems such as
-Mem0 or Supermemory, while preserving the local-first default.
+The v1 default memory provider is the local `.codedecay/memory.json` file.
+CodeDecay formalizes this behind a `MemoryProvider` interface and a
+`memoryProviders` config section so adapters can map the same provider shape to
+open-source or user-owned memory systems such as Mem0 or Supermemory, while
+preserving the local-first default.
 
 Any future hosted or external memory adapter should be opt-in, never required
 for `codedecay analyze`, and must not change deterministic baseline scoring.

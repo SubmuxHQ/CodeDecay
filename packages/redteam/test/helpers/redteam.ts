@@ -133,6 +133,14 @@ export function createFixtureConfig(): CodeDecayConfig {
       provider: "disabled",
       timeoutMs: 30000
     },
+    memoryProviders: {
+      providers: [
+        {
+          provider: "local",
+          enabled: true
+        }
+      ]
+    },
     toolAdapters: {
       playwright: {
         enabled: true

@@ -16,6 +16,14 @@ export const DEFAULT_CODEDECAY_CONFIG: CodeDecayConfig = {
     provider: "disabled",
     timeoutMs: 30_000
   },
+  memoryProviders: {
+    providers: [
+      {
+        provider: "local",
+        enabled: true
+      }
+    ]
+  },
   toolAdapters: {},
   productTesting: {
     targets: {}
