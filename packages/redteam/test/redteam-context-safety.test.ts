@@ -26,7 +26,7 @@ describe("redteam context and safety summaries", () => {
       cloudDependency: false,
       notes: [
         "codedecay redteam is report-only in this MVP.",
-        "No configured commands, probes, tool adapters, LLM providers, hosted services, or memory providers are executed.",
+        "No configured commands, probes, tool adapters, LLM providers, hosted services, or external memory providers are executed.",
         "Use codedecay execute or codedecay differential explicitly when you want configured local checks to run."
       ]
     });
@@ -42,6 +42,30 @@ describe("redteam context and safety summaries", () => {
       sourcePath: "/repo/.codedecay/memory.json"
     });
     expect(summarizeMemory(createFixtureMemory(), undefined)).not.toHaveProperty("sourcePath");
+    expect(summarizeMemory(createFixtureMemory(), "/repo/.codedecay/memory.json", [
+      {
+        provider: "local",
+        kind: "local",
+        status: "loaded",
+        sourcePath: "/repo/.codedecay/memory.json",
+        untrusted: true
+      },
+      {
+        provider: "mem0",
+        kind: "external",
+        status: "failed",
+        error: "missing key",
+        untrusted: true
+      }
+    ])).toMatchObject({
+      providerSources: [
+        expect.objectContaining({ provider: "local", status: "loaded", untrusted: true }),
+        expect.objectContaining({ provider: "mem0", status: "failed", untrusted: true })
+      ],
+      providerFailures: [
+        expect.objectContaining({ provider: "mem0", status: "failed", error: "missing key" })
+      ]
+    });
     expect(summarizeSkills(createFixtureSkills())).toEqual([
       {
         id: "pr-red-team",

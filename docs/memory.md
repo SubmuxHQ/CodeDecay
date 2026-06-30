@@ -293,3 +293,27 @@ memoryProviders:
 External providers are not enabled by default. They must not add telemetry,
 hidden network calls, API key requirements, LLM calls, or CodeDecayCloud
 dependencies to the OSS workflow.
+
+## Redteam And Agent Provider Loading
+
+`codedecay analyze` keeps deterministic local-memory behavior. It reads only
+`.codedecay/memory.json` and does not call external memory providers.
+
+`codedecay redteam` and `codedecay agent` can load enabled external memory
+providers from `memoryProviders.providers`. External memory is merged into the
+red-team context only. The report labels provider sources as untrusted context,
+not deterministic evidence, and provider failures degrade into report warnings
+instead of failing the command.
+
+Keep external providers disabled until the repo intentionally opts in:
+
+```yaml
+memoryProviders:
+  providers:
+    - local
+    - provider: supermemory
+      enabled: false
+      endpoint: http://127.0.0.1:8787
+      apiKeyEnv: SUPERMEMORY_API_KEY
+      collection: codedecay
+```

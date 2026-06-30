@@ -2,6 +2,7 @@ import { loadCodeDecayConfig } from "@submuxhq/codedecay-config";
 import { createRedteamReport } from "@submuxhq/codedecay-redteam";
 import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import type { AgentOptions, CliAnalysisContext, RedteamOptions } from "../types";
+import { loadConfiguredRedteamMemory } from "../memory/configured-providers";
 import { createRedteamInvestigation } from "./redteam-investigation";
 
 export interface RedteamReportDependencies {
@@ -17,13 +18,18 @@ export async function createRedteamReportForCli(
   const rootDir = dependencies.resolveRepoRoot(cwd, options);
   const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
   const analysis = dependencies.createAnalysisContext(rootDir, options);
+  const memoryContext = await loadConfiguredRedteamMemory({
+    rootDir,
+    localMemory: analysis.loadedMemory,
+    memoryProviders: loadedConfig.config.memoryProviders
+  });
   const loadedSkills = loadCodeDecaySkills({ cwd: rootDir });
   const investigation = "investigate" in options && options.investigate
     ? await createRedteamInvestigation({
         llmConfig: loadedConfig.config.llm,
         analysisReport: analysis.report,
-        memory: analysis.loadedMemory.memory,
-        memorySource: analysis.loadedMemory.sourcePath,
+        memory: memoryContext.memory,
+        memorySource: memoryContext.sourcePath,
         skills: loadedSkills
       })
     : undefined;
@@ -32,8 +38,9 @@ export async function createRedteamReportForCli(
     analysisReport: analysis.report,
     config: loadedConfig.config,
     configSource: loadedConfig.sourcePath,
-    memory: analysis.loadedMemory.memory,
-    memorySource: analysis.loadedMemory.sourcePath,
+    memory: memoryContext.memory,
+    memorySource: memoryContext.sourcePath,
+    memoryProviderSources: memoryContext.providerSources,
     skills: loadedSkills,
     investigation
   });

@@ -25,6 +25,7 @@ export interface RedteamReportInput {
   memory: CodeDecayMemory;
   configSource?: string | undefined;
   memorySource?: string | undefined;
+  memoryProviderSources?: RedteamMemoryProviderSource[] | undefined;
   skills?: LoadedCodeDecaySkills | undefined;
   investigation?: RedteamInvestigation | undefined;
   generatedAt?: string | undefined;
@@ -100,6 +101,17 @@ export interface RedteamMemorySummary {
   invariants: number;
   architecture: number;
   regressions: number;
+  providerSources?: RedteamMemoryProviderSource[] | undefined;
+  providerFailures?: RedteamMemoryProviderSource[] | undefined;
+}
+
+export interface RedteamMemoryProviderSource {
+  provider: string;
+  kind: "local" | "external";
+  status: "loaded" | "failed";
+  sourcePath?: string | undefined;
+  error?: string | undefined;
+  untrusted: true;
 }
 
 export interface RedteamSkillSummary {

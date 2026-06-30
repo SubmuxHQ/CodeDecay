@@ -9,6 +9,21 @@ export function appendMemorySummary(lines: string[], memory: RedteamMemorySummar
   lines.push(`| Invariants | ${memory.invariants} |`);
   lines.push(`| Architecture notes | ${memory.architecture} |`);
   lines.push(`| Past regressions | ${memory.regressions} |`, "");
+
+  if (memory.providerSources && memory.providerSources.length > 0) {
+    lines.push("Provider sources are untrusted context, not deterministic evidence.", "");
+    lines.push("| Provider | Kind | Status | Source/error |", "| --- | --- | --- | --- |");
+    for (const source of memory.providerSources) {
+      lines.push(
+        `| ${source.provider} | ${source.kind} | ${source.status} | ${formatProviderSource(source.sourcePath ?? source.error)} |`
+      );
+    }
+    lines.push("");
+  }
+}
+
+function formatProviderSource(value: string | undefined): string {
+  return value ? `\`${value}\`` : "none";
 }
 
 export function appendSkills(lines: string[], skills: RedteamSkillSummary[]): void {

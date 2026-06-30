@@ -1,8 +1,12 @@
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
 import type { LoadedCodeDecaySkills } from "@submuxhq/codedecay-skills";
-import type { RedteamMemorySummary, RedteamSkillSummary } from "./types";
+import type { RedteamMemoryProviderSource, RedteamMemorySummary, RedteamSkillSummary } from "./types";
 
-export function summarizeMemory(memory: CodeDecayMemory, sourcePath: string | undefined): RedteamMemorySummary {
+export function summarizeMemory(
+  memory: CodeDecayMemory,
+  sourcePath: string | undefined,
+  providerSources: RedteamMemoryProviderSource[] = []
+): RedteamMemorySummary {
   const summary: RedteamMemorySummary = {
     flows: memory.flows.length,
     commands: memory.commands.length,
@@ -13,6 +17,14 @@ export function summarizeMemory(memory: CodeDecayMemory, sourcePath: string | un
 
   if (sourcePath) {
     summary.sourcePath = sourcePath;
+  }
+
+  if (providerSources.length > 0) {
+    summary.providerSources = providerSources;
+    const providerFailures = providerSources.filter((source) => source.status === "failed");
+    if (providerFailures.length > 0) {
+      summary.providerFailures = providerFailures;
+    }
   }
 
   return summary;

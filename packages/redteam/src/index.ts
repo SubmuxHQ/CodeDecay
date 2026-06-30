@@ -13,6 +13,7 @@ export type {
   RedteamInvestigationStatus,
   RedteamInvestigationSuggestion,
   RedteamMemorySummary,
+  RedteamMemoryProviderSource,
   RedteamMode,
   RedteamPatternInsight,
   RedteamReport,

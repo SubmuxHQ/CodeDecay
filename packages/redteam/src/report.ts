@@ -15,7 +15,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
   const edgeCases = mergeEdgeCases(suggestEdgeCases(input.analysisReport), patternInsights.flatMap((pattern) => pattern.edgeCases));
   const configuredChecks = collectConfiguredChecks(input.config);
   const toolAdapterPlans = collectToolAdapterPlans(input.config);
-  const memory = summarizeMemory(input.memory, input.memorySource);
+  const memory = summarizeMemory(input.memory, input.memorySource, input.memoryProviderSources);
   const skills = summarizeSkills(input.skills);
   const fixTasks = createFixTasks({
     analysisReport: input.analysisReport,
@@ -66,7 +66,10 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
     skills,
     investigation: input.investigation,
     fixTasks,
-    safety: createRedteamSafetySummary({ llmCalled: input.investigation?.llmCalled ?? false })
+    safety: createRedteamSafetySummary({
+      llmCalled: input.investigation?.llmCalled ?? false,
+      memoryProvidersCalled: (input.memoryProviderSources ?? []).some((source) => source.kind === "external")
+    })
   };
 
   if (input.analysisReport.base) {
