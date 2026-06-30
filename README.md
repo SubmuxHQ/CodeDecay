@@ -4,18 +4,30 @@
 [![npm](https://img.shields.io/npm/v/@submuxhq/codedecay?label=npm)](https://www.npmjs.com/package/@submuxhq/codedecay)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Catch AI code decay before it reaches main.
+Catch what your AI coding agent missed — free, in CI, before merge.
 
 CodeDecay is an open-source, deterministic, local-first CLI and GitHub Action
-for PR regression-risk analysis, maintainability decay detection, weak-test
-auditing, and change-impact mapping in AI-assisted development.
+for AI-assisted PR safety. It catches weak or fake-looking tests, regression
+risk, maintainability decay, and changed product areas before they reach main.
 
 It is not a generic AI code reviewer and it is not an AI-authorship detector.
 CodeDecay asks a narrower, more useful question:
 
 ```text
-What could this PR break, and what evidence says it is safe?
+What could this PR break, and are the tests actually proving it won't?
 ```
+
+<!-- BENCHMARK:START -->
+## Catch what your AI coding agent missed — free, in CI, before merge.
+
+Latest reproducible benchmark: **18/18 planted issues caught (100.0% recall)**, **5.56% false-positive rate** on clean decoys, **$0.00 cost**, LLM called: **no**, telemetry sent: **no**.
+
+```bash
+npx codedecay analyze
+```
+
+Generated from `codedecay benchmark --format json` by `pnpm gen:launch`.
+<!-- BENCHMARK:END -->
 
 ## Why CodeDecay
 
@@ -35,6 +47,12 @@ agents a structured merge-safety pass:
 
 CodeDecay is useful by itself in deterministic mode. Optional agent, LLM,
 memory, and tool integrations must be user-owned and explicit.
+
+Under the hood, CodeDecay is growing into a PR red-team orchestration platform:
+blast-radius mapping, local repo memory, security matchers, OSS tool adapters,
+MCP, and agent handoff. The headline stays narrow because the immediate job is
+merge safety: find what the coding agent missed, then give reviewers and agents
+evidence they can act on.
 
 ## Safety Model
 
