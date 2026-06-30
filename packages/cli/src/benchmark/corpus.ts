@@ -75,6 +75,12 @@ export function createDefaultBenchmarkCorpus(): BenchmarkCorpus {
         expectedRuleIds: ["security-sql-injection"]
       },
       {
+        id: "indirect-dynamic-sqli",
+        kind: "positive",
+        setup: createIndirectDynamicSqlInjectionRepo,
+        expectedRuleIds: ["security-sql-injection"]
+      },
+      {
         id: "plain-exported-destructive-missing-auth",
         kind: "positive",
         setup: createPlainExportedDestructiveMissingAuthRepo,
@@ -114,6 +120,12 @@ export function createDefaultBenchmarkCorpus(): BenchmarkCorpus {
         id: "guarded-destructive-auth-decoy",
         kind: "decoy",
         setup: createGuardedDestructiveAuthDecoyRepo,
+        expectedRuleIds: []
+      },
+      {
+        id: "dynamic-sql-local-decoy",
+        kind: "decoy",
+        setup: createDynamicSqlLocalDecoyRepo,
         expectedRuleIds: []
       }
     ],
@@ -329,6 +341,26 @@ export function createOneHopSqlInjectionRepo(): string {
   return repo;
 }
 
+export function createIndirectDynamicSqlInjectionRepo(): string {
+  const repo = createRepo({
+    "src/reports/search.ts": "export function buildSearchQuery(status) { return 'select 1'; }\n"
+  });
+
+  writeFile(
+    repo,
+    "src/reports/search.ts",
+    [
+      "export function buildSearchQuery(status) {",
+      "  const sql = `select * from invoices where status = '${status}'`;",
+      "  return sql;",
+      "}",
+      ""
+    ].join("\n")
+  );
+
+  return repo;
+}
+
 export function createPlainExportedDestructiveMissingAuthRepo(): string {
   const repo = createRepo({
     "src/services/users.ts": "export function listUsers() { return []; }\n"
@@ -477,6 +509,27 @@ export function createGuardedDestructiveAuthDecoyRepo(): string {
       "  requireAuth(req);",
       "  await pool.query('DELETE FROM users');",
       "  return { ok: true };",
+      "}",
+      ""
+    ].join("\n")
+  );
+
+  return repo;
+}
+
+export function createDynamicSqlLocalDecoyRepo(): string {
+  const repo = createRepo({
+    "src/reports/static.ts": "export function buildStaticReportQuery() { return 'select 1'; }\n"
+  });
+
+  writeFile(
+    repo,
+    "src/reports/static.ts",
+    [
+      "export function buildStaticReportQuery() {",
+      "  const status = 'paid';",
+      "  const sql = 'select * from invoices where status = ' + status;",
+      "  return sql;",
       "}",
       ""
     ].join("\n")

@@ -187,6 +187,52 @@ describe("scanSecurityCandidates", () => {
     );
   });
 
+  it("flags indirect dynamic SQL built from function parameters without pretending to be a deep scan", () => {
+    const result = scanSecurityCandidates({
+      files: [
+        {
+          path: "src/reports/search.ts",
+          content: [
+            "export function buildSearchQuery(status) {",
+            "  const sql = `select * from invoices where status = '${status}'`;",
+            "  return sql;",
+            "}",
+            ""
+          ].join("\n")
+        }
+      ]
+    });
+
+    expect(result.candidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "security-sql-injection",
+          confidence: "indirect"
+        })
+      ])
+    );
+  });
+
+  it("does not flag dynamic SQL built only from local constants as request-controlled", () => {
+    const result = scanSecurityCandidates({
+      files: [
+        {
+          path: "src/reports/static.ts",
+          content: [
+            "export function buildStaticReportQuery() {",
+            "  const status = 'paid';",
+            "  const sql = 'select * from invoices where status = ' + status;",
+            "  return sql;",
+            "}",
+            ""
+          ].join("\n")
+        }
+      ]
+    });
+
+    expect(result.candidates.map((candidate) => candidate.ruleId)).not.toContain("security-sql-injection");
+  });
+
   it("does not treat function names ending in request as outbound request sinks", () => {
     const result = scanSecurityCandidates({
       files: [

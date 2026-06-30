@@ -12,7 +12,7 @@ import {
 } from "./helpers";
 
 describe("codedecay loop CLI contract", () => {
-  it("reports merge-safe with low risk and passing configured checks", async () => {
+  it("reports merge-safe-shallow with low risk and passing configured checks when depth evidence is missing", async () => {
     const repo = createLowRiskRepoWithPassingCheck();
 
     const result = await run(["loop", "--format", "json"], repo);
@@ -20,10 +20,29 @@ describe("codedecay loop CLI contract", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
-    expect(report.status).toBe("merge-safe");
+    expect(report.status).toBe("merge-safe-shallow");
     expect(report.roundsRun).toBe(1);
     expect(report.finalCheckStatus).toBe("passed");
+    expect(report.verdict.missingDepth).toEqual(
+      expect.arrayContaining(["no Semgrep adapter configured", "no coverage adapter configured", "no mutation adapter configured"])
+    );
     expect(report.safety.commandsExecuted).toBe(true);
+  });
+
+  it("carries Semgrep, coverage, and mutation evidence into a merge-safe-verified verdict", async () => {
+    const repo = createLowRiskRepoWithVerifiedChecks();
+
+    const result = await run(["loop", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(report.status).toBe("merge-safe-verified");
+    expect(report.rounds[0].checkStatus).toBe("passed");
+    expect(report.verdict.verifiedBy).toEqual(
+      expect.arrayContaining(["Semgrep (0 findings)", "coverage evidence (100%)", "mutation evidence (100%)"])
+    );
+    expect(report.verdict.missingDepth).toEqual([]);
   });
 
   it("runs plan-only without an agent command and writes output relative to --cwd", async () => {
@@ -107,7 +126,8 @@ describe("codedecay loop CLI contract", () => {
 
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("## CodeDecay Loop Report");
-    expect(result.stdout).toContain("**Status:** merge safe");
+    expect(result.stdout).toContain("**Status:** merge safe shallow");
+    expect(result.stdout).toContain("### Verdict Evidence");
   });
 });
 
@@ -124,6 +144,47 @@ function createLowRiskRepoWithPassingCheck(): string {
       "  allowCommands: true",
       ""
     ].join("\n")
+  });
+  writeFile(repo, "README.md", "# Project\nDocs change.\n");
+  return repo;
+}
+
+function createLowRiskRepoWithVerifiedChecks(): string {
+  const repo = createRepo({
+    "README.md": "# Project\n",
+    ".codedecay/config.yml": [
+      "version: 1",
+      "commands:",
+      "  test:",
+      "    - node -e \"process.exit(0)\"",
+      "toolAdapters:",
+      "  semgrep:",
+      "    command: node semgrep-pass.js",
+      "    reportPath: reports/semgrep.json",
+      "  coverage:",
+      "    reportPaths:",
+      "      - coverage/coverage-final.json",
+      "    failOn: none",
+      "  stryker:",
+      "    command: node stryker-pass.js",
+      "    reportPath: reports/mutation/mutation.json",
+      "safety:",
+      "  commandTimeoutMs: 1000",
+      "  allowCommands: true",
+      ""
+    ].join("\n"),
+    "semgrep-pass.js": "console.log('semgrep done');\n",
+    "stryker-pass.js": "console.log('stryker done');\n",
+    "reports/semgrep.json": JSON.stringify({ results: [] }, null, 2),
+    "coverage/coverage-final.json": JSON.stringify({ "src/index.ts": { l: { "1": 1, "2": 1 } } }, null, 2),
+    "reports/mutation/mutation.json": JSON.stringify({
+      thresholds: { mutationScore: 100 },
+      files: {
+        "src/index.ts": {
+          mutants: [{ id: "1", status: "Killed", mutatorName: "StringLiteral" }]
+        }
+      }
+    }, null, 2)
   });
   writeFile(repo, "README.md", "# Project\nDocs change.\n");
   return repo;

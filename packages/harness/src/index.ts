@@ -4,6 +4,8 @@ export {
   changedFilePaths,
   createChangedFilesFingerprint,
   driveAgent,
+  classifySafeStatus,
+  createLoopVerdictEvidence,
   renderLoopMarkdown,
   renderLoopReport,
   runCodeDecayLoop
@@ -15,12 +17,16 @@ export type {
   LoopAgentResult,
   LoopCheckSnapshot,
   LoopCheckStatus,
+  LoopCoverageSnapshot,
   LoopFixTask,
   LoopFormat,
+  LoopMutationSnapshot,
   LoopRedteamReport,
   LoopReport,
   LoopRoundSnapshot,
-  LoopStatus
+  LoopSecurityToolSnapshot,
+  LoopStatus,
+  LoopVerdictEvidence
 } from "./loop";
 export type {
   CodeDecayHarness,

@@ -1,5 +1,5 @@
 export { driveAgent } from "./agent";
-export { runCodeDecayLoop } from "./controller";
+export { classifySafeStatus, createLoopVerdictEvidence, runCodeDecayLoop } from "./controller";
 export { createChangedFilesFingerprint, changedFilePaths } from "./fingerprint";
 export { renderLoopMarkdown, renderLoopReport } from "./render";
 export type {
@@ -8,10 +8,14 @@ export type {
   LoopAgentResult,
   LoopCheckSnapshot,
   LoopCheckStatus,
+  LoopCoverageSnapshot,
   LoopFixTask,
   LoopFormat,
+  LoopMutationSnapshot,
   LoopRedteamReport,
   LoopReport,
   LoopRoundSnapshot,
-  LoopStatus
+  LoopSecurityToolSnapshot,
+  LoopStatus,
+  LoopVerdictEvidence
 } from "./types";

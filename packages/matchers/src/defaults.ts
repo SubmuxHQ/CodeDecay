@@ -3,6 +3,7 @@ import {
   containsAny,
   containsAnySinkMarker,
   createCandidate,
+  findIndirectSqlConstructionLines,
   findParameterTaintedSinkLines,
   hasRouteEntryPoint,
   hasTemplateUserInputExpression,
@@ -30,6 +31,8 @@ export const sqlInjectionMatcher: SecurityMatcher = {
     }
   ],
   match(context) {
+    // Keep this matcher intentionally small: Semgrep is the deep OSS path for SQLi.
+    // These checks provide deterministic fallback/triage signals when Semgrep is not configured.
     const directMatches = lineMatches(context.content, (line) => {
       const codeLine = maskStringLiterals(line).toLowerCase();
       return (
@@ -40,16 +43,31 @@ export const sqlInjectionMatcher: SecurityMatcher = {
       );
     });
     const taintedMatches = findParameterTaintedSinkLines(context.content, [".query(", "execute(", "$queryrawunsafe", "$executerawunsafe"]);
+    const directLines = new Set(uniqueMatches([...directMatches, ...taintedMatches]).map((match) => match.line));
+    const indirectMatches = findIndirectSqlConstructionLines(context.content).filter((match) => !directLines.has(match.line));
 
-    return uniqueMatches([...directMatches, ...taintedMatches]).map((match) =>
-      createCandidate({
-        ...this,
-        file: context.filePath,
-        line: match.line,
-        snippet: match.text,
-        evidence: "Raw SQL or dynamic query construction is present near request-controlled input."
-      })
-    );
+    return [
+      ...uniqueMatches([...directMatches, ...taintedMatches]).map((match) =>
+        createCandidate({
+          ...this,
+          file: context.filePath,
+          line: match.line,
+          snippet: match.text,
+          evidence: "Raw SQL or dynamic query construction is present near request-controlled input."
+        })
+      ),
+      ...indirectMatches.map((match) =>
+        createCandidate({
+          ...this,
+          severity: "medium",
+          confidence: "indirect",
+          file: context.filePath,
+          line: match.line,
+          snippet: match.text,
+          evidence: "Dynamic SQL is built from request or function-parameter input without a visible database sink. Use the Semgrep adapter for deeper validation."
+        })
+      )
+    ];
   }
 };
 

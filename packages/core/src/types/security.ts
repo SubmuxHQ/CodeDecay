@@ -1,6 +1,6 @@
 import type { RiskLevel } from "../risk";
 
-export type SecurityCandidateConfidence = "direct" | "heuristic" | "entry-point";
+export type SecurityCandidateConfidence = "direct" | "heuristic" | "entry-point" | "indirect";
 
 export interface SecurityCandidate {
   ruleId: string;

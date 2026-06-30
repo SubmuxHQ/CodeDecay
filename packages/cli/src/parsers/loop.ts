@@ -7,7 +7,8 @@ export function parseLoopArgs(args: string[]): LoopOptions {
   const options: LoopOptions = {
     maxRounds: 4,
     format: "markdown",
-    safeRiskLevel: "low"
+    safeRiskLevel: "low",
+    securityScoreThreshold: 0
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -108,6 +109,17 @@ export function parseLoopArgs(args: string[]): LoopOptions {
       continue;
     }
 
+    if (arg.startsWith("--max-security-score=")) {
+      options.securityScoreThreshold = parseSecurityScoreThreshold(arg.slice("--max-security-score=".length));
+      continue;
+    }
+
+    if (arg === "--max-security-score") {
+      options.securityScoreThreshold = parseSecurityScoreThreshold(requireValue(args, index, arg));
+      index += 1;
+      continue;
+    }
+
     throwUnknownOption(arg, "loop");
   }
 
@@ -129,4 +141,13 @@ function parseMaxRounds(value: string): number {
   }
 
   throw new Error(`Invalid --max-rounds "${value}". Expected a positive integer.`);
+}
+
+function parseSecurityScoreThreshold(value: string): number {
+  const parsed = Number(value);
+  if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 100) {
+    return parsed;
+  }
+
+  throw new Error(`Invalid --max-security-score "${value}". Expected a number from 0 to 100.`);
 }

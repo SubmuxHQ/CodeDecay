@@ -19,8 +19,29 @@ export function renderLoopMarkdown(report: LoopReport): string {
     `| Rounds run | ${report.roundsRun} / ${report.maxRounds} |`,
     `| Final risk | ${report.finalRiskLevel} |`,
     `| Final merge risk | ${report.finalMergeRiskScore}/100 |`,
+    `| Final security risk | ${report.finalSecurityScore}/100 |`,
     `| Final weak-test findings | ${report.finalWeakTestFindings} |`,
     `| Final check status | ${report.finalCheckStatus} |`,
+    "",
+    "### Verdict Evidence",
+    "",
+    "CodeDecay never guarantees a safe merge. This verdict means the configured and enabled checks below found no blocking evidence.",
+    "",
+    "| Evidence | Value |",
+    "| --- | --- |",
+    `| Security score threshold | ${report.verdict.securityScoreThreshold}/100 |`,
+    `| High findings remaining | ${report.verdict.highFindingCount} |`,
+    `| High security findings remaining | ${report.verdict.highSecurityFindingCount} |`,
+    `| Security matchers | ${report.verdict.securityMatchersRan ? `${report.verdict.securityMatcherFindings} finding(s)` : "not available"} |`,
+    "",
+    "**Verified by:**",
+    ...bulletLines(report.verdict.verifiedBy, "nothing yet"),
+    "",
+    "**Missing depth:**",
+    ...bulletLines(report.verdict.missingDepth, "none"),
+    "",
+    "**Blocking reasons:**",
+    ...bulletLines(report.verdict.blockingReasons, "none"),
     "",
     "### Rounds",
     "",
@@ -98,6 +119,14 @@ export function renderLoopMarkdown(report: LoopReport): string {
 
 function statusLabel(status: LoopReport["status"]): string {
   return status.replaceAll("-", " ");
+}
+
+function bulletLines(values: string[], emptyText: string): string[] {
+  if (values.length === 0) {
+    return [`- ${emptyText}`];
+  }
+
+  return values.map((value) => `- ${value}`);
 }
 
 function singleLine(value: string): string {

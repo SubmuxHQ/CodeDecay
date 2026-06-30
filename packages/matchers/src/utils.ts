@@ -142,6 +142,48 @@ export function findParameterTaintedSinkLines(content: string, sinkMarkers: stri
   return matches;
 }
 
+export function findIndirectSqlConstructionLines(content: string): LineMatch[] {
+  const parameters = collectFunctionParameters(content);
+  const matches: LineMatch[] = [];
+  const taintedLocals = new Set<string>();
+  const lines = content.split(/\n/);
+
+  for (const [index, line] of lines.entries()) {
+    const codeLine = maskStringLiterals(line).toLowerCase();
+    const originalLowerLine = line.toLowerCase();
+    for (const local of collectLocalsAssignedFromTaint(codeLine, parameters)) {
+      taintedLocals.add(local);
+    }
+
+    if (!looksLikeDynamicSqlConstruction(line)) {
+      continue;
+    }
+
+    const hasTaintedInput =
+      hasTemplateUserInputExpression(line) ||
+      hasUserInputMarker(codeLine) ||
+      [...parameters, ...taintedLocals].some((identifier) => containsIdentifier(originalLowerLine, identifier));
+    if (hasTaintedInput) {
+      matches.push({ line: index + 1, text: line.trim() });
+    }
+  }
+
+  return matches;
+}
+
+function looksLikeDynamicSqlConstruction(line: string): boolean {
+  const lowerLine = line.toLowerCase();
+  if (!/\b(select|insert|update|delete)\b/.test(lowerLine)) {
+    return false;
+  }
+
+  if (!/\b(from|into|set|where|values)\b/.test(lowerLine)) {
+    return false;
+  }
+
+  return line.includes("${") || /(?:['"`]\s*\+|\+\s*['"`])/.test(line);
+}
+
 function codeAfterFirstSink(codeLine: string, sinkMarkers: string[]): string {
   const indexes = sinkMarkers
     .map((marker) => {
