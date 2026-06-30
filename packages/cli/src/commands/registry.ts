@@ -1,5 +1,6 @@
 import { runAgentCommand as runAgentCommandWithDependencies } from "./agent";
 import { runAnalyzeCommand as runAnalyzeCommandWithDependencies } from "./analyze";
+import { runBenchmarkCommand as runBenchmarkCommandWithDependencies } from "./benchmark";
 import { runConfigCommand } from "./config";
 import { runDashboardCommand as runDashboardCommandWithDependencies } from "./dashboard";
 import { runDifferentialCommand as runDifferentialCommandWithDependencies } from "./differential";
@@ -39,6 +40,11 @@ export function createCommandHandlers(options: CommandRegistryOptions): Record<s
       writeOutput: writeCliOutput
     }),
     analyze: (context) => runAnalyzeCommandWithDependencies(context, {
+      createAnalysisContext: createAnalysisContextForCli,
+      resolveRepoRoot: getRepoRootForCli,
+      writeOutput: writeCliOutput
+    }),
+    benchmark: (context) => runBenchmarkCommandWithDependencies(context, {
       createAnalysisContext: createAnalysisContextForCli,
       resolveRepoRoot: getRepoRootForCli,
       writeOutput: writeCliOutput

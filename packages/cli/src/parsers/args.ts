@@ -1,5 +1,6 @@
 export { parseAgentArgs } from "./agent";
 export { parseAnalyzeArgs } from "./analyze";
+export { parseBenchmarkArgs } from "./benchmark";
 export { parseConfigArgs } from "./config";
 export { parseDashboardArgs } from "./dashboard";
 export { parseDifferentialArgs } from "./differential";
