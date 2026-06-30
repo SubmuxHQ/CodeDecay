@@ -1,6 +1,19 @@
 import type { AgentOptions } from "../types";
-import { parseAgentFormat, parseAgentProfile, requireValue } from "./primitives";
+import { parseAgentFormat, parseAgentProfile, parseRiskLevel, requireValue } from "./primitives";
 import { HelpRequested, throwUnknownOption } from "./shared";
+
+const AGENT_TASK_SOURCES = [
+  "finding",
+  "weak-test",
+  "edge-case",
+  "configured-check",
+  "tool-adapter",
+  "memory",
+  "pattern",
+  "product-failure"
+] as const;
+
+type AgentTaskSourceValue = (typeof AGENT_TASK_SOURCES)[number];
 
 export function parseAgentArgs(args: string[]): AgentOptions {
   const options: AgentOptions = {
@@ -85,8 +98,49 @@ export function parseAgentArgs(args: string[]): AgentOptions {
       continue;
     }
 
+    if (arg.startsWith("--filter-source=")) {
+      options.filterSource = parseFilterSource(arg.slice("--filter-source=".length));
+      continue;
+    }
+
+    if (arg === "--filter-source") {
+      options.filterSource = parseFilterSource(requireValue(args, index, arg));
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--filter-priority=")) {
+      options.filterPriority = parseRiskLevel(arg.slice("--filter-priority=".length));
+      continue;
+    }
+
+    if (arg === "--filter-priority") {
+      options.filterPriority = parseRiskLevel(requireValue(args, index, arg));
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--filter-file=")) {
+      options.filterFile = arg.slice("--filter-file=".length);
+      continue;
+    }
+
+    if (arg === "--filter-file") {
+      options.filterFile = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
     throwUnknownOption(arg, "agent");
   }
 
   return options;
+}
+
+function parseFilterSource(value: string): AgentOptions["filterSource"] {
+  if (AGENT_TASK_SOURCES.includes(value as AgentTaskSourceValue)) {
+    return value as AgentTaskSourceValue;
+  }
+
+  throw new Error(`Invalid --filter-source "${value}". Expected ${AGENT_TASK_SOURCES.join(", ")}.`);
 }

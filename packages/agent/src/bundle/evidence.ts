@@ -25,6 +25,12 @@ export function createAgentEvidence(report: RedteamReport): AgentEvidence {
     })),
     weakTestFindings: report.weakTestFindings.map(findingEvidence),
     missingTestFindings: report.testAudit.missingTestFindings.map(findingEvidence),
+    scopeFindings: report.analysis.findings
+      .filter((finding) => finding.category === "scope" && !finding.ruleId.startsWith("contract-"))
+      .map(findingEvidence),
+    contractFindings: report.analysis.findings
+      .filter((finding) => finding.ruleId.startsWith("contract-"))
+      .map(findingEvidence),
     edgeCases: [...report.edgeCases],
     productFailureBundles: report.analysis.productFailureBundles ? [...report.analysis.productFailureBundles] : [],
     memory: report.memory
