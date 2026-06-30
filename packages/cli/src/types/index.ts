@@ -8,6 +8,7 @@ export * from "./differential";
 export * from "./doctor";
 export * from "./execution";
 export * from "./llm-review";
+export * from "./loop";
 export * from "./maintenance";
 export * from "./mcp";
 export * from "./memory";

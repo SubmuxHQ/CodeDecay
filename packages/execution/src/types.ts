@@ -10,6 +10,7 @@ export interface RunConfiguredCommandOptions {
   cwd: string;
   timeoutMs: number;
   safety: SafeCommandPolicy;
+  stdin?: string | undefined;
   env?: Record<string, string | undefined> | undefined;
   outputLimit?: number | undefined;
 }

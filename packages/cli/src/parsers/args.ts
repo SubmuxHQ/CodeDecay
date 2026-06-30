@@ -7,6 +7,7 @@ export { parseDifferentialArgs } from "./differential";
 export { parseDoctorArgs } from "./doctor";
 export { parseExecuteArgs } from "./execute";
 export { parseLlmReviewArgs } from "./llm-review";
+export { parseLoopArgs } from "./loop";
 export { parseMcpArgs } from "./mcp";
 export { parseMemoryArgs, parseMemoryImportArgs, parseMemoryLearnArgs, parseMemorySetupArgs } from "./memory";
 export { parseRevalidateArgs } from "./revalidate";

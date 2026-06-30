@@ -36,6 +36,23 @@ describe("safe command runner", () => {
     });
   });
 
+  it("passes explicit stdin to configured commands", async () => {
+    const result = await runConfiguredCommand({
+      command: "node -e \"process.stdin.on('data', chunk => process.stdout.write(chunk.toString().toUpperCase()))\"",
+      cwd: createTempDir(),
+      timeoutMs: 1000,
+      stdin: "agent bundle",
+      safety: {
+        allowCommands: true
+      }
+    });
+
+    expect(result).toMatchObject({
+      status: "passed",
+      stdout: "AGENT BUNDLE"
+    });
+  });
+
   it("skips commands when execution is disabled", async () => {
     const result = await runConfiguredCommand({
       command: "node -e \"console.log('should not run')\"",

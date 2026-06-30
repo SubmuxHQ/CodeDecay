@@ -59,6 +59,7 @@ export default defineConfig({
           { text: "Configuration", link: "/configuration" },
           { text: "Redteam Reports", link: "/redteam" },
           { text: "Agent Task Bundles", link: "/agent" },
+          { text: "Closed-Loop Orchestration", link: "/loop" },
           { text: "MCP Server", link: "/mcp" },
           { text: "GitHub App", link: "/github-app" },
           { text: "Execution Probes", link: "/execution" },

@@ -7,6 +7,7 @@ import { runDifferentialCommand as runDifferentialCommandWithDependencies } from
 import { runDoctorCommand as runDoctorCommandWithDependencies } from "./doctor";
 import { runExecuteCommand as runExecuteCommandWithDependencies } from "./execute";
 import { runLlmReviewCommand as runLlmReviewCommandWithDependencies } from "./llm-review";
+import { runLoopCommand as runLoopCommandWithDependencies } from "./loop";
 import {
   runMemoryCommand as runMemoryCommandWithDependencies,
   runMemoryImportCommand as runMemoryImportCommandWithDependencies,
@@ -66,6 +67,11 @@ export function createCommandHandlers(options: CommandRegistryOptions): Record<s
       writeOutput: writeCliOutput
     }),
     "llm-review": (context) => runLlmReviewCommandWithDependencies(context, {
+      createAnalysisContext: createAnalysisContextForCli,
+      resolveRepoRoot: getRepoRootForCli,
+      writeOutput: writeCliOutput
+    }),
+    loop: (context) => runLoopCommandWithDependencies(context, {
       createAnalysisContext: createAnalysisContextForCli,
       resolveRepoRoot: getRepoRootForCli,
       writeOutput: writeCliOutput

@@ -112,6 +112,36 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       "Exit codes stay stable: 0 for a generated bundle, 2 for CLI/internal errors."
     ]
   },
+  loop: {
+    name: "loop",
+    summary: "Closed-loop controller that drives a user-owned agent through fix and re-verify rounds.",
+    usage: ["codedecay loop [options]"],
+    description: [
+      "Run CodeDecay redteam analysis, configured checks, and optionally an explicit local agent command in a safe loop.",
+      "Without --agent-cmd, loop runs in plan-only mode and prints the bundle it would send."
+    ],
+    options: [
+      { flag: "--base <ref>", description: "Base git ref to compare from" },
+      { flag: "--head <ref>", description: "Head git ref to compare to" },
+      { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
+      { flag: "--max-rounds <n>", description: "Maximum fix/recheck rounds (default: 4)" },
+      { flag: "--agent-cmd <command>", description: "Explicit user-owned agent command that reads the task bundle on stdin and may edit the working tree" },
+      { flag: "--safe-risk <level>", description: "Maximum acceptable risk level: low, medium, or high (default: low)" },
+      { flag: "--format <format>", description: "json or markdown (default: markdown)" },
+      { flag: "--output <path>", description: "Write loop report to a file instead of stdout" }
+    ],
+    examples: [
+      "codedecay loop --format markdown",
+      "codedecay loop --agent-cmd \"codex exec --apply\" --max-rounds 3 --format json",
+      "codedecay loop --cwd ../my-repo --output codedecay-loop.md"
+    ],
+    notes: [
+      "CodeDecay does not embed a model. The agent command is user-owned and explicit.",
+      "The loop never auto-commits or auto-pushes. It leaves edits in the working tree for human review.",
+      "Agent output is untrusted. CodeDecay re-runs deterministic analysis and configured checks after each agent action.",
+      "Exit codes: 0 for merge-safe or plan-only report generation, 1 for unverified, needs-human, stuck, or agent-error, and 2 for CLI/internal errors."
+    ]
+  },
   doctor: {
     name: "doctor",
     summary: "Recommend OSS tools and local setup for stronger PR safety evidence.",

@@ -22,6 +22,12 @@ export async function spawnCommand(options: RunConfiguredCommandOptions): Promis
       }
     });
 
+    if (options.stdin !== undefined) {
+      child.stdin?.end(options.stdin);
+    } else {
+      child.stdin?.end();
+    }
+
     const timeout = setTimeout(() => {
       timedOut = true;
       child.kill("SIGTERM");

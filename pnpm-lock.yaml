@@ -121,7 +121,17 @@ importers:
         specifier: ^14.3.2
         version: 14.3.2
 
-  packages/harness: {}
+  packages/harness:
+    dependencies:
+      '@submuxhq/codedecay-core':
+        specifier: workspace:*
+        version: link:../core
+      '@submuxhq/codedecay-execution':
+        specifier: workspace:*
+        version: link:../execution
+      '@submuxhq/codedecay-git':
+        specifier: workspace:*
+        version: link:../git
 
   packages/knowledge: {}
 
