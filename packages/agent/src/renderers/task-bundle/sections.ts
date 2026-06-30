@@ -56,6 +56,17 @@ export function appendEvidence(lines: string[], evidence: AgentEvidence): void {
     }
   }
 
+  lines.push("", "Scope and contract evidence:");
+  const scopeFindings = [...evidence.scopeFindings, ...evidence.contractFindings];
+  if (scopeFindings.length === 0) {
+    lines.push("- no deterministic scope or contract findings");
+  } else {
+    for (const finding of scopeFindings.slice(0, 12)) {
+      const location = finding.file ? ` in \`${finding.file}${finding.line ? `:${finding.line}` : ""}\`` : "";
+      lines.push(`- ${formatRisk(finding.severity)} **${finding.title}**${location}: ${finding.description}`);
+    }
+  }
+
   lines.push("", "Edge cases to check:");
   appendList(lines, evidence.edgeCases);
 
@@ -91,6 +102,11 @@ export function appendTasks(lines: string[], tasks: RedteamFixTask[]): void {
   for (const task of tasks.slice(0, 20)) {
     const location = task.file ? ` (\`${task.file}${task.line ? `:${task.line}` : ""}\`)` : "";
     lines.push(`- ${formatRisk(task.priority)} **${task.title}**${location}: ${task.detail}`);
+    if (task.scope) {
+      const files = task.scope.files.slice(0, 4).map((file) => `\`${file}\``).join(", ");
+      const areas = task.scope.areas.join(", ");
+      lines.push(`  - Scope: ${areas || "unknown area"}${files ? ` in ${files}` : ""}`);
+    }
   }
 }
 

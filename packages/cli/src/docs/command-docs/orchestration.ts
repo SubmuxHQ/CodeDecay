@@ -96,14 +96,20 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
       { flag: "--format <format>", description: "json or markdown (default: markdown)" },
       { flag: "--profile <profile>", description: `${AGENT_PROFILE_IDS.join(", ")} (default: generic)` },
+      { flag: "--filter-source <source>", description: "Only include fix tasks from one source such as finding, weak-test, edge-case, memory, pattern, or product-failure" },
+      { flag: "--filter-priority <level>", description: "Only include fix tasks with priority low, medium, or high" },
+      { flag: "--filter-file <path>", description: "Only include fix tasks tied to a file path" },
       { flag: "--output <path>", description: "Write agent task bundle to a file instead of stdout" }
     ],
     examples: [
       "codedecay agent --profile codex --base main --head HEAD --format markdown",
-      "codedecay agent --cwd ../my-repo --profile opencode --format json"
+      "codedecay agent --cwd ../my-repo --profile opencode --format json",
+      "codedecay agent --format json --filter-source weak-test --filter-priority high"
     ],
     notes: [
-      "Agent bundles package evidence and instructions only. They do not trigger agent or model calls by themselves."
+      "Agent bundles package evidence and instructions only. They do not trigger agent or model calls by themselves.",
+      "Design contract findings are deterministic evidence and appear in the bundle when `codedecay.contract.*` is configured.",
+      "Exit codes stay stable: 0 for a generated bundle, 2 for CLI/internal errors."
     ]
   },
   doctor: {

@@ -20,7 +20,14 @@ export async function runAgentCommand(
   const options = parseAgentArgs(context.args);
   const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
   const report = await createRedteamReportForCli(cwd, options, dependencies);
-  const bundle = createAgentTaskBundle(report, { profile: options.profile });
+  const bundle = createAgentTaskBundle(report, {
+    profile: options.profile,
+    taskFilters: {
+      source: options.filterSource,
+      priority: options.filterPriority,
+      file: options.filterFile
+    }
+  });
 
   dependencies.writeOutput({
     cwd,

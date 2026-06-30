@@ -108,6 +108,76 @@ describe("codedecay agent CLI contract", () => {
     expect(markdown.stdout).toContain("Medium `/dashboard` (Next.js UI route)");
   });
 
+  it("filters fix tasks and includes status plus scope contract evidence", async () => {
+    const repo = createRepo({
+      "codedecay.contract.json": JSON.stringify(
+        {
+          version: 1,
+          activeScopeFence: "api-task",
+          scopeFences: [
+            {
+              id: "api-task",
+              allowedFiles: ["src/api/**"],
+              allowedAreas: ["api"],
+              severity: "high"
+            }
+          ]
+        },
+        null,
+        2
+      ),
+      "docs/guide.md": "Original docs.\n",
+      "src/api/users.ts": "export function listUsers() { return []; }\n"
+    });
+    writeFile(repo, "src/api/users.ts", "export function listUsers() { return [{ id: 'admin' }]; }\n");
+    writeFile(repo, "docs/guide.md", "Changed docs.\n");
+
+    const result = await run(
+      [
+        "agent",
+        "--format",
+        "json",
+        "--filter-source",
+        "finding",
+        "--filter-priority",
+        "high",
+        "--filter-file",
+        "docs/guide.md"
+      ],
+      repo
+    );
+    const bundle = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(bundle.status).toBe("tasks-remaining");
+    expect(bundle.taskFilters).toEqual({
+      source: "finding",
+      priority: "high",
+      file: "docs/guide.md"
+    });
+    expect(bundle.summary.fixTasks).toBe(1);
+    expect(bundle.summary.totalFixTasks).toBeGreaterThan(bundle.summary.fixTasks);
+    expect(bundle.summary.contractFindings).toBe(1);
+    expect(bundle.evidence.contractFindings).toEqual([
+      expect.objectContaining({
+        ruleId: "contract-scope-fence",
+        file: "docs/guide.md",
+        severity: "high"
+      })
+    ]);
+    expect(bundle.tasks).toEqual([
+      expect.objectContaining({
+        source: "finding",
+        priority: "high",
+        file: "docs/guide.md",
+        scope: expect.objectContaining({
+          files: ["docs/guide.md"],
+          areas: ["docs"]
+        })
+      })
+    ]);
+  });
+
   it("includes product verification tasks from latest product artifacts", async () => {
     const repo = createMediumRiskRepo();
     writeLatestProductRunReport(repo);

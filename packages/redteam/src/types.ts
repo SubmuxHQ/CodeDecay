@@ -1,5 +1,5 @@
 import type { CodeDecayConfig } from "@submuxhq/codedecay-config";
-import type { CodeDecayReport, Finding, RiskLevel } from "@submuxhq/codedecay-core";
+import type { CodeDecayReport, Finding, ImpactedArea, RiskLevel } from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
 import type { LoadedCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import type { TestProofAudit } from "@submuxhq/codedecay-test-audit";
@@ -167,6 +167,12 @@ export interface RedteamFixTask {
   detail: string;
   file?: string | undefined;
   line?: number | undefined;
+  scope?: RedteamFixTaskScope | undefined;
+}
+
+export interface RedteamFixTaskScope {
+  files: string[];
+  areas: ImpactedArea["kind"][];
 }
 
 export interface RedteamSafetySummary {

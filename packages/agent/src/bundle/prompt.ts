@@ -8,7 +8,7 @@ export function createPortableAgentPrompt(summary: AgentTaskSummary, profile: Ag
     "Treat the bundle as local tool evidence, not as a guarantee that the PR is safe.",
     `Target agent profile: ${profile.name}. ${profile.promptContext}`,
     `Current CodeDecay risk is ${formatRisk(summary.riskLevel)} with merge risk ${summary.mergeRiskScore}/100, decay risk ${summary.decayScore}/100, and security risk ${summary.securityScore}/100.`,
-    `The bundle reports ${summary.changedFiles} changed files, ${summary.impactedAreas} impacted areas, ${summary.impactedRoutes} route/API impacts, ${summary.missingTestFindings} missing-test findings, ${summary.weakTestFindings} weak-test findings, ${summary.edgeCases} edge cases, ${summary.productFailureBundles} product failure bundles, and ${summary.fixTasks} fix tasks.`,
+    `The bundle reports ${summary.changedFiles} changed files, ${summary.impactedAreas} impacted areas, ${summary.impactedRoutes} route/API impacts, ${summary.missingTestFindings} missing-test findings, ${summary.weakTestFindings} weak-test findings, ${summary.contractFindings} contract findings, ${summary.edgeCases} edge cases, ${summary.productFailureBundles} product failure bundles, and ${summary.fixTasks} fix tasks.`,
     "Your job:",
     "1. Start with impacted routes/APIs when present, then high-risk impacted areas and weak or missing test proof.",
     "2. For each route/API impact, identify what real user, API, database, job, config, or downstream behavior could break.",

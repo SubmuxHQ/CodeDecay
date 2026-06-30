@@ -1,8 +1,9 @@
-import type { CodeDecayReport, Finding } from "@submuxhq/codedecay-core";
+import type { CodeDecayReport, Finding, ImpactedArea } from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
 import type {
   RedteamConfiguredCheck,
   RedteamFixTask,
+  RedteamFixTaskScope,
   RedteamPatternInsight,
   RedteamSkillSummary,
   RedteamToolAdapterPlan
@@ -33,7 +34,8 @@ export function createFixTasks(input: {
       source: WEAK_TEST_RULES.has(finding.ruleId) ? "weak-test" : "finding",
       detail: finding.description,
       file: finding.file,
-      line: finding.line
+      line: finding.line,
+      scope: scopeForFinding(finding, input.analysisReport.impactedAreas)
     });
   }
 
@@ -42,7 +44,8 @@ export function createFixTasks(input: {
       title: edgeCaseTaskTitle(edgeCase),
       priority: edgeCasePriority(input.analysisReport.impactedAreas),
       source: "edge-case",
-      detail: edgeCase
+      detail: edgeCase,
+      scope: scopeForAreas(input.analysisReport.impactedAreas)
     });
   }
 
@@ -51,7 +54,8 @@ export function createFixTasks(input: {
       title: `Consider running configured ${check.kind} check`,
       priority: input.analysisReport.summary.riskLevel === "high" ? "medium" : "low",
       source: "configured-check",
-      detail: `${check.name}: ${check.command}`
+      detail: `${check.name}: ${check.command}`,
+      scope: scopeForAreas(input.analysisReport.impactedAreas)
     });
   }
 
@@ -60,7 +64,8 @@ export function createFixTasks(input: {
       title: `Consider running ${adapter.name} harness`,
       priority: input.analysisReport.summary.riskLevel === "high" ? "medium" : "low",
       source: "tool-adapter",
-      detail: `${adapter.kind}: ${adapter.command}`
+      detail: `${adapter.kind}: ${adapter.command}`,
+      scope: scopeForAreas(input.analysisReport.impactedAreas)
     });
   }
 
@@ -70,7 +75,8 @@ export function createFixTasks(input: {
       title: `Apply pattern: ${pattern.title}`,
       priority: pattern.areas.includes("auth") || pattern.areas.includes("api") ? "high" : "medium",
       source: "pattern",
-      detail
+      detail,
+      scope: scopeForPattern(pattern, input.analysisReport.impactedAreas)
     });
   }
 
@@ -80,7 +86,8 @@ export function createFixTasks(input: {
       priority: bundle.priority,
       source: "product-failure",
       detail: `${bundle.summary} Rerun: ${bundle.rerunCommand}`,
-      file: bundle.impactedFiles[0]
+      file: bundle.impactedFiles[0],
+      scope: scopeForFiles(bundle.impactedFiles, input.analysisReport.impactedAreas)
     });
   }
 
@@ -112,4 +119,40 @@ export function createFixTasks(input: {
   }
 
   return dedupeTasks(tasks).slice(0, 20);
+}
+
+function scopeForFinding(finding: Finding, impactedAreas: ImpactedArea[]): RedteamFixTaskScope | undefined {
+  return finding.file ? scopeForFiles([finding.file], impactedAreas) : scopeForAreas(impactedAreas);
+}
+
+function scopeForPattern(pattern: RedteamPatternInsight, impactedAreas: ImpactedArea[]): RedteamFixTaskScope | undefined {
+  const areas = impactedAreas.filter((area) => pattern.areas.includes(area.kind));
+  return scopeForAreas(areas.length > 0 ? areas : impactedAreas);
+}
+
+function scopeForFiles(files: string[], impactedAreas: ImpactedArea[]): RedteamFixTaskScope | undefined {
+  const normalizedFiles = [...new Set(files.filter(Boolean))].sort((left, right) => left.localeCompare(right));
+  const areas = impactedAreas
+    .filter((area) => area.files.some((file) => normalizedFiles.includes(file)))
+    .map((area) => area.kind);
+  return createScope(normalizedFiles, areas);
+}
+
+function scopeForAreas(impactedAreas: ImpactedArea[]): RedteamFixTaskScope | undefined {
+  const files = impactedAreas.flatMap((area) => area.files);
+  const areas = impactedAreas.map((area) => area.kind);
+  return createScope(files, areas);
+}
+
+function createScope(files: string[], areas: ImpactedArea["kind"][]): RedteamFixTaskScope | undefined {
+  const uniqueFiles = [...new Set(files)].sort((left, right) => left.localeCompare(right));
+  const uniqueAreas = [...new Set(areas)].sort((left, right) => left.localeCompare(right));
+  if (uniqueFiles.length === 0 && uniqueAreas.length === 0) {
+    return undefined;
+  }
+
+  return {
+    files: uniqueFiles,
+    areas: uniqueAreas
+  };
 }

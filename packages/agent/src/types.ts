@@ -1,17 +1,26 @@
 import type { ImpactedRoute, ProductFailureBundle, RiskLevel } from "@submuxhq/codedecay-core";
-import type { RedteamFixTask, RedteamReport, RedteamSkillSummary } from "@submuxhq/codedecay-redteam";
+import type { RedteamFixTask, RedteamReport, RedteamSkillSummary, RedteamTaskSource } from "@submuxhq/codedecay-redteam";
 import type { AgentProfile, AgentProfileId } from "./profiles";
 
 export type AgentTaskBundleFormat = "json" | "markdown";
+export type AgentTaskStatus = "clean" | "tasks-remaining" | "improved" | "regressed";
 
 export interface CreateAgentTaskBundleOptions {
   profile?: AgentProfileId | undefined;
+  taskFilters?: AgentTaskFilters | undefined;
+}
+
+export interface AgentTaskFilters {
+  source?: RedteamTaskSource | undefined;
+  priority?: RiskLevel | undefined;
+  file?: string | undefined;
 }
 
 export interface AgentTaskBundle {
   tool: "CodeDecay";
   version: string;
   mode: "agent-task-bundle";
+  status: AgentTaskStatus;
   generatedAt: string;
   purpose: string;
   agentProfile: AgentProfile;
@@ -20,6 +29,7 @@ export interface AgentTaskBundle {
   instructions: string[];
   evidence: AgentEvidence;
   tasks: RedteamFixTask[];
+  taskFilters: AgentTaskFilters;
   suggestedChecks: AgentSuggestedCheck[];
   skills: RedteamSkillSummary[];
   safety: AgentSafetySummary;
@@ -40,6 +50,9 @@ export interface AgentTaskSummary {
   edgeCases: number;
   productFailureBundles: number;
   fixTasks: number;
+  totalFixTasks: number;
+  scopeFindings: number;
+  contractFindings: number;
 }
 
 export interface AgentEvidence {
@@ -48,6 +61,8 @@ export interface AgentEvidence {
   impactedRoutes: AgentImpactedRoute[];
   weakTestFindings: AgentFindingEvidence[];
   missingTestFindings: AgentFindingEvidence[];
+  scopeFindings: AgentFindingEvidence[];
+  contractFindings: AgentFindingEvidence[];
   edgeCases: string[];
   productFailureBundles: ProductFailureBundle[];
   memory: RedteamReport["memory"];
