@@ -139,6 +139,50 @@ describe("codedecay redteam CLI contract", () => {
     expect(report.analysis.changedFiles.map((file: { path: string }) => file.path)).toContain("src/api/users.ts");
   });
 
+  it("includes design contract findings as redteam fix tasks", async () => {
+    const repo = createMediumRiskRepo();
+    writeFile(
+      repo,
+      "codedecay.contract.json",
+      JSON.stringify(
+        {
+          version: 1,
+          activeScopeFence: "auth-only",
+          scopeFences: [
+            {
+              id: "auth-only",
+              allowedAreas: ["auth"]
+            }
+          ]
+        },
+        null,
+        2
+      )
+    );
+
+    const result = await run(["redteam", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(report.analysis.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "contract-scope-fence",
+          file: "src/api/users.ts"
+        })
+      ])
+    );
+    expect(report.fixTasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Investigate Change exceeds design contract scope fence",
+          source: "finding",
+          file: "src/api/users.ts"
+        })
+      ])
+    );
+  });
+
   it("keeps investigation opt-in and records provider limitations", async () => {
     const repo = createHighRiskRepo();
     writeFile(

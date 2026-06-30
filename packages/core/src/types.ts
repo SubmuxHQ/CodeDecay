@@ -31,6 +31,15 @@ export type {
   RevalidationStatus
 } from "./revalidate";
 export type { ChangedLine, FileChange, FileStatus } from "./types/file-change";
+export type {
+  DesignBannedApiRule,
+  DesignBoundaryRule,
+  DesignContract,
+  DesignDependencyRule,
+  DesignMatcher,
+  DesignPatternRule,
+  DesignScopeFence
+} from "./types/design-contract";
 export type { Finding, FindingCategory } from "./types/findings";
 export type { ImpactedArea, ImpactedRoute } from "./types/impact";
 export type {

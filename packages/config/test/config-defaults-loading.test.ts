@@ -74,6 +74,16 @@ describe("CodeDecay config defaults and loading", () => {
     expect(loaded.config.commands.test).toEqual(["npm test"]);
   });
 
+  it("discovers codedecay.config.json from cwd", () => {
+    const root = createTempDir();
+    writeFile(root, "codedecay.config.json", JSON.stringify({ version: 1, commands: { test: "npm test" } }));
+
+    const loaded = loadCodeDecayConfig({ cwd: root });
+
+    expect(loaded.sourcePath).toBe(join(root, "codedecay.config.json"));
+    expect(loaded.config.commands.test).toEqual(["npm test"]);
+  });
+
   it("discovers .codedecay/config.yaml from cwd", () => {
     const root = createTempDir();
     writeFile(root, ".codedecay/config.yaml", "version: 1\ncommands:\n  build: npm run build\n");
@@ -130,6 +140,73 @@ describe("CodeDecay config defaults and loading", () => {
     const loaded = loadCodeDecayConfig({ cwd: root });
 
     expect(loaded.config.plugins.enabled).toEqual(["local-security-pack", "ownership-pack"]);
+  });
+
+  it("loads inline design contract config", () => {
+    const root = createTempDir();
+    writeFile(
+      root,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "designContract:",
+        "  activeScopeFence: auth-task",
+        "  scopeFences:",
+        "    - id: auth-task",
+        "      allowedAreas: auth",
+        "  bannedApis:",
+        "    - id: no-random",
+        "      files: src/auth/**",
+        "      apis: Math.random",
+        ""
+      ].join("\n")
+    );
+
+    const loaded = loadCodeDecayConfig({ cwd: root });
+
+    expect(loaded.config.designContract).toMatchObject({
+      activeScopeFence: "auth-task",
+      scopeFences: [
+        {
+          id: "auth-task",
+          allowedAreas: ["auth"]
+        }
+      ],
+      bannedApis: [
+        {
+          id: "no-random",
+          files: ["src/auth/**"],
+          apis: ["Math.random"]
+        }
+      ]
+    });
+  });
+
+  it("loads standalone codedecay.contract.json alongside config defaults", () => {
+    const root = createTempDir();
+    writeFile(
+      root,
+      "codedecay.contract.json",
+      JSON.stringify({
+        version: 1,
+        activeScopeFence: "api-task",
+        scopeFences: [
+          {
+            id: "api-task",
+            allowedAreas: ["api"]
+          }
+        ]
+      })
+    );
+
+    const loaded = loadCodeDecayConfig({ cwd: root });
+
+    expect(loaded.sourcePath).toBeUndefined();
+    expect(loaded.designContractSourcePath).toBe(join(root, "codedecay.contract.json"));
+    expect(loaded.config.designContract).toMatchObject({
+      activeScopeFence: "api-task",
+      scopeFences: [{ id: "api-task", allowedAreas: ["api"] }]
+    });
   });
 
   it("loads opt-in memory provider config without enabling hidden defaults", () => {

@@ -1,3 +1,4 @@
+import type { DesignContract } from "@submuxhq/codedecay-core";
 import type { CodeDecayCommands, CodeDecayProbe } from "./commands";
 import type { CodeDecayLlmConfig } from "./llm";
 import type { CodeDecayMemoryProvidersConfig } from "./memory-providers";
@@ -16,4 +17,5 @@ export interface CodeDecayConfig {
   toolAdapters: CodeDecayToolAdapters;
   productTesting: CodeDecayProductTestingConfig;
   plugins: CodeDecayPluginsConfig;
+  designContract?: DesignContract | undefined;
 }

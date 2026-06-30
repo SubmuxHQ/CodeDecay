@@ -1,5 +1,5 @@
 export { DEFAULT_CODEDECAY_CONFIG } from "./defaults";
-export { findCodeDecayConfig, loadCodeDecayConfig } from "./load";
+export { findCodeDecayConfig, findCodeDecayContract, loadCodeDecayConfig } from "./load";
 export type {
   CodeDecayAgentBundleFormat,
   CodeDecayAgentProcessToolAdapter,

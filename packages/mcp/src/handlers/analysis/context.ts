@@ -28,7 +28,8 @@ export function createAnalysisContext(serverOptions: StartMcpServerOptions, inpu
   const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
   const analyzerResult = analyzeJsProject({
     rootDir,
-    changedFiles
+    changedFiles,
+    designContract: loadedConfig.config.designContract
   });
   const loadedMemory = loadCodeDecayMemory(rootDir);
   const analyzerResultWithMemory = applyMemoryContext({
