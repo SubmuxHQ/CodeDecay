@@ -247,14 +247,16 @@ describe("unified harness planted issue corpus", () => {
     const corpus = createDefaultBenchmarkCorpus();
 
     expect(corpus.rules.map((rule) => rule.ruleId)).toEqual(DEFAULT_BENCHMARK_RULES.map((rule) => rule.ruleId));
-    expect(corpus.scenarios.filter((scenario) => scenario.kind === "positive")).toHaveLength(5);
-    expect(corpus.scenarios.filter((scenario) => scenario.kind === "decoy")).toHaveLength(3);
+    expect(corpus.scenarios.filter((scenario) => scenario.kind === "positive")).toHaveLength(6);
+    expect(corpus.scenarios.filter((scenario) => scenario.kind === "decoy")).toHaveLength(4);
     expect(corpus.scenarios.map((scenario) => scenario.id)).toEqual(
       expect.arrayContaining([
         "one-hop-sqli",
         "plain-exported-destructive-missing-auth",
+        "auth-comment-destructive-missing-auth",
         "one-hop-path-join-traversal",
-        "request-name-collision-decoy"
+        "request-name-collision-decoy",
+        "guarded-destructive-auth-decoy"
       ])
     );
   });

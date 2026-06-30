@@ -8,7 +8,8 @@ import {
   hasTemplateUserInputExpression,
   hasUserInputMarker,
   lineMatches,
-  maskStringLiterals
+  maskStringLiterals,
+  stripComments
 } from "./utils";
 
 const AUTH_MARKERS = ["auth", "session", "jwt", "token", "currentuser", "current_user", "requireuser", "requireauth", "isallowed"];
@@ -254,8 +255,7 @@ export const missingAuthEntryPointMatcher: SecurityMatcher = {
     }
   ],
   match(context) {
-    const lowerContent = context.content.toLowerCase();
-    if (!hasRouteEntryPoint(context.filePath, context.content) || containsAny(lowerContent, AUTH_MARKERS)) {
+    if (!hasRouteEntryPoint(context.filePath, context.content) || hasAuthGuard(context.content)) {
       return [];
     }
 
@@ -383,6 +383,37 @@ function hasCredentialAssignment(codeLine: string): boolean {
     const assignmentWindow = compact.slice(markerIndex + marker.length, markerIndex + marker.length + 80);
     return assignmentWindow.includes("=") || assignmentWindow.includes(":");
   });
+}
+
+function hasAuthGuard(content: string): boolean {
+  const codeOnly = stripComments(content)
+    .split(/\n/)
+    .map((line) => maskStringLiterals(line).toLowerCase())
+    .join("\n");
+
+  return AUTH_MARKERS.some((marker) => hasAuthMarker(codeOnly, marker));
+}
+
+function hasAuthMarker(code: string, marker: string): boolean {
+  const escapedMarker = escapeRegExp(marker.toLowerCase());
+
+  if (new RegExp(`\\b${escapedMarker}\\b\\s*(?:\\(|\\.|\\[|\\?)`).test(code)) {
+    return true;
+  }
+
+  if (new RegExp(`\\b(?:assert|check|ensure|get|require|validate|verify)${escapedMarker}\\b\\s*\\(`).test(code)) {
+    return true;
+  }
+
+  if (["currentuser", "current_user", "isallowed"].includes(marker.toLowerCase())) {
+    return new RegExp(`\\b${escapedMarker}\\b`).test(code);
+  }
+
+  return false;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function uniqueMatches(matches: Array<{ line: number; text: string }>): Array<{ line: number; text: string }> {

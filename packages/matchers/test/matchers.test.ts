@@ -223,6 +223,75 @@ describe("scanSecurityCandidates", () => {
     expect(result.candidates.map((candidate) => candidate.ruleId)).toContain("security-missing-auth-entrypoint");
   });
 
+  it("flags destructive exported functions when auth is mentioned only in comments", () => {
+    const result = scanSecurityCandidates({
+      files: [
+        {
+          path: "src/admin.ts",
+          content: [
+            "import { Pool } from \"pg\";",
+            "const pool = new Pool();",
+            "// destructive admin action with NO authentication/authorization check",
+            "export async function deleteAllUsers(req: { body: unknown }) {",
+            "  await pool.query(\"DELETE FROM users\");",
+            "  return { ok: true };",
+            "}",
+            ""
+          ].join("\n")
+        }
+      ]
+    });
+    const missingAuth = result.candidates.filter((candidate) => candidate.ruleId === "security-missing-auth-entrypoint");
+
+    expect(missingAuth).toHaveLength(1);
+    expect(missingAuth[0]).toMatchObject({
+      file: "src/admin.ts",
+      severity: "high"
+    });
+  });
+
+  it("does not flag destructive exported functions with a real auth guard", () => {
+    const result = scanSecurityCandidates({
+      files: [
+        {
+          path: "src/admin.ts",
+          content: [
+            "import { Pool } from \"pg\";",
+            "const pool = new Pool();",
+            "export async function deleteAllUsers(req: { body: unknown }) {",
+            "  requireAuth(req);",
+            "  await pool.query(\"DELETE FROM users\");",
+            "  return { ok: true };",
+            "}",
+            ""
+          ].join("\n")
+        }
+      ]
+    });
+
+    expect(result.candidates.map((candidate) => candidate.ruleId)).not.toContain("security-missing-auth-entrypoint");
+  });
+
+  it("does not treat author or authentication prose as missing-auth evidence in benign files", () => {
+    const result = scanSecurityCandidates({
+      files: [
+        {
+          path: "src/profile.ts",
+          content: [
+            "// This authentication note documents the author profile page.",
+            "export function authorBio(author: { name: string }) {",
+            "  const authorLabel = `Author: ${author.name}`;",
+            "  return authorLabel;",
+            "}",
+            ""
+          ].join("\n")
+        }
+      ]
+    });
+
+    expect(result.candidates.map((candidate) => candidate.ruleId)).not.toContain("security-missing-auth-entrypoint");
+  });
+
   it("detects JWT decode-without-verify and unsafe verification options while avoiding safe decoys", () => {
     const risky = scanSecurityCandidates({
       files: [
