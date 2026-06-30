@@ -3,6 +3,7 @@ import type { LoadedCodeDecayMemory, MemoryProvider, MemoryProviderLoadOptions }
 
 export { createLocalMemoryProvider, loadCodeDecayMemory } from "./provider-local";
 export { createMem0MemoryProvider } from "./provider-mem0";
+export { createSupermemoryMemoryProvider } from "./provider-supermemory";
 export { createMemoryProviderRegistry, MemoryProviderRegistry } from "./provider-registry";
 
 export function loadCodeDecayMemoryFromProvider(
