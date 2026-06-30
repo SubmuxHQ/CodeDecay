@@ -8,7 +8,7 @@ export { parseDoctorArgs } from "./doctor";
 export { parseExecuteArgs } from "./execute";
 export { parseLlmReviewArgs } from "./llm-review";
 export { parseMcpArgs } from "./mcp";
-export { parseMemoryArgs, parseMemoryImportArgs, parseMemoryLearnArgs } from "./memory";
+export { parseMemoryArgs, parseMemoryImportArgs, parseMemoryLearnArgs, parseMemorySetupArgs } from "./memory";
 export { parseRevalidateArgs } from "./revalidate";
 export { parseProductArgs } from "./product";
 export { parseRedteamArgs } from "./redteam";

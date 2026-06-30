@@ -18,6 +18,28 @@ npx codedecay memory --cwd ../my-repo --format json
 `codedecay analyze` automatically applies memory when `.codedecay/memory.json`
 exists in the analyzed repository.
 
+## Setup Memory Providers
+
+Use `codedecay memory setup` to inspect safe setup guidance for local memory,
+Mem0, and Supermemory:
+
+```bash
+npx codedecay memory setup --provider all
+npx codedecay memory setup --provider supermemory --format json
+```
+
+The command is dry-run by default. It does not install packages, call providers,
+send telemetry, call models, or edit tracked config.
+
+To write a reviewable config snippet under `.codedecay/local/`, pass `--apply`:
+
+```bash
+npx codedecay memory setup --provider mem0 --apply
+```
+
+This writes `.codedecay/local/memory-providers.yml` only. Review the snippet
+before copying any provider settings into `.codedecay/config.yml`.
+
 ## Import Structured Learnings
 
 Use `codedecay memory-import` when you want to turn structured learnings into a
