@@ -1,5 +1,6 @@
 export * from "./agent";
 export * from "./analyze";
+export * from "./benchmark";
 export * from "./common";
 export * from "./config";
 export * from "./dashboard";

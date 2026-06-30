@@ -26,6 +26,28 @@ export const ANALYSIS_COMMAND_DOCS: Record<string, CommandDoc> = {
       "Relative --output paths resolve from the analyzed repository root."
     ]
   },
+  benchmark: {
+    name: "benchmark",
+    summary: "Reproducible planted-issue catch-rate and false-positive benchmark.",
+    usage: ["codedecay benchmark [options]"],
+    description: [
+      "Run the deterministic planted-issue corpus and clean decoys, then print real recall, precision, and false-positive metrics."
+    ],
+    options: [
+      { flag: "--format <format>", description: "json or markdown (default: markdown)" },
+      { flag: "--output <path>", description: "Write benchmark report to a file instead of stdout" },
+      { flag: "--corpus <path>", description: "default or a local corpus manifest path/directory" }
+    ],
+    examples: [
+      "codedecay benchmark",
+      "codedecay benchmark --format json",
+      "codedecay benchmark --format markdown --output codedecay-benchmark.md"
+    ],
+    notes: [
+      "The default corpus runs offline in temporary git repositories.",
+      "Benchmark summaries always report costUsd: 0, llmCalled: false, and telemetrySent: false for the deterministic corpus."
+    ]
+  },
   snapshot: {
     name: "snapshot",
     summary: "Stable repository health snapshot and trend comparison.",

@@ -38,7 +38,26 @@ The benchmark cases run in CI through the test suite. Each case locks:
 That means a scoring tweak that turns a low-signal case into severe risk, or
 hides a clearly risky case, fails in CI.
 
-Run the benchmark directly with:
+Run the public benchmark report with:
+
+```bash
+codedecay benchmark
+codedecay benchmark --format json
+```
+
+The default public corpus currently reports:
+
+- overall recall: `100%`
+- false-positive rate: `5.56%`
+- cost: `$0`
+- LLM/model calls: `false`
+- telemetry: `false`
+
+These numbers are generated from live benchmark runs, not hardcoded launch copy.
+The false positives come from conservative regression-risk heuristics on clean
+decoys and are intentionally visible.
+
+Run the CI benchmark test directly with:
 
 ```bash
 pnpm eval:benchmark
@@ -50,11 +69,12 @@ should live outside this CI benchmark.
 
 ## How To Add A Case
 
-1. Add a new benchmark case in the benchmark test file.
+1. Add or update the canonical benchmark corpus in `packages/cli/src/benchmark/corpus.ts`.
 2. Describe the intent of the case in plain language.
-3. Set the expected score range and expected key findings.
+3. Set the expected score range and expected key findings in tests where the
+   case is a calibration scenario.
 4. Explain why the case should stay low, medium, or high signal.
-5. For planted-issue cases, add the expected rule id to the recall list and
+5. For planted-issue cases, add the expected rule id to the recall manifest and
    keep the fixture deterministic.
 
 Keep the corpus small and representative. The goal is calibration, not a giant
