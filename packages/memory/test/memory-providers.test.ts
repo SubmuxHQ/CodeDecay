@@ -4,10 +4,12 @@ import type { AnalyzerResult, FileChange, ImpactedArea } from "@submuxhq/codedec
 import {
   applyMemoryContext,
   createLocalMemoryProvider,
+  createMem0MemoryProvider,
   createMemoryProviderRegistry,
   importCodeDecayMemory,
   learnCodeDecayMemory,
   loadCodeDecayMemory,
+  loadCodeDecayMemoryFromProviderAsync,
   loadCodeDecayMemoryFromProvider,
   writeCodeDecayMemory,
   type MemoryProvider
@@ -54,6 +56,117 @@ describe("CodeDecay memory providers", () => {
     const loaded = loadCodeDecayMemoryFromProvider(provider, { rootDir: createTempDir() });
 
     expect(loaded.memory.flows[0]?.name).toBe("Billing flow");
+  });
+
+  it("loads Mem0 memory through an optional async provider", async () => {
+    const calls: unknown[] = [];
+    class FakeMemoryClient {
+      constructor(options: unknown) {
+        calls.push(options);
+      }
+
+      async search(query: string, options?: Record<string, unknown>) {
+        calls.push({ query, options });
+        return {
+          results: [
+            {
+              memory: "Checkout API must reject expired sessions.",
+              metadata: {
+                codedecay: {
+                  type: "invariant",
+                  name: "Expired session rejection",
+                  areas: ["auth"],
+                  files: ["src/auth/session.ts"]
+                }
+              }
+            },
+            {
+              memory: "Run the checkout smoke test after payment changes.",
+              metadata: {
+                codedecay: {
+                  type: "command",
+                  name: "Checkout smoke",
+                  command: "pnpm test checkout"
+                }
+              }
+            }
+          ]
+        };
+      }
+    }
+
+    const provider = createMem0MemoryProvider({
+      endpoint: "http://127.0.0.1:8000",
+      apiKeyEnv: "MEM0_API_KEY",
+      projectId: "codedecay",
+      env: { MEM0_API_KEY: "test-key" },
+      importModule: async () => ({ MemoryClient: FakeMemoryClient })
+    });
+    const loaded = await loadCodeDecayMemoryFromProviderAsync(provider, { rootDir: createTempDir() });
+
+    expect(provider).toMatchObject({
+      id: "mem0",
+      name: "Mem0",
+      kind: "external"
+    });
+    expect(calls[0]).toEqual({
+      apiKey: "test-key",
+      host: "http://127.0.0.1:8000"
+    });
+    expect(calls[1]).toEqual({
+      query: "CodeDecay project memory",
+      options: {
+        topK: 20,
+        filters: {
+          projectId: "codedecay"
+        }
+      }
+    });
+    expect(loaded.sourcePath).toBe("mem0:http://127.0.0.1:8000");
+    expect(loaded.memory.invariants[0]).toMatchObject({
+      name: "Expired session rejection",
+      files: ["src/auth/session.ts"],
+      areas: ["auth"]
+    });
+    expect(loaded.memory.commands[0]).toMatchObject({
+      name: "Checkout smoke",
+      command: "pnpm test checkout"
+    });
+  });
+
+  it("keeps sync provider loading from accidentally running async Mem0 providers", () => {
+    const provider = createMem0MemoryProvider({
+      env: { MEM0_API_KEY: "test-key" },
+      importModule: async () => ({ MemoryClient: class { async search() { return { results: [] }; } } })
+    });
+
+    expect(() => loadCodeDecayMemoryFromProvider(provider, { rootDir: createTempDir() })).toThrow(
+      /provider "mem0" is async/
+    );
+  });
+
+  it("fails clearly when Mem0 is configured without an API key env value", async () => {
+    const provider = createMem0MemoryProvider({
+      apiKeyEnv: "MEM0_API_KEY",
+      env: {}
+    });
+
+    await expect(loadCodeDecayMemoryFromProviderAsync(provider, { rootDir: createTempDir() })).rejects.toThrow(
+      /requires API key environment variable MEM0_API_KEY/
+    );
+  });
+
+  it("fails clearly when the optional Mem0 package is unavailable", async () => {
+    const provider = createMem0MemoryProvider({
+      env: { MEM0_API_KEY: "test-key" },
+      importModule: async () => {
+        throw new Error("Cannot find package 'mem0ai'");
+      }
+    });
+
+    await expect(loadCodeDecayMemoryFromProviderAsync(provider, { rootDir: createTempDir() })).rejects.toThrow(
+      /requires the optional mem0ai package/
+    );
   });
 
   it("registers memory providers with stable ordering", () => {

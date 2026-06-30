@@ -3,8 +3,10 @@ export { importCodeDecayMemory } from "./import-memory";
 export { learnCodeDecayMemory } from "./learn-memory";
 export {
   createLocalMemoryProvider,
+  createMem0MemoryProvider,
   createMemoryProviderRegistry,
   loadCodeDecayMemory,
+  loadCodeDecayMemoryFromProviderAsync,
   loadCodeDecayMemoryFromProvider,
   MemoryProviderRegistry
 } from "./providers";
@@ -24,6 +26,8 @@ export type {
   MemoryMatcher,
   MemoryProvider,
   MemoryProviderKind,
+  MemoryProviderLoadResult,
   MemoryProviderLoadOptions,
   MemoryRegression
 } from "./types";
+export type { Mem0MemoryProviderOptions } from "./provider-mem0";

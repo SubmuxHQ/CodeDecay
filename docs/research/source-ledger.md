@@ -22,6 +22,7 @@ practical usage guidance and cite the URL in every derived edge case.
 | MITRE CWE-918 | https://cwe.mitre.org/data/definitions/918.html | MITRE CWE terms of use; taxonomy concept only. | SSRF risk relevant to untrusted JWT key URLs. | yes |
 | PortSwigger Web Security Academy JWT materials | https://portswigger.net/web-security/jwt | Website training material; concept and citation only. Do not copy labs, payloads, or prose. | Real-world JWT attack classes including decode trust, algorithm confusion, and header-controlled key selection. | yes |
 | NVD CVE-2022-23540 | https://nvd.nist.gov/vuln/detail/CVE-2022-23540 | NIST/NVD public vulnerability database; vulnerability fact pattern only. | JWT library vulnerability pattern around unsafe verification behavior. | yes |
+| Mem0 repository and TypeScript package | https://github.com/mem0ai/mem0 / https://www.npmjs.com/package/mem0ai | Apache-2.0 | Public TypeScript SDK surface for optional external memory integration. No SDK code copied; CodeDecay uses an optional dynamic import boundary. | yes |
 
 ## Explicit Flags
 

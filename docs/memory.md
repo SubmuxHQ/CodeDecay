@@ -228,6 +228,26 @@ name: Local .codedecay memory
 kind: local
 ```
 
+The Mem0 adapter is available as an optional provider boundary. CodeDecay does
+not install or import `mem0ai` unless a future workflow explicitly constructs
+the provider from config. To prepare a repo for Mem0-backed context, install the
+official package in the analyzed project and configure an API-key environment
+variable:
+
+```bash
+npm install -D mem0ai
+```
+
+```yaml
+memoryProviders:
+  providers:
+    - local
+    - provider: mem0
+      endpoint: http://127.0.0.1:8000
+      apiKeyEnv: MEM0_API_KEY
+      projectId: codedecay
+```
+
 External providers are not enabled by default. They must not add telemetry,
 hidden network calls, API key requirements, LLM calls, or CodeDecayCloud
 dependencies to the OSS workflow.

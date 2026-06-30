@@ -45,10 +45,24 @@ export class MemoryProviderRegistry {
 
   load(id: string, options: MemoryProviderLoadOptions): LoadedCodeDecayMemory {
     validateMemoryProviderLoadOptions(options);
+    const loaded = this.require(id).load(options);
+    if (isPromiseLike(loaded)) {
+      throw new Error(`Memory provider "${id}" is async. Use loadAsync().`);
+    }
+
+    return loaded;
+  }
+
+  async loadAsync(id: string, options: MemoryProviderLoadOptions): Promise<LoadedCodeDecayMemory> {
+    validateMemoryProviderLoadOptions(options);
     return this.require(id).load(options);
   }
 }
 
 export function createMemoryProviderRegistry(providers: MemoryProvider[] = [createLocalMemoryProvider()]): MemoryProviderRegistry {
   return new MemoryProviderRegistry(providers);
+}
+
+function isPromiseLike(value: unknown): value is Promise<LoadedCodeDecayMemory> {
+  return typeof value === "object" && value !== null && "then" in value;
 }

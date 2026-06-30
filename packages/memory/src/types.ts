@@ -79,11 +79,13 @@ export interface MemoryProviderLoadOptions {
   rootDir: string;
 }
 
+export type MemoryProviderLoadResult = LoadedCodeDecayMemory | Promise<LoadedCodeDecayMemory>;
+
 export interface MemoryProvider {
   id: string;
   name: string;
   kind: MemoryProviderKind;
-  load(options: MemoryProviderLoadOptions): LoadedCodeDecayMemory;
+  load(options: MemoryProviderLoadOptions): MemoryProviderLoadResult;
 }
 
 export interface MemoryContextInput {
