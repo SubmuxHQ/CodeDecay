@@ -7,6 +7,18 @@ const headSchema = z.string().optional().describe("Head git ref or SHA.");
 const formatSchema = z.enum(["markdown", "json"]).optional().describe("Response format.");
 const targetSchema = z.string().optional().describe("Optional productTesting target id.");
 const confirmExecutionSchema = z.boolean().optional().describe("Must be true before CodeDecay runs configured local commands.");
+const riskLevelSchema = z.enum(["low", "medium", "high"]);
+const taskSourceSchema = z.enum([
+  "finding",
+  "weak-test",
+  "edge-case",
+  "configured-check",
+  "tool-adapter",
+  "memory",
+  "pattern",
+  "product-failure"
+]);
+const impactedAreaKindSchema = z.enum(["api", "ui", "database", "auth", "config", "test", "source", "docs"]);
 
 export const analyzePrToolSchema = {
   cwd: cwdSchema,
@@ -27,6 +39,31 @@ export const agentTaskBundleToolSchema = {
   head: headSchema,
   format: formatSchema,
   profile: z.enum(AGENT_PROFILE_IDS).optional().describe("User-owned agent handoff profile.")
+};
+
+export const scopeCheckToolSchema = {
+  cwd: cwdSchema,
+  base: baseSchema,
+  head: headSchema,
+  task: z.string().optional().describe("Optional agent task or scope label."),
+  fence: z.string().optional().describe("Design contract scope fence id. Defaults to activeScopeFence."),
+  files: z.array(z.string()).optional().describe("Inline allowed file/path globs for this task."),
+  areas: z.array(impactedAreaKindSchema).optional().describe("Inline allowed impacted-area kinds for this task.")
+};
+
+export const designContractCheckToolSchema = {
+  cwd: cwdSchema,
+  base: baseSchema,
+  head: headSchema
+};
+
+export const fixTasksToolSchema = {
+  cwd: cwdSchema,
+  base: baseSchema,
+  head: headSchema,
+  source: taskSourceSchema.optional().describe("Filter fix tasks by deterministic source."),
+  priority: riskLevelSchema.optional().describe("Filter fix tasks by priority."),
+  file: z.string().optional().describe("Filter fix tasks by file path.")
 };
 
 export const executeConfiguredChecksToolSchema = {

@@ -1,4 +1,5 @@
 export { applyMemoryContext } from "./apply-context";
+export { firstLine, firstMatchingFile, matchesMemoryEntry } from "./context-matchers";
 export { importCodeDecayMemory } from "./import-memory";
 export { learnCodeDecayMemory } from "./learn-memory";
 export {
