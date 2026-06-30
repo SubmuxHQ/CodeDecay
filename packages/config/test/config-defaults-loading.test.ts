@@ -26,6 +26,14 @@ describe("CodeDecay config defaults and loading", () => {
         provider: "disabled",
         timeoutMs: 30_000
       },
+      memoryProviders: {
+        providers: [
+          {
+            provider: "local",
+            enabled: true
+          }
+        ]
+      },
       toolAdapters: {},
       productTesting: {
         targets: {}
@@ -122,5 +130,50 @@ describe("CodeDecay config defaults and loading", () => {
     const loaded = loadCodeDecayConfig({ cwd: root });
 
     expect(loaded.config.plugins.enabled).toEqual(["local-security-pack", "ownership-pack"]);
+  });
+
+  it("loads opt-in memory provider config without enabling hidden defaults", () => {
+    const root = createTempDir();
+    writeFile(
+      root,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "memoryProviders:",
+        "  providers:",
+        "    - local",
+        "    - provider: mem0",
+        "      endpoint: http://127.0.0.1:8000",
+        "      apiKeyEnv: MEM0_API_KEY",
+        "    - provider: supermemory",
+        "      enabled: false",
+        "      endpoint: http://127.0.0.1:3001/",
+        "      collection: codedecay",
+        ""
+      ].join("\n")
+    );
+
+    const loaded = loadCodeDecayConfig({ cwd: root });
+
+    expect(loaded.config.memoryProviders).toEqual({
+      providers: [
+        {
+          provider: "local",
+          enabled: true
+        },
+        {
+          provider: "mem0",
+          enabled: true,
+          endpoint: "http://127.0.0.1:8000",
+          apiKeyEnv: "MEM0_API_KEY"
+        },
+        {
+          provider: "supermemory",
+          enabled: false,
+          endpoint: "http://127.0.0.1:3001",
+          collection: "codedecay"
+        }
+      ]
+    });
   });
 });

@@ -30,4 +30,35 @@ describe("CodeDecay config validation", () => {
 
     expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(/plugins must be an object/);
   });
+
+  it("fails clearly for invalid memory provider config", () => {
+    const root = createTempDir();
+    writeFile(root, ".codedecay/config.yml", "version: 1\nmemoryProviders:\n  providers:\n    - provider: hosted\n");
+
+    expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(
+      /memoryProviders\.providers\[0\]\.provider must be local, mem0, or supermemory/
+    );
+  });
+
+  it("fails clearly for duplicate memory providers", () => {
+    const root = createTempDir();
+    writeFile(
+      root,
+      ".codedecay/config.yml",
+      "version: 1\nmemoryProviders:\n  providers:\n    - local\n    - provider: local\n"
+    );
+
+    expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(/duplicate provider local/);
+  });
+
+  it("fails clearly when memory provider apiKeyEnv is not an environment variable name", () => {
+    const root = createTempDir();
+    writeFile(
+      root,
+      ".codedecay/config.yml",
+      "version: 1\nmemoryProviders:\n  providers:\n    - provider: mem0\n      apiKeyEnv: literal-token-value\n"
+    );
+
+    expect(() => loadCodeDecayConfig({ cwd: root })).toThrow(/apiKeyEnv must be a valid environment variable name/);
+  });
 });

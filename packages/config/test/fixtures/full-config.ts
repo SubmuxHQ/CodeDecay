@@ -19,6 +19,19 @@ export const FULL_CONFIG_YAML = [
   "  model: qwen2.5-coder",
   "  endpoint: http://127.0.0.1:11434",
   "  timeoutMs: 20000",
+  "memoryProviders:",
+  "  providers:",
+  "    - provider: local",
+  "      enabled: true",
+  "    - provider: mem0",
+  "      endpoint: http://127.0.0.1:8000",
+  "      apiKeyEnv: MEM0_API_KEY",
+  "      projectId: codedecay",
+  "    - provider: supermemory",
+  "      enabled: false",
+  "      endpoint: http://127.0.0.1:3001",
+  "      apiKeyEnv: SUPERMEMORY_API_KEY",
+  "      collection: codedecay",
   "plugins:",
   "  enabled:",
   "    - local-security-pack",
@@ -99,6 +112,28 @@ export const EXPECTED_FULL_CONFIG: CodeDecayConfig = {
     model: "qwen2.5-coder",
     endpoint: "http://127.0.0.1:11434",
     timeoutMs: 20000
+  },
+  memoryProviders: {
+    providers: [
+      {
+        provider: "local",
+        enabled: true
+      },
+      {
+        provider: "mem0",
+        enabled: true,
+        endpoint: "http://127.0.0.1:8000",
+        apiKeyEnv: "MEM0_API_KEY",
+        projectId: "codedecay"
+      },
+      {
+        provider: "supermemory",
+        enabled: false,
+        endpoint: "http://127.0.0.1:3001",
+        apiKeyEnv: "SUPERMEMORY_API_KEY",
+        collection: "codedecay"
+      }
+    ]
   },
   plugins: {
     enabled: ["local-security-pack", "team-ownership-pack"]

@@ -66,6 +66,14 @@ export function createConfig(): CodeDecayConfig {
       provider: "disabled",
       timeoutMs: 30000
     },
+    memoryProviders: {
+      providers: [
+        {
+          provider: "local",
+          enabled: true
+        }
+      ]
+    },
     toolAdapters: {},
     productTesting: {
       targets: {}
