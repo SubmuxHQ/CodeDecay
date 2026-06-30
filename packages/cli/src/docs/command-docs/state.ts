@@ -17,15 +17,26 @@ export const STATE_COMMAND_DOCS: Record<string, CommandDoc> = {
   memory: {
     name: "memory",
     summary: "Show local repo memory.",
-    usage: ["codedecay memory [options]"],
+    usage: ["codedecay memory [options]", "codedecay memory setup [options]"],
     description: [
-      "Load `.codedecay/memory.json` and render the normalized memory sections used by redteam and agent workflows."
+      "Load `.codedecay/memory.json` and render the normalized memory sections used by redteam and agent workflows.",
+      "`codedecay memory setup` prints safe setup guidance for local, Mem0, and Supermemory providers without installing packages or touching tracked config."
     ],
     options: [
       { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
-      { flag: "--format <format>", description: "json or markdown (default: json)" }
+      { flag: "--format <format>", description: "json or markdown (default: json for memory, markdown for setup)" },
+      { flag: "setup --provider <provider>", description: "local, mem0, supermemory, or all (default: all)" },
+      { flag: "setup --apply", description: "Write .codedecay/local/memory-providers.yml review snippet" }
     ],
-    examples: ["codedecay memory --format markdown", "codedecay memory --cwd ../my-repo --format json"]
+    examples: [
+      "codedecay memory --format markdown",
+      "codedecay memory --cwd ../my-repo --format json",
+      "codedecay memory setup --provider all",
+      "codedecay memory setup --provider supermemory --apply"
+    ],
+    notes: [
+      "Memory setup is preview-only by default. It does not install packages, call providers, or edit `.codedecay/config.yml`."
+    ]
   },
   "memory-import": {
     name: "memory-import",

@@ -10,13 +10,18 @@ import { write } from "../io";
 import {
   parseMemoryArgs,
   parseMemoryImportArgs,
-  parseMemoryLearnArgs
+  parseMemoryLearnArgs,
+  parseMemorySetupArgs
 } from "../parsers/args";
 import {
   renderMemory,
   renderMemoryImportResult,
   renderMemoryLearnResult
 } from "../renderers/memory";
+import {
+  createMemorySetupResult,
+  renderMemorySetupResult
+} from "../memory/setup";
 import type { CliCommandContext } from "../types";
 
 export interface MemoryCommandDependencies {
@@ -24,11 +29,27 @@ export interface MemoryCommandDependencies {
 }
 
 export function runMemoryCommand(context: CliCommandContext, dependencies: MemoryCommandDependencies): void {
+  if (context.args[0] === "setup") {
+    runMemorySetupCommand({
+      ...context,
+      args: context.args.slice(1)
+    }, dependencies);
+    return;
+  }
+
   const options = parseMemoryArgs(context.args);
   const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
   const rootDir = dependencies.resolveRepoRoot(cwd, { format: "markdown" });
   const loadedMemory = loadCodeDecayMemory(rootDir);
   write(context.runtime.stdout, renderMemory(loadedMemory, options.format));
+}
+
+export function runMemorySetupCommand(context: CliCommandContext, dependencies: MemoryCommandDependencies): void {
+  const options = parseMemorySetupArgs(context.args);
+  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
+  const rootDir = dependencies.resolveRepoRoot(cwd, { format: "markdown" });
+  const result = createMemorySetupResult(rootDir, options);
+  write(context.runtime.stdout, renderMemorySetupResult(result, options.format));
 }
 
 export function runMemoryImportCommand(context: CliCommandContext, dependencies: MemoryCommandDependencies): void {

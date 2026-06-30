@@ -1,4 +1,4 @@
-import type { MemoryImportOptions, MemoryLearnOptions, MemoryOptions } from "../types";
+import type { MemoryImportOptions, MemoryLearnOptions, MemoryOptions, MemorySetupOptions, MemorySetupProvider } from "../types";
 import { parseConfigFormat, requireValue } from "./primitives";
 import { HelpRequested, throwUnknownOption } from "./shared";
 
@@ -44,6 +44,76 @@ export function parseMemoryArgs(args: string[]): MemoryOptions {
   }
 
   return options;
+}
+
+export function parseMemorySetupArgs(args: string[]): MemorySetupOptions {
+  const options: MemorySetupOptions = {
+    format: "markdown",
+    provider: "all",
+    apply: false
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+
+    if (!arg) {
+      continue;
+    }
+
+    if (arg === "--help" || arg === "-h") {
+      throw new HelpRequested();
+    }
+
+    if (arg === "--apply") {
+      options.apply = true;
+      continue;
+    }
+
+    if (arg.startsWith("--cwd=")) {
+      options.cwd = arg.slice("--cwd=".length);
+      continue;
+    }
+
+    if (arg === "--cwd") {
+      options.cwd = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--format=")) {
+      options.format = parseConfigFormat(arg.slice("--format=".length));
+      continue;
+    }
+
+    if (arg === "--format") {
+      options.format = parseConfigFormat(requireValue(args, index, arg));
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--provider=")) {
+      options.provider = parseMemorySetupProvider(arg.slice("--provider=".length));
+      continue;
+    }
+
+    if (arg === "--provider") {
+      options.provider = parseMemorySetupProvider(requireValue(args, index, arg));
+      index += 1;
+      continue;
+    }
+
+    throwUnknownOption(arg, "memory");
+  }
+
+  return options;
+}
+
+function parseMemorySetupProvider(value: string): MemorySetupProvider {
+  if (value === "local" || value === "mem0" || value === "supermemory" || value === "all") {
+    return value;
+  }
+
+  throw new Error("--provider must be local, mem0, supermemory, or all.");
 }
 
 export function parseMemoryImportArgs(args: string[]): MemoryImportOptions {

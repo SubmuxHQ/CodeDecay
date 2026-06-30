@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { createLowRiskRepo, createRepo, createTempDir, run, writeFile } from "./helpers";
@@ -87,6 +88,62 @@ describe("codedecay memory CLI contract", () => {
         "Run project command: Auth tests (pnpm test auth)"
       ])
     );
+  });
+
+  it("prints non-mutating memory setup guidance by default", async () => {
+    const repo = createLowRiskRepo();
+
+    const result = await run(["memory", "setup", "--provider", "all", "--format", "markdown"], repo);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("## CodeDecay Memory Setup");
+    expect(result.stdout).toContain("### Local .codedecay memory");
+    expect(result.stdout).toContain("### Mem0");
+    expect(result.stdout).toContain("### Supermemory");
+    expect(result.stdout).toContain("Dry-run is the default");
+    expect(existsSync(join(repo, ".codedecay/local/memory-providers.yml"))).toBe(false);
+    expect(existsSync(join(repo, ".codedecay/config.yml"))).toBe(false);
+  });
+
+  it("writes a reviewable memory setup snippet only with --apply", async () => {
+    const repo = createLowRiskRepo();
+    const outsideCwd = createTempDir();
+
+    const result = await run([
+      "memory",
+      "setup",
+      "--cwd",
+      repo,
+      "--provider",
+      "mem0",
+      "--apply",
+      "--format",
+      "json"
+    ], outsideCwd);
+    const parsed = JSON.parse(result.stdout);
+    const writtenPath = join(repo, ".codedecay/local/memory-providers.yml");
+    const written = readFileSync(writtenPath, "utf8");
+
+    expect(result.exitCode).toBe(0);
+    expect(parsed.apply).toBe(true);
+    expect(parsed.writtenPath).toContain(".codedecay/local/memory-providers.yml");
+    expect(parsed.safety.packagesInstalled).toBe(false);
+    expect(parsed.safety.networkCalled).toBe(false);
+    expect(parsed.safety.trackedConfigWritten).toBe(false);
+    expect(written).toContain("provider: mem0");
+    expect(written).toContain("enabled: false");
+    expect(written).toContain("MEM0_API_KEY");
+    expect(written).not.toContain("supermemory");
+    expect(existsSync(join(repo, ".codedecay/config.yml"))).toBe(false);
+  });
+
+  it("rejects unknown memory setup providers", async () => {
+    const repo = createLowRiskRepo();
+
+    const result = await run(["memory", "setup", "--provider", "hosted"], repo);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stderr).toContain("--provider must be local, mem0, supermemory, or all");
   });
 
   it("previews and applies structured memory imports", async () => {

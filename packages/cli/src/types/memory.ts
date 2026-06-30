@@ -5,6 +5,15 @@ export interface MemoryOptions {
   format: ConfigFormat;
 }
 
+export type MemorySetupProvider = "local" | "mem0" | "supermemory" | "all";
+
+export interface MemorySetupOptions {
+  cwd?: string | undefined;
+  format: ConfigFormat;
+  provider: MemorySetupProvider;
+  apply: boolean;
+}
+
 export interface MemoryImportOptions {
   cwd?: string | undefined;
   input: string;
