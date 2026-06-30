@@ -5,11 +5,16 @@ import {
   runAgentTaskBundleTool,
   runAnalyzePrTool,
   runAuditTestsTool,
+  runDesignContractCheckTool,
+  runFixTasksTool,
   runImpactMapTool,
   runPatternSearchTool,
+  runRegressionSurfaceTool,
   runRedteamReportTool,
+  runScopeCheckTool,
   runSuggestEdgeCasesTool,
-  runToolRecommendationsTool
+  runToolRecommendationsTool,
+  runWhatDidIMissTool
 } from "./handlers/analysis";
 import { runExecuteConfiguredChecksTool } from "./handlers/execution";
 import {
@@ -26,11 +31,16 @@ export {
   runAgentTaskBundleTool,
   runAnalyzePrTool,
   runAuditTestsTool,
+  runDesignContractCheckTool,
+  runFixTasksTool,
   runImpactMapTool,
   runPatternSearchTool,
+  runRegressionSurfaceTool,
   runRedteamReportTool,
+  runScopeCheckTool,
   runSuggestEdgeCasesTool,
-  runToolRecommendationsTool
+  runToolRecommendationsTool,
+  runWhatDidIMissTool
 } from "./handlers/analysis";
 export { runExecuteConfiguredChecksTool } from "./handlers/execution";
 export {
@@ -61,6 +71,11 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
     patternSearch: (input) => runPatternSearchTool(options, input),
     redteamReport: (input) => runRedteamReportTool(options, input),
     agentTaskBundle: (input) => runAgentTaskBundleTool(options, input),
+    scopeCheck: (input) => runScopeCheckTool(options, input),
+    designContractCheck: (input) => runDesignContractCheckTool(options, input),
+    fixTasks: (input) => runFixTasksTool(options, input),
+    whatDidIMiss: (input) => runWhatDidIMissTool(options, input),
+    regressionSurface: (input) => runRegressionSurfaceTool(options, input),
     executeConfiguredChecks: (input) => runExecuteConfiguredChecksTool(options, input),
     productPlan: (input) => runProductPlanTool(options, input),
     productRun: (input) => runProductRunTool(options, input),

@@ -1,5 +1,6 @@
 import type { AgentProfileId } from "@submuxhq/codedecay-agent";
-import type { ProductCheckKind } from "@submuxhq/codedecay-core";
+import type { ImpactedArea, ProductCheckKind, RiskLevel } from "@submuxhq/codedecay-core";
+import type { RedteamTaskSource } from "@submuxhq/codedecay-redteam";
 
 export interface McpToolInput {
   cwd?: string | undefined;
@@ -14,6 +15,25 @@ export interface AnalyzePrToolInput extends McpToolInput {
 export interface AgentTaskBundleToolInput extends AnalyzePrToolInput {
   profile?: AgentProfileId | undefined;
 }
+
+export interface ScopeCheckToolInput extends McpToolInput {
+  task?: string | undefined;
+  fence?: string | undefined;
+  files?: string[] | undefined;
+  areas?: ImpactedArea["kind"][] | undefined;
+}
+
+export type DesignContractCheckToolInput = McpToolInput;
+
+export interface FixTasksToolInput extends McpToolInput {
+  source?: RedteamTaskSource | undefined;
+  priority?: RiskLevel | undefined;
+  file?: string | undefined;
+}
+
+export type WhatDidIMissToolInput = McpToolInput;
+
+export type RegressionSurfaceToolInput = McpToolInput;
 
 export interface ExecuteConfiguredChecksToolInput {
   cwd?: string | undefined;

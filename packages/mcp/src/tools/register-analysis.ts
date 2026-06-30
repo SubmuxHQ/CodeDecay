@@ -4,12 +4,20 @@ import { textResult } from "./result";
 import {
   agentTaskBundleToolSchema,
   analyzePrToolSchema,
-  gitContextToolSchema
+  designContractCheckToolSchema,
+  fixTasksToolSchema,
+  gitContextToolSchema,
+  scopeCheckToolSchema
 } from "./schemas";
 import type {
   AgentTaskBundleToolInput,
   AnalyzePrToolInput,
-  McpToolInput
+  DesignContractCheckToolInput,
+  FixTasksToolInput,
+  McpToolInput,
+  RegressionSurfaceToolInput,
+  ScopeCheckToolInput,
+  WhatDidIMissToolInput
 } from "./types";
 
 export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayMcpToolHandlers): void {
@@ -67,5 +75,40 @@ export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayM
     "Return a deterministic CodeDecay task bundle that user-owned coding agents can use to fix PR risks. Report-only: does not execute commands or call models.",
     agentTaskBundleToolSchema,
     async (input) => textResult(handlers.agentTaskBundle(input as AgentTaskBundleToolInput))
+  );
+
+  server.tool(
+    "scope_check",
+    "Return a deterministic in-scope/out-of-scope verdict for the current PR or working tree.",
+    scopeCheckToolSchema,
+    async (input) => textResult(handlers.scopeCheck(input as ScopeCheckToolInput))
+  );
+
+  server.tool(
+    "design_contract_check",
+    "Return deterministic design contract violations for layering, scope, dependency, banned API, and pattern rules.",
+    designContractCheckToolSchema,
+    async (input) => textResult(handlers.designContractCheck(input as DesignContractCheckToolInput))
+  );
+
+  server.tool(
+    "fix_tasks",
+    "Return deterministic fix tasks for user-owned coding agents, optionally filtered by source, priority, or file.",
+    fixTasksToolSchema,
+    async (input) => textResult(handlers.fixTasks(input as FixTasksToolInput))
+  );
+
+  server.tool(
+    "what_did_i_miss",
+    "Return deterministic missed-risk evidence: weak tests, missing tests, edge cases, impacted routes, product failures, and contract violations.",
+    gitContextToolSchema,
+    async (input) => textResult(handlers.whatDidIMiss(input as WhatDidIMissToolInput))
+  );
+
+  server.tool(
+    "regression_surface",
+    "Return deterministic repo-memory surfaces touched by this PR, including invariants and past regressions.",
+    gitContextToolSchema,
+    async (input) => textResult(handlers.regressionSurface(input as RegressionSurfaceToolInput))
   );
 }

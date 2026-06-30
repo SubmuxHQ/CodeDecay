@@ -5,11 +5,16 @@ import { registerProductMcpTools } from "./register-product";
 import type {
   AgentTaskBundleToolInput,
   AnalyzePrToolInput,
+  DesignContractCheckToolInput,
   ExecuteConfiguredChecksToolInput,
+  FixTasksToolInput,
   McpToolInput,
   ProductRerunToolInput,
   ProductRunToolInput,
-  ProductToolInput
+  ProductToolInput,
+  RegressionSurfaceToolInput,
+  ScopeCheckToolInput,
+  WhatDidIMissToolInput
 } from "./types";
 
 export interface CodeDecayMcpToolHandlers {
@@ -21,6 +26,11 @@ export interface CodeDecayMcpToolHandlers {
   patternSearch(input: McpToolInput): string | Promise<string>;
   redteamReport(input: AnalyzePrToolInput): string | Promise<string>;
   agentTaskBundle(input: AgentTaskBundleToolInput): string | Promise<string>;
+  scopeCheck(input: ScopeCheckToolInput): string | Promise<string>;
+  designContractCheck(input: DesignContractCheckToolInput): string | Promise<string>;
+  fixTasks(input: FixTasksToolInput): string | Promise<string>;
+  whatDidIMiss(input: WhatDidIMissToolInput): string | Promise<string>;
+  regressionSurface(input: RegressionSurfaceToolInput): string | Promise<string>;
   executeConfiguredChecks(input: ExecuteConfiguredChecksToolInput): string | Promise<string>;
   productPlan(input: ProductToolInput): string | Promise<string>;
   productRun(input: ProductRunToolInput): string | Promise<string>;

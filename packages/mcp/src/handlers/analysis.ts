@@ -15,9 +15,23 @@ import type {
 } from "../tools/types";
 import { createAnalysisContext, createMcpRedteamReport } from "./analysis/context";
 import { suggestEdgeCases } from "./analysis/edge-cases";
+import {
+  runDesignContractCheckTool,
+  runFixTasksTool,
+  runRegressionSurfaceTool,
+  runScopeCheckTool,
+  runWhatDidIMissTool
+} from "./analysis/pair-tools";
 
 export { createAnalysisContext, createMcpRedteamReport } from "./analysis/context";
 export type { McpAnalysisContext } from "./analysis/context";
+export {
+  runDesignContractCheckTool,
+  runFixTasksTool,
+  runRegressionSurfaceTool,
+  runScopeCheckTool,
+  runWhatDidIMissTool
+} from "./analysis/pair-tools";
 
 export function runAnalyzePrTool(serverOptions: StartMcpServerOptions, input: AnalyzePrToolInput): string {
   const report = createReport(serverOptions, input);
