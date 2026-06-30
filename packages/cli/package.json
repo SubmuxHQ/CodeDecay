@@ -1,7 +1,7 @@
 {
   "name": "@submuxhq/codedecay",
   "version": "0.3.3",
-  "description": "Open-source CLI for PR regression-risk, blast-radius, and code-decay analysis",
+  "description": "Catch what your AI coding agent missed before merge with local PR safety checks",
   "license": "Apache-2.0",
   "author": "SubmuxHQ",
   "homepage": "https://github.com/SubmuxHQ/CodeDecay#readme",

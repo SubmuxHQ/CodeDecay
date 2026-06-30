@@ -1,11 +1,19 @@
-# CodeDecay v0.1.1 Launch Post
+# Show HN: CodeDecay - catch what your AI coding agent missed before merge
 
-We released CodeDecay v0.1.1: an open-source, local-first CLI/GitHub Action
-for detecting PR regression risk and maintainability decay. No API keys, no LLM
-calls, no telemetry.
+CodeDecay is an open-source, local-first CLI and GitHub Action for AI-assisted PR safety.
 
-Install:
+It asks: what could this PR break, and are the tests actually proving it will not?
+
+Latest reproducible benchmark: 18/18 planted issues caught (100.0% recall), 5.56% false-positive rate on clean decoys, $0.00 cost, LLM called: no, telemetry sent: no.
+
+Install and run:
 
 ```bash
 npm install -D @submuxhq/codedecay
+npx codedecay analyze
 ```
+
+It stays deterministic by default: no required API keys, no required LLM calls, no telemetry, and no CodeDecayCloud dependency.
+
+GitHub: https://github.com/SubmuxHQ/CodeDecay
+npm: https://www.npmjs.com/package/@submuxhq/codedecay
