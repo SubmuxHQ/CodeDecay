@@ -10,4 +10,5 @@ export interface LoopOptions {
   format: LoopFormat;
   output?: string | undefined;
   safeRiskLevel: RiskLevel;
+  securityScoreThreshold: number;
 }

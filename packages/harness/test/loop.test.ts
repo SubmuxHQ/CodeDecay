@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getGitChangedFiles } from "@submuxhq/codedecay-git";
-import { runCodeDecayLoop, type LoopCheckSnapshot, type LoopRedteamReport } from "../src/index";
+import {
+  classifySafeStatus,
+  runCodeDecayLoop,
+  type LoopCheckSnapshot,
+  type LoopRedteamReport
+} from "../src/index";
 
 const tempRoots: string[] = [];
 
@@ -15,7 +20,7 @@ afterEach(() => {
 });
 
 describe("CodeDecay loop controller", () => {
-  it("reports merge-safe when risk is low, weak tests are gone, and checks pass", async () => {
+  it("reports merge-safe-shallow when gates pass but depth evidence is missing", async () => {
     const repo = createRepo();
     const report = await runCodeDecayLoop({
       ...baseInput(repo),
@@ -23,9 +28,32 @@ describe("CodeDecay loop controller", () => {
       runConfiguredChecks: async () => checkSnapshot("passed", true)
     });
 
-    expect(report.status).toBe("merge-safe");
+    expect(report.status).toBe("merge-safe-shallow");
     expect(report.roundsRun).toBe(1);
     expect(report.safety.commandsExecuted).toBe(true);
+    expect(report.verdict.missingDepth).toEqual(
+      expect.arrayContaining(["no Semgrep adapter configured", "no coverage adapter configured", "no mutation adapter configured"])
+    );
+  });
+
+  it("reports merge-safe-verified when security, coverage, mutation, and configured checks pass", async () => {
+    const repo = createRepo();
+    const report = await runCodeDecayLoop({
+      ...baseInput(repo),
+      createRedteamReport: async () =>
+        redteamReport({
+          riskLevel: "low",
+          mergeRiskScore: 10,
+          weakTestFindings: 0,
+          securityAnalysis: { scannedFiles: ["src/index.ts"], candidateCount: 0 }
+        }),
+      runConfiguredChecks: async () => verifiedCheckSnapshot()
+    });
+
+    expect(report.status).toBe("merge-safe-verified");
+    expect(report.verdict.verifiedBy).toEqual(
+      expect.arrayContaining(["Semgrep (0 findings)", "coverage evidence (100%)", "mutation evidence (100%)"])
+    );
   });
 
   it("runs plan-only without an agent command", async () => {
@@ -106,6 +134,41 @@ describe("CodeDecay loop controller", () => {
   });
 });
 
+describe("classifySafeStatus", () => {
+  it("does not return merge-safe when a high security finding remains", () => {
+    const status = classifySafeStatus(
+      redteamReport({
+        riskLevel: "low",
+        mergeRiskScore: 10,
+        weakTestFindings: 0,
+        securityScore: 0,
+        findings: [{
+          ruleId: "security-sql-injection",
+          title: "SQL injection candidate",
+          severity: "high",
+          category: "security",
+          file: "src/api/users.ts"
+        }],
+        securityAnalysis: { scannedFiles: ["src/api/users.ts"], candidateCount: 1 }
+      }),
+      verifiedCheckSnapshot(),
+      "low"
+    );
+
+    expect(status).toBeUndefined();
+  });
+
+  it("returns merge-safe-shallow when gates pass without scanner, coverage, or mutation depth", () => {
+    const status = classifySafeStatus(
+      redteamReport({ riskLevel: "low", mergeRiskScore: 10, weakTestFindings: 0 }),
+      checkSnapshot("passed", true),
+      "low"
+    );
+
+    expect(status).toBe("merge-safe-shallow");
+  });
+});
+
 function baseInput(repo: string) {
   return {
     cwd: repo,
@@ -121,14 +184,22 @@ function redteamReport(input: {
   riskLevel: LoopRedteamReport["summary"]["riskLevel"];
   mergeRiskScore: number;
   weakTestFindings: number;
+  securityScore?: number | undefined;
+  findings?: LoopRedteamReport["analysis"]["findings"] | undefined;
+  securityAnalysis?: LoopRedteamReport["analysis"]["securityAnalysis"] | undefined;
 }): LoopRedteamReport {
   return {
     version: "0.3.3",
     summary: {
       riskLevel: input.riskLevel,
       mergeRiskScore: input.mergeRiskScore,
+      securityScore: input.securityScore ?? 0,
       weakTestFindings: input.weakTestFindings,
       fixTasks: input.riskLevel === "low" && input.weakTestFindings === 0 ? 0 : 1
+    },
+    analysis: {
+      findings: input.findings ?? [],
+      securityAnalysis: input.securityAnalysis
     },
     fixTasks: input.riskLevel === "low" && input.weakTestFindings === 0
       ? []
@@ -157,7 +228,54 @@ function checkSnapshot(status: LoopCheckSnapshot["status"], configured: boolean)
     skipped: status === "skipped" ? 1 : 0,
     timedOut: status === "timed_out" ? 1 : 0,
     errors: status === "error" ? 1 : 0,
-    durationMs: 0
+    durationMs: 0,
+    semgrep: {
+      configured: false,
+      ran: false,
+      status: "not-configured",
+      findingCount: 0,
+      highFindingCount: 0
+    },
+    coverage: {
+      configured: false,
+      present: false,
+      status: "not-configured"
+    },
+    mutation: {
+      configured: false,
+      present: false,
+      status: "not-configured"
+    }
+  };
+}
+
+function verifiedCheckSnapshot(): LoopCheckSnapshot {
+  return {
+    ...checkSnapshot("passed", true),
+    semgrep: {
+      configured: true,
+      ran: true,
+      status: "passed",
+      findingCount: 0,
+      highFindingCount: 0
+    },
+    coverage: {
+      configured: true,
+      present: true,
+      status: "passed",
+      percent: 100,
+      measuredLines: 2,
+      coveredLines: 2,
+      uncoveredLines: 0
+    },
+    mutation: {
+      configured: true,
+      present: true,
+      status: "passed",
+      mutationScore: 100,
+      totalMutants: 1,
+      weakMutants: 0
+    }
   };
 }
 

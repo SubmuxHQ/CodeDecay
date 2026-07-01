@@ -127,6 +127,7 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--max-rounds <n>", description: "Maximum fix/recheck rounds (default: 4)" },
       { flag: "--agent-cmd <command>", description: "Explicit user-owned agent command that reads the task bundle on stdin and may edit the working tree" },
       { flag: "--safe-risk <level>", description: "Maximum acceptable risk level: low, medium, or high (default: low)" },
+      { flag: "--max-security-score <score>", description: "Maximum acceptable security score from deterministic analysis, 0-100 (default: 0)" },
       { flag: "--format <format>", description: "json or markdown (default: markdown)" },
       { flag: "--output <path>", description: "Write loop report to a file instead of stdout" }
     ],
@@ -139,7 +140,8 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       "CodeDecay does not embed a model. The agent command is user-owned and explicit.",
       "The loop never auto-commits or auto-pushes. It leaves edits in the working tree for human review.",
       "Agent output is untrusted. CodeDecay re-runs deterministic analysis and configured checks after each agent action.",
-      "Exit codes: 0 for merge-safe or plan-only report generation, 1 for unverified, needs-human, stuck, or agent-error, and 2 for CLI/internal errors."
+      "Terminal clean verdicts are always qualified: merge-safe-verified has configured checks plus security/coverage/mutation depth, while merge-safe-shallow passed gates but is missing deeper evidence.",
+      "Exit codes: 0 for merge-safe-verified, merge-safe-shallow, or plan-only report generation; 1 for unverified, needs-human, stuck, or agent-error; and 2 for CLI/internal errors."
     ]
   },
   doctor: {

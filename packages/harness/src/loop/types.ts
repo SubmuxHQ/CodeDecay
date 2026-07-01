@@ -2,7 +2,8 @@ import type { CommandExecutionResult, SafeCommandPolicy } from "@submuxhq/codede
 import type { FileChange, RiskLevel } from "@submuxhq/codedecay-core";
 
 export type LoopStatus =
-  | "merge-safe"
+  | "merge-safe-verified"
+  | "merge-safe-shallow"
   | "unverified"
   | "stuck"
   | "needs-human"
@@ -25,8 +26,31 @@ export interface LoopRedteamReport {
   summary: {
     riskLevel: RiskLevel;
     mergeRiskScore: number;
+    securityScore: number;
     weakTestFindings: number;
     fixTasks: number;
+  };
+  analysis: {
+    findings: Array<{
+      ruleId: string;
+      title: string;
+      severity: RiskLevel;
+      category: string;
+      file?: string | undefined;
+      line?: number | undefined;
+    }>;
+    securityAnalysis?: {
+      scannedFiles: string[];
+      candidateCount: number;
+    } | undefined;
+    securityCandidates?: Array<{
+      ruleId: string;
+      title: string;
+      severity: RiskLevel;
+      confidence: string;
+      file: string;
+      line?: number | undefined;
+    }> | undefined;
   };
   fixTasks: LoopFixTask[];
   safety: {
@@ -56,7 +80,38 @@ export interface LoopCheckSnapshot {
   timedOut: number;
   errors: number;
   durationMs: number;
+  semgrep: LoopSecurityToolSnapshot;
+  coverage: LoopCoverageSnapshot;
+  mutation: LoopMutationSnapshot;
   note?: string | undefined;
+}
+
+export interface LoopSecurityToolSnapshot {
+  configured: boolean;
+  ran: boolean;
+  status: LoopCheckStatus;
+  findingCount: number;
+  highFindingCount: number;
+  maxSeverity?: RiskLevel | undefined;
+}
+
+export interface LoopCoverageSnapshot {
+  configured: boolean;
+  present: boolean;
+  status: LoopCheckStatus;
+  percent?: number | undefined;
+  measuredLines?: number | undefined;
+  coveredLines?: number | undefined;
+  uncoveredLines?: number | undefined;
+}
+
+export interface LoopMutationSnapshot {
+  configured: boolean;
+  present: boolean;
+  status: LoopCheckStatus;
+  mutationScore?: number | undefined;
+  totalMutants?: number | undefined;
+  weakMutants?: number | undefined;
 }
 
 export interface LoopAgentResult {
@@ -99,8 +154,10 @@ export interface LoopReport {
   planOnly: boolean;
   finalRiskLevel: RiskLevel;
   finalMergeRiskScore: number;
+  finalSecurityScore: number;
   finalWeakTestFindings: number;
   finalCheckStatus: LoopCheckStatus;
+  verdict: LoopVerdictEvidence;
   finalFixTasks: LoopFixTask[];
   rounds: LoopRoundSnapshot[];
   nextSteps: string[];
@@ -115,6 +172,25 @@ export interface LoopReport {
   };
 }
 
+export interface LoopVerdictEvidence {
+  status: LoopStatus;
+  riskAllowed: boolean;
+  weakTestsClear: boolean;
+  checksPassed: boolean;
+  checksConfigured: boolean;
+  securityScoreAllowed: boolean;
+  securityScore: number;
+  securityScoreThreshold: number;
+  highFindingCount: number;
+  highSecurityFindingCount: number;
+  securityMatchersRan: boolean;
+  securityMatcherFindings: number;
+  securityMatcherHighFindings: number;
+  verifiedBy: string[];
+  missingDepth: string[];
+  blockingReasons: string[];
+}
+
 export interface CodeDecayLoopInput {
   cwd: string;
   base?: string | undefined;
@@ -122,6 +198,7 @@ export interface CodeDecayLoopInput {
   maxRounds?: number | undefined;
   agentCommand?: string | undefined;
   safeRiskLevel?: RiskLevel | undefined;
+  securityScoreThreshold?: number | undefined;
   agentTimeoutMs: number;
   commandSafety: SafeCommandPolicy;
   createRedteamReport(): Promise<LoopRedteamReport>;

@@ -30,17 +30,26 @@ After each agent action, CodeDecay re-runs deterministic analysis and configured
 
 ## Safety Rules
 
-`codedecay loop` only reports `merge-safe` when all of these are true:
+`codedecay loop` never prints an unqualified "safe" verdict. Clean outcomes are always qualified by evidence depth.
+
+The loop can only report a `merge-safe-*` verdict when all of these are true:
 
 - final risk is at or below the configured safe threshold, `low` by default
 - weak-test findings are zero
+- security score is at or below the configured threshold, `0` by default
+- no high-severity findings remain in deterministic analysis
 - configured checks exist and pass
 
-If no checks are configured, the best possible terminal status is `unverified`, not `merge-safe`.
+If no checks are configured, the best possible terminal status is `unverified`, not a `merge-safe-*` verdict.
+
+`merge-safe-verified` means configured checks passed, deterministic security matchers were clean, Semgrep was enabled and clean, and coverage/mutation evidence was available if configured.
+
+`merge-safe-shallow` means the gates passed, but one or more deeper evidence streams were missing. Treat it as heuristic clean, not as deep verification. Run `codedecay doctor` to configure OSS adapters such as Semgrep, coverage, and StrykerJS.
 
 Terminal statuses:
 
-- `merge-safe`: deterministic risk is low enough, weak tests are gone, and configured checks passed
+- `merge-safe-verified`: configured and enabled checks found nothing at the selected thresholds, including available security/coverage/mutation depth
+- `merge-safe-shallow`: risk, weak-test, security-score, and configured-check gates passed, but depth evidence such as Semgrep, coverage, or mutation testing is missing
 - `unverified`: risk and weak-test evidence are clean, but no configured checks proved the result
 - `plan-only`: no agent command was configured
 - `stuck`: the agent made no progress for two rounds
@@ -54,6 +63,7 @@ codedecay loop \
   --cwd ../my-repo \
   --agent-cmd "codex exec --apply" \
   --max-rounds 3 \
+  --max-security-score 0 \
   --format markdown
 ```
 
