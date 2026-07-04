@@ -173,6 +173,38 @@ describe("built codedecay CLI command surface", () => {
     expect(mcpHelp.stdout).toContain("--cwd <path>");
   });
 
+  it("keeps doctor JSON stdout parseable when writing a config preview from the built CLI", () => {
+    const repo = createRepo({
+      "package.json": JSON.stringify(
+        {
+          type: "module",
+          scripts: { test: "vitest run" },
+          dependencies: {
+            next: "15.0.0",
+            react: "19.0.0"
+          },
+          devDependencies: {
+            vitest: "3.0.0"
+          }
+        },
+        null,
+        2
+      ),
+      "docs/openapi.yaml": "openapi: 3.1.0\ninfo:\n  title: Demo\n  version: 1.0.0\npaths: {}\n",
+      "src/app/page.tsx": "export default function Page() { return <main />; }\n"
+    });
+
+    const result = runBuilt(["doctor", "--cwd", repo, "--write-config-preview", "--format", "json"]);
+
+    expect(result.status).toBe(0);
+    const parsed = JSON.parse(result.stdout) as { safety: { toolsInstalled: boolean } };
+    expect(parsed.safety.toolsInstalled).toBe(false);
+    expect(result.stdout).not.toContain("Wrote config preview");
+    expect(result.stderr).toContain("Wrote config preview to ");
+    expect(result.stderr).toContain(".codedecay/local/config-preview.yml");
+    expect(existsSync(join(repo, ".codedecay/local/config-preview.yml"))).toBe(true);
+  });
+
   it("supports memory parser behavior from the built CLI", () => {
     const repo = createLowRiskRepo();
 
