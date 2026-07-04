@@ -16,6 +16,7 @@ export function renderMcpExecutionMarkdown(report: McpExecutionReport): string {
     `| Total | ${report.summary.total} |`,
     `| Passed | ${report.summary.passed} |`,
     `| Failed | ${report.summary.failed} |`,
+    `| Blocked | ${report.summary.blocked} |`,
     `| Timed out | ${report.summary.timedOut} |`,
     `| Errors | ${report.summary.errors} |`,
     `| Skipped | ${report.summary.skipped} |`,

@@ -8,6 +8,12 @@ import { afterEach } from "vitest";
 export const repoRoot = process.cwd();
 export const cliPath = join(repoRoot, "packages/cli/dist/index.js");
 
+interface BuildCommand {
+  command: string;
+  args: string[];
+  cwd: string;
+}
+
 const tempRoots: string[] = [];
 
 afterEach(() => {
@@ -31,10 +37,18 @@ export function ensureBuiltCli(): void {
     try {
       mkdirSync(lockPath);
       try {
-        execFileSync("pnpm", ["--filter", "@submuxhq/codedecay", "build"], {
-          cwd: repoRoot,
-          stdio: "ignore"
+        const buildCommand = resolveCliBuildCommand();
+        execFileSync(buildCommand.command, buildCommand.args, {
+          cwd: buildCommand.cwd,
+          stdio: "ignore",
+          timeout: 120_000
         });
+        if (existsSync(cliPath)) {
+          execFileSync("chmod", ["+x", cliPath], {
+            cwd: repoRoot,
+            stdio: "ignore"
+          });
+        }
         writeFileSync(markerPath, JSON.stringify({ buildKey, builtAt: new Date().toISOString() }, null, 2), "utf8");
         return;
       } finally {
@@ -51,6 +65,39 @@ export function ensureBuiltCli(): void {
       }
     }
   }
+}
+
+function resolveCliBuildCommand(): BuildCommand {
+  const direct = spawnSync("pnpm", ["--version"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    timeout: 1_500
+  });
+
+  if (!direct.error && direct.status === 0) {
+    return { command: "pnpm", args: ["--filter", "@submuxhq/codedecay", "build"], cwd: repoRoot };
+  }
+
+  const corepack = spawnSync("corepack", ["pnpm", "--version"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    timeout: 1_500
+  });
+
+  if (!corepack.error && corepack.status === 0) {
+    return { command: "corepack", args: ["pnpm", "--filter", "@submuxhq/codedecay", "build"], cwd: repoRoot };
+  }
+
+  const tsupPath = join(repoRoot, "node_modules/.bin/tsup");
+  if (existsSync(tsupPath)) {
+    return { command: tsupPath, args: ["--config", "tsup.config.ts"], cwd: join(repoRoot, "packages/cli") };
+  }
+
+  const directMessage = direct.error ? direct.error.message : direct.stderr.trim();
+  const corepackMessage = corepack.error ? corepack.error.message : corepack.stderr.trim();
+  throw new Error(
+    `Unable to build the CLI for built CLI tests. Tried "pnpm --version" (${directMessage || "not available"}), "corepack pnpm --version" (${corepackMessage || "not available"}), and local node_modules/.bin/tsup (not found).`
+  );
 }
 
 function waitForBuildLock(markerPath: string, lockPath: string): void {

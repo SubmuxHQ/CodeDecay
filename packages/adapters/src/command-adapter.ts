@@ -33,7 +33,7 @@ function adapterResultFromExecution(options: CommandAdapterOptions, result: Comm
   return createResult({
     id: options.id,
     name: options.name,
-    status: result.status === "blocked" ? "skipped" : result.status,
+    status: result.status,
     durationMs: result.durationMs,
     stdout: result.stdout,
     stderr: result.stderr,

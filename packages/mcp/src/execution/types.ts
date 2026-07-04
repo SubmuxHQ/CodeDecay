@@ -21,6 +21,7 @@ export interface McpExecutionSummary {
   passed: number;
   failed: number;
   skipped: number;
+  blocked: number;
   timedOut: number;
   errors: number;
   durationMs: number;

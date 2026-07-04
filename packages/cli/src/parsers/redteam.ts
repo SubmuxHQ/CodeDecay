@@ -23,6 +23,11 @@ export function parseRedteamArgs(args: string[]): RedteamOptions {
       continue;
     }
 
+    if (arg === "--with-checks") {
+      options.withChecks = true;
+      continue;
+    }
+
     if (arg.startsWith("--cwd=")) {
       options.cwd = arg.slice("--cwd=".length);
       continue;

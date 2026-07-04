@@ -20,7 +20,7 @@ What could this PR break, and are the tests actually proving it won't?
 <!-- BENCHMARK:START -->
 ## Catch what your AI coding agent missed — free, in CI, before merge.
 
-Latest reproducible benchmark: **18/18 planted issues caught (100.0% recall)**, **5.56% false-positive rate** on clean decoys, **$0.00 cost**, LLM called: **no**, telemetry sent: **no**.
+Latest reproducible benchmark: **23/23 planted issues caught (100.0% recall)**, **2.22% false-positive rate** on clean decoys, **$0.00 cost**, LLM called: **no**, telemetry sent: **no**.
 
 ```bash
 npx codedecay analyze
@@ -117,6 +117,12 @@ Generate a red-team report:
 npx codedecay redteam --base main --head HEAD --format markdown
 ```
 
+Include configured test/build/probe/tool evidence in that report:
+
+```bash
+npx codedecay redteam --with-checks --base main --head HEAD --format markdown
+```
+
 Create a task bundle for your coding agent:
 
 ```bash
@@ -163,7 +169,7 @@ npx codedecay product --target web --generate-tests --run-generated-tests --form
 | --- | --- |
 | `codedecay analyze` | Deterministic PR risk, impact, and decay analysis. |
 | `codedecay snapshot` | Emit a stable repository health snapshot and compare it with a previous snapshot artifact. |
-| `codedecay redteam` | Merge-safety report with impact, weak-test evidence, edge cases, memory, skills, and fix tasks. |
+| `codedecay redteam` | Merge-safety report with impact, weak-test evidence, verification status, edge cases, memory, skills, and fix tasks. |
 | `codedecay llm-review` | Explicit opt-in LLM-assisted review suggestions grounded in deterministic CodeDecay analysis. |
 | `codedecay agent` | Portable task bundle for user-owned agents such as Codex, Claude Code, Cursor, Pi, OpenCode, desktop agents, or MCP clients. |
 | `codedecay doctor` | Recommend OSS tools and local setup for stronger PR safety evidence without installing or running anything. |
@@ -191,6 +197,7 @@ Common flags:
 | `--format json\|markdown\|sarif` | Output format. SARIF is supported by `analyze`. |
 | `--output <path>` | Write output to a file instead of stdout. Relative paths resolve from `--cwd`. |
 | `--fail-on low\|medium\|high` | Exit non-zero when the risk level reaches the threshold. |
+| `--with-checks` | For `redteam`, run configured checks through CodeDecay safety gates and include verification evidence. |
 | `--profile generic\|codex\|claude-code\|cursor\|pi\|opencode\|desktop` | Agent handoff profile for `codedecay agent`. |
 
 Exit codes:
@@ -221,6 +228,24 @@ codedecay uninstall --purge-local
 | `codedecay product --explore` | No | Uses a project-provided Playwright install to crawl configured live app targets after explicit opt-in. |
 | `codedecay llm-review` | No | Calls a user-owned provider only when the user invokes it directly. |
 | Optional LLM providers | No | Disabled by default. User-owned providers are configured explicitly and only commands that opt in may call them. |
+
+## Evidence Labels
+
+CodeDecay reports separate what it knows from what it suspects:
+
+| Label | Meaning |
+| --- | --- |
+| Tool evidence | A configured command, probe, product check, coverage artifact, or tool adapter produced observable output. |
+| Deterministic signal | CodeDecay found a local static/diff signal, such as an impacted route or risky source change. |
+| Missing proof | A user/API/database path looks under-tested or a configured check was skipped or blocked. |
+| Memory context | Local repo memory or past regression context that should guide review, not decide safety by itself. |
+| Agent suggestion | Pattern-pack or AI/agent guidance that must be verified before merge. |
+
+`codedecay redteam` shows `verificationStatus`. `not-run` means no execution was
+requested, `verified` means all configured checks included in the report passed,
+`unverified` means checks were absent or skipped, `failed` means at least one
+check failed/timed out/errored, and `blocked` means CodeDecay refused to run a
+configured command for safety reasons.
 
 ## GitHub Action
 

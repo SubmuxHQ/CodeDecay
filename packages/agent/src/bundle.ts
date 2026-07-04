@@ -52,8 +52,8 @@ export function createAgentTaskBundle(report: RedteamReport, options: CreateAgen
     suggestedChecks: collectSuggestedChecks(report.configuredChecks, report.toolAdapterPlans),
     skills: [...report.skills],
     safety: {
-      llmCalled: false,
-      commandsExecuted: false,
+      llmCalled: report.safety.llmCalled,
+      commandsExecuted: report.safety.commandsExecuted,
       telemetrySent: false,
       cloudDependency: false,
       agentOutputTrusted: false

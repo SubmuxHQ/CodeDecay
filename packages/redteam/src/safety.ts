@@ -1,20 +1,26 @@
 import type { RedteamSafetySummary } from "./types";
 
 export function createRedteamSafetySummary(options: {
+  commandsExecuted?: boolean | undefined;
   llmCalled?: boolean | undefined;
   memoryProvidersCalled?: boolean | undefined;
 } = {}): RedteamSafetySummary {
+  const commandsExecuted = options.commandsExecuted ?? false;
   const llmCalled = options.llmCalled ?? false;
   const memoryProvidersCalled = options.memoryProvidersCalled ?? false;
   return {
-    commandsExecuted: false,
+    commandsExecuted,
     llmCalled,
     telemetrySent: false,
     cloudDependency: false,
     notes: [
-      "codedecay redteam is report-only in this MVP.",
+      commandsExecuted
+        ? "Configured local checks were executed because this workflow explicitly opted into them."
+        : "codedecay redteam is report-only unless --with-checks is explicitly requested.",
       providerSafetyNote({ llmCalled, memoryProvidersCalled }),
-      "Use codedecay execute or codedecay differential explicitly when you want configured local checks to run."
+      commandsExecuted
+        ? "Only commands configured in CodeDecay config were eligible to run."
+        : "Use codedecay redteam --with-checks, codedecay execute, or codedecay differential explicitly when you want configured local checks to run."
     ]
   };
 }

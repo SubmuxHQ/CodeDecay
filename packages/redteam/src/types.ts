@@ -8,6 +8,14 @@ import type { ConfiguredToolAdapterKind } from "@submuxhq/codedecay-tool-adapter
 export type RedteamFormat = "json" | "markdown";
 export type RedteamMode = "deterministic";
 export type RedteamCheckKind = "test" | "build" | "start" | "probe";
+export type RedteamExecutionStatus = "passed" | "failed" | "skipped" | "blocked" | "timed_out" | "error";
+export type RedteamProofGrade =
+  | "tool-evidence"
+  | "deterministic-signal"
+  | "missing-proof"
+  | "memory-context"
+  | "agent-suggestion";
+export type RedteamVerificationStatus = "not-run" | "verified" | "unverified" | "failed" | "blocked";
 export type RedteamInvestigationStatus = "disabled" | "completed" | "failed";
 export type RedteamTaskSource =
   | "finding"
@@ -28,6 +36,7 @@ export interface RedteamReportInput {
   memoryProviderSources?: RedteamMemoryProviderSource[] | undefined;
   skills?: LoadedCodeDecaySkills | undefined;
   investigation?: RedteamInvestigation | undefined;
+  verification?: RedteamVerificationSummary | undefined;
   generatedAt?: string | undefined;
 }
 
@@ -49,6 +58,7 @@ export interface RedteamReport {
   memory: RedteamMemorySummary;
   skills: RedteamSkillSummary[];
   investigation?: RedteamInvestigation | undefined;
+  verification: RedteamVerificationSummary;
   fixTasks: RedteamFixTask[];
   safety: RedteamSafetySummary;
 }
@@ -70,6 +80,7 @@ export interface RedteamSummary {
   toolAdapters: number;
   patternInsights: number;
   productFailureBundles: number;
+  verificationStatus: RedteamVerificationStatus;
   skills: number;
   fixTasks: number;
   investigationSuggestions: number;
@@ -92,6 +103,33 @@ export interface RedteamToolAdapterPlan {
   willRun: false;
   requiresApproval: boolean;
   timeoutMs?: number | undefined;
+}
+
+export interface RedteamVerificationSummary {
+  status: RedteamVerificationStatus;
+  commandsExecuted: boolean;
+  total: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  blocked: number;
+  timedOut: number;
+  errors: number;
+  durationMs: number;
+  checks: RedteamVerificationCheck[];
+  notes: string[];
+}
+
+export interface RedteamVerificationCheck {
+  kind: RedteamCheckKind | ConfiguredToolAdapterKind;
+  name: string;
+  command: string;
+  status: RedteamExecutionStatus;
+  proof: RedteamProofGrade;
+  summary: string;
+  durationMs: number;
+  exitCode?: number | undefined;
+  failure?: string | undefined;
 }
 
 export interface RedteamMemorySummary {
@@ -164,6 +202,7 @@ export interface RedteamFixTask {
   title: string;
   priority: RiskLevel;
   source: RedteamTaskSource;
+  proof: RedteamProofGrade;
   detail: string;
   file?: string | undefined;
   line?: number | undefined;
@@ -176,7 +215,7 @@ export interface RedteamFixTaskScope {
 }
 
 export interface RedteamSafetySummary {
-  commandsExecuted: false;
+  commandsExecuted: boolean;
   llmCalled: boolean;
   telemetrySent: false;
   cloudDependency: false;

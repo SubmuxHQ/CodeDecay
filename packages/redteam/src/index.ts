@@ -6,6 +6,7 @@ export { weakTestRuleIds } from "./weak-tests";
 export type {
   RedteamCheckKind,
   RedteamConfiguredCheck,
+  RedteamExecutionStatus,
   RedteamFixTask,
   RedteamFormat,
   RedteamInvestigation,
@@ -16,11 +17,15 @@ export type {
   RedteamMemoryProviderSource,
   RedteamMode,
   RedteamPatternInsight,
+  RedteamProofGrade,
   RedteamReport,
   RedteamReportInput,
   RedteamSafetySummary,
   RedteamSkillSummary,
   RedteamSummary,
   RedteamTaskSource,
-  RedteamToolAdapterPlan
+  RedteamToolAdapterPlan,
+  RedteamVerificationCheck,
+  RedteamVerificationStatus,
+  RedteamVerificationSummary
 } from "./types";

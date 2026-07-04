@@ -101,12 +101,27 @@ export function appendTasks(lines: string[], tasks: RedteamFixTask[]): void {
 
   for (const task of tasks.slice(0, 20)) {
     const location = task.file ? ` (\`${task.file}${task.line ? `:${task.line}` : ""}\`)` : "";
-    lines.push(`- ${formatRisk(task.priority)} **${task.title}**${location}: ${task.detail}`);
+    lines.push(`- ${formatRisk(task.priority)} **${task.title}**${location} [${formatProofGrade(task.proof)}]: ${task.detail}`);
     if (task.scope) {
       const files = task.scope.files.slice(0, 4).map((file) => `\`${file}\``).join(", ");
       const areas = task.scope.areas.join(", ");
       lines.push(`  - Scope: ${areas || "unknown area"}${files ? ` in ${files}` : ""}`);
     }
+  }
+}
+
+function formatProofGrade(grade: RedteamFixTask["proof"]): string {
+  switch (grade) {
+    case "tool-evidence":
+      return "tool evidence";
+    case "deterministic-signal":
+      return "deterministic signal";
+    case "missing-proof":
+      return "missing proof";
+    case "memory-context":
+      return "memory context";
+    case "agent-suggestion":
+      return "agent suggestion";
   }
 }
 

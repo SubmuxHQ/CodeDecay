@@ -21,6 +21,12 @@ describe("codedecay redteam CLI contract", () => {
     expect(report.tool).toBe("CodeDecay");
     expect(report.mode).toBe("deterministic");
     expect(report.summary.riskLevel).toBe("high");
+    expect(report.summary.verificationStatus).toBe("not-run");
+    expect(report.verification).toMatchObject({
+      status: "not-run",
+      commandsExecuted: false,
+      total: 0
+    });
     expect(Object.values(report.safety).filter((value) => value === false)).toHaveLength(4);
     expect(report.edgeCases).toContain("Check missing, expired, malformed, and privilege-escalation credentials.");
     expect(report.skills).toEqual([
@@ -55,8 +61,139 @@ describe("codedecay redteam CLI contract", () => {
     expect(markdown.stdout).toContain("## CodeDecay Redteam Report");
     expect(markdown.stdout).toContain("### What Could Break");
     expect(markdown.stdout).toContain("### Tool Adapter Plans");
+    expect(markdown.stdout).toContain("### Verification Evidence");
+    expect(markdown.stdout).toContain("**Status:** Not run");
     expect(markdown.stdout).toContain("### Tasks For Your Coding Agent");
     expect(markdown.stdout).toContain("LLM/model called: no");
+  });
+
+  it("runs configured checks only when --with-checks is requested", async () => {
+    const repo = createLowRiskRepo();
+    writeExecutionConfig(repo, {
+      allowCommands: true,
+      testCommand: "node -e \"require('fs').writeFileSync('codedecay-ran.txt','yes'); console.log('checked')\""
+    });
+
+    const reportOnly = await run(["redteam", "--format", "json"], repo);
+    const reportOnlyJson = JSON.parse(reportOnly.stdout);
+
+    expect(reportOnly.exitCode).toBe(0);
+    expect(reportOnlyJson.summary.verificationStatus).toBe("not-run");
+    expect(reportOnlyJson.safety.commandsExecuted).toBe(false);
+    expect(existsSync(join(repo, "codedecay-ran.txt"))).toBe(false);
+
+    const verified = await run(["redteam", "--with-checks", "--format", "json"], repo);
+    const verifiedJson = JSON.parse(verified.stdout);
+
+    expect(verified.exitCode).toBe(0);
+    expect(verifiedJson.summary.verificationStatus).toBe("verified");
+    expect(verifiedJson.verification).toMatchObject({
+      status: "verified",
+      commandsExecuted: true,
+      total: 1,
+      passed: 1
+    });
+    expect(verifiedJson.verification.checks[0]).toMatchObject({
+      kind: "test",
+      status: "passed",
+      proof: "tool-evidence",
+      summary: "checked"
+    });
+    expect(verifiedJson.safety.commandsExecuted).toBe(true);
+    expect(readFileSync(join(repo, "codedecay-ran.txt"), "utf8")).toBe("yes");
+
+    const markdown = await run(["redteam", "--with-checks", "--format", "markdown"], repo);
+    expect(markdown.exitCode).toBe(0);
+    expect(markdown.stdout).toContain("**Status:** Verified");
+    expect(markdown.stdout).toContain("proof: Tool evidence");
+    expect(markdown.stdout).toContain("Commands executed: yes");
+  });
+
+  it("marks --with-checks reports unverified when configured checks are skipped by safety config", async () => {
+    const repo = createLowRiskRepo();
+    writeExecutionConfig(repo, {
+      allowCommands: false,
+      testCommand: "node -e \"require('fs').writeFileSync('codedecay-ran.txt','yes')\""
+    });
+
+    const result = await run(["redteam", "--with-checks", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(report.summary.verificationStatus).toBe("unverified");
+    expect(report.verification).toMatchObject({
+      status: "unverified",
+      commandsExecuted: false,
+      total: 1,
+      skipped: 1
+    });
+    expect(report.verification.checks[0]).toMatchObject({
+      status: "skipped",
+      proof: "missing-proof"
+    });
+    expect(report.safety.commandsExecuted).toBe(false);
+    expect(existsSync(join(repo, "codedecay-ran.txt"))).toBe(false);
+  });
+
+  it("marks --with-checks reports blocked when safety policy rejects configured commands", async () => {
+    const repo = createLowRiskRepo();
+    writeExecutionConfig(repo, {
+      allowCommands: true,
+      testCommand: "rm -rf ./dist"
+    });
+
+    const result = await run(["redteam", "--with-checks", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(report.summary.verificationStatus).toBe("blocked");
+    expect(report.verification).toMatchObject({
+      status: "blocked",
+      commandsExecuted: false,
+      total: 1,
+      blocked: 1,
+      skipped: 0
+    });
+    expect(report.verification.checks[0]).toMatchObject({
+      status: "blocked",
+      proof: "missing-proof",
+      failure: "Command was blocked by CodeDecay safety policy: recursive or forced file deletion."
+    });
+    expect(report.fixTasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Resolve blocked proof check: Test command 1",
+          proof: "missing-proof",
+          source: "configured-check"
+        })
+      ])
+    );
+    expect(report.safety.commandsExecuted).toBe(false);
+  });
+
+  it("does not generate PR-specific redteam work when the repo has no diff", async () => {
+    const repo = createRepo({
+      "README.md": "# Project\n"
+    });
+
+    const result = await run(["redteam", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(report.summary).toMatchObject({
+      changedFiles: 0,
+      edgeCases: 0,
+      fixTasks: 0,
+      patternInsights: 0,
+      verificationStatus: "not-run"
+    });
+    expect(report.edgeCases).toEqual([]);
+    expect(report.fixTasks).toEqual([]);
+
+    const markdown = await run(["redteam", "--format", "markdown"], repo);
+    expect(markdown.exitCode).toBe(0);
+    expect(markdown.stdout).toContain("No changed files were detected.");
+    expect(markdown.stdout).toContain("No coding-agent fix tasks were generated.");
   });
 
   it("includes concrete route/API impacts in redteam reports", async () => {

@@ -1,7 +1,7 @@
 import type { CodeDecayConfig } from "@submuxhq/codedecay-config";
 import type { FileChange, Finding } from "@submuxhq/codedecay-core";
 
-export type AdapterStatus = "passed" | "failed" | "skipped" | "timed_out" | "error";
+export type AdapterStatus = "passed" | "failed" | "skipped" | "blocked" | "timed_out" | "error";
 export type ConfiguredCommandKind = "test" | "build" | "start" | "probe";
 
 export interface AdapterContext {

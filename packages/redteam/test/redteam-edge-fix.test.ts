@@ -69,6 +69,64 @@ describe("redteam edge cases and fix tasks", () => {
     expect(tasks.filter((task) => task.title === "Add auth negative-path proof")).toHaveLength(1);
   });
 
+  it("labels static security findings as deterministic signals, not tool proof", () => {
+    const analysisReport = createAnalysisReport({
+      changedFiles: [
+        {
+          path: "src/api/search.ts",
+          status: "modified",
+          additions: 1,
+          deletions: 0,
+          addedLines: [{ line: 3, content: "db.query(`select * from users where name = ${q}`);" }]
+        }
+      ],
+      analyzerResult: {
+        impactedAreas: [
+          {
+            name: "API surface",
+            kind: "api",
+            risk: "high",
+            files: ["src/api/search.ts"]
+          }
+        ],
+        findings: [
+          {
+            ruleId: "security-sql-injection",
+            title: "SQL injection candidate",
+            description: "Dynamic query construction is present near request-controlled input.",
+            severity: "high",
+            category: "security",
+            file: "src/api/search.ts",
+            line: 3
+          }
+        ],
+        recommendedTests: []
+      },
+      generatedAt: "2026-01-01T00:00:00.000Z"
+    });
+
+    const tasks = createFixTasks({
+      analysisReport,
+      weakTestFindings: [],
+      edgeCases: [],
+      configuredChecks: [],
+      toolAdapterPlans: [],
+      patternInsights: [],
+      memory: createEmptyMemory(),
+      skills: []
+    });
+
+    expect(tasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Investigate SQL injection candidate",
+          source: "finding",
+          proof: "deterministic-signal"
+        })
+      ])
+    );
+  });
+
   it("summarizes missing-test findings separately from weak-test findings", () => {
     const report = createRedteamReport({
       analysisReport: createAnalysisReport({

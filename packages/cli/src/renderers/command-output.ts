@@ -33,5 +33,5 @@ export function formatStatus(status: AdapterStatus): string {
     return "Timed out";
   }
 
-  return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
+  return `${status.charAt(0).toUpperCase()}${status.slice(1).replaceAll("_", " ")}`;
 }

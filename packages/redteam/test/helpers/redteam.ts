@@ -45,6 +45,20 @@ export function createFixtureAnalysisReport() {
   });
 }
 
+export function createNoDiffAnalysisReport() {
+  return createAnalysisReport({
+    base: "main",
+    head: "HEAD",
+    changedFiles: [],
+    analyzerResult: {
+      impactedAreas: [],
+      findings: [],
+      recommendedTests: []
+    },
+    generatedAt: "2026-01-01T00:00:00.000Z"
+  });
+}
+
 export function createFixtureChangedFiles(): FileChange[] {
   return [
     {

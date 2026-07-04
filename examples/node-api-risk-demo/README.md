@@ -45,6 +45,7 @@ git commit -m "baseline Node API example"
 node scripts/materialize.mjs risky
 node ../../packages/cli/dist/index.js analyze --cwd . --format markdown
 node ../../packages/cli/dist/index.js redteam --cwd . --format markdown
+node ../../packages/cli/dist/index.js redteam --with-checks --cwd . --format markdown
 node ../../packages/cli/dist/index.js agent --cwd . --format markdown
 ```
 
@@ -66,10 +67,17 @@ Relative `--output` paths are written inside `--cwd`.
 ## Run Configured Checks
 
 The example config enables local command execution so `codedecay execute` can
-run the explicit smoke commands:
+run the explicit smoke commands. You can either run them as a standalone
+execution report:
 
 ```sh
 node ../../packages/cli/dist/index.js execute --cwd . --format markdown
+```
+
+Or include the same configured-check evidence in the merge-safety report:
+
+```sh
+node ../../packages/cli/dist/index.js redteam --with-checks --cwd . --format markdown
 ```
 
 Expected result for the risky scenario:
@@ -78,10 +86,15 @@ Expected result for the risky scenario:
 - unit smoke: passed
 - user-flow smoke: passed
 - contract smoke: failed
+- redteam verification status with `--with-checks`: `failed`
 
 The failing contract smoke is intentional. It catches that the risky PR makes
 exports available to any authenticated user and changes the default user role to
 `ADMIN`.
+
+The report-only redteam command should still list these configured checks as
+planned work without running them. The `--with-checks` variant is the explicit
+step that turns configured checks into tool evidence.
 
 ## Hand The Bundle To Your Agent
 
