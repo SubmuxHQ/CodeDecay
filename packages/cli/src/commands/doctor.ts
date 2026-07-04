@@ -5,7 +5,7 @@ import {
   renderConfigPreview,
   renderDoctorReport
 } from "@submuxhq/codedecay-tool-adapters";
-import { write } from "../io";
+import { writeStderr } from "../io";
 import { parseDoctorArgs } from "../parsers/args";
 import type { CliCommandContext, CliRuntime } from "../types";
 
@@ -30,7 +30,7 @@ export function runDoctorCommand(
     const previewPath = join(cwd, ".codedecay", "local", "config-preview.yml");
     mkdirSync(dirname(previewPath), { recursive: true });
     writeFileSync(previewPath, renderConfigPreview(report), "utf8");
-    write(context.runtime.stderr, `Wrote config preview to ${previewPath}\n`);
+    writeStderr(context.runtime, `Wrote config preview to ${previewPath}\n`);
   }
 
   dependencies.writeOutput({
