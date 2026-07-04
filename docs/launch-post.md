@@ -4,7 +4,7 @@ CodeDecay is an open-source, local-first CLI and GitHub Action for AI-assisted P
 
 It asks: what could this PR break, and are the tests actually proving it will not?
 
-Latest reproducible benchmark: 18/18 planted issues caught (100.0% recall), 5.56% false-positive rate on clean decoys, $0.00 cost, LLM called: no, telemetry sent: no.
+Latest reproducible benchmark: 23/23 planted issues caught (100.0% recall), 2.22% false-positive rate on clean decoys, $0.00 cost, LLM called: no, telemetry sent: no.
 
 Install and run:
 

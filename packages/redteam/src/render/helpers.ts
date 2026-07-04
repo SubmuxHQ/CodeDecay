@@ -1,5 +1,6 @@
 import type { ImpactedRoute, RiskLevel } from "@submuxhq/codedecay-core";
 import type { TestProofAudit } from "@submuxhq/codedecay-test-audit";
+import type { RedteamExecutionStatus, RedteamProofGrade, RedteamVerificationStatus } from "../types";
 
 export function formatRisk(level: RiskLevel): string {
   if (level === "high") {
@@ -51,4 +52,42 @@ export function formatTestProofStatus(status: TestProofAudit["status"]): string 
   }
 
   return `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
+}
+
+export function formatExecutionStatus(status: RedteamExecutionStatus): string {
+  if (status === "timed_out") {
+    return "Timed out";
+  }
+
+  return `${status.charAt(0).toUpperCase()}${status.slice(1).replaceAll("_", " ")}`;
+}
+
+export function formatProofGrade(grade: RedteamProofGrade): string {
+  switch (grade) {
+    case "tool-evidence":
+      return "Tool evidence";
+    case "deterministic-signal":
+      return "Deterministic signal";
+    case "missing-proof":
+      return "Missing proof";
+    case "memory-context":
+      return "Memory context";
+    case "agent-suggestion":
+      return "Agent suggestion";
+  }
+}
+
+export function formatVerificationStatus(status: RedteamVerificationStatus): string {
+  switch (status) {
+    case "not-run":
+      return "Not run";
+    case "verified":
+      return "Verified";
+    case "unverified":
+      return "Unverified";
+    case "failed":
+      return "Failed";
+    case "blocked":
+      return "Blocked";
+  }
 }

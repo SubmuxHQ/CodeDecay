@@ -48,7 +48,7 @@ codedecay benchmark --format json
 The default public corpus currently reports:
 
 - overall recall: `100%`
-- false-positive rate: `5.56%`
+- false-positive rate: `2.22%`
 - cost: `$0`
 - LLM/model calls: `false`
 - telemetry: `false`

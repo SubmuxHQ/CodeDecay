@@ -109,8 +109,8 @@ export interface AgentSuggestedCheck {
 }
 
 export interface AgentSafetySummary {
-  llmCalled: false;
-  commandsExecuted: false;
+  llmCalled: boolean;
+  commandsExecuted: boolean;
   telemetrySent: false;
   cloudDependency: false;
   agentOutputTrusted: false;

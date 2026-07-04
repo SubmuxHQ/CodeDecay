@@ -27,6 +27,24 @@ require_command() {
   fi
 }
 
+resolve_pnpm_command() {
+  if command -v pnpm >/dev/null 2>&1; then
+    PNPM_CMD=(pnpm)
+    return
+  fi
+
+  if command -v corepack >/dev/null 2>&1 && corepack pnpm --version >/dev/null 2>&1; then
+    PNPM_CMD=(corepack pnpm)
+    return
+  fi
+
+  fail "missing required package manager: pnpm. Install pnpm or enable Corepack for packageManager pnpm@11.8.0."
+}
+
+run_pnpm() {
+  "${PNPM_CMD[@]}" "$@"
+}
+
 check_node_version() {
   require_command node
   local major
@@ -45,7 +63,7 @@ write_state() {
   "repo": "SubmuxHQ/CodeDecay",
   "branch": "$(git branch --show-current 2>/dev/null || true)",
   "node": "$(node --version)",
-  "pnpm": "$(pnpm --version)",
+  "pnpm": "$(run_pnpm --version)",
   "database": "not-required",
   "seedData": "not-required"
 }
@@ -56,20 +74,21 @@ cd "$ROOT_DIR"
 
 info "checking prerequisites"
 check_node_version
-require_command pnpm
 require_command git
+resolve_pnpm_command
+info "using package manager: ${PNPM_CMD[*]}"
 if ! command -v gh >/dev/null 2>&1; then
   warn "gh is optional but recommended for issue and PR workflow"
 fi
 
 info "installing dependencies"
-pnpm install
+run_pnpm install
 
 info "running local validation"
-pnpm run lint
-pnpm typecheck
-pnpm test
-pnpm build
+run_pnpm run lint
+run_pnpm typecheck
+run_pnpm test
+run_pnpm build
 
 info "writing local setup state"
 write_state

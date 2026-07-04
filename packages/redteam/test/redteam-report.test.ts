@@ -9,7 +9,8 @@ import {
   createFixtureAnalysisReport,
   createFixtureConfig,
   createFixtureMemory,
-  createFixtureSkills
+  createFixtureSkills,
+  createNoDiffAnalysisReport
 } from "./helpers/redteam";
 
 describe("redteam report assembly and rendering", () => {
@@ -38,6 +39,7 @@ describe("redteam report assembly and rendering", () => {
       toolAdapters: 3,
       patternInsights: 3,
       productFailureBundles: 1,
+      verificationStatus: "not-run",
       skills: 1
     });
     expect(Object.values(report.safety).filter((value) => value === false)).toHaveLength(4);
@@ -112,6 +114,26 @@ describe("redteam report assembly and rendering", () => {
         "Review with skill: PR Red-Team Skill"
       ])
     );
+    expect(report.fixTasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Strengthen test proof",
+          proof: "missing-proof"
+        }),
+        expect.objectContaining({
+          title: "Apply pattern: JWT authentication edge cases",
+          proof: "agent-suggestion"
+        }),
+        expect.objectContaining({
+          title: "Verify invariant: Auth fails closed",
+          proof: "memory-context"
+        }),
+        expect.objectContaining({
+          title: "Fix product failure: Session API invalid-token regression",
+          proof: "tool-evidence"
+        })
+      ])
+    );
   });
 
   it("renders JSON and Markdown", () => {
@@ -130,6 +152,12 @@ describe("redteam report assembly and rendering", () => {
     expect(json.summary.missingTestFindings).toBe(0);
     expect(json.summary.productFailureBundles).toBe(1);
     expect(json.summary.patternInsights).toBe(3);
+    expect(json.summary.verificationStatus).toBe("not-run");
+    expect(json.verification).toMatchObject({
+      status: "not-run",
+      commandsExecuted: false,
+      total: 0
+    });
     expect(json.patternInsights[0].trust).toBe("pattern-pack");
     expect(json.analysis.impactedRoutes[0]).toMatchObject({
       framework: "nextjs",
@@ -140,6 +168,9 @@ describe("redteam report assembly and rendering", () => {
     const markdown = renderRedteamReport(report, "markdown");
     expect(markdown).toContain("## CodeDecay Redteam Report");
     expect(markdown).toContain("### Test Evidence Audit");
+    expect(markdown).toContain("### Verification Evidence");
+    expect(markdown).toContain("**Status:** Not run");
+    expect(markdown).toContain("No configured execution checks were included in this report.");
     expect(markdown).toContain("### Product Verification Failures");
     expect(markdown).toContain("Session API invalid-token regression");
     expect(markdown).toContain("Rerun: `npx codedecay product run --check api.session.invalid-token`");
@@ -158,8 +189,35 @@ describe("redteam report assembly and rendering", () => {
     expect(markdown).toContain("Playwright");
     expect(markdown).toContain("Schemathesis");
     expect(markdown).toContain("PR Red-Team Skill");
+    expect(markdown).toContain("[Missing proof]");
+    expect(markdown).toContain("[Tool evidence]");
     expect(markdown).toContain("Commands executed: no");
     expect(markdown).toContain("LLM/model called: no");
+  });
+
+  it("does not fabricate redteam tasks or edge cases when there is no diff", () => {
+    const report = createRedteamReport({
+      analysisReport: createNoDiffAnalysisReport(),
+      config: createFixtureConfig(),
+      memory: createEmptyMemory(),
+      generatedAt: "2026-01-01T00:00:00.000Z"
+    });
+
+    expect(report.summary).toMatchObject({
+      riskLevel: "low",
+      changedFiles: 0,
+      edgeCases: 0,
+      patternInsights: 0,
+      fixTasks: 0,
+      verificationStatus: "not-run"
+    });
+    expect(report.edgeCases).toEqual([]);
+    expect(report.fixTasks).toEqual([]);
+
+    const markdown = renderRedteamReport(report, "markdown");
+    expect(markdown).toContain("No changed files were detected.");
+    expect(markdown).toContain("No PR-specific edge cases were generated.");
+    expect(markdown).toContain("No coding-agent fix tasks were generated.");
   });
 
   it("renders opt-in AI investigation separately from deterministic evidence", () => {

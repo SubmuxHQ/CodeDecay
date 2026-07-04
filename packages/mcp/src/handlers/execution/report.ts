@@ -28,6 +28,7 @@ export async function createMcpExecutionReport(
         passed: 0,
         failed: 0,
         skipped: 0,
+        blocked: 0,
         timedOut: 0,
         errors: 0,
         durationMs: elapsed(startedAt)

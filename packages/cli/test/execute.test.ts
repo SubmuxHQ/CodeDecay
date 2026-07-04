@@ -505,6 +505,31 @@ describe("codedecay execute CLI contract", () => {
     expect(result.stdout).toContain("probe failed");
   });
 
+  it("returns exit 1 and reports blocked configured commands separately from skipped checks", async () => {
+    const repo = createLowRiskRepo();
+    writeExecutionConfig(repo, {
+      allowCommands: true,
+      testCommand: "rm -rf ./dist"
+    });
+
+    const result = await run(["execute", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(report.summary).toMatchObject({
+      status: "blocked",
+      total: 1,
+      blocked: 1,
+      skipped: 0
+    });
+    expect(report.results[0]).toMatchObject({
+      kind: "test",
+      command: "rm -rf ./dist",
+      status: "blocked",
+      error: "Command was blocked by CodeDecay safety policy: recursive or forced file deletion."
+    });
+  });
+
   it("writes execution reports to relative --output paths from --cwd", async () => {
     const repo = createLowRiskRepo();
     const outsideCwd = createTempDir();

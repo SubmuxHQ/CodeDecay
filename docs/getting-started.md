@@ -73,8 +73,17 @@ and fix tasks.
 npx codedecay redteam --base main --head HEAD --format markdown
 ```
 
-The current redteam MVP is report-only. It does not run commands or call an
-LLM.
+By default, `redteam` is report-only. Add `--with-checks` when you want the
+report to run configured commands and tool adapters through the same safety
+gates as `codedecay execute`:
+
+```bash
+npx codedecay redteam --with-checks --base main --head HEAD --format markdown
+```
+
+The report labels verification as `not-run`, `verified`, `unverified`,
+`failed`, or `blocked` so deterministic findings are not confused with behavior
+proof. It does not call an LLM unless an explicit investigation path is used.
 
 ## Discover OSS Tools To Reuse
 

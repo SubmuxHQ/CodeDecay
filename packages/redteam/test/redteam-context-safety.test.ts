@@ -25,9 +25,9 @@ describe("redteam context and safety summaries", () => {
       telemetrySent: false,
       cloudDependency: false,
       notes: [
-        "codedecay redteam is report-only in this MVP.",
+        "codedecay redteam is report-only unless --with-checks is explicitly requested.",
         "No configured commands, probes, tool adapters, LLM providers, hosted services, or external memory providers are executed.",
-        "Use codedecay execute or codedecay differential explicitly when you want configured local checks to run."
+        "Use codedecay redteam --with-checks, codedecay execute, or codedecay differential explicitly when you want configured local checks to run."
       ]
     });
   });

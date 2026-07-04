@@ -15,7 +15,8 @@ import {
   appendProductFailures,
   appendSkills,
   appendTestAudit,
-  appendToolAdapterPlans
+  appendToolAdapterPlans,
+  appendVerification
 } from "./render/sections";
 
 export function renderRedteamReport(report: RedteamReport, format: RedteamFormat): string {
@@ -46,14 +47,23 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
     `| Edge cases suggested | ${report.summary.edgeCases} |`,
     `| Configured checks listed | ${report.summary.configuredChecks} |`,
     `| Tool adapters planned | ${report.summary.toolAdapters} |`,
+    `| Verification status | ${report.summary.verificationStatus} |`,
     `| Pattern insights | ${report.summary.patternInsights} |`,
     `| Product failure bundles | ${report.summary.productFailureBundles} |`,
     ""
   ];
 
+  if (report.summary.changedFiles === 0) {
+    lines.push(
+      "**No changed files were detected.** CodeDecay did not generate PR fix tasks because there is no diff to red-team.",
+      ""
+    );
+  }
+
   appendImpactedAreas(lines, report.analysis.impactedAreas);
   appendImpactedRoutes(lines, report.analysis.impactedRoutes ?? []);
   appendTestAudit(lines, report.testAudit);
+  appendVerification(lines, report.verification);
   appendProductFailures(lines, report.analysis.productFailureBundles ?? []);
   appendEdgeCases(lines, report.edgeCases);
   appendPatternInsights(lines, report.patternInsights);
@@ -67,12 +77,12 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
   lines.push(
     "### Safety",
     "",
-    "- Commands executed: no",
+    `- Commands executed: ${report.safety.commandsExecuted ? "yes" : "no"}`,
     `- LLM/model called: ${report.safety.llmCalled ? "yes" : "no"}`,
     "- Telemetry sent: no",
     "- Cloud dependency: no",
     "",
-    "CodeDecay separates deterministic tool evidence from AI suggestions. This command produces local evidence and fix tasks that your own agent can use.",
+    "CodeDecay separates tool evidence, deterministic signals, missing proof, memory context, and agent suggestions. Agent/model output is not trusted evidence unless verified by tests or tool output.",
     ""
   );
 

@@ -147,7 +147,7 @@ describe("adapter runner", () => {
     const result = await runOne(adapter, createContext({ allowCommands: true }));
 
     expect(result).toMatchObject({
-      status: "skipped",
+      status: "blocked",
       stdout: "",
       error: "Command was blocked by CodeDecay safety policy: recursive or forced file deletion."
     });

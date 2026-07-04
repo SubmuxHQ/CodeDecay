@@ -221,7 +221,9 @@ and does not start the app. With `allowCommands: true`, `codedecay product` can
 run `authSetupCommand`, start the app, poll the health URL, stop the managed
 process, and run `teardownCommand`.
 
-It never starts the app during `config`, `analyze`, `redteam`, or `agent`.
+It never starts the app during `config`, `analyze`, report-only `redteam`, or
+`agent`. `redteam --with-checks` may run configured commands and adapters, but
+only through the same execution safety gates used by `codedecay execute`.
 
 ## Safety Model
 
@@ -236,8 +238,9 @@ Current behavior:
   commands.
 - `codedecay llm-review` is the explicit opt-in path that can call the
   configured user-owned LLM provider.
-- `codedecay redteam` lists configured tool adapters as planned local checks,
-  but does not run them.
+- `codedecay redteam` lists configured tool adapters as planned local checks by
+  default; `codedecay redteam --with-checks` runs configured commands and
+  adapters through safety gates and labels the verification status.
 - `codedecay execute` runs only commands and probes from config, and only when
   `safety.allowCommands` is true.
 - `codedecay differential` runs only configured probes on temporary base/head

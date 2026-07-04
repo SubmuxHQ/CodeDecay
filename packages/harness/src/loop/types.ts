@@ -54,7 +54,7 @@ export interface LoopRedteamReport {
   };
   fixTasks: LoopFixTask[];
   safety: {
-    commandsExecuted: false;
+    commandsExecuted: boolean;
     llmCalled: boolean;
     telemetrySent: false;
     cloudDependency: false;

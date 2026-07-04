@@ -16,16 +16,19 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--format <format>", description: "json or markdown (default: markdown)" },
       { flag: "--output <path>", description: "Write redteam report to a file instead of stdout" },
       { flag: "--fail-on <level>", description: "Exit non-zero on low, medium, or high risk" },
+      { flag: "--with-checks", description: "Run configured commands and tool adapters through safety gates and include verification evidence" },
       { flag: "--investigate", description: "Explicitly run the configured local/BYOK LLM provider for untrusted suggestions" }
     ],
     examples: [
       "codedecay redteam --base main --head HEAD --format markdown",
+      "codedecay redteam --with-checks --base main --head HEAD --format markdown",
       "codedecay redteam --investigate --base main --head HEAD --format markdown",
       "codedecay redteam --cwd ../my-repo --format json"
     ],
     notes: [
-      "Redteam reports do not execute configured commands or call LLMs by default. Use --investigate to opt into the configured LLM provider.",
-      "Configured checks are described in the report as recommendations unless you run execute or differential explicitly."
+      "Redteam reports do not execute configured commands or call LLMs by default. Use --with-checks to opt into configured local checks, and --investigate to opt into the configured LLM provider.",
+      "Verification status is reported as verified, unverified, failed, or blocked so heuristic risk is not confused with behavioral proof.",
+      "With --with-checks, failed or blocked verification exits 1 after the report is written."
     ]
   },
   revalidate: {
@@ -181,7 +184,8 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
     ],
     examples: ["codedecay execute --format markdown", "codedecay execute --cwd ../my-repo --format json"],
     notes: [
-      "If `safety.allowCommands` is false, configured commands and adapters are reported as skipped instead of executed."
+      "If `safety.allowCommands` is false, configured commands and adapters are reported as skipped instead of executed.",
+      "Unsafe configured commands are reported as blocked, not skipped."
     ]
   },
   differential: {

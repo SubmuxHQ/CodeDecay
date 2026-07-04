@@ -33,4 +33,12 @@ export async function runRedteamCommand(
   if (options.failOn && shouldFailForRisk(report.summary.riskLevel, options.failOn)) {
     throw new CliExit(1);
   }
+
+  if (options.withChecks && isBlockingVerificationStatus(report.summary.verificationStatus)) {
+    throw new CliExit(1);
+  }
+}
+
+function isBlockingVerificationStatus(status: string): boolean {
+  return status === "failed" || status === "blocked";
 }

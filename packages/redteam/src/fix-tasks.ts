@@ -5,8 +5,10 @@ import type {
   RedteamFixTask,
   RedteamFixTaskScope,
   RedteamPatternInsight,
+  RedteamProofGrade,
   RedteamSkillSummary,
-  RedteamToolAdapterPlan
+  RedteamToolAdapterPlan,
+  RedteamVerificationSummary
 } from "./types";
 import { dedupeTasks, edgeCasePriority, edgeCaseTaskTitle } from "./fix-tasks/helpers";
 import { WEAK_TEST_RULES } from "./fix-tasks/rules";
@@ -18,6 +20,7 @@ export function createFixTasks(input: {
   configuredChecks: RedteamConfiguredCheck[];
   toolAdapterPlans: RedteamToolAdapterPlan[];
   patternInsights: RedteamPatternInsight[];
+  verification?: RedteamVerificationSummary | undefined;
   memory: CodeDecayMemory;
   skills: RedteamSkillSummary[];
 }): RedteamFixTask[] {
@@ -32,6 +35,7 @@ export function createFixTasks(input: {
       title: `Investigate ${finding.title}`,
       priority: finding.severity,
       source: WEAK_TEST_RULES.has(finding.ruleId) ? "weak-test" : "finding",
+      proof: proofForFinding(finding),
       detail: finding.description,
       file: finding.file,
       line: finding.line,
@@ -44,6 +48,7 @@ export function createFixTasks(input: {
       title: edgeCaseTaskTitle(edgeCase),
       priority: edgeCasePriority(input.analysisReport.impactedAreas),
       source: "edge-case",
+      proof: "missing-proof",
       detail: edgeCase,
       scope: scopeForAreas(input.analysisReport.impactedAreas)
     });
@@ -54,6 +59,7 @@ export function createFixTasks(input: {
       title: `Consider running configured ${check.kind} check`,
       priority: input.analysisReport.summary.riskLevel === "high" ? "medium" : "low",
       source: "configured-check",
+      proof: "missing-proof",
       detail: `${check.name}: ${check.command}`,
       scope: scopeForAreas(input.analysisReport.impactedAreas)
     });
@@ -64,7 +70,21 @@ export function createFixTasks(input: {
       title: `Consider running ${adapter.name} harness`,
       priority: input.analysisReport.summary.riskLevel === "high" ? "medium" : "low",
       source: "tool-adapter",
+      proof: "missing-proof",
       detail: `${adapter.kind}: ${adapter.command}`,
+      scope: scopeForAreas(input.analysisReport.impactedAreas)
+    });
+  }
+
+  for (const check of (input.verification?.checks ?? []).filter((check) => check.status !== "passed").slice(0, 8)) {
+    tasks.push({
+      title: verificationTaskTitle(check.status, check.name),
+      priority: check.status === "skipped" ? "medium" : "high",
+      source: check.kind === "test" || check.kind === "build" || check.kind === "start" || check.kind === "probe"
+        ? "configured-check"
+        : "tool-adapter",
+      proof: check.proof,
+      detail: `${check.summary} Command: ${check.command}`,
       scope: scopeForAreas(input.analysisReport.impactedAreas)
     });
   }
@@ -75,6 +95,7 @@ export function createFixTasks(input: {
       title: `Apply pattern: ${pattern.title}`,
       priority: pattern.areas.includes("auth") || pattern.areas.includes("api") ? "high" : "medium",
       source: "pattern",
+      proof: "agent-suggestion",
       detail,
       scope: scopeForPattern(pattern, input.analysisReport.impactedAreas)
     });
@@ -85,6 +106,7 @@ export function createFixTasks(input: {
       title: `Fix product failure: ${bundle.title}`,
       priority: bundle.priority,
       source: "product-failure",
+      proof: "tool-evidence",
       detail: `${bundle.summary} Rerun: ${bundle.rerunCommand}`,
       file: bundle.impactedFiles[0],
       scope: scopeForFiles(bundle.impactedFiles, input.analysisReport.impactedAreas)
@@ -96,6 +118,7 @@ export function createFixTasks(input: {
       title: `Verify invariant: ${invariant.name}`,
       priority: invariant.severity ?? "medium",
       source: "memory",
+      proof: "memory-context",
       detail: invariant.description
     });
   }
@@ -105,6 +128,7 @@ export function createFixTasks(input: {
       title: `Re-check past regression: ${regression.title}`,
       priority: regression.severity ?? "high",
       source: "memory",
+      proof: "memory-context",
       detail: regression.check ? `${regression.description} Check: ${regression.check}` : regression.description
     });
   }
@@ -114,11 +138,32 @@ export function createFixTasks(input: {
       title: `Review with skill: ${skill.title}`,
       priority: input.analysisReport.summary.riskLevel === "high" ? "medium" : "low",
       source: "memory",
+      proof: "memory-context",
       detail: `${skill.summary} (${skill.path})`
     });
   }
 
   return dedupeTasks(tasks).slice(0, 20);
+}
+
+function verificationTaskTitle(status: RedteamVerificationSummary["checks"][number]["status"], name: string): string {
+  if (status === "skipped") {
+    return `Run skipped proof check: ${name}`;
+  }
+
+  if (status === "blocked") {
+    return `Resolve blocked proof check: ${name}`;
+  }
+
+  return `Fix failing proof check: ${name}`;
+}
+
+function proofForFinding(finding: Finding): RedteamProofGrade {
+  if (finding.category === "coverage" || finding.ruleId.includes("missing") || finding.ruleId.includes("weak")) {
+    return "missing-proof";
+  }
+
+  return "deterministic-signal";
 }
 
 function scopeForFinding(finding: Finding, impactedAreas: ImpactedArea[]): RedteamFixTaskScope | undefined {

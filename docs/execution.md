@@ -18,7 +18,8 @@ npx codedecay execute --cwd ../my-repo --format json --output codedecay-execute.
 Exit codes:
 
 - `0`: all configured commands passed, or all commands were safely skipped.
-- `1`: one or more configured commands failed, timed out, or errored.
+- `1`: one or more configured commands failed, timed out, errored, or were
+  blocked by the safety policy.
 - `2`: CLI/internal error, such as an invalid config file.
 
 ## Config
@@ -96,6 +97,8 @@ environment variables and records the agent output as untrusted
 - CodeDecay does not run commands suggested by LLMs, MCP clients, memory files,
   or remote services.
 - Command execution is disabled unless `safety.allowCommands` is true.
+- Commands that match CodeDecay's unsafe-command policy are reported as
+  `blocked`, not executed and not counted as ordinary skipped checks.
 - Command output is captured locally in the execution report.
 - Tool adapter evidence is reported separately from AI suggestions.
 - No telemetry, API keys, cloud services, LLMs, or model calls are required.

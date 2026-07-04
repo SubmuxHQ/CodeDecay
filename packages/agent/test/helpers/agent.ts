@@ -27,6 +27,7 @@ export function createFixtureReport(): RedteamReport {
       toolAdapters: 1,
       patternInsights: 0,
       productFailureBundles: 1,
+      verificationStatus: "not-run",
       skills: 1,
       fixTasks: 2,
       investigationSuggestions: 0,
@@ -170,6 +171,20 @@ export function createFixtureReport(): RedteamReport {
       }
     ],
     patternInsights: [],
+    verification: {
+      status: "not-run",
+      commandsExecuted: false,
+      total: 0,
+      passed: 0,
+      failed: 0,
+      skipped: 0,
+      blocked: 0,
+      timedOut: 0,
+      errors: 0,
+      durationMs: 0,
+      checks: [],
+      notes: ["Configured execution checks were not requested for this redteam report."]
+    },
     memory: {
       flows: 1,
       commands: 0,
@@ -191,6 +206,7 @@ export function createFixtureReport(): RedteamReport {
         title: "Investigate changed source is mocked",
         priority: "medium",
         source: "weak-test",
+        proof: "missing-proof",
         detail: "Replace mocked test with a real route check.",
         file: "src/api/imu.test.ts",
         line: 3
@@ -199,6 +215,7 @@ export function createFixtureReport(): RedteamReport {
         title: "Add or run an edge-case check",
         priority: "high",
         source: "edge-case",
+        proof: "missing-proof",
         detail: "Exercise malformed IMU payloads through the real API route."
       }
     ],
