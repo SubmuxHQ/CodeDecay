@@ -8,14 +8,60 @@ STATE_FILE="$SCRIPT_DIR/local/state.json"
 
 cd "$ROOT_DIR"
 
+probe_package_manager_version() {
+  local timeout_seconds="$1"
+  shift
+  local output_file
+  local pid
+  local watcher
+  local status
+
+  output_file="$(mktemp "${TMPDIR:-/tmp}/codedecay-pm-version.XXXXXX")"
+  "$@" >"$output_file" 2>/dev/null &
+  pid="$!"
+  (
+    sleep "$timeout_seconds"
+    kill "$pid" 2>/dev/null || true
+  ) &
+  watcher="$!"
+
+  if wait "$pid"; then
+    status=0
+  else
+    status=$?
+  fi
+
+  kill "$watcher" 2>/dev/null || true
+  wait "$watcher" 2>/dev/null || true
+
+  if [ "$status" -eq 0 ]; then
+    head -n 1 "$output_file"
+    rm -f "$output_file"
+    return 0
+  fi
+
+  rm -f "$output_file"
+  return 1
+}
+
 pnpm_status() {
+  local version
+
   if command -v pnpm >/dev/null 2>&1; then
-    pnpm --version
+    if version="$(probe_package_manager_version 2 pnpm --version)"; then
+      printf '%s\n' "$version"
+    else
+      echo "unavailable (pnpm --version failed or timed out)"
+    fi
     return
   fi
 
-  if command -v corepack >/dev/null 2>&1 && corepack pnpm --version >/dev/null 2>&1; then
-    printf 'corepack pnpm %s\n' "$(corepack pnpm --version)"
+  if command -v corepack >/dev/null 2>&1; then
+    if version="$(probe_package_manager_version 2 corepack pnpm --version)"; then
+      printf 'corepack pnpm %s\n' "$version"
+    else
+      echo "missing (corepack pnpm probe failed or timed out)"
+    fi
     return
   fi
 

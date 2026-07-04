@@ -21,24 +21,86 @@ warn() {
   printf '[codedecay] warning: %s\n' "$1" >&2
 }
 
+PNPM_CMD=()
+PNPM_VERSION=""
+PNPM_SOURCE=""
+
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
     fail "missing required command: $1"
   fi
 }
 
+probe_package_manager_version() {
+  local timeout_seconds="$1"
+  shift
+  local output_file
+  local pid
+  local watcher
+  local status
+
+  output_file="$(mktemp "${TMPDIR:-/tmp}/codedecay-pm-version.XXXXXX")"
+  "$@" >"$output_file" 2>/dev/null &
+  pid="$!"
+  (
+    sleep "$timeout_seconds"
+    kill "$pid" 2>/dev/null || true
+  ) &
+  watcher="$!"
+
+  if wait "$pid"; then
+    status=0
+  else
+    status=$?
+  fi
+
+  kill "$watcher" 2>/dev/null || true
+  wait "$watcher" 2>/dev/null || true
+
+  if [ "$status" -eq 0 ]; then
+    head -n 1 "$output_file"
+    rm -f "$output_file"
+    return 0
+  fi
+
+  rm -f "$output_file"
+  return 1
+}
+
 resolve_pnpm_command() {
+  local version
+
   if command -v pnpm >/dev/null 2>&1; then
-    PNPM_CMD=(pnpm)
-    return
+    if version="$(probe_package_manager_version 2 pnpm --version)"; then
+      PNPM_CMD=(pnpm)
+      PNPM_VERSION="$version"
+      PNPM_SOURCE="pnpm"
+      return
+    fi
+    warn "pnpm was found, but 'pnpm --version' failed or timed out"
   fi
 
-  if command -v corepack >/dev/null 2>&1 && corepack pnpm --version >/dev/null 2>&1; then
-    PNPM_CMD=(corepack pnpm)
-    return
+  if command -v corepack >/dev/null 2>&1; then
+    if version="$(probe_package_manager_version 2 corepack pnpm --version)"; then
+      PNPM_CMD=(corepack pnpm)
+      PNPM_VERSION="$version"
+      PNPM_SOURCE="corepack pnpm"
+      return
+    fi
+    warn "corepack was found, but 'corepack pnpm --version' failed or timed out"
   fi
 
-  fail "missing required package manager: pnpm. Install pnpm or enable Corepack for packageManager pnpm@11.8.0."
+  if command -v npx >/dev/null 2>&1; then
+    if version="$(probe_package_manager_version 20 npx --yes pnpm@11.8.0 --version)"; then
+      PNPM_CMD=(npx --yes pnpm@11.8.0)
+      PNPM_VERSION="$version"
+      PNPM_SOURCE="npx pnpm@11.8.0"
+      return
+    fi
+    warn "npx was found, but 'npx --yes pnpm@11.8.0 --version' failed or timed out"
+  fi
+
+  fail "missing usable package manager: pnpm. Install pnpm, repair Corepack, or make npx available for pnpm@11.8.0."
 }
 
 run_pnpm() {
@@ -63,7 +125,8 @@ write_state() {
   "repo": "SubmuxHQ/CodeDecay",
   "branch": "$(git branch --show-current 2>/dev/null || true)",
   "node": "$(node --version)",
-  "pnpm": "$(run_pnpm --version)",
+  "pnpm": "$PNPM_VERSION",
+  "packageManagerSource": "$PNPM_SOURCE",
   "database": "not-required",
   "seedData": "not-required"
 }
@@ -76,7 +139,7 @@ info "checking prerequisites"
 check_node_version
 require_command git
 resolve_pnpm_command
-info "using package manager: ${PNPM_CMD[*]}"
+info "using package manager: ${PNPM_SOURCE} (${PNPM_VERSION})"
 if ! command -v gh >/dev/null 2>&1; then
   warn "gh is optional but recommended for issue and PR workflow"
 fi
