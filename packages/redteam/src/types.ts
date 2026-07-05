@@ -16,6 +16,7 @@ export type RedteamProofGrade =
   | "memory-context"
   | "agent-suggestion";
 export type RedteamVerificationStatus = "not-run" | "verified" | "unverified" | "failed" | "blocked";
+export type RedteamDifferentialStatus = "passed" | "changed" | "skipped" | "failed";
 export type RedteamInvestigationStatus = "disabled" | "completed" | "failed";
 export type RedteamTaskSource =
   | "finding"
@@ -133,6 +134,28 @@ export interface RedteamVerificationCheck {
   durationMs: number;
   exitCode?: number | undefined;
   failure?: string | undefined;
+  differentialStatus?: RedteamDifferentialStatus | undefined;
+  differences?: string[] | undefined;
+  base?: RedteamVerificationSide | undefined;
+  head?: RedteamVerificationSide | undefined;
+  artifacts?: RedteamVerificationArtifacts | undefined;
+  rerunCommand?: string | undefined;
+}
+
+export interface RedteamVerificationSide {
+  status: RedteamExecutionStatus;
+  durationMs: number;
+  exitCode?: number | undefined;
+}
+
+export interface RedteamVerificationArtifacts {
+  directory: string;
+  baseResult: string;
+  headResult: string;
+  baseStdout: string;
+  headStdout: string;
+  baseStderr: string;
+  headStderr: string;
 }
 
 export interface RedteamMemorySummary {

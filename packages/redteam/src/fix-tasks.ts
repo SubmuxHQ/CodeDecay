@@ -99,7 +99,7 @@ export function createFixTasks(input: {
         ? "configured-check"
         : "tool-adapter",
       proof: check.proof,
-      detail: `${check.summary} Command: ${check.command}`,
+      detail: verificationTaskDetail(check),
       scope: scopeForAreas(input.analysisReport.impactedAreas)
     });
   }
@@ -183,6 +183,17 @@ function verificationTaskTitle(status: RedteamVerificationSummary["checks"][numb
   }
 
   return `Fix failing proof check: ${name}`;
+}
+
+function verificationTaskDetail(check: RedteamVerificationSummary["checks"][number]): string {
+  const parts = [`${check.summary} Command: ${check.command}`];
+  if (check.rerunCommand) {
+    parts.push(`Rerun: ${check.rerunCommand}`);
+  }
+  if (check.artifacts) {
+    parts.push(`Artifacts: ${check.artifacts.directory}`);
+  }
+  return parts.join(" ");
 }
 
 function proofForFinding(finding: Finding): RedteamProofGrade {

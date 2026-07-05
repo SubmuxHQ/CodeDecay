@@ -4,7 +4,8 @@ import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import type { AdapterStatus } from "@submuxhq/codedecay-adapters";
 import type { AgentOptions, AnalyzeOptions, CliAnalysisContext, CliRuntime, RedteamOptions } from "../types";
 import { loadConfiguredRedteamMemory } from "../memory/configured-providers";
-import type { ExecutionReport, ExecutionResult, ExecutionToolAdapterResult } from "../types";
+import type { DifferentialProbeArtifacts, DifferentialProbeResult, DifferentialReport, DifferentialSideResult, ExecutionReport, ExecutionResult, ExecutionToolAdapterResult } from "../types";
+import { createDifferentialReport } from "./differential/report";
 import { createExecutionReport } from "./execute/report";
 import type { RunExecuteCommandDependencies } from "./execute/types";
 import { createRedteamInvestigation } from "./redteam-investigation";
@@ -44,7 +45,10 @@ export async function createRedteamReportForCli(
       })
     : undefined;
   const verification = "withChecks" in options && options.withChecks
-    ? verificationFromExecutionReport(await createExecutionReport(rootDir, loadedConfig, executionDependencies(dependencies)))
+    ? verificationFromExecutionReport(
+        await createExecutionReport(rootDir, loadedConfig, executionDependencies(dependencies)),
+        await maybeCreateDifferentialReport(rootDir, options, loadedConfig)
+      )
     : undefined;
 
   return createRedteamReport({
@@ -69,65 +73,101 @@ function executionDependencies(dependencies: RedteamReportDependencies): RunExec
   };
 }
 
-function verificationFromExecutionReport(report: ExecutionReport): RedteamVerificationSummary {
+async function maybeCreateDifferentialReport(
+  rootDir: string,
+  options: AgentOptions | RedteamOptions,
+  loadedConfig: ReturnType<typeof loadCodeDecayConfig>
+): Promise<DifferentialReport | undefined> {
+  if (!("withChecks" in options) || !options.withChecks || !options.base || !options.head || loadedConfig.config.probes.length === 0) {
+    return undefined;
+  }
+
+  return createDifferentialReport(rootDir, { base: options.base, head: options.head }, loadedConfig);
+}
+
+function verificationFromExecutionReport(
+  report: ExecutionReport,
+  differentialReport: DifferentialReport | undefined
+): RedteamVerificationSummary {
   const checks = [
     ...report.results.map(verificationCheckFromCommandResult),
-    ...report.toolAdapters.map(verificationCheckFromToolAdapterResult)
+    ...report.toolAdapters.map(verificationCheckFromToolAdapterResult),
+    ...(differentialReport?.results.map(verificationCheckFromDifferentialResult) ?? [])
   ];
+  const summary = verificationCounts(checks, report.summary.durationMs + (differentialReport?.summary.durationMs ?? 0));
+
   return {
-    status: verificationStatus(report),
+    status: verificationStatus(report, differentialReport, summary),
     commandsExecuted: checks.some((check) => didExecute(check.status)),
-    total: report.summary.total,
-    passed: report.summary.passed,
-    failed: report.summary.failed,
-    skipped: report.summary.skipped,
-    blocked: report.summary.blocked,
-    timedOut: report.summary.timedOut,
-    errors: report.summary.errors,
-    durationMs: report.summary.durationMs,
+    total: summary.total,
+    passed: summary.passed,
+    failed: summary.failed,
+    skipped: summary.skipped,
+    blocked: summary.blocked,
+    timedOut: summary.timedOut,
+    errors: summary.errors,
+    durationMs: summary.durationMs,
     checks,
-    notes: verificationNotes(report)
+    notes: verificationNotes(report, differentialReport)
   };
 }
 
-function verificationStatus(report: ExecutionReport): RedteamVerificationSummary["status"] {
-  if (report.summary.errors > 0 || report.summary.timedOut > 0 || report.summary.failed > 0) {
+function verificationStatus(
+  report: ExecutionReport,
+  differentialReport: DifferentialReport | undefined,
+  summary: Pick<RedteamVerificationSummary, "total" | "passed" | "failed" | "skipped" | "blocked" | "timedOut" | "errors">
+): RedteamVerificationSummary["status"] {
+  if (summary.errors > 0 || summary.timedOut > 0 || summary.failed > 0 || differentialReport?.summary.status === "changed") {
     return "failed";
   }
 
-  if (report.summary.blocked > 0) {
+  if (summary.blocked > 0) {
     return "blocked";
   }
 
-  if (report.summary.total > 0 && report.summary.passed === report.summary.total) {
+  if (summary.total > 0 && summary.passed === summary.total) {
     return "verified";
   }
 
   return "unverified";
 }
 
-function verificationNotes(report: ExecutionReport): string[] {
+function verificationNotes(report: ExecutionReport, differentialReport: DifferentialReport | undefined): string[] {
+  const notes: string[] = [];
+
   if (report.summary.total === 0) {
-    return ["No configured commands, probes, or tool adapters were found, so merge safety remains unverified."];
+    notes.push("No configured commands, probes, or tool adapters were found, so merge safety remains unverified.");
   }
 
   if (report.summary.status === "skipped") {
-    return ["Configured checks were found but skipped. Enable safety.allowCommands to gather execution proof."];
+    notes.push("Configured checks were found but skipped. Enable safety.allowCommands to gather execution proof.");
   }
 
   if (report.summary.blocked > 0) {
-    return ["At least one configured check was blocked by CodeDecay safety policy."];
+    notes.push("At least one configured check was blocked by CodeDecay safety policy.");
   }
 
   if (report.summary.status === "passed" && report.summary.passed === report.summary.total) {
-    return ["All configured execution checks included in this report passed."];
+    notes.push("All configured execution checks included in this report passed.");
   }
 
   if (report.summary.status === "failed" || report.summary.status === "timed_out" || report.summary.status === "error") {
-    return ["At least one configured execution check failed, timed out, or errored."];
+    notes.push("At least one configured execution check failed, timed out, or errored.");
   }
 
-  return ["Some configured checks did not produce execution proof, so the report remains unverified."];
+  if (differentialReport) {
+    if (differentialReport.summary.status === "changed") {
+      notes.push("Base/head differential probe behavior changed. Treat this as tool evidence to review before merge.");
+    } else if (differentialReport.summary.status === "passed") {
+      notes.push("Configured differential probes behaved the same on base and head.");
+    } else if (differentialReport.summary.status === "skipped") {
+      notes.push("Configured differential probes were skipped. Enable safety.allowCommands to gather base/head behavior proof.");
+    } else {
+      notes.push("At least one configured differential probe failed, timed out, or errored.");
+    }
+  }
+
+  return notes.length > 0 ? notes : ["Some configured checks did not produce execution proof, so the report remains unverified."];
 }
 
 function verificationCheckFromCommandResult(result: ExecutionResult): RedteamVerificationSummary["checks"][number] {
@@ -172,12 +212,117 @@ function verificationCheckFromToolAdapterResult(
   return check;
 }
 
+function verificationCheckFromDifferentialResult(result: DifferentialProbeResult): RedteamVerificationSummary["checks"][number] {
+  const status = redteamStatusForDifferentialResult(result);
+  const check: RedteamVerificationSummary["checks"][number] = {
+    kind: "probe",
+    name: `Differential: ${result.name}`,
+    command: result.command,
+    status,
+    proof: status === "skipped" ? "missing-proof" : "tool-evidence",
+    summary: differentialSummary(result),
+    durationMs: result.base.durationMs + result.head.durationMs,
+    differentialStatus: result.status,
+    differences: [...result.differences],
+    base: redteamSideFromDifferentialSide(result.base),
+    head: redteamSideFromDifferentialSide(result.head),
+    rerunCommand: result.rerunCommand
+  };
+
+  if (result.artifacts) {
+    check.artifacts = differentialArtifacts(result.artifacts);
+  }
+
+  if (result.status === "changed" || result.status === "failed") {
+    check.failure = differentialFailure(result);
+  }
+
+  if (result.head.exitCode !== undefined) {
+    check.exitCode = result.head.exitCode;
+  }
+
+  return check;
+}
+
 function proofForStatus(status: AdapterStatus): RedteamVerificationSummary["checks"][number]["proof"] {
   return didExecute(status) ? "tool-evidence" : "missing-proof";
 }
 
 function didExecute(status: RedteamExecutionStatus): boolean {
   return status === "passed" || status === "failed" || status === "timed_out" || status === "error";
+}
+
+function verificationCounts(
+  checks: RedteamVerificationSummary["checks"],
+  durationMs: number
+): Pick<RedteamVerificationSummary, "total" | "passed" | "failed" | "skipped" | "blocked" | "timedOut" | "errors" | "durationMs"> {
+  return {
+    total: checks.length,
+    passed: checks.filter((check) => check.status === "passed").length,
+    failed: checks.filter((check) => check.status === "failed").length,
+    skipped: checks.filter((check) => check.status === "skipped").length,
+    blocked: checks.filter((check) => check.status === "blocked").length,
+    timedOut: checks.filter((check) => check.status === "timed_out").length,
+    errors: checks.filter((check) => check.status === "error").length,
+    durationMs
+  };
+}
+
+function redteamStatusForDifferentialResult(result: DifferentialProbeResult): RedteamExecutionStatus {
+  if (result.status === "passed") {
+    return "passed";
+  }
+
+  if (result.status === "skipped") {
+    return "skipped";
+  }
+
+  if (result.status === "changed") {
+    return "failed";
+  }
+
+  if (result.base.status === "timed_out" || result.head.status === "timed_out") {
+    return "timed_out";
+  }
+
+  return "error";
+}
+
+function redteamSideFromDifferentialSide(side: DifferentialSideResult): NonNullable<RedteamVerificationSummary["checks"][number]["base"]> {
+  const mapped = {
+    status: side.status,
+    durationMs: side.durationMs
+  };
+
+  return side.exitCode === undefined ? mapped : { ...mapped, exitCode: side.exitCode };
+}
+
+function differentialArtifacts(artifacts: DifferentialProbeArtifacts): NonNullable<RedteamVerificationSummary["checks"][number]["artifacts"]> {
+  return { ...artifacts };
+}
+
+function differentialSummary(result: DifferentialProbeResult): string {
+  if (result.status === "changed") {
+    return `Differential probe behavior changed: ${result.differences.join("; ") || "base/head output differs"}.`;
+  }
+
+  if (result.status === "failed") {
+    return "Differential probe failed, timed out, or errored on base or head.";
+  }
+
+  if (result.status === "skipped") {
+    return "Differential probe was skipped by safety policy.";
+  }
+
+  return "Differential probe behavior matched on base and head.";
+}
+
+function differentialFailure(result: DifferentialProbeResult): string {
+  if (result.status === "changed") {
+    return result.differences.join("; ") || "Base/head behavior changed.";
+  }
+
+  return [result.base.error, result.head.error].filter(Boolean).join("; ") || "Differential probe did not complete.";
 }
 
 function commandSummary(result: ExecutionResult): string {

@@ -51,6 +51,15 @@ function renderDifferentialMarkdown(report: DifferentialReport): string {
       appendOutputBlock(lines, "base stderr", result.base.stderr);
       appendOutputBlock(lines, "head stderr", result.head.stderr);
     }
+
+    lines.push(`  - Rerun: \`${result.rerunCommand}\``);
+    if (result.artifacts) {
+      lines.push(
+        `  - Artifacts: \`${result.artifacts.directory}\``,
+        `    - Base result: \`${result.artifacts.baseResult}\``,
+        `    - Head result: \`${result.artifacts.headResult}\``
+      );
+    }
   }
 
   lines.push(

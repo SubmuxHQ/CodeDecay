@@ -3,6 +3,7 @@ import type { LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import { CODEDECAY_VERSION } from "@submuxhq/codedecay-core";
 import { createGitWorktree, removeGitWorktree } from "@submuxhq/codedecay-git";
 import type { DifferentialProbeResult, DifferentialReport, DifferentialStatus, DifferentialSummary } from "../../types";
+import { createDifferentialRunId, writeDifferentialProbeArtifacts } from "./artifacts";
 import { compareDifferentialSides, differentialProbeStatus, runDifferentialSide } from "./side-results";
 
 export async function createDifferentialReport(
@@ -11,6 +12,7 @@ export async function createDifferentialReport(
   loadedConfig: LoadedCodeDecayConfig
 ): Promise<DifferentialReport> {
   const startedAt = Date.now();
+  const runId = createDifferentialRunId(startedAt);
   const configuredProbes = createConfiguredCommandAdapters(loadedConfig.config).filter((item) => item.kind === "probe");
   let baseWorktree: { path: string } | undefined;
   let headWorktree: { path: string } | undefined;
@@ -32,6 +34,14 @@ export async function createDifferentialReport(
         command: probe.command,
         status,
         differences,
+        rerunCommand: `npx codedecay differential --base ${refs.base} --head ${refs.head} --format markdown`,
+        artifacts: writeDifferentialProbeArtifacts({
+          rootDir,
+          runId,
+          probeId: probe.adapter.id,
+          base: baseResult,
+          head: headResult
+        }),
         base: baseResult,
         head: headResult
       });
