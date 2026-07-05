@@ -24,6 +24,7 @@ import { detectBroadUnrelatedChanges } from "./scope/broad-change";
 import { analyzeSymbolImpacts } from "./symbols/graph";
 import { checkDesignContract } from "./contract";
 import { detectTestBloat } from "./tests/bloat";
+import { createChangedPathTestProofMap } from "./test-proof/proof-map";
 import { analyzeTestRecommendations } from "./tests/recommendations";
 import { detectWeakTests } from "./tests/weak-audit";
 
@@ -103,6 +104,19 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
   recommendedTests.push(...testAudit.recommendedTests);
   findings.push(...detectFunctionMetricFindings(options.rootDir, parserSupportedSourceFiles));
 
+  const testProofMap = createChangedPathTestProofMap({
+    rootDir: options.rootDir,
+    changedSourceFiles: parserSupportedSourceFiles,
+    changedTestFiles,
+    testEvidence: runtimeCoverage.testEvidence,
+    symbolImpacts: symbolImpactAnalysis.impacts
+  });
+  recommendedTests.push(
+    ...testProofMap.entries
+      .filter((entry) => entry.status !== "proven_by_runtime_coverage")
+      .map((entry) => entry.repairTask)
+  );
+
   const result: AnalyzerResult = {
     findings: dedupeFindings(findings),
     impactedAreas,
@@ -116,7 +130,8 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
       skippedFiles: securityScan.skippedFiles
     },
     recommendedTests: recommendedTests.length > 0 ? dedupeStrings(recommendedTests) : ["Run the test suite for changed packages or apps."],
-    testEvidence: runtimeCoverage.testEvidence
+    testEvidence: runtimeCoverage.testEvidence,
+    testProofMap
   };
 
   if (securityScan.candidates.length > 0) {

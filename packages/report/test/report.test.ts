@@ -224,6 +224,42 @@ const report: CodeDecayReport = {
     ],
     notes: ["Runtime coverage artifacts were found, but some changed paths were not measured: src/app/dashboard/page.tsx."]
   },
+  testProofMap: {
+    summary: {
+      total: 1,
+      provenByRuntimeCoverage: 0,
+      referencedOnlyStatically: 1,
+      weakenedByMocking: 0,
+      unproven: 0
+    },
+    entries: [
+      {
+        file: "src/auth/session.ts",
+        symbol: "validateSession",
+        line: 3,
+        status: "referenced_only_statically",
+        evidence: "static-reference",
+        proof: "deterministic",
+        runtimeCoverage: {
+          path: "src/auth/session.ts",
+          status: "partial",
+          measuredLines: [3, 4],
+          coveredLines: [3],
+          uncoveredLines: [4],
+          sourceKinds: ["istanbul"],
+          sourcePaths: ["coverage/coverage-final.json"]
+        },
+        staticReferences: ["src/auth/session.test.ts"],
+        routeFiles: ["src/app/api/session/route.ts"],
+        weakenedByMocks: [],
+        reasons: [
+          "Referenced by src/auth/session.test.ts, but no runtime coverage artifact proves changed lines executed."
+        ],
+        repairTask:
+          "Strengthen src/auth/session.test.ts so it executes src/auth/session.ts#validateSession with assertions; static import alone is not proof."
+      }
+    ]
+  },
   productFailureBundles: [
     {
       schemaVersion: 1,
@@ -320,6 +356,9 @@ describe("reports", () => {
     expect(markdown).toContain("`src/auth/session.ts#validateSession`");
     expect(markdown).toContain("Route/API files: `src/app/api/session/route.ts`");
     expect(markdown).toContain("Likely tests: `src/auth/session.test.ts`");
+    expect(markdown).toContain("### Changed Path Test Proof");
+    expect(markdown).toContain("Static-only");
+    expect(markdown).toContain("static import alone is not proof");
     expect(markdown).toContain("### Merge Risk Breakdown");
     expect(markdown).toContain("### Language And Parser Coverage");
     expect(markdown).toContain("Fully supported parser files: 1");
@@ -371,6 +410,11 @@ describe("reports", () => {
       file: "src/auth/session.ts",
       symbol: "validateSession",
       routeFiles: ["src/app/api/session/route.ts"]
+    });
+    expect(json.testProofMap.entries[0]).toMatchObject({
+      file: "src/auth/session.ts",
+      symbol: "validateSession",
+      status: "referenced_only_statically"
     });
     expect(json.productFailureBundles[0]).toMatchObject({
       schemaVersion: 1,

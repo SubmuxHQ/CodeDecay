@@ -43,6 +43,8 @@ Exit codes:
 - symbol-level impact evidence for changed JS/TS exports, including direct
   importers, likely tests, and route/API files when detected
 - merge-risk and decay-risk scores
+- changed-path proof entries that label changed production paths as
+  runtime-proven, static-only, weakened by mocks, or unproven
 - test evidence audit status: `missing`, `weak`, `present`, or `not_applicable`
 - weak-test and missing-test findings from deterministic rules and runtime
   coverage gaps when present

@@ -49,7 +49,8 @@ export function runImpactMapTool(serverOptions: StartMcpServerOptions, input: Mc
       changedFiles: report.changedFiles,
       impactedAreas: report.impactedAreas,
       impactedRoutes: report.impactedRoutes ?? [],
-      symbolImpacts: report.symbolImpacts ?? []
+      symbolImpacts: report.symbolImpacts ?? [],
+      testProofMap: report.testProofMap
     },
     null,
     2
@@ -67,6 +68,7 @@ export function runAuditTestsTool(serverOptions: StartMcpServerOptions, input: M
       summary: audit.summary,
       changedSourceFiles: audit.changedSourceFiles,
       changedTestFiles: audit.changedTestFiles,
+      proofMap: audit.proofMap,
       missingTestFindings: audit.missingTestFindings,
       weakTestFindings: audit.weakTestFindings,
       findings,

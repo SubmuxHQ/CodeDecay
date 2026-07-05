@@ -74,3 +74,10 @@ export type {
   TestEvidenceSource,
   TestEvidenceSummary
 } from "./types/test-evidence";
+export type {
+  ChangedPathTestProofEntry,
+  ChangedPathTestProofEvidence,
+  ChangedPathTestProofMap,
+  ChangedPathTestProofStatus,
+  ChangedPathTestProofSummary
+} from "./types/test-proof";

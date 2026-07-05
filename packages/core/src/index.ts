@@ -83,6 +83,11 @@ export type {
   SecuritySkippedFile,
   TestEvidenceMode,
   TestEvidenceSource,
-  TestEvidenceSummary
+  TestEvidenceSummary,
+  ChangedPathTestProofEntry,
+  ChangedPathTestProofEvidence,
+  ChangedPathTestProofMap,
+  ChangedPathTestProofStatus,
+  ChangedPathTestProofSummary
 } from "./types";
 export { CODEDECAY_VERSION } from "./version";

@@ -22,6 +22,7 @@ export function createTestProofAudit(report: CodeDecayReport): TestProofAudit {
     changedSourceFiles,
     changedTestFiles,
     runtimeCoverage,
+    proofMap: report.testProofMap,
     missingTestFindings,
     weakTestFindings
   });
@@ -35,6 +36,7 @@ export function createTestProofAudit(report: CodeDecayReport): TestProofAudit {
     changedSourceFiles,
     changedTestFiles,
     runtimeCoverage,
+    proofMap: report.testProofMap,
     missingTestFindings,
     weakTestFindings,
     recommendedChecks: recommendStrongerChecks({

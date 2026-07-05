@@ -41,5 +41,6 @@ export function isTestPath(path: string): boolean {
   }
 
   const fileName = segments.at(-1) ?? normalized;
-  return TEST_FILE_STEM_PATTERN.test(stripExtension(fileName));
+  const stem = stripExtension(fileName);
+  return TEST_FILE_STEM_PATTERN.test(stem) || stem.startsWith("test_");
 }

@@ -114,6 +114,31 @@ describe("createAnalysisReport", () => {
           reasons: ["src/auth/session.ts#validateSession -> src/api/session.ts#validateSession (named import)"]
         }
       ],
+      testProofMap: {
+        summary: {
+          total: 1,
+          provenByRuntimeCoverage: 0,
+          referencedOnlyStatically: 1,
+          weakenedByMocking: 0,
+          unproven: 0
+        },
+        entries: [
+          {
+            file: "src/auth/session.ts",
+            symbol: "validateSession",
+            line: 3,
+            status: "referenced_only_statically",
+            evidence: "static-reference",
+            proof: "deterministic",
+            staticReferences: ["src/auth/session.test.ts"],
+            routeFiles: ["src/api/session.ts"],
+            weakenedByMocks: [],
+            reasons: ["Referenced by src/auth/session.test.ts, but no runtime coverage artifact proves changed lines executed."],
+            repairTask:
+              "Strengthen src/auth/session.test.ts so it executes src/auth/session.ts#validateSession with assertions; static import alone is not proof."
+          }
+        ]
+      },
       recommendedTests: ["src/auth/session.test.ts"]
     };
 
@@ -140,6 +165,11 @@ describe("createAnalysisReport", () => {
       file: "src/auth/session.ts",
       symbol: "validateSession",
       routeFiles: ["src/api/session.ts"]
+    });
+    expect(report.testProofMap?.entries[0]).toMatchObject({
+      file: "src/auth/session.ts",
+      symbol: "validateSession",
+      status: "referenced_only_statically"
     });
     expect(report.impactedRoutes).toEqual([
       {

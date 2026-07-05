@@ -96,8 +96,11 @@ describe("createTestProofAudit", () => {
       createReport({
         changedFiles: [
           sourceChange("packages/test-audit/src/index.ts"),
+          sourceChange("packages/core/src/types/test-proof.ts"),
+          sourceChange("packages/report/src/markdown/test-evidence.ts"),
           testChange("packages/test-audit/test/index.test.ts"),
-          testChange("packages/test-audit/__tests__/fixture.ts")
+          testChange("packages/test-audit/__tests__/fixture.ts"),
+          testChange("test_users.py")
         ],
         analyzerResult: {
           impactedAreas: [],
@@ -108,9 +111,12 @@ describe("createTestProofAudit", () => {
     );
 
     expect(audit.changedSourceFiles).toContain("packages/test-audit/src/index.ts");
+    expect(audit.changedSourceFiles).toContain("packages/core/src/types/test-proof.ts");
+    expect(audit.changedSourceFiles).toContain("packages/report/src/markdown/test-evidence.ts");
     expect(audit.changedTestFiles).toEqual([
       "packages/test-audit/__tests__/fixture.ts",
-      "packages/test-audit/test/index.test.ts"
+      "packages/test-audit/test/index.test.ts",
+      "test_users.py"
     ]);
   });
 
@@ -189,6 +195,49 @@ describe("createTestProofAudit", () => {
     expect(audit.evidenceMode).toBe("runtime_augmented");
     expect(audit.evidenceSummary).toContain("Covered: 1");
     expect(audit.runtimeCoverage[0]?.status).toBe("covered");
+  });
+
+  it("uses changed-path proof map gaps when classifying test proof status", () => {
+    const audit = createTestProofAudit(
+      createReport({
+        changedFiles: [sourceChange("src/api/users.ts"), testChange("src/api/users.test.ts")],
+        analyzerResult: {
+          impactedAreas: [],
+          findings: [],
+          recommendedTests: [],
+          testProofMap: {
+            summary: {
+              total: 1,
+              provenByRuntimeCoverage: 0,
+              referencedOnlyStatically: 1,
+              weakenedByMocking: 0,
+              unproven: 0
+            },
+            entries: [
+              {
+                file: "src/api/users.ts",
+                symbol: "listUsers",
+                line: 1,
+                status: "referenced_only_statically",
+                evidence: "static-reference",
+                proof: "deterministic",
+                staticReferences: ["src/api/users.test.ts"],
+                routeFiles: [],
+                weakenedByMocks: [],
+                reasons: [
+                  "Referenced by src/api/users.test.ts, but no runtime coverage artifact proves changed lines executed."
+                ],
+                repairTask:
+                  "Strengthen src/api/users.test.ts so it executes src/api/users.ts#listUsers with assertions; static import alone is not proof."
+              }
+            ]
+          }
+        }
+      })
+    );
+
+    expect(audit.status).toBe("weak");
+    expect(audit.proofMap?.entries[0]?.status).toBe("referenced_only_statically");
   });
 
   it("exports stable rule id lists", () => {

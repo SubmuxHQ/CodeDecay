@@ -10,6 +10,7 @@ describe("agent task bundle rendering", () => {
     expect(markdown).toContain("Give this bundle to a user-owned coding agent");
     expect(markdown).toContain("Start from impacted routes/APIs when present");
     expect(markdown).toContain("| Missing-test findings | 0 |");
+    expect(markdown).toContain("| Changed path proof entries | 1 |");
     expect(markdown).toContain("| Product failure bundles | 1 |");
     expect(markdown).toContain("### Agent Handoff");
     expect(markdown).toContain("Generic user-owned agent");
@@ -17,6 +18,8 @@ describe("agent task bundle rendering", () => {
     expect(markdown).toContain("You are helping fix a pull request using a CodeDecay agent task bundle.");
     expect(markdown).toContain("### Tool Evidence");
     expect(markdown).toContain("Impacted routes and APIs:");
+    expect(markdown).toContain("Changed path test proof:");
+    expect(markdown).toContain("Add an integration test that reaches src/api/imu.ts#submitImu without mocking submitImu.");
     expect(markdown).toContain("High `POST /api/imu` (Express route handler)");
     expect(markdown).toContain("Product failure bundles:");
     expect(markdown).toContain("IMU submit flow fails");
@@ -33,6 +36,7 @@ describe("agent task bundle rendering", () => {
     expect(parsed.agentProfile.id).toBe("generic");
     expect(parsed.prompt).toContain("Current CodeDecay risk is High");
     expect(parsed.summary.missingTestFindings).toBe(0);
+    expect(parsed.summary.testProofEntries).toBe(1);
     expect(parsed.summary.productFailureBundles).toBe(1);
     expect(parsed.prompt).toContain("For each route/API impact");
     expect(parsed.instructions).toContain("Do not assume the PR is safe just because tests pass.");
@@ -40,6 +44,10 @@ describe("agent task bundle rendering", () => {
       framework: "express",
       route: "/api/imu",
       methods: ["POST"]
+    });
+    expect(parsed.evidence.testProofEntries[0]).toMatchObject({
+      status: "weakened_by_mocking",
+      repairTask: "Add an integration test that reaches src/api/imu.ts#submitImu without mocking submitImu."
     });
   });
 });

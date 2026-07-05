@@ -6,6 +6,15 @@ export function classifyTestProof(input: TestProofClassificationInput): TestProo
     return "not_applicable";
   }
 
+  const proofEntries = input.proofMap?.entries ?? [];
+  if (proofEntries.some((entry) => entry.status === "unproven")) {
+    return "missing";
+  }
+
+  if (proofEntries.some((entry) => entry.status === "weakened_by_mocking" || entry.status === "referenced_only_statically")) {
+    return "weak";
+  }
+
   if (input.runtimeCoverage.some((entry) => entry.status === "not_covered")) {
     return "missing";
   }

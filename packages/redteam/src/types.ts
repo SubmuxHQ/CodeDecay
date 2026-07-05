@@ -21,6 +21,7 @@ export type RedteamTaskSource =
   | "finding"
   | "weak-test"
   | "edge-case"
+  | "test-proof"
   | "configured-check"
   | "tool-adapter"
   | "memory"
@@ -75,6 +76,7 @@ export interface RedteamSummary {
   findings: Record<RiskLevel, number>;
   missingTestFindings: number;
   weakTestFindings: number;
+  testProofEntries: number;
   testProofStatus: TestProofAudit["status"];
   edgeCases: number;
   configuredChecks: number;

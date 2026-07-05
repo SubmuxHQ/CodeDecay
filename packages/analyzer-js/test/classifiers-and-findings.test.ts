@@ -58,8 +58,13 @@ describe("analyzer-js path classifiers", () => {
 
   it("detects test paths by directory or file stem", () => {
     expect(isTestPath("src/auth/session.test.ts")).toBe(true);
+    expect(isTestPath("src/auth/session.spec.ts")).toBe(true);
+    expect(isTestPath("test_users.py")).toBe(true);
     expect(isTestPath("src/__tests__/session.ts")).toBe(true);
     expect(isTestPath("packages/test-audit/src/index.ts")).toBe(false);
+    expect(isTestPath("packages/core/src/types/test-proof.ts")).toBe(false);
+    expect(isTestPath("packages/report/src/markdown/test-evidence.ts")).toBe(false);
+    expect(isTestPath("packages/analyzer-js/src/test-proof/proof-map.ts")).toBe(false);
   });
 });
 

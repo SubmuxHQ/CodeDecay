@@ -18,6 +18,8 @@ The bundle includes:
 - a copy-paste prompt for any user-owned coding agent
 - changed files, impacted areas, and concrete route/API impacts when available
 - symbol-level import impacts for changed JS/TS exports when available
+- changed-path proof entries with repair tasks for runtime-unproven,
+  static-only, or mocked-boundary tests
 - weak-test and missing-test evidence signals
 - product verification failures from `.codedecay/local/product-runs/latest.json`
   when that artifact exists

@@ -25,6 +25,7 @@ export function createAgentTaskBundle(report: RedteamReport, options: CreateAgen
     impactedAreas: report.summary.impactedAreas,
     impactedRoutes: report.summary.impactedRoutes,
     symbolImpacts: report.summary.symbolImpacts,
+    testProofEntries: report.summary.testProofEntries,
     missingTestFindings: report.summary.missingTestFindings,
     weakTestFindings: report.summary.weakTestFindings,
     testProofStatus: report.summary.testProofStatus,
