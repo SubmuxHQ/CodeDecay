@@ -40,6 +40,8 @@ Exit codes:
 - changed files and impacted product/system areas
 - concrete route/API impacts when CodeDecay can detect them, such as Next.js
   API routes, Next.js UI routes, Express handlers, or Fastify handlers
+- symbol-level impact evidence for changed JS/TS exports, including direct
+  importers, likely tests, and route/API files when detected
 - merge-risk and decay-risk scores
 - test evidence audit status: `missing`, `weak`, `present`, or `not_applicable`
 - weak-test and missing-test findings from deterministic rules and runtime

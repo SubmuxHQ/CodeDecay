@@ -14,6 +14,7 @@ import {
   appendSecurityAnalysis,
   appendSecurityCandidates,
   appendSummaryTables,
+  appendSymbolImpacts,
   appendTestEvidence
 } from "./markdown/sections";
 
@@ -31,6 +32,7 @@ export function renderMarkdownReport(report: CodeDecayReport): string {
   appendChangedFiles(lines, report);
   appendImpactedAreas(lines, report);
   appendImpactedRoutes(lines, report);
+  appendSymbolImpacts(lines, report);
   appendLanguageAnalysis(lines, report.languageAnalysis);
   appendScoreBreakdown(lines, "Merge Risk Breakdown", report.summary.mergeRiskBreakdown);
   appendScoreBreakdown(lines, "Decay Risk Breakdown", report.summary.decayBreakdown);

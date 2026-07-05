@@ -48,6 +48,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
       changedFiles: input.analysisReport.changedFiles.length,
       impactedAreas: input.analysisReport.impactedAreas.length,
       impactedRoutes: input.analysisReport.impactedRoutes?.length ?? 0,
+      symbolImpacts: input.analysisReport.symbolImpacts?.length ?? 0,
       findings: input.analysisReport.summary.findingCounts,
       missingTestFindings: testAudit.missingTestFindings.length,
       weakTestFindings: weakTestFindings.length,

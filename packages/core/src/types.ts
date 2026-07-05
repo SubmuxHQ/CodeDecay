@@ -41,7 +41,18 @@ export type {
   DesignScopeFence
 } from "./types/design-contract";
 export type { Finding, FindingCategory } from "./types/findings";
-export type { ImpactedArea, ImpactedRoute } from "./types/impact";
+export type {
+  ImpactedArea,
+  ImpactedRoute,
+  SymbolCall,
+  SymbolExport,
+  SymbolGraphFile,
+  SymbolImpact,
+  SymbolImpactGraph,
+  SymbolImpactGraphSummary,
+  SymbolImport,
+  SymbolImportEdge
+} from "./types/impact";
 export type {
   LanguageAnalysisSummary,
   LanguageFileSupport,

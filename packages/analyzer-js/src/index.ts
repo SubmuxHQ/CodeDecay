@@ -21,6 +21,7 @@ import { analyzeRouteImpacts } from "./routes/analysis";
 import { mergeImpactedRoutes } from "./routes/impact";
 import { analyzeRuntimeCoverage } from "./runtime-coverage";
 import { detectBroadUnrelatedChanges } from "./scope/broad-change";
+import { analyzeSymbolImpacts } from "./symbols/graph";
 import { checkDesignContract } from "./contract";
 import { detectTestBloat } from "./tests/bloat";
 import { analyzeTestRecommendations } from "./tests/recommendations";
@@ -58,6 +59,9 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
   const areaAnalysis = analyzeImpactedAreas(options.changedFiles);
   impactedAreas.push(...areaAnalysis.impactedAreas);
   findings.push(...areaAnalysis.findings);
+
+  const symbolImpactAnalysis = analyzeSymbolImpacts(options.rootDir, parserSupportedSourceFiles);
+  recommendedTests.push(...symbolImpactAnalysis.recommendedTests);
 
   const routeImpacts = analyzeRouteImpacts(options.rootDir, parserSupportedSourceFiles);
   impactedRoutes.push(...routeImpacts.impactedRoutes);
@@ -103,6 +107,8 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
     findings: dedupeFindings(findings),
     impactedAreas,
     impactedRoutes: mergeImpactedRoutes(impactedRoutes),
+    symbolImpactGraph: symbolImpactAnalysis.graphSummary,
+    symbolImpacts: symbolImpactAnalysis.impacts,
     languageAnalysis,
     securityAnalysis: {
       scannedFiles: securityScan.scannedFiles,

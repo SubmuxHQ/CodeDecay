@@ -130,7 +130,7 @@ describe("scanSecurityCandidates", () => {
     expect(result.candidates.map((candidate) => candidate.ruleId)).not.toContain("security-sql-injection");
   });
 
-  it("tracks simple function parameters into high-risk sinks", () => {
+  it("tracks simple function parameters into network and shell sinks", () => {
     const result = scanSecurityCandidates({
       files: [
         {
@@ -149,8 +149,9 @@ describe("scanSecurityCandidates", () => {
     });
 
     expect(result.candidates.map((candidate) => candidate.ruleId)).toEqual(
-      expect.arrayContaining(["security-ssrf", "security-command-injection", "security-path-traversal"])
+      expect.arrayContaining(["security-ssrf", "security-command-injection"])
     );
+    expect(result.candidates.map((candidate) => candidate.ruleId)).not.toContain("security-path-traversal");
   });
 
   it("tracks one-hop local variables assigned from request input into high-risk sinks", () => {
@@ -185,6 +186,31 @@ describe("scanSecurityCandidates", () => {
     expect(result.candidates.map((candidate) => candidate.ruleId)).toEqual(
       expect.arrayContaining(["security-sql-injection", "security-path-traversal"])
     );
+  });
+
+  it("does not treat internal repo path helpers as request-controlled file access", () => {
+    const result = scanSecurityCandidates({
+      files: [
+        {
+          path: "packages/analyzer-js/src/symbols/graph.ts",
+          content: [
+            "import { readFileSync } from 'node:fs';",
+            "import { join } from 'node:path';",
+            "",
+            "function readRepoFile(rootDir: string, path: string): string | undefined {",
+            "  try {",
+            "    return readFileSync(join(rootDir, path), 'utf8');",
+            "  } catch {",
+            "    return undefined;",
+            "  }",
+            "}",
+            ""
+          ].join("\n")
+        }
+      ]
+    });
+
+    expect(result.candidates.map((candidate) => candidate.ruleId)).not.toContain("security-path-traversal");
   });
 
   it("flags indirect dynamic SQL built from function parameters without pretending to be a deep scan", () => {

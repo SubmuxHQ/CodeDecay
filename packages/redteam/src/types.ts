@@ -71,6 +71,7 @@ export interface RedteamSummary {
   changedFiles: number;
   impactedAreas: number;
   impactedRoutes: number;
+  symbolImpacts: number;
   findings: Record<RiskLevel, number>;
   missingTestFindings: number;
   weakTestFindings: number;

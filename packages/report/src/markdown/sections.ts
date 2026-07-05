@@ -5,7 +5,8 @@ export {
   appendImpactedRoutes,
   appendRecommendedChecks,
   appendReportNotes,
-  appendSummaryTables
+  appendSummaryTables,
+  appendSymbolImpacts
 } from "./overview";
 export { appendLanguageAnalysis } from "./language";
 export { appendProductFailureBundles } from "./product-failures";

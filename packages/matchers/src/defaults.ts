@@ -27,7 +27,7 @@ export const sqlInjectionMatcher: SecurityMatcher = {
   examples: [
     {
       filePath: "src/api/users.ts",
-      content: "await prisma.$queryRawUnsafe(`SELECT * FROM users WHERE id = ${req.query.id}`);"
+      content: "await prisma.$queryRawUnsafe(userSqlFromRequest);"
     }
   ],
   match(context) {
@@ -172,12 +172,14 @@ export const pathTraversalMatcher: SecurityMatcher = {
       const fileAccess = containsAny(codeLine, ["readfile", "writefile", "createreadstream", "createwritestream"]);
       return fileAccess && hasUserInputMarker(codeLine);
     });
-    const taintedMatches = findParameterTaintedSinkLines(context.content, [
-      "readfile",
-      "writefile",
-      "createreadstream",
-      "createwritestream"
-    ]);
+    const taintedMatches = hasPathInputSurface(context.filePath, context.content)
+      ? findParameterTaintedSinkLines(context.content, [
+          "readfile",
+          "writefile",
+          "createreadstream",
+          "createwritestream"
+        ])
+      : [];
 
     return uniqueMatches([...directMatches, ...taintedMatches]).map((match) =>
       createCandidate({
@@ -190,6 +192,20 @@ export const pathTraversalMatcher: SecurityMatcher = {
     );
   }
 };
+
+function hasPathInputSurface(filePath: string, content: string): boolean {
+  const normalized = maskStringLiterals(stripComments(content)).toLowerCase();
+  return hasRouteEntryPoint(filePath, content) || hasExplicitUserInputMarker(normalized);
+}
+
+function hasExplicitUserInputMarker(content: string): boolean {
+  return (
+    /\b(?:req|request)\s*\./.test(content) ||
+    /\b(?:req|request)\s*\[/.test(content) ||
+    /\b(?:params|body|headers|searchparams)\b/.test(content) ||
+    content.includes("process.argv")
+  );
+}
 
 export const ssrfMatcher: SecurityMatcher = {
   ruleId: "security-ssrf",

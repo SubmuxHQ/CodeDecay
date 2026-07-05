@@ -14,6 +14,7 @@ export function createFixtureReport(): RedteamReport {
       changedFiles: 1,
       impactedAreas: 1,
       impactedRoutes: 1,
+      symbolImpacts: 1,
       missingTestFindings: 0,
       findings: {
         low: 0,
@@ -69,6 +70,24 @@ export function createFixtureReport(): RedteamReport {
           risk: "high",
           reasons: ["IMU ingestion route changed"],
           recommendedTests: ["Add API-level IMU regression test."]
+        }
+      ],
+      symbolImpactGraph: {
+        schemaVersion: 1,
+        artifactPath: ".codedecay/local/symbol-impact-graph.json",
+        fileCount: 2,
+        edgeCount: 1
+      },
+      symbolImpacts: [
+        {
+          file: "src/api/imu.ts",
+          symbol: "submitImu",
+          exportKind: "named",
+          line: 10,
+          importerFiles: ["src/api/imu.test.ts"],
+          routeFiles: ["src/api/imu.ts"],
+          likelyTests: ["src/api/imu.test.ts"],
+          reasons: ["src/api/imu.ts#submitImu -> src/api/imu.test.ts#submitImu (named import)"]
         }
       ],
       findings: [],

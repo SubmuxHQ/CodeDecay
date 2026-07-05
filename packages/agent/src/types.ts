@@ -1,4 +1,4 @@
-import type { ImpactedRoute, ProductFailureBundle, RiskLevel } from "@submuxhq/codedecay-core";
+import type { ImpactedRoute, ProductFailureBundle, RiskLevel, SymbolImpact } from "@submuxhq/codedecay-core";
 import type { RedteamFixTask, RedteamReport, RedteamSkillSummary, RedteamTaskSource } from "@submuxhq/codedecay-redteam";
 import type { AgentProfile, AgentProfileId } from "./profiles";
 
@@ -44,6 +44,7 @@ export interface AgentTaskSummary {
   changedFiles: number;
   impactedAreas: number;
   impactedRoutes: number;
+  symbolImpacts: number;
   missingTestFindings: number;
   weakTestFindings: number;
   testProofStatus: string;
@@ -59,6 +60,7 @@ export interface AgentEvidence {
   changedFiles: AgentChangedFile[];
   impactedAreas: AgentImpactedArea[];
   impactedRoutes: AgentImpactedRoute[];
+  symbolImpacts: AgentSymbolImpact[];
   weakTestFindings: AgentFindingEvidence[];
   missingTestFindings: AgentFindingEvidence[];
   scopeFindings: AgentFindingEvidence[];
@@ -89,6 +91,17 @@ export interface AgentImpactedRoute {
   files: string[];
   reasons: string[];
   recommendedTests: string[];
+}
+
+export interface AgentSymbolImpact {
+  file: string;
+  symbol: string;
+  exportKind: SymbolImpact["exportKind"];
+  line: number;
+  importerFiles: string[];
+  routeFiles: string[];
+  likelyTests: string[];
+  reasons: string[];
 }
 
 export interface AgentFindingEvidence {

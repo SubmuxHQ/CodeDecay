@@ -23,6 +23,16 @@ export function createAgentEvidence(report: RedteamReport): AgentEvidence {
       reasons: [...route.reasons],
       recommendedTests: [...route.recommendedTests]
     })),
+    symbolImpacts: (report.analysis.symbolImpacts ?? []).map((impact) => ({
+      file: impact.file,
+      symbol: impact.symbol,
+      exportKind: impact.exportKind,
+      line: impact.line,
+      importerFiles: [...impact.importerFiles],
+      routeFiles: [...impact.routeFiles],
+      likelyTests: [...impact.likelyTests],
+      reasons: [...impact.reasons]
+    })),
     weakTestFindings: report.weakTestFindings.map(findingEvidence),
     missingTestFindings: report.testAudit.missingTestFindings.map(findingEvidence),
     scopeFindings: report.analysis.findings
