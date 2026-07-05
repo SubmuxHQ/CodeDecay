@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createCodeDecayMcpServer,
   runAnalyzePrTool,
+  runAgentPreflightTool,
   runAgentTaskBundleTool,
   runAuditTestsTool,
   runExecuteConfiguredChecksTool,
@@ -27,6 +28,67 @@ import {
 } from "./helpers/mcp";
 
 describe("CodeDecay MCP redteam and agent tools", () => {
+  it("returns agent preflight guidance through MCP", () => {
+    const repo = createRouteImpactRepo();
+    writeFile(
+      repo,
+      ".codedecay/memory.json",
+      JSON.stringify(
+        {
+          version: 1,
+          flows: [
+            {
+              name: "Users API",
+              description: "Users API changes require route-level proof.",
+              areas: ["api"],
+              productPaths: ["/api/users"]
+            }
+          ],
+          commands: [],
+          invariants: [],
+          architecture: [],
+          regressions: []
+        },
+        null,
+        2
+      )
+    );
+
+    const output = JSON.parse(
+      runAgentPreflightTool({ cwd: repo }, { task: "Add users API regression tests", format: "json" })
+    );
+
+    expect(output).toMatchObject({
+      tool: "CodeDecay",
+      mode: "agent-preflight",
+      safety: {
+        commandsExecuted: false,
+        llmCalled: false
+      }
+    });
+    expect(output.deterministicEvidence.taskSignals.noDiffRequired).toBe(true);
+    expect(output.deterministicEvidence.likelyAreas.map((area: { kind: string }) => area.kind)).toEqual(
+      expect.arrayContaining(["api", "test"])
+    );
+    expect(output.deterministicEvidence.candidateRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          route: "/api/users",
+          kind: "api-route"
+        })
+      ])
+    );
+    expect(output.deterministicEvidence.memory.flows).toEqual([
+      expect.objectContaining({
+        title: "Users API"
+      })
+    ]);
+
+    const markdown = runAgentPreflightTool({ cwd: repo }, { task: "Add users API regression tests", format: "markdown" });
+    expect(markdown).toContain("## CodeDecay Agent Preflight");
+    expect(markdown).toContain("### Suggestions For Agent");
+  });
+
   it("returns route impact evidence through MCP redteam and agent tools", () => {
     const repo = createRouteImpactRepo();
 

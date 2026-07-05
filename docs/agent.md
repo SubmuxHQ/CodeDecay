@@ -10,8 +10,33 @@ hidden model call.
 ```bash
 npx codedecay agent --base main --head HEAD --format markdown
 npx codedecay agent --profile codex --format markdown
+npx codedecay agent preflight --task "Add a GET /api/users export endpoint" --format markdown
 npx codedecay agent --cwd ../my-repo --format json --output codedecay-agent.json
 ```
+
+## Preflight Before Code Generation
+
+Use `codedecay agent preflight` before a coding agent starts editing. It does
+not require a git diff, run configured commands, call models, or send telemetry.
+
+```bash
+npx codedecay agent preflight \
+  --task "Add a dashboard filter for reviewed uploads" \
+  --format markdown
+```
+
+The preflight report separates deterministic repo evidence from suggestions:
+
+- likely impacted areas from the task description
+- candidate files and route/API surfaces from repo paths
+- matched local memory, invariants, architecture notes, and regressions
+- matched design-contract boundaries
+- configured checks listed as follow-up proof with `willRun=false`
+- proof plan and non-goals for the receiving agent
+
+Treat preflight as a before-coding brief. After the agent edits code, run
+`codedecay redteam`, `codedecay agent`, and the relevant project checks to
+gather merge evidence.
 
 The bundle includes:
 

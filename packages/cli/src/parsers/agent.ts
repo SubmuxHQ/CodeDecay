@@ -17,11 +17,18 @@ type AgentTaskSourceValue = (typeof AGENT_TASK_SOURCES)[number];
 
 export function parseAgentArgs(args: string[]): AgentOptions {
   const options: AgentOptions = {
+    mode: "task-bundle",
     format: "markdown",
     profile: "generic"
   };
 
-  for (let index = 0; index < args.length; index += 1) {
+  let startIndex = 0;
+  if (args[0] === "preflight") {
+    options.mode = "preflight";
+    startIndex = 1;
+  }
+
+  for (let index = startIndex; index < args.length; index += 1) {
     const arg = args[index];
 
     if (!arg) {
@@ -131,7 +138,22 @@ export function parseAgentArgs(args: string[]): AgentOptions {
       continue;
     }
 
+    if (arg.startsWith("--task=")) {
+      options.task = arg.slice("--task=".length);
+      continue;
+    }
+
+    if (arg === "--task") {
+      options.task = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
     throwUnknownOption(arg, "agent");
+  }
+
+  if (options.mode === "preflight" && !options.task?.trim()) {
+    throw new Error("agent preflight requires --task <description>.");
   }
 
   return options;

@@ -59,6 +59,11 @@ runs CodeDecay locally and passes the repository path with `--cwd`.
   changed-path proof repair tasks, weak-test signals, edge cases, suggested
   checks, skills, and fix tasks. It accepts an optional `profile` value:
   `generic`, `codex`, `claude-code`, `cursor`, `pi`, `opencode`, or `desktop`.
+- `agent_preflight`: returns before-coding guidance from a task description,
+  repo paths, local config, design contracts, and memory. It does not require a
+  git diff, execute commands, or call models. Use it to give Codex, Claude Code,
+  Cursor, or another agent likely files/routes, constraints, and expected proof
+  before implementation starts.
 - `execute_configured_checks`: runs configured CodeDecay commands, probes, and
   enabled tool adapters. It requires `confirmExecution: true` and
   `safety.allowCommands: true`.
@@ -81,6 +86,15 @@ Example execution tool input:
 ```json
 {
   "confirmExecution": true,
+  "format": "markdown"
+}
+```
+
+Example preflight input:
+
+```json
+{
+  "task": "Add a GET /api/users export endpoint",
   "format": "markdown"
 }
 ```

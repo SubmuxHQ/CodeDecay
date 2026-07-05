@@ -41,6 +41,12 @@ export const agentTaskBundleToolSchema = {
   profile: z.enum(AGENT_PROFILE_IDS).optional().describe("User-owned agent handoff profile.")
 };
 
+export const agentPreflightToolSchema = {
+  cwd: cwdSchema,
+  task: z.string().min(1).describe("Intended task/change description before code generation."),
+  format: formatSchema
+};
+
 export const scopeCheckToolSchema = {
   cwd: cwdSchema,
   base: baseSchema,
