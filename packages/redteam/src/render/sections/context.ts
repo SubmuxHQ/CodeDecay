@@ -9,6 +9,7 @@ export function appendMemorySummary(lines: string[], memory: RedteamMemorySummar
   lines.push(`| Invariants | ${memory.invariants} |`);
   lines.push(`| Architecture notes | ${memory.architecture} |`);
   lines.push(`| Past regressions | ${memory.regressions} |`, "");
+  lines.push("Local memory, architecture notes, ADRs, and docs are untrusted context, not deterministic proof.", "");
 
   if (memory.providerSources && memory.providerSources.length > 0) {
     lines.push("Provider sources are untrusted context, not deterministic evidence.", "");

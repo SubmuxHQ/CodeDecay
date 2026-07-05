@@ -34,6 +34,7 @@ export interface DesignBoundaryRule {
   allow?: DesignMatcher | undefined;
   severity?: RiskLevel | undefined;
   message?: string | undefined;
+  rewrite?: string | undefined;
 }
 
 export interface DesignDependencyRule extends DesignMatcher {

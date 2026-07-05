@@ -193,6 +193,7 @@ describe("redteam report assembly and rendering", () => {
     expect(markdown).toContain("[Tool evidence]");
     expect(markdown).toContain("Commands executed: no");
     expect(markdown).toContain("LLM/model called: no");
+    expect(markdown).toContain("Local memory, architecture notes, ADRs, and docs are untrusted context, not deterministic proof.");
   });
 
   it("does not fabricate redteam tasks or edge cases when there is no diff", () => {

@@ -95,6 +95,23 @@ memoryProviders:
       endpoint: http://127.0.0.1:3001
       apiKeyEnv: SUPERMEMORY_API_KEY
       collection: codedecay
+
+designContract:
+  boundaryRules:
+    - id: ui-through-service-adapter
+      from:
+        files:
+          - src/app/**
+          - src/components/**
+      disallow:
+        files:
+          - src/persistence/**
+          - src/db/**
+      allow:
+        files:
+          - src/services/adapters/**
+      severity: high
+      rewrite: Move UI access through the service adapter instead of importing persistence directly.
 ```
 
 Optional user-owned model providers must be configured explicitly. For a local
@@ -111,6 +128,36 @@ llm:
 
 Use `apiKeyEnv` to point at an environment variable name. Do not store literal
 API keys in CodeDecay config.
+
+## Design Contract Boundaries
+
+`designContract.boundaryRules` can define architecture boundaries for local
+imports. CodeDecay checks added import lines in changed source files, resolves
+local repo targets, and reports a deterministic
+`contract-import-boundary-violation` when a changed file introduces forbidden
+coupling.
+
+```yaml
+designContract:
+  boundaryRules:
+    - id: ui-through-service-adapter
+      from:
+        files: src/app/**
+      disallow:
+        files: src/persistence/**
+      allow:
+        files: src/services/adapters/**
+      severity: high
+      rewrite: Move this through the service adapter instead of importing persistence from UI.
+```
+
+If a repo has `CODEOWNERS`, CodeDecay enriches the finding with matching owners
+for the changed file and imported target. Owners are context for routing review;
+the configured boundary rule is the deterministic policy source.
+
+Local memory, ADRs, and docs can guide review, but CodeDecay marks them as
+untrusted context. They are not deterministic proof unless backed by tests,
+configured checks, or tool evidence.
 
 ## Memory Providers
 

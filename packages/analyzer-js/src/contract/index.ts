@@ -8,6 +8,11 @@ import type {
   ImpactedArea,
   RiskLevel
 } from "@submuxhq/codedecay-core";
+import { loadCodeowners } from "./codeowners";
+import { boundaryCombinationDescription } from "./descriptions";
+import { checkImportBoundaryRule } from "./import-boundaries";
+import { matchesImportPattern, matchesMatcher } from "./matchers";
+import type { CodeownersIndex, ContractFileContext } from "./types";
 
 export interface DesignContractCheckInput {
   rootDir: string;
@@ -20,12 +25,6 @@ export interface DesignContractCheckResult {
   findings: Finding[];
 }
 
-interface FileContext {
-  change: FileChange;
-  areaKinds: Set<ImpactedArea["kind"]>;
-  content: string;
-}
-
 export function checkDesignContract(input: DesignContractCheckInput): DesignContractCheckResult {
   if (!input.contract) {
     return { findings: [] };
@@ -35,9 +34,10 @@ export function checkDesignContract(input: DesignContractCheckInput): DesignCont
     .filter((change) => change.status !== "deleted")
     .map((change) => createFileContext(input.rootDir, change, input.impactedAreas));
   const findings: Finding[] = [];
+  const codeowners = loadCodeowners(input.rootDir);
 
   findings.push(...checkScopeFences(input.contract, files));
-  findings.push(...checkBoundaryRules(input.contract, files));
+  findings.push(...checkBoundaryRules(input.contract, files, input.rootDir, codeowners));
   findings.push(...checkDependencyRules(input.contract, files));
   findings.push(...checkBannedApis(input.contract, files));
   findings.push(...checkPatternRules(input.contract, files));
@@ -45,7 +45,7 @@ export function checkDesignContract(input: DesignContractCheckInput): DesignCont
   return { findings };
 }
 
-function checkScopeFences(contract: DesignContract, files: FileContext[]): Finding[] {
+function checkScopeFences(contract: DesignContract, files: ContractFileContext[]): Finding[] {
   const activeFenceId = contract.activeScopeFence;
   if (!activeFenceId) {
     return [];
@@ -82,48 +82,57 @@ function checkScopeFences(contract: DesignContract, files: FileContext[]): Findi
     }));
 }
 
-function checkBoundaryRules(contract: DesignContract, files: FileContext[]): Finding[] {
+function checkBoundaryRules(
+  contract: DesignContract,
+  files: ContractFileContext[],
+  rootDir: string,
+  codeowners: CodeownersIndex
+): Finding[] {
   return (contract.boundaryRules ?? []).flatMap((rule) => {
     const fromFiles = files.filter((file) => matchesMatcher(rule.from, file));
     if (fromFiles.length === 0) {
       return [];
     }
 
+    const findings: Finding[] = [];
+
     if (rule.disallow) {
       const disallow = rule.disallow;
-      return files
-        .filter((file) => matchesMatcher(disallow, file))
+      findings.push(...files
+        .filter((file) => matchesMatcher(disallow, file) && (!rule.allow || !matchesMatcher(rule.allow, file)))
         .map((file) => ({
           ruleId: "contract-boundary-violation",
           title: "Design contract boundary violated",
-          description: rule.message ?? `${file.change.path} crosses disallowed boundary rule "${rule.id}".`,
+          description: boundaryCombinationDescription(rule, file.change.path, "disallowed"),
           severity: rule.severity ?? "high",
-          category: "scope",
+          category: "scope" as const,
           file: file.change.path,
           line: firstChangedLine(file.change)
-        }));
+        })));
     }
 
-    if (rule.allow) {
+    if (rule.allow && !rule.disallow) {
       const allow = rule.allow;
-      return files
+      findings.push(...files
         .filter((file) => !matchesMatcher(allow, file))
         .map((file) => ({
           ruleId: "contract-boundary-violation",
           title: "Design contract boundary violated",
-          description: rule.message ?? `${file.change.path} is outside allowed boundary rule "${rule.id}".`,
+          description: boundaryCombinationDescription(rule, file.change.path, "allowed"),
           severity: rule.severity ?? "high",
-          category: "scope",
+          category: "scope" as const,
           file: file.change.path,
           line: firstChangedLine(file.change)
-        }));
+        })));
     }
 
-    return [];
+    findings.push(...checkImportBoundaryRule(rule, fromFiles, rootDir, codeowners));
+
+    return findings;
   });
 }
 
-function checkDependencyRules(contract: DesignContract, files: FileContext[]): Finding[] {
+function checkDependencyRules(contract: DesignContract, files: ContractFileContext[]): Finding[] {
   return (contract.dependencyRules ?? []).flatMap((rule) =>
     files.filter((file) => matchesMatcher(rule, file)).flatMap((file) => {
       const imports = collectImportSpecifiers(file.content);
@@ -161,7 +170,7 @@ function checkDependencyRules(contract: DesignContract, files: FileContext[]): F
   );
 }
 
-function checkBannedApis(contract: DesignContract, files: FileContext[]): Finding[] {
+function checkBannedApis(contract: DesignContract, files: ContractFileContext[]): Finding[] {
   return (contract.bannedApis ?? []).flatMap((rule) =>
     files.filter((file) => matchesMatcher(rule, file)).flatMap((file) =>
       rule.apis.flatMap((api) => {
@@ -184,7 +193,7 @@ function checkBannedApis(contract: DesignContract, files: FileContext[]): Findin
   );
 }
 
-function checkPatternRules(contract: DesignContract, files: FileContext[]): Finding[] {
+function checkPatternRules(contract: DesignContract, files: ContractFileContext[]): Finding[] {
   return (contract.patternRules ?? []).flatMap((rule) =>
     files.filter((file) => matchesMatcher(rule, file)).flatMap((file) => {
       const findings: Finding[] = [];
@@ -222,26 +231,12 @@ function checkPatternRules(contract: DesignContract, files: FileContext[]): Find
   );
 }
 
-function createFileContext(rootDir: string, change: FileChange, impactedAreas: ImpactedArea[]): FileContext {
+function createFileContext(rootDir: string, change: FileChange, impactedAreas: ImpactedArea[]): ContractFileContext {
   return {
     change,
     areaKinds: new Set(impactedAreas.filter((area) => area.files.includes(change.path)).map((area) => area.kind)),
     content: readChangeContent(rootDir, change)
   };
-}
-
-function matchesMatcher(matcher: DesignMatcher, file: FileContext): boolean {
-  const hasFileMatcher = Boolean(matcher.files?.length);
-  const hasAreaMatcher = Boolean(matcher.areas?.length);
-
-  if (!hasFileMatcher && !hasAreaMatcher) {
-    return true;
-  }
-
-  return (
-    (matcher.files?.some((pattern) => matchesPathPattern(file.change.path, pattern)) ?? false) ||
-    (matcher.areas?.some((area) => file.areaKinds.has(area)) ?? false)
-  );
 }
 
 function collectImportSpecifiers(content: string): string[] {
@@ -261,27 +256,6 @@ function collectImportSpecifiers(content: string): string[] {
   }
 
   return [...specifiers].sort((left, right) => left.localeCompare(right));
-}
-
-function matchesPathPattern(path: string, pattern: string): boolean {
-  if (pattern === path) {
-    return true;
-  }
-
-  if (!pattern.includes("*")) {
-    return path.includes(pattern);
-  }
-
-  const regex = new RegExp(`^${pattern.split("*").map(escapeRegExp).join(".*")}$`);
-  return regex.test(path);
-}
-
-function matchesImportPattern(specifier: string, pattern: string): boolean {
-  return matchesPathPattern(specifier, pattern);
-}
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function readChangeContent(rootDir: string, change: FileChange): string {

@@ -55,6 +55,12 @@ describe("CodeDecay memory context application", () => {
     expect(result.findings.map((finding) => finding.ruleId)).toEqual(
       expect.arrayContaining(["memory-invariant-impacted", "memory-past-regression-area", "memory-architecture-note"])
     );
+    expect(result.findings.find((finding) => finding.ruleId === "memory-invariant-impacted")?.description).toContain(
+      "Untrusted memory context"
+    );
+    expect(result.findings.find((finding) => finding.ruleId === "memory-architecture-note")?.description).toContain(
+      "Untrusted architecture context"
+    );
     expect(result.recommendedTests).toEqual(
       expect.arrayContaining([
         "Verify invariant: Auth fails closed",

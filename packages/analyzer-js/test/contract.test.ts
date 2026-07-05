@@ -75,6 +75,127 @@ describe("design contract analysis", () => {
     );
   });
 
+  it("flags newly introduced UI imports into persistence with ownership and rewrite evidence", () => {
+    const rootDir = createTempProject({
+      ".github/CODEOWNERS": [
+        "src/app/** @frontend-team",
+        "src/persistence/** @data-platform",
+        ""
+      ].join("\n"),
+      "src/app/page.tsx": [
+        "import { saveUser } from '../persistence/user-repository';",
+        "export default function Page() { saveUser(); return null; }",
+        ""
+      ].join("\n"),
+      "src/persistence/user-repository.ts": "export function saveUser() { return true; }\n"
+    });
+
+    const result = analyzeJsProject({
+      rootDir,
+      designContract: {
+        version: 1,
+        boundaryRules: [
+          {
+            id: "ui-through-service-adapter",
+            from: { files: ["src/app/**"] },
+            disallow: { files: ["src/persistence/**"] },
+            rewrite: "Move this through the service adapter instead of importing persistence from UI."
+          }
+        ]
+      },
+      changedFiles: [
+        change("src/app/page.tsx", "import { saveUser } from '../persistence/user-repository';")
+      ]
+    });
+
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "contract-import-boundary-violation",
+          file: "src/app/page.tsx",
+          line: 1,
+          description: expect.stringContaining("Changed file: src/app/page.tsx.")
+        })
+      ])
+    );
+    const finding = result.findings.find((item) => item.ruleId === "contract-import-boundary-violation");
+    expect(finding?.description).toContain("Imported target: src/persistence/user-repository.ts.");
+    expect(finding?.description).toContain("Rule source: designContract.boundaryRules[id=ui-through-service-adapter].");
+    expect(finding?.description).toContain("changed file owners @frontend-team");
+    expect(finding?.description).toContain("imported target owners @data-platform");
+    expect(finding?.description).toContain("Rewrite direction: Move this through the service adapter instead of importing persistence from UI.");
+  });
+
+  it("flags service imports that bypass bounded context boundaries", () => {
+    const rootDir = createTempProject({
+      "src/services/billing/invoice.ts": [
+        "import { findUser } from '../identity/users';",
+        "export function invoice() { return findUser(); }",
+        ""
+      ].join("\n"),
+      "src/services/identity/users.ts": "export function findUser() { return { id: 'u1' }; }\n"
+    });
+
+    const result = analyzeJsProject({
+      rootDir,
+      designContract: {
+        version: 1,
+        boundaryRules: [
+          {
+            id: "billing-via-identity-client",
+            from: { files: ["src/services/billing/**"] },
+            disallow: { files: ["src/services/identity/**"] },
+            rewrite: "Use the identity client adapter instead of importing identity internals directly."
+          }
+        ]
+      },
+      changedFiles: [
+        change("src/services/billing/invoice.ts", "import { findUser } from '../identity/users';")
+      ]
+    });
+
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "contract-import-boundary-violation",
+          description: expect.stringContaining("Imported target: src/services/identity/users.ts.")
+        })
+      ])
+    );
+  });
+
+  it("does not flag allowlisted adapter imports inside a forbidden boundary", () => {
+    const rootDir = createTempProject({
+      "src/app/page.tsx": [
+        "import { saveUser } from '../persistence/adapters/user-repository';",
+        "export default function Page() { saveUser(); return null; }",
+        ""
+      ].join("\n"),
+      "src/persistence/adapters/user-repository.ts": "export function saveUser() { return true; }\n"
+    });
+
+    const result = analyzeJsProject({
+      rootDir,
+      designContract: {
+        version: 1,
+        boundaryRules: [
+          {
+            id: "ui-persistence-adapter-only",
+            from: { files: ["src/app/**"] },
+            disallow: { files: ["src/persistence/**"] },
+            allow: { files: ["src/persistence/adapters/**"] }
+          }
+        ]
+      },
+      changedFiles: [
+        change("src/app/page.tsx", "import { saveUser } from '../persistence/adapters/user-repository';")
+      ]
+    });
+
+    expect(result.findings.map((finding) => finding.ruleId)).not.toContain("contract-import-boundary-violation");
+    expect(result.findings.map((finding) => finding.ruleId)).not.toContain("contract-boundary-violation");
+  });
+
   it("flags dependency allowlist and banned import violations", () => {
     const rootDir = createTempProject({
       "src/auth/session.ts": [
