@@ -1,9 +1,16 @@
 import type { CodeDecayMemory } from "../types";
+import type { MemoryLearningContext } from "./proposals";
+import { learningSource, recordMemoryProposal } from "./proposals";
 import { asRecord, stringValue } from "./records";
 import { safeLearnedText } from "./text";
 import { productPathFromUnknown, targetIdFromProductReportTarget } from "./product-paths";
 
-export function appendLearnedProductWorkflowFailure(memory: CodeDecayMemory, target: Record<string, unknown>): void {
+export function appendLearnedProductWorkflowFailure(
+  memory: CodeDecayMemory,
+  target: Record<string, unknown>,
+  sourcePath = "product report",
+  context?: MemoryLearningContext | undefined
+): void {
   const status = stringValue(target.status);
   if (!status || !["failed", "blocked", "timed_out"].includes(status)) {
     return;
@@ -21,12 +28,22 @@ export function appendLearnedProductWorkflowFailure(memory: CodeDecayMemory, tar
   const reason = productWorkflowFailureReason(target) ?? `Product target ended with status ${status}.`;
   const productPath = productPathFromUnknown(target.healthCheck) ?? productPathFromUnknown(target.baseUrl);
 
-  memory.regressions.push({
+  const regression = {
     title: `Product workflow: ${targetId}: ${status.replace("_", " ")}`,
     description: safeLearnedText(reason),
     check: `npx codedecay product --target ${targetId} --format markdown`,
     severity: status === "failed" ? "high" : "medium",
     ...(productPath ? { productPaths: [productPath] } : {})
+  } as const;
+  memory.regressions.push(regression);
+  recordMemoryProposal({
+    context,
+    section: "regressions",
+    title: regression.title,
+    entry: regression,
+    source: learningSource("product-report", sourcePath, target, regression.title),
+    confidence: regression.severity,
+    why: `Product report shows target ${targetId} ended with ${status}; future changes should recheck that workflow.`
   });
 }
 

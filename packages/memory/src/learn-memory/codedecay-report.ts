@@ -2,8 +2,15 @@ import type { ImpactedArea } from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "../types";
 import { isPlainObject, optionalString } from "../schema";
 import { inferMemoryMatcher, normalizeAreaKind, normalizeRiskValue } from "./matchers";
+import type { MemoryLearningContext } from "./proposals";
+import { learningSource, recordMemoryProposal } from "./proposals";
 
-export function appendLearnedCodeDecayReport(memory: CodeDecayMemory, report: Record<string, unknown>): void {
+export function appendLearnedCodeDecayReport(
+  memory: CodeDecayMemory,
+  report: Record<string, unknown>,
+  sourcePath = "CodeDecay report",
+  context?: MemoryLearningContext | undefined
+): void {
   const findings = Array.isArray(report.findings) ? report.findings : [];
   const recommendedTests = Array.isArray(report.recommendedTests)
     ? report.recommendedTests.filter((item): item is string => typeof item === "string")
@@ -43,12 +50,22 @@ export function appendLearnedCodeDecayReport(memory: CodeDecayMemory, report: Re
       `${title}\n${description}\n${file ?? ""}`
     );
 
-    memory.regressions.push({
+    const regression = {
       title: `CodeDecay: ${title}`,
       description,
       check: recommendedTests[0] ?? `Re-check CodeDecay finding: ${title}`,
       severity,
       ...matcher
+    } as const;
+    memory.regressions.push(regression);
+    recordMemoryProposal({
+      context,
+      section: "regressions",
+      title: regression.title,
+      entry: regression,
+      source: learningSource("codedecay-report", sourcePath, report, title),
+      confidence: severity,
+      why: `Prior CodeDecay report finding "${title}" was actionable and should guide similar future changes.`
     });
   }
 }

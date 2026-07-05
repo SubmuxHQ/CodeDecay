@@ -1,8 +1,15 @@
 import type { CodeDecayMemory } from "../types";
 import { normalizeObject, optionalString, optionalStringArray, requiredString } from "../schema";
 import { inferCheckFromText, inferMemoryMatcher, looksLikeRegressionLearning } from "./matchers";
+import type { MemoryLearningContext } from "./proposals";
+import { learningSource, recordMemoryProposal } from "./proposals";
 
-export function appendLearnedCiFailure(memory: CodeDecayMemory, value: unknown, sourcePath: string): void {
+export function appendLearnedCiFailure(
+  memory: CodeDecayMemory,
+  value: unknown,
+  sourcePath: string,
+  context?: MemoryLearningContext | undefined
+): void {
   const object = normalizeObject(value, sourcePath, "ciFailures[]");
   const title =
     optionalString(object.title, sourcePath, "ciFailures[].title") ??
@@ -20,26 +27,52 @@ export function appendLearnedCiFailure(memory: CodeDecayMemory, value: unknown, 
     optionalString(object.testCommand, sourcePath, "ciFailures[].testCommand");
   const matcher = inferMemoryMatcher(object, `${title}\n${description}`);
   const check = optionalString(object.check, sourcePath, "ciFailures[].check") ?? command ?? `Re-run failing CI path: ${title}`;
+  const source = learningSource("ci-failure", sourcePath, object, title);
 
-  memory.regressions.push({
+  const regression = {
     title,
     description,
     check,
     severity: "high",
     ...matcher
+  } as const;
+  memory.regressions.push(regression);
+  recordMemoryProposal({
+    context,
+    section: "regressions",
+    title,
+    entry: regression,
+    source,
+    confidence: "high",
+    why: `CI failure "${title}" is evidence of a path that should be rechecked before similar changes merge.`
   });
 
   if (command) {
-    memory.commands.push({
+    const commandEntry = {
       name: `${title} check`,
       command,
       description,
       ...matcher
+    };
+    memory.commands.push(commandEntry);
+    recordMemoryProposal({
+      context,
+      section: "commands",
+      title: commandEntry.name,
+      entry: commandEntry,
+      source,
+      confidence: "high",
+      why: `CI failure "${title}" included a concrete command that can prove the learned path.`
     });
   }
 }
 
-export function appendLearnedPullRequest(memory: CodeDecayMemory, value: unknown, sourcePath: string): void {
+export function appendLearnedPullRequest(
+  memory: CodeDecayMemory,
+  value: unknown,
+  sourcePath: string,
+  context?: MemoryLearningContext | undefined
+): void {
   const object = normalizeObject(value, sourcePath, "pullRequests[]");
   const title = requiredString(object.title, sourcePath, "pullRequests[].title");
   const body =
@@ -53,29 +86,60 @@ export function appendLearnedPullRequest(memory: CodeDecayMemory, value: unknown
   const matcher = inferMemoryMatcher(object, text);
   const description = body || `Learned from merged PR: ${title}.`;
   const generatedCheck = checks[0] ?? inferCheckFromText(title, text);
+  const source = learningSource("pull-request", sourcePath, object, title);
 
-  memory.architecture.push({
+  const architecture = {
     title,
     note: description,
     ...matcher
+  };
+  memory.architecture.push(architecture);
+  recordMemoryProposal({
+    context,
+    section: "architecture",
+    title,
+    entry: architecture,
+    source,
+    confidence: looksLikeRegressionLearning(text) ? "medium" : "low",
+    why: `Merged PR "${title}" records repository behavior or architecture context that future agents should see.`
   });
 
   if (checks.length > 0) {
-    memory.flows.push({
+    const flow = {
       name: title,
       description,
       checks,
       ...matcher
+    };
+    memory.flows.push(flow);
+    recordMemoryProposal({
+      context,
+      section: "flows",
+      title,
+      entry: flow,
+      source,
+      confidence: "medium",
+      why: `Merged PR "${title}" included explicit checks that can become reviewable flow proof.`
     });
   }
 
   if (looksLikeRegressionLearning(text)) {
-    memory.regressions.push({
+    const regression = {
       title,
       description,
       check: generatedCheck,
       severity: "medium",
       ...matcher
+    } as const;
+    memory.regressions.push(regression);
+    recordMemoryProposal({
+      context,
+      section: "regressions",
+      title,
+      entry: regression,
+      source,
+      confidence: "medium",
+      why: `Merged PR "${title}" looks like it fixed a regression, so similar areas should be rechecked.`
     });
   }
 }

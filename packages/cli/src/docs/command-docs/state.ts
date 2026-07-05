@@ -58,23 +58,25 @@ export const STATE_COMMAND_DOCS: Record<string, CommandDoc> = {
   },
   "memory-learn": {
     name: "memory-learn",
-    summary: "Learn local repo memory from CI, PR, and CodeDecay report signals.",
+    summary: "Learn local repo memory proposals from CI, PR, incident, and CodeDecay report signals.",
     usage: ["codedecay memory-learn --input <path> [options]"],
     description: [
-      "Convert raw-ish CI failures, merged PR descriptions, commit messages, and CodeDecay fail-on reports into reviewable `.codedecay/memory.json` entries."
+      "Convert raw-ish CI failures, merged PR descriptions, incident markdown, commit messages, and CodeDecay fail-on reports into reviewable `.codedecay/memory.json` proposals."
     ],
     options: [
-      { flag: "--input <path>", description: "JSON file containing ciFailures, pullRequests, reports, failOnReports, or a CodeDecay report" },
+      { flag: "--input <path>", description: "JSON or markdown file containing ciFailures, pullRequests, incidents, reports, failOnReports, or a CodeDecay report" },
       { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
       { flag: "--format <format>", description: "json or markdown preview format (default: markdown)" },
       { flag: "--apply", description: "Write the learned memory file instead of only printing the preview" }
     ],
     examples: [
       "codedecay memory-learn --input ci-failure.json",
+      "codedecay memory-learn --input incidents/auth-outage.md",
       "codedecay memory-learn --input codedecay-report.json --apply"
     ],
     notes: [
-      "Learning is deterministic and local. CodeDecay does not inspect remote CI, PRs, or GitHub automatically."
+      "Learning is deterministic and local. CodeDecay does not inspect remote CI, PRs, or GitHub automatically.",
+      "Preview output includes proposals with source, confidence, timestamp, and why before --apply writes memory."
     ]
   }
 };

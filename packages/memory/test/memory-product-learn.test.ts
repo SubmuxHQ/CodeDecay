@@ -79,7 +79,8 @@ describe("CodeDecay product memory learning", () => {
           }
         ]
       },
-      "product-report.json"
+      "product-report.json",
+      { timestamp: "2026-01-05T00:00:00.000Z" }
     );
 
     expect(result.learned).toMatchObject({
@@ -103,6 +104,23 @@ describe("CodeDecay product memory learning", () => {
           files: ["src/app/api/users/route.ts"],
           productPaths: ["/api/users"],
           severity: "high"
+        })
+      ])
+    );
+    expect(result.proposals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          section: "flows",
+          title: "Product check: web: loads /dashboard",
+          source: expect.objectContaining({ type: "product-report", path: "product-report.json" }),
+          confidence: "medium",
+          timestamp: "2026-01-05T00:00:00.000Z"
+        }),
+        expect.objectContaining({
+          section: "regressions",
+          title: "Product regression: web: GET /api/users returns a documented status",
+          source: expect.objectContaining({ type: "product-report", path: "product-report.json" }),
+          confidence: "high"
         })
       ])
     );
