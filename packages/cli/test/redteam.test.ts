@@ -153,6 +153,53 @@ describe("codedecay redteam CLI contract", () => {
     expect(markdown.stdout).toContain("Artifacts: `.codedecay/local/differential/");
   });
 
+  it("includes base/head API contract evidence when --with-checks has refs", async () => {
+    const { repo, base, head } = createRedteamApiContractRepo();
+
+    const result = await run(["redteam", "--with-checks", "--base", base, "--head", head, "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+    const apiContractCheck = report.verification.checks.find((check: { name: string }) =>
+      check.name === "API contract: docs/openapi.json"
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(report.summary.verificationStatus).toBe("failed");
+    expect(report.verification).toMatchObject({
+      total: 1,
+      failed: 1,
+      commandsExecuted: false
+    });
+    expect(report.verification.notes).toContain(
+      "No configured execution commands ran; verification includes base/head API contract evidence."
+    );
+    expect(report.verification.notes).toContain(
+      "Base/head API contract contains breaking changes. Run Schemathesis, Pact, or client contract tests for the impacted routes before merge."
+    );
+    expect(apiContractCheck).toMatchObject({
+      kind: "api-contract",
+      status: "failed",
+      proof: "tool-evidence",
+      differentialStatus: "changed",
+      differences: ["breaking removed-path: Removed API path /users."],
+      rerunCommand: `npx codedecay differential --base ${base} --head ${head} --format markdown`
+    });
+    expect(report.fixTasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Fix failing proof check: API contract: docs/openapi.json",
+          proof: "tool-evidence",
+          source: "configured-check"
+        })
+      ])
+    );
+
+    const markdown = await run(["redteam", "--with-checks", "--base", base, "--head", head, "--format", "markdown"], repo);
+    expect(markdown.exitCode).toBe(1);
+    expect(markdown.stdout).toContain("API contract: docs/openapi.json");
+    expect(markdown.stdout).toContain("Run Schemathesis, Pact, or client contract tests");
+    expect(markdown.stdout).toContain("breaking removed-path: Removed API path /users.");
+  });
+
   it("marks --with-checks reports unverified when configured checks are skipped by safety config", async () => {
     const repo = createLowRiskRepo();
     writeExecutionConfig(repo, {
@@ -415,3 +462,59 @@ describe("codedecay redteam CLI contract", () => {
     expect(result.stderr).toContain('CodeDecay failed: Could not resolve git ref "definitely-missing-ref".');
   });
 });
+
+function createRedteamApiContractRepo(): { repo: string; base: string; head: string } {
+  const repo = createRepo({
+    "docs/openapi.json": redteamOpenApiDocument({
+      "/users": {
+        get: {
+          responses: {
+            "200": {
+              description: "ok",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    required: ["id"],
+                    properties: {
+                      id: { type: "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }),
+    ".codedecay/config.yml": [
+      "version: 1",
+      "commands: {}",
+      "apiContracts:",
+      "  openapi:",
+      "    - docs/openapi.json",
+      "safety:",
+      "  allowCommands: false",
+      ""
+    ].join("\n")
+  });
+  const base = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+
+  writeFile(repo, "docs/openapi.json", redteamOpenApiDocument({}));
+  git(repo, ["add", "."]);
+  git(repo, ["commit", "-m", "remove users contract"]);
+  const head = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+
+  return { repo, base, head };
+}
+
+function redteamOpenApiDocument(paths: Record<string, unknown>): string {
+  return `${JSON.stringify({
+    openapi: "3.0.0",
+    info: {
+      title: "Fixture API",
+      version: "1.0.0"
+    },
+    paths
+  }, null, 2)}\n`;
+}

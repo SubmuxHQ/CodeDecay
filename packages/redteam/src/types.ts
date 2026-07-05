@@ -7,7 +7,7 @@ import type { ConfiguredToolAdapterKind } from "@submuxhq/codedecay-tool-adapter
 
 export type RedteamFormat = "json" | "markdown";
 export type RedteamMode = "deterministic";
-export type RedteamCheckKind = "test" | "build" | "start" | "probe";
+export type RedteamCheckKind = "test" | "build" | "start" | "probe" | "api-contract";
 export type RedteamExecutionStatus = "passed" | "failed" | "skipped" | "blocked" | "timed_out" | "error";
 export type RedteamProofGrade =
   | "tool-evidence"

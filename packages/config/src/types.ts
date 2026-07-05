@@ -1,3 +1,4 @@
+export type { CodeDecayApiContractsConfig } from "./types/api-contracts";
 export type { CodeDecayConfig } from "./types/config";
 export type { CodeDecayCommands, CodeDecayProbe } from "./types/commands";
 export type { CodeDecayLlmConfig } from "./types/llm";

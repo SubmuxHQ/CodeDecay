@@ -35,6 +35,9 @@ describe("CodeDecay config defaults and loading", () => {
         ]
       },
       toolAdapters: {},
+      apiContracts: {
+        openapi: []
+      },
       productTesting: {
         targets: {}
       },
@@ -140,6 +143,28 @@ describe("CodeDecay config defaults and loading", () => {
     const loaded = loadCodeDecayConfig({ cwd: root });
 
     expect(loaded.config.plugins.enabled).toEqual(["local-security-pack", "ownership-pack"]);
+  });
+
+  it("loads explicit OpenAPI contract config", () => {
+    const root = createTempDir();
+    writeFile(
+      root,
+      ".codedecay/config.yml",
+      [
+        "version: 1",
+        "apiContracts:",
+        "  openapi:",
+        "    - docs/openapi.yaml",
+        "    - specs/internal-api.json",
+        ""
+      ].join("\n")
+    );
+
+    const loaded = loadCodeDecayConfig({ cwd: root });
+
+    expect(loaded.config.apiContracts).toEqual({
+      openapi: ["docs/openapi.yaml", "specs/internal-api.json"]
+    });
   });
 
   it("loads inline design contract config", () => {

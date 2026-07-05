@@ -20,6 +20,7 @@ export interface DifferentialReport {
   configSource?: string | undefined;
   summary: DifferentialSummary;
   results: DifferentialProbeResult[];
+  apiContracts: DifferentialApiContractResult[];
 }
 
 export interface DifferentialSummary {
@@ -30,6 +31,16 @@ export interface DifferentialSummary {
   skipped: number;
   failed: number;
   durationMs: number;
+  apiContracts: DifferentialApiContractSummary;
+}
+
+export interface DifferentialApiContractSummary {
+  total: number;
+  passed: number;
+  changed: number;
+  failed: number;
+  breakingChanges: number;
+  nonBreakingChanges: number;
 }
 
 export interface DifferentialProbeResult {
@@ -62,4 +73,49 @@ export interface DifferentialSideResult {
   exitCode?: number | undefined;
   error?: string | undefined;
   structuredOutput?: unknown;
+}
+
+export interface DifferentialApiContractResult {
+  id: string;
+  schemaPath: string;
+  status: DifferentialStatus;
+  breakingChanges: DifferentialApiContractChange[];
+  nonBreakingChanges: DifferentialApiContractChange[];
+  errors: string[];
+  rerunCommand: string;
+  base?: DifferentialApiContractSide | undefined;
+  head?: DifferentialApiContractSide | undefined;
+}
+
+export interface DifferentialApiContractSide {
+  schemaPath: string;
+  exists: boolean;
+  operationCount: number;
+}
+
+export type DifferentialApiContractChangeKind =
+  | "removed-path"
+  | "added-path"
+  | "removed-method"
+  | "added-method"
+  | "removed-status-code"
+  | "added-status-code"
+  | "removed-response-field"
+  | "added-response-field"
+  | "response-required-field-removed"
+  | "response-required-field-added"
+  | "required-request-parameter-added"
+  | "request-parameter-became-required"
+  | "optional-request-parameter-added";
+
+export interface DifferentialApiContractChange {
+  kind: DifferentialApiContractChangeKind;
+  severity: "breaking" | "non-breaking";
+  path: string;
+  method?: string | undefined;
+  statusCode?: string | undefined;
+  schemaPath?: string | undefined;
+  message: string;
+  base?: string | undefined;
+  head?: string | undefined;
 }

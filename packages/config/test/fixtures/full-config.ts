@@ -64,6 +64,10 @@ export const FULL_CONFIG_YAML = [
   "      - coverage/lcov.info",
   "    failOn: uncovered",
   "    timeoutMs: 120000",
+  "apiContracts:",
+  "  openapi:",
+  "    - docs/openapi.yaml",
+  "    - specs/public-api.yaml",
   "productTesting:",
   "  targets:",
   "    web:",
@@ -177,6 +181,9 @@ export const EXPECTED_FULL_CONFIG: CodeDecayConfig = {
       failOn: "uncovered",
       timeoutMs: 120000
     }
+  },
+  apiContracts: {
+    openapi: ["docs/openapi.yaml", "specs/public-api.yaml"]
   },
   productTesting: {
     targets: {

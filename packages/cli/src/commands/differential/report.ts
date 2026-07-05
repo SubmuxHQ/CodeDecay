@@ -2,7 +2,8 @@ import { createConfiguredCommandAdapters } from "@submuxhq/codedecay-adapters";
 import type { LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import { CODEDECAY_VERSION } from "@submuxhq/codedecay-core";
 import { createGitWorktree, removeGitWorktree } from "@submuxhq/codedecay-git";
-import type { DifferentialProbeResult, DifferentialReport, DifferentialStatus, DifferentialSummary } from "../../types";
+import type { DifferentialApiContractResult, DifferentialProbeResult, DifferentialReport, DifferentialStatus, DifferentialSummary } from "../../types";
+import { compareApiContracts } from "./api-contracts";
 import { createDifferentialRunId, writeDifferentialProbeArtifacts } from "./artifacts";
 import { compareDifferentialSides, differentialProbeStatus, runDifferentialSide } from "./side-results";
 
@@ -22,6 +23,12 @@ export async function createDifferentialReport(
     headWorktree = createGitWorktree({ cwd: rootDir, ref: refs.head, prefix: "head" });
 
     const results: DifferentialProbeResult[] = [];
+    const apiContracts = compareApiContracts({
+      baseWorktree: baseWorktree.path,
+      headWorktree: headWorktree.path,
+      refs,
+      config: loadedConfig.config
+    });
     for (const probe of configuredProbes) {
       const baseResult = await runDifferentialSide(probe.adapter, baseWorktree.path, loadedConfig);
       const headResult = await runDifferentialSide(probe.adapter, headWorktree.path, loadedConfig);
@@ -53,8 +60,9 @@ export async function createDifferentialReport(
       generatedAt: new Date().toISOString(),
       base: refs.base,
       head: refs.head,
-      summary: createDifferentialSummary(results, elapsed(startedAt)),
-      results
+      summary: createDifferentialSummary(results, apiContracts, elapsed(startedAt)),
+      results,
+      apiContracts
     };
 
     if (loadedConfig.sourcePath) {
@@ -73,40 +81,62 @@ export async function createDifferentialReport(
   }
 }
 
-function createDifferentialSummary(results: DifferentialProbeResult[], durationMs: number): DifferentialSummary {
+function createDifferentialSummary(
+  results: DifferentialProbeResult[],
+  apiContracts: DifferentialApiContractResult[],
+  durationMs: number
+): DifferentialSummary {
   const changed = results.filter((result) => result.status === "changed").length;
   const failed = results.filter((result) => result.status === "failed").length;
   const skipped = results.filter((result) => result.status === "skipped").length;
   const unchanged = results.filter((result) => result.status === "passed").length;
+  const apiContractSummary = createApiContractSummary(apiContracts);
 
   return {
-    status: differentialStatus(results, { changed, failed, skipped }),
-    total: results.length,
-    unchanged,
-    changed,
+    status: differentialStatus(results, apiContracts, { changed, failed, skipped }),
+    total: results.length + apiContracts.length,
+    unchanged: unchanged + apiContractSummary.passed,
+    changed: changed + apiContractSummary.changed,
     skipped,
-    failed,
-    durationMs
+    failed: failed + apiContractSummary.failed,
+    durationMs,
+    apiContracts: apiContractSummary
   };
 }
 
 function differentialStatus(
   results: DifferentialProbeResult[],
+  apiContracts: DifferentialApiContractResult[],
   counts: Pick<DifferentialSummary, "changed" | "failed" | "skipped">
 ): DifferentialStatus {
-  if (counts.failed > 0) {
+  if (counts.failed > 0 || apiContracts.some((result) => result.status === "failed")) {
     return "failed";
   }
 
-  if (counts.changed > 0) {
+  if (counts.changed > 0 || apiContracts.some((result) => result.status === "changed")) {
     return "changed";
   }
 
-  if (results.length === 0 || counts.skipped === results.length) {
+  if (results.length === 0 && apiContracts.length === 0) {
+    return "skipped";
+  }
+
+  if (results.length > 0 && counts.skipped === results.length && apiContracts.length === 0) {
     return "skipped";
   }
 
   return "passed";
+}
+
+function createApiContractSummary(apiContracts: DifferentialApiContractResult[]): DifferentialSummary["apiContracts"] {
+  return {
+    total: apiContracts.length,
+    passed: apiContracts.filter((result) => result.status === "passed").length,
+    changed: apiContracts.filter((result) => result.status === "changed").length,
+    failed: apiContracts.filter((result) => result.status === "failed").length,
+    breakingChanges: apiContracts.reduce((sum, result) => sum + result.breakingChanges.length, 0),
+    nonBreakingChanges: apiContracts.reduce((sum, result) => sum + result.nonBreakingChanges.length, 0)
+  };
 }
 
 function elapsed(startedAt: number): number {

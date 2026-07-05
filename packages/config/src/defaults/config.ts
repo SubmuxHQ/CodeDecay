@@ -28,6 +28,9 @@ export const DEFAULT_CODEDECAY_CONFIG: CodeDecayConfig = {
   productTesting: {
     targets: {}
   },
+  apiContracts: {
+    openapi: []
+  },
   plugins: {
     enabled: []
   }

@@ -129,6 +129,220 @@ describe("codedecay differential CLI contract", () => {
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain('Could not resolve git ref "missing-ref".');
   });
+
+  it("reports removed OpenAPI paths as breaking API contract changes", async () => {
+    const { repo, base, head } = createApiContractDifferentialRepo({
+      basePaths: {
+        "/users": {
+          get: jsonGetOperation(["id"], ["id"])
+        }
+      },
+      headPaths: {}
+    });
+
+    const result = await run(["differential", "--base", base, "--head", head, "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(report.summary).toMatchObject({
+      status: "changed",
+      total: 1,
+      apiContracts: {
+        total: 1,
+        changed: 1,
+        breakingChanges: 1
+      }
+    });
+    expect(report.apiContracts[0]).toMatchObject({
+      schemaPath: "docs/openapi.json",
+      status: "changed",
+      breakingChanges: [
+        expect.objectContaining({
+          kind: "removed-path",
+          path: "/users"
+        })
+      ]
+    });
+    expect(report.results).toEqual([]);
+  });
+
+  it("keeps added OpenAPI paths as non-breaking API contract additions", async () => {
+    const { repo, base, head } = createApiContractDifferentialRepo({
+      basePaths: {},
+      headPaths: {
+        "/users": {
+          get: jsonGetOperation(["id"], ["id"])
+        }
+      }
+    });
+
+    const result = await run(["differential", "--base", base, "--head", head, "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(report.summary).toMatchObject({
+      status: "passed",
+      total: 1,
+      apiContracts: {
+        total: 1,
+        passed: 1,
+        nonBreakingChanges: 1
+      }
+    });
+    expect(report.apiContracts[0]).toMatchObject({
+      status: "passed",
+      breakingChanges: [],
+      nonBreakingChanges: [
+        expect.objectContaining({
+          kind: "added-path",
+          path: "/users"
+        })
+      ]
+    });
+  });
+
+  it("reports removed OpenAPI response status codes and fields as breaking", async () => {
+    const { repo, base, head } = createApiContractDifferentialRepo({
+      basePaths: {
+        "/users": {
+          get: {
+            responses: {
+              "200": jsonResponse(["id", "email"], ["id", "email"]),
+              "404": jsonResponse(["error"], ["error"])
+            }
+          }
+        }
+      },
+      headPaths: {
+        "/users": {
+          get: jsonGetOperation(["id"], ["id"])
+        }
+      }
+    });
+
+    const result = await run(["differential", "--base", base, "--head", head, "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+    const kinds = report.apiContracts[0].breakingChanges.map((change: { kind: string }) => change.kind);
+
+    expect(result.exitCode).toBe(1);
+    expect(kinds).toEqual(expect.arrayContaining(["removed-status-code", "removed-response-field"]));
+  });
+
+  it("keeps optional OpenAPI response field additions non-breaking", async () => {
+    const { repo, base, head } = createApiContractDifferentialRepo({
+      basePaths: {
+        "/users": {
+          get: jsonGetOperation(["id"], ["id"])
+        }
+      },
+      headPaths: {
+        "/users": {
+          get: jsonGetOperation(["id"], ["id", "nickname"])
+        }
+      }
+    });
+
+    const result = await run(["differential", "--base", base, "--head", head, "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(report.apiContracts[0]).toMatchObject({
+      status: "passed",
+      breakingChanges: [],
+      nonBreakingChanges: [
+        expect.objectContaining({
+          kind: "added-response-field",
+          path: "/users",
+          method: "GET",
+          statusCode: "200"
+        })
+      ]
+    });
+  });
+
+  it("reports response fields that become optional as breaking requiredness changes", async () => {
+    const { repo, base, head } = createApiContractDifferentialRepo({
+      basePaths: {
+        "/users": {
+          get: jsonGetOperation(["id", "email"], ["id", "email"])
+        }
+      },
+      headPaths: {
+        "/users": {
+          get: jsonGetOperation(["id"], ["id", "email"])
+        }
+      }
+    });
+
+    const result = await run(["differential", "--base", base, "--head", head, "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(report.apiContracts[0].breakingChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "response-required-field-removed",
+          schemaPath: "paths./users.get.responses.200.content.application/json.schema.properties.email"
+        })
+      ])
+    );
+  });
+
+  it("reports added required OpenAPI request parameters as breaking", async () => {
+    const { repo, base, head } = createApiContractDifferentialRepo({
+      basePaths: {
+        "/users": {
+          get: jsonGetOperation(["id"], ["id"])
+        }
+      },
+      headPaths: {
+        "/users": {
+          get: {
+            ...jsonGetOperation(["id"], ["id"]),
+            parameters: [
+              {
+                name: "tenantId",
+                in: "query",
+                required: true,
+                schema: { type: "string" }
+              }
+            ]
+          }
+        }
+      }
+    });
+
+    const result = await run(["differential", "--base", base, "--head", head, "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(report.apiContracts[0].breakingChanges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "required-request-parameter-added",
+          path: "/users",
+          method: "GET"
+        })
+      ])
+    );
+  });
+
+  it("fails safely when an OpenAPI schema path resolves outside the worktree", async () => {
+    const { repo, base, head } = createMissingApiContractDifferentialRepo("../openapi.yaml");
+
+    const result = await run(["differential", "--base", base, "--head", head, "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(report.summary.status).toBe("failed");
+    expect(report.apiContracts[0]).toMatchObject({
+      status: "failed",
+      errors: [
+        "../openapi.yaml resolves outside the worktree.",
+        "../openapi.yaml resolves outside the worktree."
+      ]
+    });
+  });
 });
 
 function createHttpProbeDifferentialRepo(): { repo: string; base: string; head: string } {
@@ -161,6 +375,86 @@ function createExitCodeDifferentialRepo(): { repo: string; base: string; head: s
   const head = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
 
   return { repo, base, head };
+}
+
+function createApiContractDifferentialRepo(input: {
+  basePaths: Record<string, unknown>;
+  headPaths: Record<string, unknown>;
+}): { repo: string; base: string; head: string } {
+  const repo = createRepo({
+    "docs/openapi.json": openApiDocument(input.basePaths),
+    ".codedecay/config.yml": apiContractConfig("docs/openapi.json")
+  });
+  const base = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+
+  writeFile(repo, "docs/openapi.json", openApiDocument(input.headPaths));
+  git(repo, ["add", "."]);
+  git(repo, ["commit", "-m", "update api contract"]);
+  const head = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+
+  return { repo, base, head };
+}
+
+function createMissingApiContractDifferentialRepo(schemaPath: string): { repo: string; base: string; head: string } {
+  const repo = createRepo({
+    "README.md": "# Fixture\n",
+    ".codedecay/config.yml": apiContractConfig(schemaPath)
+  });
+  const base = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+
+  writeFile(repo, "README.md", "# Fixture\n\nHead change.\n");
+  git(repo, ["add", "."]);
+  git(repo, ["commit", "-m", "update readme"]);
+  const head = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+
+  return { repo, base, head };
+}
+
+function apiContractConfig(schemaPath: string): string {
+  return [
+    "version: 1",
+    "commands: {}",
+    "apiContracts:",
+    "  openapi:",
+    `    - ${schemaPath}`,
+    "safety:",
+    "  allowCommands: false",
+    ""
+  ].join("\n");
+}
+
+function openApiDocument(paths: Record<string, unknown>): string {
+  return `${JSON.stringify({
+    openapi: "3.0.0",
+    info: {
+      title: "Fixture API",
+      version: "1.0.0"
+    },
+    paths
+  }, null, 2)}\n`;
+}
+
+function jsonGetOperation(required: string[], properties: string[]): Record<string, unknown> {
+  return {
+    responses: {
+      "200": jsonResponse(required, properties)
+    }
+  };
+}
+
+function jsonResponse(required: string[], properties: string[]): Record<string, unknown> {
+  return {
+    description: "ok",
+    content: {
+      "application/json": {
+        schema: {
+          type: "object",
+          required,
+          properties: Object.fromEntries(properties.map((property) => [property, { type: "string" }]))
+        }
+      }
+    }
+  };
 }
 
 function differentialProbeConfig(allowCommands: boolean): string {
