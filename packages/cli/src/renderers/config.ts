@@ -57,6 +57,9 @@ function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig): string {
   lines.push("### Product Testing Targets", "");
   appendConfigProductTargets(lines, config.productTesting.targets);
 
+  lines.push("### API Contracts", "");
+  appendConfigApiContracts(lines, config.apiContracts);
+
   lines.push(
     "### Probes",
     ""
@@ -170,6 +173,19 @@ function appendConfigProductTargets(
     );
   }
   lines.push("", "Config inspection does not execute product target commands.", "");
+}
+
+function appendConfigApiContracts(
+  lines: string[],
+  apiContracts: LoadedCodeDecayConfig["config"]["apiContracts"]
+): void {
+  if (apiContracts.openapi.length === 0) {
+    lines.push("No API contract files configured.", "");
+    return;
+  }
+
+  lines.push("| Type | Files |", "| --- | --- |");
+  lines.push(`| OpenAPI | ${apiContracts.openapi.map((path) => `\`${path}\``).join("<br>")} |`, "");
 }
 
 function formatCommandList(commands: string[]): string {

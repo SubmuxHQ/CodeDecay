@@ -4,7 +4,8 @@ import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import type { AdapterStatus } from "@submuxhq/codedecay-adapters";
 import type { AgentOptions, AnalyzeOptions, CliAnalysisContext, CliRuntime, RedteamOptions } from "../types";
 import { loadConfiguredRedteamMemory } from "../memory/configured-providers";
-import type { DifferentialProbeArtifacts, DifferentialProbeResult, DifferentialReport, DifferentialSideResult, ExecutionReport, ExecutionResult, ExecutionToolAdapterResult } from "../types";
+import type { DifferentialApiContractResult, DifferentialProbeArtifacts, DifferentialProbeResult, DifferentialReport, DifferentialSideResult, ExecutionReport, ExecutionResult, ExecutionToolAdapterResult } from "../types";
+import { configuredOpenApiContractPaths } from "./differential/api-contracts";
 import { createDifferentialReport } from "./differential/report";
 import { createExecutionReport } from "./execute/report";
 import type { RunExecuteCommandDependencies } from "./execute/types";
@@ -78,7 +79,10 @@ async function maybeCreateDifferentialReport(
   options: AgentOptions | RedteamOptions,
   loadedConfig: ReturnType<typeof loadCodeDecayConfig>
 ): Promise<DifferentialReport | undefined> {
-  if (!("withChecks" in options) || !options.withChecks || !options.base || !options.head || loadedConfig.config.probes.length === 0) {
+  const hasDifferentialInput =
+    loadedConfig.config.probes.length > 0 ||
+    configuredOpenApiContractPaths(loadedConfig.config).length > 0;
+  if (!("withChecks" in options) || !options.withChecks || !options.base || !options.head || !hasDifferentialInput) {
     return undefined;
   }
 
@@ -92,13 +96,14 @@ function verificationFromExecutionReport(
   const checks = [
     ...report.results.map(verificationCheckFromCommandResult),
     ...report.toolAdapters.map(verificationCheckFromToolAdapterResult),
-    ...(differentialReport?.results.map(verificationCheckFromDifferentialResult) ?? [])
+    ...(differentialReport?.results.map(verificationCheckFromDifferentialResult) ?? []),
+    ...(differentialReport?.apiContracts.map(verificationCheckFromApiContractResult) ?? [])
   ];
   const summary = verificationCounts(checks, report.summary.durationMs + (differentialReport?.summary.durationMs ?? 0));
 
   return {
     status: verificationStatus(report, differentialReport, summary),
-    commandsExecuted: checks.some((check) => didExecute(check.status)),
+    commandsExecuted: checks.some((check) => check.kind !== "api-contract" && didExecute(check.status)),
     total: summary.total,
     passed: summary.passed,
     failed: summary.failed,
@@ -135,8 +140,12 @@ function verificationStatus(
 function verificationNotes(report: ExecutionReport, differentialReport: DifferentialReport | undefined): string[] {
   const notes: string[] = [];
 
-  if (report.summary.total === 0) {
+  if (report.summary.total === 0 && (!differentialReport || differentialReport.summary.total === 0)) {
     notes.push("No configured commands, probes, or tool adapters were found, so merge safety remains unverified.");
+  }
+
+  if (report.summary.total === 0 && differentialReport && differentialReport.summary.total > 0) {
+    notes.push("No configured execution commands ran; verification includes base/head API contract evidence.");
   }
 
   if (report.summary.status === "skipped") {
@@ -156,13 +165,22 @@ function verificationNotes(report: ExecutionReport, differentialReport: Differen
   }
 
   if (differentialReport) {
-    if (differentialReport.summary.status === "changed") {
+    if (differentialReport.summary.apiContracts.breakingChanges > 0) {
+      notes.push("Base/head API contract contains breaking changes. Run Schemathesis, Pact, or client contract tests for the impacted routes before merge.");
+    }
+
+    if (differentialReport.summary.apiContracts.nonBreakingChanges > 0) {
+      notes.push("Base/head API contract contains non-breaking additions; confirm generated clients and documentation tolerate the new surface.");
+    }
+
+    const probeStatuses = differentialReport.results.map((result) => result.status);
+    if (probeStatuses.includes("changed")) {
       notes.push("Base/head differential probe behavior changed. Treat this as tool evidence to review before merge.");
-    } else if (differentialReport.summary.status === "passed") {
+    } else if (differentialReport.results.length > 0 && probeStatuses.every((status) => status === "passed")) {
       notes.push("Configured differential probes behaved the same on base and head.");
-    } else if (differentialReport.summary.status === "skipped") {
+    } else if (differentialReport.results.length > 0 && probeStatuses.every((status) => status === "skipped")) {
       notes.push("Configured differential probes were skipped. Enable safety.allowCommands to gather base/head behavior proof.");
-    } else {
+    } else if (probeStatuses.includes("failed")) {
       notes.push("At least one configured differential probe failed, timed out, or errored.");
     }
   }
@@ -244,6 +262,33 @@ function verificationCheckFromDifferentialResult(result: DifferentialProbeResult
   return check;
 }
 
+function verificationCheckFromApiContractResult(result: DifferentialApiContractResult): RedteamVerificationSummary["checks"][number] {
+  const status = redteamStatusForApiContractResult(result);
+  const check: RedteamVerificationSummary["checks"][number] = {
+    kind: "api-contract",
+    name: `API contract: ${result.schemaPath}`,
+    command: result.rerunCommand,
+    status,
+    proof: "tool-evidence",
+    summary: apiContractSummary(result),
+    durationMs: 0,
+    differentialStatus: result.status,
+    differences: [
+      ...result.breakingChanges.map((change) => `breaking ${change.kind}: ${change.message}`),
+      ...result.nonBreakingChanges.map((change) => `non-breaking ${change.kind}: ${change.message}`)
+    ],
+    rerunCommand: result.rerunCommand
+  };
+
+  if (result.status === "failed" || result.breakingChanges.length > 0) {
+    check.failure = result.errors.length > 0
+      ? result.errors.join("; ")
+      : result.breakingChanges.map((change) => change.message).join("; ");
+  }
+
+  return check;
+}
+
 function proofForStatus(status: AdapterStatus): RedteamVerificationSummary["checks"][number]["proof"] {
   return didExecute(status) ? "tool-evidence" : "missing-proof";
 }
@@ -288,6 +333,18 @@ function redteamStatusForDifferentialResult(result: DifferentialProbeResult): Re
   return "error";
 }
 
+function redteamStatusForApiContractResult(result: DifferentialApiContractResult): RedteamExecutionStatus {
+  if (result.status === "failed") {
+    return "error";
+  }
+
+  if (result.status === "changed") {
+    return "failed";
+  }
+
+  return "passed";
+}
+
 function redteamSideFromDifferentialSide(side: DifferentialSideResult): NonNullable<RedteamVerificationSummary["checks"][number]["base"]> {
   const mapped = {
     status: side.status,
@@ -323,6 +380,22 @@ function differentialFailure(result: DifferentialProbeResult): string {
   }
 
   return [result.base.error, result.head.error].filter(Boolean).join("; ") || "Differential probe did not complete.";
+}
+
+function apiContractSummary(result: DifferentialApiContractResult): string {
+  if (result.status === "failed") {
+    return `API contract diff failed for ${result.schemaPath}: ${result.errors.join("; ")}`;
+  }
+
+  if (result.breakingChanges.length > 0) {
+    return `API contract has ${result.breakingChanges.length} breaking change(s). Add or run Schemathesis, Pact, or client contract tests for impacted routes.`;
+  }
+
+  if (result.nonBreakingChanges.length > 0) {
+    return `API contract has ${result.nonBreakingChanges.length} non-breaking addition(s). Confirm clients and docs tolerate the new surface.`;
+  }
+
+  return "API contract matched between base and head.";
 }
 
 function commandSummary(result: ExecutionResult): string {

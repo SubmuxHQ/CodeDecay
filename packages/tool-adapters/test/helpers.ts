@@ -75,6 +75,9 @@ export function createConfig(): CodeDecayConfig {
       ]
     },
     toolAdapters: {},
+    apiContracts: {
+      openapi: []
+    },
     productTesting: {
       targets: {}
     },

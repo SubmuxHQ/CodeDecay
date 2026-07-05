@@ -200,6 +200,9 @@ function createConfig(input: { allowCommands: boolean }): CodeDecayConfig {
       ]
     },
     toolAdapters: {},
+    apiContracts: {
+      openapi: []
+    },
     productTesting: {
       targets: {}
     },

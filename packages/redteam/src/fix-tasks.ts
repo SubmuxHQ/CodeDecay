@@ -95,7 +95,7 @@ export function createFixTasks(input: {
     tasks.push({
       title: verificationTaskTitle(check.status, check.name),
       priority: check.status === "skipped" ? "medium" : "high",
-      source: check.kind === "test" || check.kind === "build" || check.kind === "start" || check.kind === "probe"
+      source: check.kind === "test" || check.kind === "build" || check.kind === "start" || check.kind === "probe" || check.kind === "api-contract"
         ? "configured-check"
         : "tool-adapter",
       proof: check.proof,

@@ -1,4 +1,5 @@
 import type {
+  CodeDecayApiContractsConfig,
   CodeDecayCommands,
   CodeDecayConfig,
   CodeDecayMemoryProvidersConfig,
@@ -18,6 +19,7 @@ export function cloneConfig(config: CodeDecayConfig): CodeDecayConfig {
     memoryProviders: cloneMemoryProviders(config.memoryProviders),
     toolAdapters: cloneToolAdapters(config.toolAdapters),
     productTesting: cloneProductTesting(config.productTesting),
+    apiContracts: cloneApiContracts(config.apiContracts),
     plugins: clonePlugins(config.plugins)
   };
 
@@ -105,6 +107,12 @@ export function cloneProductTesting(productTesting: CodeDecayProductTestingConfi
 export function clonePlugins(plugins: CodeDecayPluginsConfig): CodeDecayPluginsConfig {
   return {
     enabled: [...plugins.enabled]
+  };
+}
+
+export function cloneApiContracts(apiContracts: CodeDecayApiContractsConfig): CodeDecayApiContractsConfig {
+  return {
+    openapi: [...apiContracts.openapi]
   };
 }
 

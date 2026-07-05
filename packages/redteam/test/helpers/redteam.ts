@@ -172,6 +172,9 @@ export function createFixtureConfig(): CodeDecayConfig {
         command: "pnpm run pact:verify"
       }
     },
+    apiContracts: {
+      openapi: []
+    },
     productTesting: {
       targets: {}
     },

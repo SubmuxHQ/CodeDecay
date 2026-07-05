@@ -1,4 +1,4 @@
-import type { ConfigFormat, DifferentialReport, DifferentialSideResult, DifferentialStatus } from "../types";
+import type { ConfigFormat, DifferentialApiContractResult, DifferentialReport, DifferentialSideResult, DifferentialStatus } from "../types";
 import { appendOutputBlock, formatStatus } from "./command-output";
 
 export function renderDifferentialReport(report: DifferentialReport, format: ConfigFormat): string {
@@ -25,19 +25,42 @@ function renderDifferentialMarkdown(report: DifferentialReport): string {
     `| Changed | ${report.summary.changed} |`,
     `| Failed | ${report.summary.failed} |`,
     `| Skipped | ${report.summary.skipped} |`,
+    `| API contracts | ${report.summary.apiContracts.total} |`,
+    `| Breaking API contract changes | ${report.summary.apiContracts.breakingChanges} |`,
+    `| Non-breaking API contract changes | ${report.summary.apiContracts.nonBreakingChanges} |`,
     `| Duration | ${report.summary.durationMs}ms |`,
     ""
   ];
 
-  if (report.results.length === 0) {
-    lines.push("No configured probes found.", "");
+  if (report.results.length === 0 && report.apiContracts.length === 0) {
+    lines.push("No configured probes or API contracts found.", "");
     return `${lines.join("\n")}\n`;
+  }
+
+  appendProbeResults(lines, report);
+  appendApiContractResults(lines, report.apiContracts);
+
+  lines.push(
+    "",
+    "### Notes",
+    "",
+    "CodeDecay runs only configured probes from CodeDecay config on temporary git worktrees, then removes those worktrees.",
+    "API contract diffing reads configured local OpenAPI files from those same base/head worktrees and does not execute project commands.",
+    ""
+  );
+
+  return `${lines.join("\n")}\n`;
+}
+
+function appendProbeResults(lines: string[], report: DifferentialReport): void {
+  if (report.results.length === 0) {
+    lines.push("### Probe Results", "", "No configured probes found.", "");
+    return;
   }
 
   lines.push("### Probe Results", "");
   for (const result of report.results) {
     lines.push(`- **${result.name}** ${formatDifferentialStatus(result.status)}: \`${result.command}\``);
-
     if (result.differences.length > 0) {
       lines.push(`  - Differences: ${result.differences.join("; ")}`);
     }
@@ -61,16 +84,40 @@ function renderDifferentialMarkdown(report: DifferentialReport): string {
       );
     }
   }
+  lines.push("");
+}
 
-  lines.push(
-    "",
-    "### Notes",
-    "",
-    "CodeDecay runs only configured probes from CodeDecay config on temporary git worktrees, then removes those worktrees.",
-    ""
-  );
+function appendApiContractResults(lines: string[], apiContracts: DifferentialApiContractResult[]): void {
+  if (apiContracts.length === 0) {
+    lines.push("### API Contract Results", "", "No OpenAPI contract files configured.", "");
+    return;
+  }
 
-  return `${lines.join("\n")}\n`;
+  lines.push("### API Contract Results", "");
+  for (const result of apiContracts) {
+    lines.push(`- **${result.schemaPath}** ${formatDifferentialStatus(result.status)}`);
+    if (result.errors.length > 0) {
+      lines.push(`  - Errors: ${result.errors.join("; ")}`);
+    }
+    for (const change of result.breakingChanges.slice(0, 8)) {
+      lines.push(`  - Breaking: ${formatApiChange(change)}`);
+    }
+    for (const change of result.nonBreakingChanges.slice(0, 8)) {
+      lines.push(`  - Non-breaking: ${formatApiChange(change)}`);
+    }
+    lines.push(`  - Rerun: \`${result.rerunCommand}\``);
+  }
+  lines.push("");
+}
+
+function formatApiChange(change: DifferentialApiContractResult["breakingChanges"][number]): string {
+  const location = [
+    change.method,
+    change.path,
+    change.statusCode ? `status ${change.statusCode}` : undefined,
+    change.schemaPath ? `schema ${change.schemaPath}` : undefined
+  ].filter(Boolean).join(" ");
+  return location ? `${location}: ${change.message}` : change.message;
 }
 
 function formatSideExitCode(side: DifferentialSideResult): string {

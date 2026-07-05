@@ -51,14 +51,18 @@ Exit codes:
 - deterministic missing edge-case checklist
 - verification status from configured execution checks when `--with-checks` is
   used
-- base/head differential probe evidence when `--with-checks`, `--base`, and
-  `--head` are provided and probes are configured
+- base/head differential probe and API contract evidence when `--with-checks`,
+  `--base`, and `--head` are provided and probes or OpenAPI contracts are
+  configured
 - local memory summary from `.codedecay/memory.json`
 - repo-local agent skill summaries from `.agents/skills/*/SKILL.md`
 - configured test/build/start/probe commands and configured Agent Process,
   Playwright, coverage, StrykerJS, Semgrep, Schemathesis, and Pact tool adapters
   as planned checks by default or executed verification evidence with
   `--with-checks`
+- breaking API contract changes with route, method, status code, schema path,
+  base/head evidence, and suggested proof checks such as Schemathesis, Pact, or
+  client contract tests
 - fix tasks for your coding agent
 - explicit safety flags showing that commands and models were not called
 
@@ -101,7 +105,7 @@ Suggested workflow:
    impacted routes, missing edge cases, and weak-test findings.
 5. Run `codedecay redteam --with-checks --base main --head HEAD`,
    `codedecay execute`, or `codedecay differential` explicitly when you want
-   configured checks or base/head behavior probes.
+   configured checks, base/head behavior probes, or API contract diffs.
 
 See [Agent skills](skills.md) for the local skill file format.
 

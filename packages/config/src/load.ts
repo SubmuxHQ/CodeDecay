@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import YAML from "yaml";
 import { cloneConfig } from "./clone";
 import { CONFIG_CANDIDATES, CONTRACT_CANDIDATES, DEFAULT_CODEDECAY_CONFIG } from "./defaults";
+import { normalizeApiContracts } from "./normalize/api-contracts";
 import { normalizeCommands, normalizeProbes } from "./normalize/commands";
 import { normalizeDesignContract } from "./normalize/design-contract";
 import { normalizeLlm } from "./normalize/llm";
@@ -91,6 +92,7 @@ function normalizeConfig(value: unknown, sourcePath: string): CodeDecayConfig {
   const memoryProviders = normalizeMemoryProviders(value.memoryProviders, sourcePath);
   const toolAdapters = normalizeToolAdapters(value.toolAdapters, sourcePath);
   const productTesting = normalizeProductTesting(value.productTesting, safety, sourcePath);
+  const apiContracts = normalizeApiContracts(value.apiContracts, sourcePath);
   const plugins = normalizePlugins(value.plugins, sourcePath);
   const designContract = normalizeDesignContract(value.designContract, sourcePath);
 
@@ -103,6 +105,7 @@ function normalizeConfig(value: unknown, sourcePath: string): CodeDecayConfig {
     memoryProviders,
     toolAdapters,
     productTesting,
+    apiContracts,
     plugins
   };
 

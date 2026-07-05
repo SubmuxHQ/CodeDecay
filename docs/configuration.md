@@ -62,6 +62,11 @@ toolAdapters:
   pact:
     command: pnpm run test:pact
 
+apiContracts:
+  openapi:
+    - docs/openapi.yaml
+    - specs/public-api.yaml
+
 productTesting:
   targets:
     web:
@@ -271,6 +276,31 @@ process, and run `teardownCommand`.
 It never starts the app during `config`, `analyze`, report-only `redteam`, or
 `agent`. `redteam --with-checks` may run configured commands and adapters, but
 only through the same execution safety gates used by `codedecay execute`.
+
+## API Contracts
+
+`apiContracts.openapi` lists local OpenAPI or Swagger files that CodeDecay can
+compare between base/head git refs.
+
+```yaml
+apiContracts:
+  openapi:
+    - docs/openapi.yaml
+    - specs/public-api.json
+```
+
+`codedecay differential --base <ref> --head <ref>` reads these files from
+temporary base/head worktrees and reports breaking API contract changes such as
+removed paths or methods, removed status codes, removed response fields,
+required response fields becoming optional, and newly required request
+parameters. Added paths, methods, status codes, optional response fields, and
+optional request parameters are reported as non-breaking additions.
+
+API contract diffing does not execute project commands and does not require
+`safety.allowCommands: true`. If `toolAdapters.schemathesis.schema` is
+configured, CodeDecay also treats that schema path as an API contract input so
+the same file can drive both base/head diff evidence and explicit
+Schemathesis proof checks.
 
 ## Safety Model
 
