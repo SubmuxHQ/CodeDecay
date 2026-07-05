@@ -158,6 +158,13 @@ describe("CodeDecay config defaults and loading", () => {
         "    - id: no-random",
         "      files: src/auth/**",
         "      apis: Math.random",
+        "  boundaryRules:",
+        "    - id: ui-through-api",
+        "      from:",
+        "        files: src/app/**",
+        "      disallow:",
+        "        files: src/db/**",
+        "      rewrite: Move UI access through the API/service adapter.",
         ""
       ].join("\n")
     );
@@ -177,6 +184,14 @@ describe("CodeDecay config defaults and loading", () => {
           id: "no-random",
           files: ["src/auth/**"],
           apis: ["Math.random"]
+        }
+      ],
+      boundaryRules: [
+        {
+          id: "ui-through-api",
+          from: { files: ["src/app/**"] },
+          disallow: { files: ["src/db/**"] },
+          rewrite: "Move UI access through the API/service adapter."
         }
       ]
     });

@@ -21,7 +21,7 @@ export function applyMemoryContext(input: MemoryContextInput): AnalyzerResult {
     findings.push({
       ruleId: "memory-invariant-impacted",
       title: "Project invariant may be impacted",
-      description: `Memory invariant "${invariant.name}" applies to this change. ${invariant.description}`,
+      description: `Untrusted memory context: invariant "${invariant.name}" applies to this change. ${invariant.description}`,
       severity: invariant.severity ?? "medium",
       category: "regression",
       file: match.path,
@@ -39,7 +39,7 @@ export function applyMemoryContext(input: MemoryContextInput): AnalyzerResult {
     findings.push({
       ruleId: "memory-past-regression-area",
       title: "Past regression area changed",
-      description: `Past regression "${regression.title}" may be relevant. ${regression.description}`,
+      description: `Untrusted memory context: past regression "${regression.title}" may be relevant. ${regression.description}`,
       severity: regression.severity ?? "high",
       category: "regression",
       file: match.path,
@@ -74,7 +74,7 @@ export function applyMemoryContext(input: MemoryContextInput): AnalyzerResult {
     findings.push({
       ruleId: "memory-architecture-note",
       title: "Architecture note applies",
-      description: `${note.title}: ${note.note}`,
+      description: `Untrusted architecture context: ${note.title}: ${note.note}`,
       severity: "low",
       category: "regression",
       file: match.path,

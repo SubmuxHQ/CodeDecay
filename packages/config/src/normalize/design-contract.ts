@@ -89,7 +89,8 @@ function normalizeBoundaryRule(value: unknown, field: string, sourcePath: string
     from: normalizeMatcher(object.from, `${field}.from`, sourcePath),
     name: optionalString(object.name, `${field}.name`, sourcePath),
     severity: optionalRisk(object.severity, `${field}.severity`, sourcePath),
-    message: optionalString(object.message, `${field}.message`, sourcePath)
+    message: optionalString(object.message, `${field}.message`, sourcePath),
+    rewrite: optionalString(object.rewrite, `${field}.rewrite`, sourcePath)
   };
 
   if (object.disallow !== undefined) {

@@ -18,7 +18,9 @@ const DIRECT_RULE_IDS = new Set([
   "risky-auth-change",
   "risky-config-change",
   "risky-database-change",
-  "memory-invariant-impacted"
+  "memory-invariant-impacted",
+  "contract-boundary-violation",
+  "contract-import-boundary-violation"
 ]);
 
 export function renderPrCommentReport(report: CodeDecayReport): string {
