@@ -78,6 +78,33 @@ safety:
 Set `safety.allowCommands: true` only for explicit execution commands. Redteam
 reports remain report-only even when adapter plans are configured.
 
+## Optional Real OSS Adapter E2E
+
+CodeDecay also includes an opt-in real-tool harness for maintainers:
+
+```bash
+pnpm test:real-oss-adapters
+```
+
+This is intentionally not part of the default test suite. It creates a
+disposable repo, installs real upstream OSS tools into that temp workspace, and
+uses the built CLI to run `codedecay execute --format json` with Playwright,
+StrykerJS, Schemathesis, Pact, Semgrep, and c8/Istanbul coverage adapters.
+
+The harness first runs a deliberately weak fixture and asserts that mutation and
+API-fuzz failures are surfaced as CodeDecay adapter evidence. It then
+strengthens the fixture and asserts every adapter passes. Python tools are
+installed in separate virtualenvs so Semgrep and Schemathesis dependency
+resolution stays isolated.
+
+The command downloads packages and should be run only when you explicitly want
+real upstream integration proof. Use `-- --keep-temp` to inspect the disposable
+repo after a run:
+
+```bash
+pnpm test:real-oss-adapters -- --keep-temp
+```
+
 ## Agent Process Harness
 
 The Agent Process harness runs one explicitly configured local agent command and
