@@ -42,9 +42,7 @@ export function compareDifferentialSides(base: DifferentialSideResult, head: Dif
   }
 
   if (base.structuredOutput !== undefined || head.structuredOutput !== undefined) {
-    if (stableJson(base.structuredOutput) !== stableJson(head.structuredOutput)) {
-      differences.push("structured stdout changed");
-    }
+    differences.push(...compareStructuredOutput(base.structuredOutput, head.structuredOutput));
   } else if (normalizeOutput(base.stdout) !== normalizeOutput(head.stdout)) {
     differences.push("stdout changed");
   }
@@ -117,6 +115,41 @@ function stableJson(value: unknown): string {
   return JSON.stringify(sortJsonValue(value));
 }
 
+function compareStructuredOutput(base: unknown, head: unknown): string[] {
+  if (stableJson(base) === stableJson(head)) {
+    return [];
+  }
+
+  const differences = compareStructuredValue(base, head, []);
+  return differences.length > 0 ? differences.slice(0, 12) : ["structured stdout changed"];
+}
+
+function compareStructuredValue(base: unknown, head: unknown, path: string[]): string[] {
+  if (stableJson(base) === stableJson(head)) {
+    return [];
+  }
+
+  if (isRecord(base) && isRecord(head)) {
+    const keys = [...new Set([...Object.keys(base), ...Object.keys(head)])].sort((left, right) => left.localeCompare(right));
+    return keys.flatMap((key) => {
+      const nextPath = [...path, key];
+      if (!(key in base)) {
+        return [`structured stdout field ${formatJsonPath(nextPath)} added: ${formatStructuredValue(head[key])}`];
+      }
+
+      if (!(key in head)) {
+        return [`structured stdout field ${formatJsonPath(nextPath)} removed: ${formatStructuredValue(base[key])}`];
+      }
+
+      return compareStructuredValue(base[key], head[key], nextPath);
+    });
+  }
+
+  return [
+    `structured stdout changed at ${formatJsonPath(path)}: ${formatStructuredValue(base)} -> ${formatStructuredValue(head)}`
+  ];
+}
+
 function sortJsonValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(sortJsonValue);
@@ -139,4 +172,21 @@ function normalizeOutput(value: string): string {
 
 function formatOptionalNumber(value: number | undefined): string {
   return value === undefined ? "none" : String(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function formatJsonPath(path: string[]): string {
+  return path.length === 0 ? "$" : path.join(".");
+}
+
+function formatStructuredValue(value: unknown): string {
+  const formatted = JSON.stringify(value);
+  if (formatted === undefined) {
+    return "undefined";
+  }
+
+  return formatted.length > 120 ? `${formatted.slice(0, 117)}...` : formatted;
 }

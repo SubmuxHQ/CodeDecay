@@ -131,7 +131,8 @@ describe("built codedecay CLI analysis and diff behavior", () => {
 
     expect(result.status).toBe(1);
     expect(report.summary.status).toBe("changed");
-    expect(report.results[0].differences).toContain("structured stdout changed");
+    expect(report.results[0].differences).toContain('structured stdout changed at value: "base" -> "head"');
+    expect(report.results[0].artifacts.directory).toContain(".codedecay/local/differential/");
   });
 
   it("runs when dist CLI is invoked through a symlinked path", () => {

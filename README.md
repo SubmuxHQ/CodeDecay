@@ -43,7 +43,8 @@ agents a structured merge-safety pass:
 - package evidence for Codex, Claude Code, Cursor, Pi, OpenCode, desktop
   agents, or MCP-compatible workflows
 - run explicitly configured local checks when the user allows execution
-- compare base/head behavior through configured probes
+- compare base/head behavior through configured probes, with field-level JSON
+  diffs, rerun commands, and local artifacts
 
 CodeDecay is useful by itself in deterministic mode. Optional agent, LLM,
 memory, and tool integrations must be user-owned and explicit.

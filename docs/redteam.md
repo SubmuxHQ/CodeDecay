@@ -51,6 +51,8 @@ Exit codes:
 - deterministic missing edge-case checklist
 - verification status from configured execution checks when `--with-checks` is
   used
+- base/head differential probe evidence when `--with-checks`, `--base`, and
+  `--head` are provided and probes are configured
 - local memory summary from `.codedecay/memory.json`
 - repo-local agent skill summaries from `.agents/skills/*/SKILL.md`
 - configured test/build/start/probe commands and configured Agent Process,
@@ -97,9 +99,9 @@ Suggested workflow:
 3. Paste or attach the report to your coding agent.
 4. Ask the agent to fix the high-risk findings and add real checks for the
    impacted routes, missing edge cases, and weak-test findings.
-5. Run `codedecay redteam --with-checks`, `codedecay execute`, or
-   `codedecay differential` explicitly when you want configured checks or
-   base/head behavior probes.
+5. Run `codedecay redteam --with-checks --base main --head HEAD`,
+   `codedecay execute`, or `codedecay differential` explicitly when you want
+   configured checks or base/head behavior probes.
 
 See [Agent skills](skills.md) for the local skill file format.
 

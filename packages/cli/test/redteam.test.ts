@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createHighRiskRepo, createLowRiskRepo, createMediumRiskRepo, createNextRouteRiskRepo, createRepo, createTempDir, git, gitOutput, run, writeExecutionConfig, writeFile } from "./helpers";
+import { createDifferentialRepo, createHighRiskRepo, createLowRiskRepo, createMediumRiskRepo, createNextRouteRiskRepo, createRepo, createTempDir, git, gitOutput, run, writeExecutionConfig, writeFile } from "./helpers";
 
 describe("codedecay redteam CLI contract", () => {
   it("renders deterministic JSON and markdown redteam reports", async () => {
@@ -107,6 +107,50 @@ describe("codedecay redteam CLI contract", () => {
     expect(markdown.stdout).toContain("**Status:** Verified");
     expect(markdown.stdout).toContain("proof: Tool evidence");
     expect(markdown.stdout).toContain("Commands executed: yes");
+  });
+
+  it("includes base/head differential probe evidence when --with-checks has refs", async () => {
+    const { repo, base, head } = createDifferentialRepo({ headValue: "head", allowCommands: true });
+
+    const result = await run(["redteam", "--with-checks", "--base", base, "--head", head, "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+    const differentialCheck = report.verification.checks.find((check: { name: string }) =>
+      check.name === "Differential: Probe: value probe"
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(report.summary.verificationStatus).toBe("failed");
+    expect(report.verification.total).toBe(2);
+    expect(report.verification.notes).toContain(
+      "Base/head differential probe behavior changed. Treat this as tool evidence to review before merge."
+    );
+    expect(differentialCheck).toMatchObject({
+      kind: "probe",
+      status: "failed",
+      proof: "tool-evidence",
+      differentialStatus: "changed",
+      differences: ['structured stdout changed at value: "base" -> "head"'],
+      rerunCommand: `npx codedecay differential --base ${base} --head ${head} --format markdown`
+    });
+    expect(differentialCheck.artifacts.directory).toContain(".codedecay/local/differential/");
+    expect(existsSync(join(repo, differentialCheck.artifacts.baseResult))).toBe(true);
+    expect(existsSync(join(repo, differentialCheck.artifacts.headResult))).toBe(true);
+    expect(report.fixTasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Fix failing proof check: Differential: Probe: value probe",
+          proof: "tool-evidence",
+          source: "configured-check"
+        })
+      ])
+    );
+
+    const markdown = await run(["redteam", "--with-checks", "--base", base, "--head", head, "--format", "markdown"], repo);
+    expect(markdown.exitCode).toBe(1);
+    expect(markdown.stdout).toContain("Differential: Probe: value probe");
+    expect(markdown.stdout).toContain("Differential status: changed");
+    expect(markdown.stdout).toContain("Rerun: `npx codedecay differential");
+    expect(markdown.stdout).toContain("Artifacts: `.codedecay/local/differential/");
   });
 
   it("marks --with-checks reports unverified when configured checks are skipped by safety config", async () => {

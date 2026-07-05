@@ -30,12 +30,18 @@ CodeDecay compares each configured probe by:
 
 - command status
 - exit code
-- JSON stdout when stdout is valid JSON
+- JSON stdout when stdout is valid JSON, including changed field paths such as
+  `status`, `body.ok`, or `schema.fields`
 - text stdout when stdout is not JSON
 - stderr
 
 The report includes base/head status, exit codes, output snippets for changed
-or failed probes, and the exact differences detected.
+or failed probes, the exact differences detected, a rerun command, and local
+artifact paths under `.codedecay/local/differential/`.
+
+Artifacts include side result JSON plus base/head stdout and stderr files. The
+temporary git worktrees are still removed after the run; the artifacts are
+repo-local evidence files for review and agent handoff.
 
 ## Config
 
@@ -58,6 +64,11 @@ safety:
 
 Only `probes` are used by `codedecay differential`. Test, build, and start
 commands are handled by `codedecay execute`.
+
+`codedecay redteam --with-checks --base <ref> --head <ref>` also includes
+differential probe evidence when probes are configured. Changed base/head probe
+behavior is labeled as tool evidence and makes verification fail until reviewed
+or fixed.
 
 ## Safety Model
 

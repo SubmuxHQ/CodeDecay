@@ -45,6 +45,22 @@ export function appendVerification(lines: string[], verification: RedteamVerific
     if (check.summary) {
       lines.push(`  - Summary: ${check.summary}`);
     }
+    if (check.differentialStatus) {
+      lines.push(`  - Differential status: ${check.differentialStatus}`);
+    }
+    if (check.differences && check.differences.length > 0) {
+      lines.push(`  - Differences: ${check.differences.join("; ")}`);
+    }
+    if (check.rerunCommand) {
+      lines.push(`  - Rerun: \`${check.rerunCommand}\``);
+    }
+    if (check.artifacts) {
+      lines.push(
+        `  - Artifacts: \`${check.artifacts.directory}\``,
+        `    - Base result: \`${check.artifacts.baseResult}\``,
+        `    - Head result: \`${check.artifacts.headResult}\``
+      );
+    }
   }
   lines.push("");
 }

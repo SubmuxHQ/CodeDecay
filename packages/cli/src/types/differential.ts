@@ -38,8 +38,20 @@ export interface DifferentialProbeResult {
   command: string;
   status: DifferentialStatus;
   differences: string[];
+  rerunCommand: string;
+  artifacts?: DifferentialProbeArtifacts | undefined;
   base: DifferentialSideResult;
   head: DifferentialSideResult;
+}
+
+export interface DifferentialProbeArtifacts {
+  directory: string;
+  baseResult: string;
+  headResult: string;
+  baseStdout: string;
+  headStdout: string;
+  baseStderr: string;
+  headStderr: string;
 }
 
 export interface DifferentialSideResult {
