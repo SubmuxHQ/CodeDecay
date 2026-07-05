@@ -1,5 +1,5 @@
 import { CODEDECAY_VERSION } from "@submuxhq/codedecay-core";
-import type { LoadedCodeDecayMemory, MemoryImportResult, MemoryLearnResult } from "@submuxhq/codedecay-memory";
+import type { LoadedCodeDecayMemory, MemoryImportResult, MemoryLearnResult, MemoryLearningProposal } from "@submuxhq/codedecay-memory";
 import type { ConfigFormat } from "../types";
 
 export function renderMemory(loadedMemory: LoadedCodeDecayMemory, format: ConfigFormat): string {
@@ -86,6 +86,7 @@ export function renderMemoryLearnResult(input: {
         learned: input.result.learned,
         added: input.result.added,
         merged: input.result.merged,
+        proposals: input.result.proposals,
         memory: input.result.memory
       },
       null,
@@ -108,9 +109,40 @@ export function renderMemoryLearnResult(input: {
     `| Architecture notes | ${input.result.learned.architecture} | ${input.result.added.architecture} | ${input.result.merged.architecture} |`,
     `| Past regressions | ${input.result.learned.regressions} | ${input.result.added.regressions} | ${input.result.merged.regressions} |`,
     "",
+    ...renderLearningProposalsMarkdown(input.result.proposals),
     renderMemory({ memory: input.result.memory, sourcePath: input.writtenPath }, "markdown").trim(),
     ""
   ];
 
   return `${lines.join("\n")}\n`;
+}
+
+function renderLearningProposalsMarkdown(proposals: MemoryLearningProposal[]): string[] {
+  if (proposals.length === 0) {
+    return ["### Proposals", "", "No memory proposals were generated.", ""];
+  }
+
+  return [
+    "### Proposals",
+    "",
+    "| Section | Title | Confidence | Source | Why |",
+    "| --- | --- | --- | --- | --- |",
+    ...proposals.slice(0, 20).map((proposal) =>
+      `| ${proposal.section} | ${proposal.title} | ${proposal.confidence} | ${formatProposalSource(proposal)} | ${proposal.why} |`
+    ),
+    proposals.length > 20 ? `| ... | ${proposals.length - 20} more proposal(s) omitted from markdown | | | |` : undefined,
+    ""
+  ].filter((line): line is string => line !== undefined);
+}
+
+function formatProposalSource(proposal: MemoryLearningProposal): string {
+  const parts = [
+    proposal.source.type,
+    proposal.source.title ? `title: ${proposal.source.title}` : undefined,
+    proposal.source.id ? `id: ${proposal.source.id}` : undefined,
+    proposal.source.labels && proposal.source.labels.length > 0 ? `labels: ${proposal.source.labels.join(", ")}` : undefined,
+    `path: ${proposal.source.path}`,
+    `timestamp: ${proposal.timestamp}`
+  ].filter((item): item is string => item !== undefined);
+  return parts.join("<br>");
 }

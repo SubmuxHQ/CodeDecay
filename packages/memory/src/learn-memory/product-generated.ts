@@ -1,5 +1,7 @@
 import { dedupeStrings } from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "../types";
+import type { MemoryLearningContext } from "./proposals";
+import { learningSource, recordMemoryProposal } from "./proposals";
 import { asRecord, stringArray, stringValue } from "./records";
 import { safeLearnedText } from "./text";
 import {
@@ -14,6 +16,8 @@ export interface ProductGeneratedCheckInput {
   runKey: "generatedTestRun" | "generatedApiTestRun";
   area: "ui" | "api";
   runFlag: "--run-generated-tests" | "--run-generated-api-tests";
+  sourcePath?: string | undefined;
+  context?: MemoryLearningContext | undefined;
 }
 
 export function appendLearnedProductGeneratedChecks(
@@ -42,12 +46,22 @@ export function appendLearnedProductGeneratedChecks(
       const productPaths = productPathsFromTest(test);
       const rerunCommand = productRerunCommand(targetId, input.runFlag, id);
 
-      memory.flows.push({
+      const flow = {
         name: `Product check: ${targetId}: ${title}`,
         description: `Passed generated ${input.area.toUpperCase()} product check for target ${targetId}.`,
         checks: [rerunCommand],
         areas: [input.area],
         ...(productPaths.length > 0 ? { productPaths } : {})
+      };
+      memory.flows.push(flow);
+      recordMemoryProposal({
+        context: input.context,
+        section: "flows",
+        title: flow.name,
+        entry: flow,
+        source: learningSource("product-report", input.sourcePath ?? "product report", target, flow.name),
+        confidence: "medium",
+        why: `Product report shows generated ${input.area.toUpperCase()} check "${title}" passed and can be reused as flow proof.`
       });
     }
   }
@@ -85,13 +99,23 @@ export function appendLearnedProductGeneratedChecks(
     ]);
     const files = stringArray(failure.impactedFiles);
 
-    memory.regressions.push({
+    const regression = {
       title: `Product regression: ${targetId}: ${title}`,
       description: safeLearnedText(`Generated ${input.area.toUpperCase()} product check failed for target ${targetId}. ${descriptionSource}`),
       check: safeLearnedText(stringValue(failure.rerunCommand) ?? productRerunCommand(targetId, input.runFlag, failureId)),
       severity: "high",
       ...(files.length > 0 ? { files } : {}),
       ...(productPaths.length > 0 ? { productPaths } : {})
+    } as const;
+    memory.regressions.push(regression);
+    recordMemoryProposal({
+      context: input.context,
+      section: "regressions",
+      title: regression.title,
+      entry: regression,
+      source: learningSource("product-report", input.sourcePath ?? "product report", target, regression.title),
+      confidence: "high",
+      why: `Product report shows generated ${input.area.toUpperCase()} check "${title}" failed on a real product path.`
     });
   }
 }

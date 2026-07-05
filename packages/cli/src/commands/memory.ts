@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, extname, resolve } from "node:path";
 import {
   importCodeDecayMemory,
   learnCodeDecayMemory,
@@ -79,7 +79,7 @@ export function runMemoryLearnCommand(context: CliCommandContext, dependencies: 
   const rootDir = dependencies.resolveRepoRoot(cwd, { format: "markdown" });
   const loadedMemory = loadCodeDecayMemory(rootDir);
   const inputPath = resolve(context.runtimeCwd, options.input);
-  const rawLearning = JSON.parse(readFileSync(inputPath, "utf8"));
+  const rawLearning = parseMemoryLearningInput(inputPath);
   const learned = learnCodeDecayMemory(loadedMemory.memory, rawLearning, inputPath);
   const writtenPath = options.apply ? writeCodeDecayMemory(rootDir, learned.memory) : undefined;
 
@@ -92,4 +92,61 @@ export function runMemoryLearnCommand(context: CliCommandContext, dependencies: 
       result: learned
     })
   );
+}
+
+function parseMemoryLearningInput(inputPath: string): unknown {
+  const raw = readFileSync(inputPath, "utf8");
+  if (isMarkdownPath(inputPath)) {
+    return {
+      incidentMarkdowns: [
+        {
+          path: inputPath,
+          markdown: raw
+        }
+      ]
+    };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Invalid memory-learn input at ${inputPath}: ${message}`);
+  }
+
+  return expandIncidentMarkdownFiles(parsed, inputPath);
+}
+
+function expandIncidentMarkdownFiles(value: unknown, inputPath: string): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  const object = value as Record<string, unknown>;
+  if (!Array.isArray(object.incidentMarkdownFiles)) {
+    return value;
+  }
+
+  const incidentMarkdowns = [
+    ...(Array.isArray(object.incidentMarkdowns) ? object.incidentMarkdowns : []),
+    ...object.incidentMarkdownFiles
+      .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      .map((filePath) => {
+        const resolved = resolve(dirname(inputPath), filePath);
+        return {
+          path: filePath,
+          markdown: readFileSync(resolved, "utf8")
+        };
+      })
+  ];
+
+  return {
+    ...object,
+    incidentMarkdowns
+  };
+}
+
+function isMarkdownPath(inputPath: string): boolean {
+  return [".md", ".markdown"].includes(extname(inputPath).toLowerCase());
 }

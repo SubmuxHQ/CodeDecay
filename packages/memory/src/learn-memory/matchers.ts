@@ -3,7 +3,7 @@ import { dedupeStrings } from "@submuxhq/codedecay-core";
 import { normalizeProductPath, optionalStringArray } from "../schema";
 import type { MemoryMatcher } from "../types";
 import { normalizeReportArray } from "./reports";
-import { stringArray, stringValue } from "./records";
+import { asRecord, stringArray, stringValue } from "./records";
 
 export function inferMemoryMatcher(object: Record<string, unknown>, text: string): MemoryMatcher {
   const files = collectMatcherFiles(object);
@@ -31,7 +31,7 @@ export function inferMemoryMatcher(object: Record<string, unknown>, text: string
 }
 
 export function normalizeAreaKind(value: string): ImpactedArea["kind"] | undefined {
-  const normalized = value.toLowerCase();
+  const normalized = value.toLowerCase().replace(/^(area|kind|type)\s*:\s*/, "");
   return ["api", "ui", "database", "auth", "config", "test", "source", "docs"].includes(normalized)
     ? (normalized as ImpactedArea["kind"])
     : undefined;
@@ -84,9 +84,22 @@ function collectMatcherAreas(object: Record<string, unknown>): ImpactedArea["kin
     [
       ...stringArray(object.areas),
       ...stringArray(object.impactedAreas),
-      ...stringArray(object.tags)
+      ...stringArray(object.tags),
+      ...stringArray(object.labels),
+      ...objectLabelNames(object.labels)
     ].flatMap((area) => normalizeAreaKind(area) ?? [])
   );
+}
+
+function objectLabelNames(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item) => {
+    const object = asRecord(item);
+    return object ? stringValue(object.name) ?? [] : [];
+  });
 }
 
 function inferAreaFromFile(path: string): ImpactedArea["kind"] | undefined {

@@ -71,6 +71,42 @@ export interface MemoryImportResult {
 
 export interface MemoryLearnResult extends MemoryImportResult {
   learned: MemoryImportCounts;
+  proposals: MemoryLearningProposal[];
+}
+
+export type MemoryLearningProposalSection = keyof MemoryImportCounts;
+export type MemoryLearningProposalConfidence = RiskLevel;
+export type MemoryLearningSourceType =
+  | "ci-failure"
+  | "pull-request"
+  | "codedecay-report"
+  | "product-report"
+  | "incident"
+  | "incident-markdown";
+
+export interface MemoryLearningProposalSource {
+  type: MemoryLearningSourceType;
+  path: string;
+  title?: string | undefined;
+  url?: string | undefined;
+  id?: string | undefined;
+  labels?: string[] | undefined;
+}
+
+export interface MemoryLearningProposal {
+  id: string;
+  section: MemoryLearningProposalSection;
+  title: string;
+  source: MemoryLearningProposalSource;
+  confidence: MemoryLearningProposalConfidence;
+  timestamp: string;
+  why: string;
+  entry:
+    | MemoryFlow
+    | MemoryCommand
+    | MemoryInvariant
+    | MemoryArchitectureNote
+    | MemoryRegression;
 }
 
 export type MemoryProviderKind = "local" | "external";

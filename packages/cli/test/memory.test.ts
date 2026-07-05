@@ -258,6 +258,119 @@ describe("codedecay memory CLI contract", () => {
         expect.objectContaining({ title: "CodeDecay: Risky source changes without changed tests" })
       ])
     );
+    expect(parsed.proposals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          section: "regressions",
+          title: "Auth smoke failed",
+          source: expect.objectContaining({ type: "ci-failure" }),
+          confidence: "high",
+          why: expect.stringContaining("CI failure")
+        })
+      ])
+    );
+  });
+
+  it("learns reviewable memory proposals from incident markdown without applying by default", async () => {
+    const repo = createLowRiskRepo();
+    const inputPath = join(repo, "auth-incident.md");
+    writeFile(
+      repo,
+      "auth-incident.md",
+      [
+        "# Auth cache outage",
+        "",
+        "Incident: stale auth cache allowed a forbidden session after deploy.",
+        "Prevention: auth cache invalidation must be verified after session changes."
+      ].join("\n")
+    );
+
+    const preview = await run(["memory-learn", "--input", inputPath, "--format", "json"], repo);
+    const previewJson = JSON.parse(preview.stdout);
+
+    expect(preview.exitCode).toBe(0);
+    expect(previewJson.writtenPath).toBeUndefined();
+    expect(previewJson.memory.invariants).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: "Auth cache outage", severity: "high" })])
+    );
+    expect(previewJson.proposals).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          section: "invariants",
+          title: "Auth cache outage",
+          source: expect.objectContaining({
+            type: "incident-markdown",
+            path: inputPath
+          }),
+          confidence: "high",
+          why: expect.stringContaining("durable rule")
+        })
+      ])
+    );
+    expect(existsSync(join(repo, ".codedecay/memory.json"))).toBe(false);
+
+    const applied = await run(["memory-learn", "--input", inputPath, "--apply", "--format", "json"], repo);
+    const appliedJson = JSON.parse(applied.stdout);
+
+    expect(applied.exitCode).toBe(0);
+    expect(appliedJson.writtenPath).toContain(".codedecay/memory.json");
+    expect(JSON.parse(readFileSync(join(repo, ".codedecay/memory.json"), "utf8")).invariants).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: "Auth cache outage" })])
+    );
+  });
+
+  it("reports malformed memory-learn inputs without crashing", async () => {
+    const repo = createLowRiskRepo();
+    const inputPath = join(repo, "broken-learn.json");
+    writeFile(repo, "broken-learn.json", "{");
+
+    const result = await run(["memory-learn", "--input", inputPath, "--format", "json"], repo);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("Invalid memory-learn input");
+  });
+
+  it("matches learned past-regression memory in redteam reports after explicit apply", async () => {
+    const repo = createRepo({
+      "src/auth/session.ts": "export function session() { return { ok: true }; }\n"
+    });
+    const inputPath = join(repo, "memory-learn.json");
+    writeFile(
+      repo,
+      "memory-learn.json",
+      JSON.stringify(
+        {
+          ciFailures: [
+            {
+              title: "Auth smoke failed",
+              message: "Token refresh returned 401 after deploy.",
+              command: "pnpm test auth",
+              files: ["src/auth/session.ts"]
+            }
+          ]
+        },
+        null,
+        2
+      )
+    );
+
+    const applied = await run(["memory-learn", "--input", inputPath, "--apply", "--format", "json"], repo);
+    expect(applied.exitCode).toBe(0);
+
+    writeFile(repo, "src/auth/session.ts", "export function session() { return { ok: false }; }\n");
+    const redteam = await run(["redteam", "--format", "json"], repo);
+    const report = JSON.parse(redteam.stdout);
+
+    expect(redteam.exitCode).toBe(0);
+    expect(report.analysis.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "memory-past-regression-area",
+          file: "src/auth/session.ts"
+        })
+      ])
+    );
   });
 
   it("learns memory from product verification reports", async () => {

@@ -72,6 +72,7 @@ report data than hand-authored memory.
 
 ```bash
 npx codedecay memory-learn --input ci-failure.json
+npx codedecay memory-learn --input incidents/auth-outage.md
 npx codedecay memory-learn --input codedecay-report.json --apply --format json
 npx codedecay memory-learn --input .codedecay/local/product-runs/latest.json --apply
 ```
@@ -79,15 +80,26 @@ npx codedecay memory-learn --input .codedecay/local/product-runs/latest.json --a
 Accepted inputs include:
 
 - `ciFailures`: failing workflow, job, message, command, files, and areas
-- `pullRequests`: title, body, commit messages, changed files, checks, and areas
+- `pullRequests`: title, body, labels, commit messages, changed files, checks,
+  and areas
+- `incidents` or `incidentMarkdowns`: structured incident/postmortem entries
+  that become invariant and past-regression proposals
+- direct `.md` or `.markdown` incident/postmortem files
+- `incidentMarkdownFiles`: paths in a JSON input file, read relative to the
+  input file
 - `reports`, `codeDecayReports`, `failOnReports`, or `blockedReports`
 - a single CodeDecay JSON report with `tool: "CodeDecay"` and `findings`
 - product verification reports with `tool: "CodeDecay"` and `targets`
 - `productReports`, `productVerificationReports`, or `productTargetReports`
 
-The learner converts those signals into flows, commands, architecture notes,
-and past regressions. It infers impacted areas from file paths and text such as
-`auth`, `api`, `schema`, `migration`, `workflow`, or `coverage`.
+The learner converts those signals into reviewable proposals for flows,
+commands, invariants, architecture notes, and past regressions. Each proposal
+includes the source type/path, confidence, timestamp, and why the learning
+matters. The preview also shows the merged memory that would be written if
+`--apply` is passed.
+
+It infers impacted areas from file paths, PR labels such as `area: auth`, and
+text such as `auth`, `api`, `schema`, `migration`, `workflow`, or `coverage`.
 
 For CodeDecay report inputs, `memory-learn` keeps only actionable findings that
 include concrete evidence such as a file, impacted area, or recommended check.
@@ -101,7 +113,9 @@ stderr, screenshots, traces, request bodies, headers, cookies, or full URLs with
 query strings.
 
 `memory-learn` is deterministic and local. It does not query GitHub, inspect
-remote CI, call a model, or write anything unless `--apply` is passed.
+remote CI, call a model, upload telemetry, or write anything unless `--apply`
+is passed. GitHub PR and CI data must be provided as local JSON input if you
+want CodeDecay to learn from it.
 
 ## File Format
 
@@ -201,6 +215,8 @@ Recommended review workflow:
   `codedecay product --generate-api-tests --run-generated-api-tests --output .codedecay/local/product-runs/latest.json --format json`.
 - Preview learned memory with
   `codedecay memory-learn --input .codedecay/local/product-runs/latest.json`.
+- Review the `proposals` section for source, confidence, timestamp, and why
+  each entry matters.
 - Re-run with `--apply` only after reviewing the preview.
 - Commit `.codedecay/memory.json` like source code so changes are visible in PRs.
 
