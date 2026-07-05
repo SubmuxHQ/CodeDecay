@@ -1,4 +1,6 @@
 export { createAgentTaskBundle } from "./bundle";
+export { createAgentPreflightReport } from "./preflight/report";
+export { renderAgentPreflightMarkdown, renderAgentPreflightReport } from "./preflight/render";
 export {
   AGENT_PROFILE_IDS,
   getAgentProfile,
@@ -21,3 +23,20 @@ export type {
   AgentTaskSummary,
   CreateAgentTaskBundleOptions
 } from "./types";
+export type {
+  AgentPreflightArea,
+  AgentPreflightAreaKind,
+  AgentPreflightCandidateFile,
+  AgentPreflightCandidateRoute,
+  AgentPreflightConfidence,
+  AgentPreflightDesignConstraint,
+  AgentPreflightEvidence,
+  AgentPreflightFormat,
+  AgentPreflightMemoryEvidence,
+  AgentPreflightReport,
+  AgentPreflightSafety,
+  AgentPreflightSuggestions,
+  AgentPreflightSummary,
+  AgentPreflightTaskSignals,
+  CreateAgentPreflightReportOptions
+} from "./preflight/types";

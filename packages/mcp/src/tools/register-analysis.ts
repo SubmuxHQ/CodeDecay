@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CodeDecayMcpToolHandlers } from "./registry";
 import { textResult } from "./result";
 import {
+  agentPreflightToolSchema,
   agentTaskBundleToolSchema,
   analyzePrToolSchema,
   designContractCheckToolSchema,
@@ -10,6 +11,7 @@ import {
   scopeCheckToolSchema
 } from "./schemas";
 import type {
+  AgentPreflightToolInput,
   AgentTaskBundleToolInput,
   AnalyzePrToolInput,
   DesignContractCheckToolInput,
@@ -75,6 +77,13 @@ export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayM
     "Return a deterministic CodeDecay task bundle that user-owned coding agents can use to fix PR risks. Report-only: does not execute commands or call models.",
     agentTaskBundleToolSchema,
     async (input) => textResult(handlers.agentTaskBundle(input as AgentTaskBundleToolInput))
+  );
+
+  server.tool(
+    "agent_preflight",
+    "Return deterministic before-coding guidance for a user-owned coding agent from repo paths, local config, design contracts, and memory. Does not require a git diff, execute commands, or call models.",
+    agentPreflightToolSchema,
+    async (input) => textResult(handlers.agentPreflight(input as AgentPreflightToolInput))
   );
 
   server.tool(

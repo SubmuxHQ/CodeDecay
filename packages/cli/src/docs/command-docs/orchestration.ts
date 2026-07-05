@@ -88,10 +88,11 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
   },
   agent: {
     name: "agent",
-    summary: "Task bundle for Codex, Claude Code, Cursor, Pi, OpenCode, desktop agents, or MCP clients.",
-    usage: ["codedecay agent [options]"],
+    summary: "Preflight guidance and task bundles for Codex, Claude Code, Cursor, Pi, OpenCode, desktop agents, or MCP clients.",
+    usage: ["codedecay agent [options]", "codedecay agent preflight --task <description> [options]"],
     description: [
-      "Generate an agent-facing task bundle from the same deterministic analysis and red-team context used by CodeDecay."
+      "Generate an agent-facing task bundle from the same deterministic analysis and red-team context used by CodeDecay.",
+      "Use `agent preflight` before code generation to give a user-owned agent repo-grounded likely files, routes, memory, design constraints, and proof expectations without requiring a git diff."
     ],
     options: [
       { flag: "--base <ref>", description: "Base git ref to compare from" },
@@ -99,18 +100,21 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
       { flag: "--format <format>", description: "json or markdown (default: markdown)" },
       { flag: "--profile <profile>", description: `${AGENT_PROFILE_IDS.join(", ")} (default: generic)` },
+      { flag: "--task <text>", description: "Required for `agent preflight`; intended task/change description before code generation" },
       { flag: "--filter-source <source>", description: "Only include fix tasks from one source such as finding, weak-test, edge-case, memory, pattern, or product-failure" },
       { flag: "--filter-priority <level>", description: "Only include fix tasks with priority low, medium, or high" },
       { flag: "--filter-file <path>", description: "Only include fix tasks tied to a file path" },
       { flag: "--output <path>", description: "Write agent task bundle to a file instead of stdout" }
     ],
     examples: [
+      "codedecay agent preflight --task \"Add a GET /api/users export endpoint\" --format markdown",
       "codedecay agent --profile codex --base main --head HEAD --format markdown",
       "codedecay agent --cwd ../my-repo --profile opencode --format json",
       "codedecay agent --format json --filter-source weak-test --filter-priority high"
     ],
     notes: [
-      "Agent bundles package evidence and instructions only. They do not trigger agent or model calls by themselves.",
+      "Agent preflight and agent bundles package evidence and instructions only. They do not trigger agent or model calls by themselves.",
+      "Preflight does not require changed files and does not run configured commands; it lists follow-up proof checks with willRun=false.",
       "Design contract findings are deterministic evidence and appear in the bundle when `codedecay.contract.*` is configured.",
       "Exit codes stay stable: 0 for a generated bundle, 2 for CLI/internal errors."
     ]

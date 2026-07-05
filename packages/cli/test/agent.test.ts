@@ -4,6 +4,171 @@ import { describe, expect, it } from "vitest";
 import { createHighRiskRepo, createLowRiskRepo, createMediumRiskRepo, createNextRouteRiskRepo, createRepo, createTempDir, git, gitOutput, run, writeExecutionConfig, writeFile, writeLatestProductRunReport } from "./helpers";
 
 describe("codedecay agent CLI contract", () => {
+  it("renders API preflight guidance without requiring changed files", async () => {
+    const repo = createPreflightRepo();
+    writeFile(
+      repo,
+      ".codedecay/local/generated/src/app/api/users/route.ts",
+      "export async function GET() { return Response.json({ local: true }); }\n"
+    );
+
+    const result = await run(
+      ["agent", "preflight", "--task", "Add a GET /api/users export endpoint", "--format", "json"],
+      repo
+    );
+    const preflight = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(preflight).toMatchObject({
+      tool: "CodeDecay",
+      mode: "agent-preflight",
+      task: "Add a GET /api/users export endpoint",
+      safety: {
+        llmCalled: false,
+        commandsExecuted: false,
+        telemetrySent: false,
+        cloudDependency: false,
+        agentOutputTrusted: false
+      }
+    });
+    expect(preflight.deterministicEvidence.taskSignals.noDiffRequired).toBe(true);
+    expect(preflight.deterministicEvidence.likelyAreas.map((area: { kind: string }) => area.kind)).toEqual(
+      expect.arrayContaining(["api"])
+    );
+    expect(preflight.deterministicEvidence.candidateFiles.map((file: { path: string }) => file.path)).toContain(
+      "src/app/api/users/route.ts"
+    );
+    expect(
+      preflight.deterministicEvidence.candidateFiles.some((file: { path: string }) =>
+        file.path.startsWith(".codedecay/local/")
+      )
+    ).toBe(false);
+    expect(preflight.deterministicEvidence.candidateRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          route: "/api/users",
+          kind: "api-route"
+        })
+      ])
+    );
+    expect(preflight.deterministicEvidence.memory.flows).toEqual([
+      expect.objectContaining({
+        title: "User export API"
+      })
+    ]);
+    expect(preflight.deterministicEvidence.memory.invariants).toEqual([
+      expect.objectContaining({
+        title: "User export stays authorized"
+      })
+    ]);
+    expect(preflight.deterministicEvidence.designConstraints).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "scope-fence",
+          id: "api-work"
+        })
+      ])
+    );
+    expect(preflight.deterministicEvidence.configuredChecks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: "configured-command",
+          command: "pnpm test -- users",
+          willRun: false
+        })
+      ])
+    );
+    expect(preflight.suggestions.proofPlan).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("API-level regression test")
+      ])
+    );
+    expect(gitOutput(repo, ["status", "--porcelain"])).toBe("");
+  });
+
+  it("finds UI preflight routes and files", async () => {
+    const repo = createPreflightRepo();
+
+    const result = await run(
+      ["agent", "preflight", "--task", "Update dashboard UI filter form", "--format", "json"],
+      repo
+    );
+    const preflight = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(preflight.deterministicEvidence.likelyAreas.map((area: { kind: string }) => area.kind)).toEqual(
+      expect.arrayContaining(["ui"])
+    );
+    expect(preflight.deterministicEvidence.candidateFiles.map((file: { path: string }) => file.path)).toEqual(
+      expect.arrayContaining(["src/app/dashboard/page.tsx", "src/components/UserFilter.tsx"])
+    );
+    expect(preflight.deterministicEvidence.candidateRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          route: "/dashboard",
+          kind: "ui-route"
+        })
+      ])
+    );
+    expect(preflight.suggestions.proofPlan).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("user-flow/browser check")
+      ])
+    );
+  });
+
+  it("finds config preflight files and checks", async () => {
+    const repo = createPreflightRepo();
+
+    const result = await run(
+      ["agent", "preflight", "--task", "Update CI workflow and tsconfig for typed build", "--format", "json"],
+      repo
+    );
+    const preflight = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(preflight.deterministicEvidence.likelyAreas.map((area: { kind: string }) => area.kind)).toEqual(
+      expect.arrayContaining(["config"])
+    );
+    expect(preflight.deterministicEvidence.candidateFiles.map((file: { path: string }) => file.path)).toEqual(
+      expect.arrayContaining([".github/workflows/ci.yml", "tsconfig.json"])
+    );
+    expect(preflight.suggestions.proofPlan).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("config/CI/env path")
+      ])
+    );
+  });
+
+  it("finds test-only preflight proof guidance and renders markdown", async () => {
+    const repo = createPreflightRepo();
+
+    const result = await run(
+      ["agent", "preflight", "--task", "Add Vitest regression tests for users API", "--format", "markdown"],
+      repo
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("## CodeDecay Agent Preflight");
+    expect(result.stdout).toContain("### Deterministic Repo Evidence");
+    expect(result.stdout).toContain("### Suggestions For Agent");
+    expect(result.stdout).toContain("No git diff required: yes");
+    expect(result.stdout).toContain("src/api/users.test.ts");
+    expect(result.stdout).toContain("Make the test prove real behavior");
+    expect(result.stdout).toContain("LLM/model called by CodeDecay: no");
+  });
+
+  it("requires a task for preflight", async () => {
+    const repo = createPreflightRepo();
+
+    const result = await run(["agent", "preflight", "--format", "json"], repo);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("CodeDecay failed: agent preflight requires --task <description>.");
+  });
+
   it("renders deterministic JSON and markdown agent task bundles", async () => {
     const repo = createHighRiskRepo();
     writeExecutionConfig(repo, {
@@ -297,3 +462,115 @@ describe("codedecay agent CLI contract", () => {
     expect(result.stderr).toContain('CodeDecay failed: Could not resolve git ref "definitely-missing-ref".');
   });
 });
+
+function createPreflightRepo(): string {
+  return createRepo({
+    ".gitignore": ".codedecay/local/\n",
+    ".codedecay/config.yml": [
+      "version: 1",
+      "commands:",
+      "  test:",
+      "    - pnpm test -- users",
+      "  build:",
+      "    - pnpm build",
+      "toolAdapters:",
+      "  playwright:",
+      "    enabled: true",
+      "    command: pnpm exec playwright test",
+      "productTesting:",
+      "  targets:",
+      "    api:",
+      "      apiEndpoints:",
+      "        - id: users-list",
+      "          method: GET",
+      "          path: /api/users",
+      ""
+    ].join("\n"),
+    ".codedecay/memory.json": JSON.stringify(
+      {
+        version: 1,
+        flows: [
+          {
+            name: "User export API",
+            description: "Exported users must match the documented API response.",
+            areas: ["api"],
+            productPaths: ["/api/users"]
+          }
+        ],
+        commands: [
+          {
+            name: "Users API tests",
+            command: "pnpm test -- users",
+            areas: ["api", "test"]
+          }
+        ],
+        invariants: [
+          {
+            name: "User export stays authorized",
+            description: "Only authorized staff can export user records.",
+            severity: "high",
+            areas: ["api", "auth"],
+            productPaths: ["/api/users"]
+          }
+        ],
+        architecture: [
+          {
+            title: "Dashboard UI owns user filters",
+            note: "Dashboard filter UI should stay in components instead of API handlers.",
+            areas: ["ui"],
+            files: ["src/components/**"]
+          }
+        ],
+        regressions: [
+          {
+            title: "CI skipped typed build",
+            description: "A prior workflow change skipped typecheck on package changes.",
+            severity: "medium",
+            areas: ["config"],
+            files: [".github/workflows/**"]
+          }
+        ]
+      },
+      null,
+      2
+    ),
+    ".github/workflows/ci.yml": "name: CI\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n",
+    "codedecay.contract.json": JSON.stringify(
+      {
+        version: 1,
+        activeScopeFence: "api-work",
+        scopeFences: [
+          {
+            id: "api-work",
+            allowedFiles: ["src/app/api/**", "src/api/**"],
+            allowedAreas: ["api", "test"],
+            severity: "high"
+          },
+          {
+            id: "ui-work",
+            allowedFiles: ["src/app/**", "src/components/**"],
+            allowedAreas: ["ui", "test"],
+            severity: "medium"
+          }
+        ],
+        boundaryRules: [
+          {
+            id: "ui-no-db",
+            from: { areas: ["ui"] },
+            disallow: { areas: ["database"] },
+            severity: "high",
+            message: "UI code must not import persistence directly."
+          }
+        ]
+      },
+      null,
+      2
+    ),
+    "package.json": JSON.stringify({ scripts: { test: "vitest", build: "tsc -p tsconfig.json" } }, null, 2),
+    "src/api/users.test.ts": "import { describe, it, expect } from 'vitest';\ndescribe('users api', () => { it('works', () => expect(true).toBe(true)); });\n",
+    "src/app/api/users/route.ts": "export async function GET() { return Response.json([]); }\n",
+    "src/app/dashboard/page.tsx": "export default function Page() { return <main>Dashboard</main>; }\n",
+    "src/components/UserFilter.tsx": "export function UserFilter() { return <form />; }\n",
+    "tsconfig.json": JSON.stringify({ compilerOptions: { strict: true } }, null, 2)
+  });
+}

@@ -28,6 +28,8 @@ import { createChangedPathTestProofMap } from "./test-proof/proof-map";
 import { analyzeTestRecommendations } from "./tests/recommendations";
 import { detectWeakTests } from "./tests/weak-audit";
 
+export { listRepoFiles } from "./files/repo";
+
 export interface AnalyzeJsOptions {
   rootDir: string;
   changedFiles: FileChange[];

@@ -1,14 +1,21 @@
 import {
+  createAgentPreflightReport,
   createAgentTaskBundle,
+  renderAgentPreflightReport,
   renderAgentTaskBundle
 } from "@submuxhq/codedecay-agent";
+import { listRepoFiles } from "@submuxhq/codedecay-analyzer-js";
+import { loadCodeDecayConfig } from "@submuxhq/codedecay-config";
 import type { CodeDecayReport } from "@submuxhq/codedecay-core";
+import { getRepoRoot } from "@submuxhq/codedecay-git";
+import { loadCodeDecayMemory } from "@submuxhq/codedecay-memory";
 import { matchPatternIntelligence, renderRedteamReport } from "@submuxhq/codedecay-redteam";
 import { renderMarkdownReport } from "@submuxhq/codedecay-report";
 import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
 import { createDoctorReport, renderDoctorReport } from "@submuxhq/codedecay-tool-adapters";
 import type { StartMcpServerOptions } from "../server/types";
 import type {
+  AgentPreflightToolInput,
   AgentTaskBundleToolInput,
   AnalyzePrToolInput,
   McpToolInput
@@ -122,6 +129,23 @@ export function runAgentTaskBundleTool(serverOptions: StartMcpServerOptions, inp
   const bundle = createAgentTaskBundle(report, { profile: input.profile ?? "generic" });
 
   return renderAgentTaskBundle(bundle, input.format ?? "markdown");
+}
+
+export function runAgentPreflightTool(serverOptions: StartMcpServerOptions, input: AgentPreflightToolInput): string {
+  const rootDir = getRepoRoot(input.cwd ?? serverOptions.cwd);
+  const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
+  const loadedMemory = loadCodeDecayMemory(rootDir);
+  const report = createAgentPreflightReport({
+    task: input.task,
+    rootDir,
+    repoFiles: listRepoFiles(rootDir),
+    config: loadedConfig.config,
+    configSource: loadedConfig.sourcePath,
+    memory: loadedMemory.memory,
+    memorySource: loadedMemory.sourcePath
+  });
+
+  return renderAgentPreflightReport(report, input.format ?? "markdown");
 }
 
 function createReport(serverOptions: StartMcpServerOptions, input: McpToolInput): CodeDecayReport {

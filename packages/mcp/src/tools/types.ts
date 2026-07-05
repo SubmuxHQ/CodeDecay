@@ -16,6 +16,12 @@ export interface AgentTaskBundleToolInput extends AnalyzePrToolInput {
   profile?: AgentProfileId | undefined;
 }
 
+export interface AgentPreflightToolInput {
+  cwd?: string | undefined;
+  task: string;
+  format?: "markdown" | "json" | undefined;
+}
+
 export interface ScopeCheckToolInput extends McpToolInput {
   task?: string | undefined;
   fence?: string | undefined;
