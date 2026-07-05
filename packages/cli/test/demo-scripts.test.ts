@@ -30,4 +30,16 @@ describe("demo scripts", () => {
 
     expect(output).toContain("Usage: node scripts/pr-safety-eval.mjs");
   });
+
+  it("documents the opt-in real OSS adapter E2E harness", () => {
+    const output = execFileSync("node", ["scripts/real-oss-adapter-e2e.mjs", "--", "--help"], {
+      cwd: repoRoot,
+      encoding: "utf8"
+    });
+
+    expect(output).toContain("Usage: node scripts/real-oss-adapter-e2e.mjs");
+    expect(output).toContain("Playwright");
+    expect(output).toContain("Schemathesis");
+    expect(output).toContain("This is opt-in");
+  });
 });
