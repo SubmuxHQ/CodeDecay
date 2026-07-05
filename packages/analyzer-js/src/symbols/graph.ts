@@ -13,9 +13,10 @@ import type {
   SymbolImportEdge
 } from "@submuxhq/codedecay-core";
 import { getNodeType, walk, type AstNode } from "../ast/traverse";
+import { readCachedAnalyzerArtifacts } from "../cache/artifacts";
 import { isSourcePath, isTestPath } from "../classifiers/paths";
 import { listRepoFiles } from "../files/repo";
-import { resolveLocalImportSpecifier } from "../imports/graph";
+import { extractLocalImportSpecifiers, resolveLocalImportSpecifier } from "../imports/graph";
 import { normalizePath } from "../imports/graph/path";
 import { detectRoutesForFile } from "../routes/impact";
 
@@ -34,7 +35,7 @@ export interface SymbolImpactAnalysis {
 interface ParsedFile {
   path: string;
   role: "source" | "test";
-  content: string;
+  isRouteFile: boolean;
   exports: SymbolExport[];
   imports: SymbolImport[];
   calls: SymbolCall[];
@@ -79,28 +80,34 @@ function parseRepoSymbols(rootDir: string): ParsedFile[] {
   const sourceFiles = repoFiles.filter(isSourcePath).sort((left, right) => left.localeCompare(right));
   const repoSourceSet = new Set(sourceFiles);
   const packageEntryPoints = collectPackageEntryPoints(rootDir, repoFiles, repoSourceSet);
-
-  return sourceFiles.flatMap((path) => {
-    const content = readRepoFile(rootDir, path);
-    if (content === undefined) {
-      return [];
-    }
-
-    const parsed = parseFileSymbols(content);
-    return [
-      {
-        path,
-        role: isTestPath(path) ? "test" : "source",
-        content,
+  const cached = readCachedAnalyzerArtifacts({
+    rootDir,
+    files: sourceFiles,
+    requireSymbols: true,
+    parse: (path, content) => {
+      const parsed = parseFileSymbols(content);
+      return {
         exports: parsed.exports,
-        imports: parsed.imports.map((item) => ({
-          ...item,
-          sourceFile: resolveImportSpecifier(path, item.source, repoSourceSet, packageEntryPoints)
-        })),
-        calls: parsed.calls
-      }
-    ];
+        imports: parsed.imports,
+        calls: parsed.calls,
+        localImportSpecifiers: extractLocalImportSpecifiers(content),
+        isRouteFile: detectRoutesForFile(path, content).length > 0,
+        symbolsComplete: true
+      };
+    }
   });
+
+  return cached.files.map((file) => ({
+    path: file.path,
+    role: file.role,
+    isRouteFile: file.isRouteFile,
+    exports: file.exports,
+    imports: file.imports.map((item) => ({
+      ...item,
+      sourceFile: resolveImportSpecifier(file.path, item.source, repoSourceSet, packageEntryPoints)
+    })),
+    calls: file.calls
+  }));
 }
 
 function createSymbolImpactGraph(parsedFiles: ParsedFile[]): SymbolImpactGraph {
@@ -399,7 +406,7 @@ function findSymbolImpacts(input: {
   parsedFiles: ParsedFile[];
 }): SymbolImpact[] {
   const filesByPath = new Map(input.graph.files.map((file) => [file.path, file]));
-  const contentByPath = new Map(input.parsedFiles.map((file) => [file.path, file.content]));
+  const routeFiles = new Set(input.parsedFiles.filter((file) => file.isRouteFile).map((file) => file.path));
 
   return input.changedSourceFiles.flatMap((change) => {
     const file = filesByPath.get(normalizePath(change.path));
@@ -412,8 +419,8 @@ function findSymbolImpacts(input: {
       .map((item) => {
         const reachability = findReachableSymbolImporters(input.graph, file.path, item.name);
         const importerFiles = [...reachability.importerFiles].sort((left, right) => left.localeCompare(right));
-        const routeFiles = importerFiles
-          .filter((path) => isRouteFile(path, contentByPath.get(path) ?? ""))
+        const routeImporterFiles = importerFiles
+          .filter((path) => routeFiles.has(path))
           .sort((left, right) => left.localeCompare(right));
         const likelyTests = importerFiles.filter(isTestPath).sort((left, right) => left.localeCompare(right));
 
@@ -423,7 +430,7 @@ function findSymbolImpacts(input: {
           exportKind: item.kind,
           line: item.line,
           importerFiles,
-          routeFiles,
+          routeFiles: routeImporterFiles,
           likelyTests,
           reasons: [...reachability.reasons].sort((left, right) => left.localeCompare(right)).slice(0, 12)
         };
@@ -529,10 +536,6 @@ function recommendedTestsForImpacts(impacts: SymbolImpact[]): string[] {
   }
 
   return [...recommendations].sort((left, right) => left.localeCompare(right));
-}
-
-function isRouteFile(path: string, content: string): boolean {
-  return detectRoutesForFile(path, content).length > 0;
 }
 
 function collectPackageEntryPoints(

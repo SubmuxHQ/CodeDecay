@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { getAnalyzerCacheSummary } from "@submuxhq/codedecay-analyzer-js";
 import { loadCodeDecayConfig } from "@submuxhq/codedecay-config";
 import { write } from "../io";
 import { parseConfigArgs } from "../parsers/args";
@@ -9,5 +10,5 @@ export function runConfigCommand(context: CliCommandContext): void {
   const options = parseConfigArgs(context.args);
   const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
   const loadedConfig = loadCodeDecayConfig({ cwd });
-  write(context.runtime.stdout, renderConfig(loadedConfig, options.format));
+  write(context.runtime.stdout, renderConfig(loadedConfig, options.format, { analyzerCache: getAnalyzerCacheSummary(cwd) }));
 }

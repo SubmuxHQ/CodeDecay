@@ -21,6 +21,41 @@ Use `--cwd` to inspect another repository:
 npx codedecay config --cwd ../my-repo --format markdown
 ```
 
+## Analyzer Cache
+
+`codedecay analyze` stores reusable JS/TS analyzer artifacts under:
+
+```txt
+.codedecay/local/analyzer-js-cache.json
+```
+
+The cache is local-only runtime state. It stores file metadata and parsed
+artifacts such as import specifiers, symbols, and route-file markers, but it
+does not store source file contents.
+
+Invalidation is deterministic:
+
+- If a file's size and mtime match the cache entry, CodeDecay reuses the entry.
+- If size or mtime changed, CodeDecay reads the file and validates the cached
+  entry by content hash before reusing it.
+- If the content hash changed, CodeDecay reparses that file and records a stale
+  cache miss.
+- If a file was deleted or renamed, CodeDecay removes the old cache entry during
+  the next analysis run.
+- If the cache document is corrupted or has an unsupported schema, CodeDecay
+  ignores it and rewrites a valid cache on the next analysis run.
+
+Inspect cache status with:
+
+```bash
+npx codedecay config --format markdown
+```
+
+The config report shows the cache path, whether it exists, file count, last-run
+hit/miss counts, stale/deleted entries, hash-validated hits, and duration. Config
+inspection only reads the cache status; it does not execute analysis or project
+commands.
+
 ## Example
 
 ```yaml

@@ -1,15 +1,20 @@
+import type { AnalyzerCacheSummary } from "@submuxhq/codedecay-analyzer-js";
 import type { LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import type { ConfigFormat } from "../types";
 
-export function renderConfig(loadedConfig: LoadedCodeDecayConfig, format: ConfigFormat): string {
-  if (format === "markdown") {
-    return renderConfigMarkdown(loadedConfig);
-  }
-
-  return `${JSON.stringify(loadedConfig, null, 2)}\n`;
+export interface RenderConfigOptions {
+  analyzerCache?: AnalyzerCacheSummary | undefined;
 }
 
-function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig): string {
+export function renderConfig(loadedConfig: LoadedCodeDecayConfig, format: ConfigFormat, options: RenderConfigOptions = {}): string {
+  if (format === "markdown") {
+    return renderConfigMarkdown(loadedConfig, options);
+  }
+
+  return `${JSON.stringify({ ...loadedConfig, analyzerCache: options.analyzerCache }, null, 2)}\n`;
+}
+
+function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig, options: RenderConfigOptions): string {
   const { config, sourcePath } = loadedConfig;
   const lines = [
     "## CodeDecay Config",
@@ -23,6 +28,13 @@ function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig): string {
     `| Command timeout | ${config.safety.commandTimeoutMs}ms |`,
     `| Allow configured commands | ${config.safety.allowCommands ? "yes" : "no"} |`,
     "",
+    "### Analyzer Cache",
+    ""
+  ];
+
+  appendAnalyzerCache(lines, options.analyzerCache);
+
+  lines.push(
     "### Commands",
     "",
     "| Type | Commands |",
@@ -43,7 +55,7 @@ function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig): string {
     "",
     "### Memory Providers",
     ""
-  ];
+  );
 
   appendConfigMemoryProviders(lines, config.memoryProviders.providers);
 
@@ -79,6 +91,42 @@ function renderConfigMarkdown(loadedConfig: LoadedCodeDecayConfig): string {
   lines.push("");
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendAnalyzerCache(lines: string[], analyzerCache: AnalyzerCacheSummary | undefined): void {
+  if (!analyzerCache) {
+    lines.push("Analyzer cache status is unavailable.", "");
+    return;
+  }
+
+  lines.push(
+    "| Setting | Value |",
+    "| --- | --- |",
+    `| Path | \`${analyzerCache.path}\` |`,
+    `| Exists | ${analyzerCache.exists ? "yes" : "no"} |`,
+    `| Files | ${analyzerCache.fileCount} |`,
+    `| Updated | ${analyzerCache.updatedAt ?? "never"} |`,
+    `| Corrupted | ${analyzerCache.corrupted ? "yes" : "no"} |`
+  );
+
+  if (analyzerCache.lastRun) {
+    const stats = analyzerCache.lastRun;
+    lines.push(
+      `| Last run files | ${stats.filesSeen} |`,
+      `| Last run cache hits | ${stats.cacheHits} |`,
+      `| Last run cache misses | ${stats.cacheMisses} |`,
+      `| Last run hash-validated hits | ${stats.hashValidatedHits} |`,
+      `| Last run stale entries | ${stats.staleEntries} |`,
+      `| Last run deleted entries | ${stats.deletedEntries} |`,
+      `| Last run duration | ${stats.durationMs}ms |`
+    );
+  }
+
+  if (analyzerCache.error) {
+    lines.push(`| Error | ${analyzerCache.error} |`);
+  }
+
+  lines.push("");
 }
 
 function appendConfigMemoryProviders(
