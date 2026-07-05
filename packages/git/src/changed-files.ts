@@ -42,7 +42,7 @@ export function getGitChangedFiles(options: GitDiffOptions): FileChange[] {
         }
 
         return change;
-      })
+      }).filter((change) => !isCodeDecayLocalPath(change.path))
     : [];
 
   if (options.base || options.head) {
@@ -52,7 +52,7 @@ export function getGitChangedFiles(options: GitDiffOptions): FileChange[] {
   const trackedPaths = new Set(trackedChanges.map((change) => change.path));
   return [
     ...trackedChanges,
-    ...getUntrackedFiles(options.cwd).filter((change) => !trackedPaths.has(change.path))
+    ...getUntrackedFiles(options.cwd).filter((change) => !trackedPaths.has(change.path) && !isCodeDecayLocalPath(change.path))
   ];
 }
 
@@ -99,7 +99,12 @@ function getNoCommitChanges(cwd: string): FileChange[] {
       seen.add(path);
       return true;
     })
+    .filter((path) => !isCodeDecayLocalPath(path))
     .map((path) => createAddedChange(repoRoot, path));
+}
+
+function isCodeDecayLocalPath(path: string): boolean {
+  return path === ".codedecay/local" || path.startsWith(".codedecay/local/") || path.includes("/.codedecay/local/");
 }
 
 function createAddedChange(repoRoot: string, path: string): FileChange {

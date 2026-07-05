@@ -9,6 +9,7 @@ import {
   appendFixTasks,
   appendImpactedAreas,
   appendImpactedRoutes,
+  appendSymbolImpacts,
   appendInvestigation,
   appendMemorySummary,
   appendPatternInsights,
@@ -42,6 +43,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
     `| Changed files | ${report.summary.changedFiles} |`,
     `| Impacted areas | ${report.summary.impactedAreas} |`,
     `| Impacted routes/APIs | ${report.summary.impactedRoutes} |`,
+    `| Symbol impacts | ${report.summary.symbolImpacts} |`,
     `| Missing-test findings | ${report.summary.missingTestFindings} |`,
     `| Weak-test findings | ${report.summary.weakTestFindings} |`,
     `| Edge cases suggested | ${report.summary.edgeCases} |`,
@@ -62,6 +64,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
 
   appendImpactedAreas(lines, report.analysis.impactedAreas);
   appendImpactedRoutes(lines, report.analysis.impactedRoutes ?? []);
+  appendSymbolImpacts(lines, report.analysis.symbolImpacts ?? []);
   appendTestAudit(lines, report.testAudit);
   appendVerification(lines, report.verification);
   appendProductFailures(lines, report.analysis.productFailureBundles ?? []);

@@ -48,7 +48,8 @@ export function runImpactMapTool(serverOptions: StartMcpServerOptions, input: Mc
     {
       changedFiles: report.changedFiles,
       impactedAreas: report.impactedAreas,
-      impactedRoutes: report.impactedRoutes ?? []
+      impactedRoutes: report.impactedRoutes ?? [],
+      symbolImpacts: report.symbolImpacts ?? []
     },
     null,
     2

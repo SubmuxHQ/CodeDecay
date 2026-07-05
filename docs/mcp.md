@@ -40,8 +40,8 @@ runs CodeDecay locally and passes the repository path with `--cwd`.
 ## Tools
 
 - `analyze_pr`: returns a Markdown or JSON CodeDecay report.
-- `impact_map`: returns changed files, impacted areas, and concrete route/API
-  impacts when CodeDecay can detect them.
+- `impact_map`: returns changed files, impacted areas, concrete route/API
+  impacts, and symbol-level import impacts when CodeDecay can detect them.
 - `audit_tests`: returns missing-test and weak-test evidence findings plus
   recommended checks.
 - `suggest_edge_cases`: returns deterministic edge-case suggestions.

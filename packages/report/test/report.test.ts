@@ -127,6 +127,26 @@ const report: CodeDecayReport = {
       recommendedTests: ["Add or run tests covering src/app/dashboard/page.tsx"]
     }
   ],
+  symbolImpactGraph: {
+    schemaVersion: 1,
+    artifactPath: ".codedecay/local/symbol-impact-graph.json",
+    fileCount: 2,
+    edgeCount: 1
+  },
+  symbolImpacts: [
+    {
+      file: "src/auth/session.ts",
+      symbol: "validateSession",
+      exportKind: "named",
+      line: 3,
+      importerFiles: ["src/app/api/session/route.ts", "src/auth/session.test.ts"],
+      routeFiles: ["src/app/api/session/route.ts"],
+      likelyTests: ["src/auth/session.test.ts"],
+      reasons: [
+        "src/auth/session.ts#validateSession -> src/app/api/session/route.ts#validateSession (named import)"
+      ]
+    }
+  ],
   findings: [
     {
       ruleId: "risky-auth-change",
@@ -295,6 +315,11 @@ describe("reports", () => {
     expect(markdown).toContain("Security risk");
     expect(markdown).toContain("src/auth/session.ts");
     expect(markdown).toContain("### Likely Impacted Routes And APIs");
+    expect(markdown).toContain("### Symbol Impact Evidence");
+    expect(markdown).toContain("Graph artifact: `.codedecay/local/symbol-impact-graph.json`");
+    expect(markdown).toContain("`src/auth/session.ts#validateSession`");
+    expect(markdown).toContain("Route/API files: `src/app/api/session/route.ts`");
+    expect(markdown).toContain("Likely tests: `src/auth/session.test.ts`");
     expect(markdown).toContain("### Merge Risk Breakdown");
     expect(markdown).toContain("### Language And Parser Coverage");
     expect(markdown).toContain("Fully supported parser files: 1");
@@ -342,6 +367,11 @@ describe("reports", () => {
         })
       ])
     );
+    expect(json.symbolImpacts[0]).toMatchObject({
+      file: "src/auth/session.ts",
+      symbol: "validateSession",
+      routeFiles: ["src/app/api/session/route.ts"]
+    });
     expect(json.productFailureBundles[0]).toMatchObject({
       schemaVersion: 1,
       checkId: "ui.login.success",

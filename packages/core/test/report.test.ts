@@ -96,6 +96,24 @@ describe("createAnalysisReport", () => {
         limitedFiles: [],
         unsupportedFiles: []
       },
+      symbolImpactGraph: {
+        schemaVersion: 1,
+        artifactPath: ".codedecay/local/symbol-impact-graph.json",
+        fileCount: 1,
+        edgeCount: 0
+      },
+      symbolImpacts: [
+        {
+          file: "src/auth/session.ts",
+          symbol: "validateSession",
+          exportKind: "named",
+          line: 3,
+          importerFiles: ["src/api/session.ts"],
+          routeFiles: ["src/api/session.ts"],
+          likelyTests: ["src/auth/session.test.ts"],
+          reasons: ["src/auth/session.ts#validateSession -> src/api/session.ts#validateSession (named import)"]
+        }
+      ],
       recommendedTests: ["src/auth/session.test.ts"]
     };
 
@@ -117,6 +135,12 @@ describe("createAnalysisReport", () => {
     expect(report.languageAnalysis?.supportedFiles).toEqual(["src/auth/session.ts"]);
     expect(report.securityCandidates?.[0]?.cwe).toBe("CWE-89");
     expect(report.securityAnalysis?.scannedFiles).toEqual(["src/auth/session.ts"]);
+    expect(report.symbolImpactGraph?.artifactPath).toBe(".codedecay/local/symbol-impact-graph.json");
+    expect(report.symbolImpacts?.[0]).toMatchObject({
+      file: "src/auth/session.ts",
+      symbol: "validateSession",
+      routeFiles: ["src/api/session.ts"]
+    });
     expect(report.impactedRoutes).toEqual([
       {
         framework: "express",

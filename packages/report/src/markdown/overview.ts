@@ -66,6 +66,39 @@ export function appendImpactedRoutes(lines: string[], report: CodeDecayReport): 
   lines.push("");
 }
 
+export function appendSymbolImpacts(lines: string[], report: CodeDecayReport): void {
+  if (!report.symbolImpacts || report.symbolImpacts.length === 0) {
+    return;
+  }
+
+  lines.push("### Symbol Impact Evidence", "");
+  if (report.symbolImpactGraph?.artifactPath) {
+    lines.push(
+      `Graph artifact: \`${report.symbolImpactGraph.artifactPath}\` (${report.symbolImpactGraph.fileCount} file(s), ${report.symbolImpactGraph.edgeCount} edge(s))`,
+      ""
+    );
+  }
+
+  for (const impact of report.symbolImpacts.slice(0, 12)) {
+    const affected = impact.importerFiles.length > 0
+      ? impact.importerFiles.map((file) => `\`${file}\``).join(", ")
+      : "no direct importers found";
+    lines.push(`- \`${impact.file}#${impact.symbol}\` -> ${affected}`);
+    if (impact.routeFiles.length > 0) {
+      lines.push(`  - Route/API files: ${impact.routeFiles.map((file) => `\`${file}\``).join(", ")}`);
+    }
+    if (impact.likelyTests.length > 0) {
+      lines.push(`  - Likely tests: ${impact.likelyTests.map((file) => `\`${file}\``).join(", ")}`);
+    }
+  }
+
+  if (report.symbolImpacts.length > 12) {
+    lines.push(`- ...and ${report.symbolImpacts.length - 12} more symbol impact(s)`);
+  }
+
+  lines.push("");
+}
+
 export function appendRecommendedChecks(lines: string[], report: CodeDecayReport): void {
   if (report.recommendedTests.length === 0) {
     return;

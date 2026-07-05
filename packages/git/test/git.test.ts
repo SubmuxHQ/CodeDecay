@@ -121,6 +121,18 @@ describe("live git integration", () => {
     ]);
   });
 
+  it("ignores CodeDecay local generated state when collecting changed files", () => {
+    const repo = createRepo({
+      "src/app.ts": "export const value = 1;\n"
+    });
+
+    writeFile(repo, "src/app.ts", "export const value = 2;\n");
+    writeFile(repo, ".codedecay/local/symbol-impact-graph.json", "{}\n");
+    writeFile(repo, "fixtures/app/.codedecay/local/symbol-impact-graph.json", "{}\n");
+
+    expect(getGitChangedFiles({ cwd: repo }).map((change) => change.path)).toEqual(["src/app.ts"]);
+  });
+
   it("handles repositories with no commits without leaking raw HEAD errors", () => {
     const repo = createEmptyRepo();
     writeFile(repo, "src/app.ts", "export const value = 1;\n");
