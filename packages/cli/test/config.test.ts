@@ -1,6 +1,6 @@
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { createLowRiskRepo, createTempDir, run, writeFile } from "./helpers";
+import { ANALYZER_CACHE_PATH } from "@submuxhq/codedecay-analyzer-js";
+import { createLowRiskRepo, createMediumRiskRepo, createTempDir, run, writeFile } from "./helpers";
 
 describe("codedecay config CLI contract", () => {
   it("prints safe defaults when config is missing", async () => {
@@ -94,6 +94,8 @@ describe("codedecay config CLI contract", () => {
     expect(result.stdout).toContain(".codedecay/config.yml");
     expect(result.stdout).toContain("`pnpm test`");
     expect(result.stdout).toContain("45000ms");
+    expect(result.stdout).toContain("### Analyzer Cache");
+    expect(result.stdout).toContain(ANALYZER_CACHE_PATH);
     expect(result.stdout).toContain("### LLM");
     expect(result.stdout).toContain("| Provider | litellm |");
     expect(result.stdout).toContain("| API key env | `LITELLM_API_KEY` |");
@@ -108,6 +110,24 @@ describe("codedecay config CLI contract", () => {
     expect(result.stdout).toContain("### Product Testing Targets");
     expect(result.stdout).toContain("| web | ready (base-url) | `http://127.0.0.1:3000`");
     expect(result.stdout).toContain("Config inspection does not execute product target commands.");
+  });
+
+  it("shows analyzer cache status after analysis warms the cache", async () => {
+    const repo = createMediumRiskRepo();
+    const analyzeResult = await run(["analyze", "--format", "json"], repo);
+    expect(analyzeResult.exitCode).toBe(0);
+
+    const result = await run(["config", "--format", "json"], repo);
+    const payload = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(payload.analyzerCache).toMatchObject({
+      path: ANALYZER_CACHE_PATH,
+      exists: true,
+      corrupted: false
+    });
+    expect(payload.analyzerCache.fileCount).toBeGreaterThan(0);
+    expect(payload.analyzerCache.lastRun.filesSeen).toBeGreaterThan(0);
   });
 
   it("fails clearly for invalid config files", async () => {

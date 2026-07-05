@@ -29,6 +29,8 @@ import { analyzeTestRecommendations } from "./tests/recommendations";
 import { detectWeakTests } from "./tests/weak-audit";
 
 export { listRepoFiles } from "./files/repo";
+export { ANALYZER_CACHE_PATH, getAnalyzerCacheSummary } from "./cache/artifacts";
+export type { AnalyzerCacheRunStats, AnalyzerCacheSummary } from "./cache/artifacts";
 
 export interface AnalyzeJsOptions {
   rootDir: string;
