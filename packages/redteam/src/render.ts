@@ -44,6 +44,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
     `| Impacted areas | ${report.summary.impactedAreas} |`,
     `| Impacted routes/APIs | ${report.summary.impactedRoutes} |`,
     `| Symbol impacts | ${report.summary.symbolImpacts} |`,
+    `| Changed path proof entries | ${report.summary.testProofEntries} |`,
     `| Missing-test findings | ${report.summary.missingTestFindings} |`,
     `| Weak-test findings | ${report.summary.weakTestFindings} |`,
     `| Edge cases suggested | ${report.summary.edgeCases} |`,

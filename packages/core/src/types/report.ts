@@ -7,6 +7,7 @@ import type { ImpactedArea, ImpactedRoute, SymbolImpact, SymbolImpactGraphSummar
 import type { LanguageAnalysisSummary } from "./language";
 import type { SecurityAnalysisSummary, SecurityCandidate } from "./security";
 import type { TestEvidenceSummary } from "./test-evidence";
+import type { ChangedPathTestProofMap } from "./test-proof";
 
 export interface ReportSummary {
   mergeRiskScore: number;
@@ -37,5 +38,6 @@ export interface CodeDecayReport {
   findings: Finding[];
   recommendedTests: string[];
   testEvidence?: TestEvidenceSummary | undefined;
+  testProofMap?: ChangedPathTestProofMap | undefined;
   productFailureBundles?: ProductFailureBundle[] | undefined;
 }

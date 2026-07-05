@@ -52,6 +52,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
       findings: input.analysisReport.summary.findingCounts,
       missingTestFindings: testAudit.missingTestFindings.length,
       weakTestFindings: weakTestFindings.length,
+      testProofEntries: testAudit.proofMap?.entries.length ?? 0,
       testProofStatus: testAudit.status,
       edgeCases: edgeCases.length,
       configuredChecks: configuredChecks.length,

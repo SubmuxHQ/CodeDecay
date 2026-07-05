@@ -1,6 +1,7 @@
 import type {
   ChangedSourceCoverage,
   CodeDecayReport,
+  ChangedPathTestProofMap,
   Finding,
   TestEvidenceMode
 } from "@submuxhq/codedecay-core";
@@ -15,6 +16,7 @@ export interface TestProofAudit {
   changedSourceFiles: string[];
   changedTestFiles: string[];
   runtimeCoverage: ChangedSourceCoverage[];
+  proofMap?: ChangedPathTestProofMap | undefined;
   missingTestFindings: Finding[];
   weakTestFindings: Finding[];
   recommendedChecks: string[];
@@ -24,6 +26,7 @@ export interface TestProofClassificationInput {
   changedSourceFiles: string[];
   changedTestFiles: string[];
   runtimeCoverage: ChangedSourceCoverage[];
+  proofMap?: ChangedPathTestProofMap | undefined;
   missingTestFindings: Finding[];
   weakTestFindings: Finding[];
 }

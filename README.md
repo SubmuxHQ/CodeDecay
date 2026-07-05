@@ -302,6 +302,8 @@ Current JS/TS analyzer signals include:
 - transitive route/API impact through local import chains
 - symbol-level import impact for changed JS/TS exports, with an inspectable
   `.codedecay/local/symbol-impact-graph.json` artifact
+- changed-path test proof that separates runtime-covered paths, static-only
+  test references, mocked-boundary proof, and unproven changed paths
 - auth, session, and security-sensitive files
 - database/schema files such as `prisma/schema.prisma`
 - config, build, deployment, and runtime files

@@ -25,7 +25,7 @@ export const ASSET_EXTENSIONS = new Set([
 
 export const TEST_DIR_NAMES = new Set(["test", "tests", "spec", "specs", "e2e", "integration", "__tests__", "__specs__"]);
 
-export const TEST_FILE_STEM_PATTERN = /(^|[._-])(test|spec|e2e|integration)([._-]|$)/i;
+export const TEST_FILE_STEM_PATTERN = /(^|[._-])(test|spec|e2e|integration)$/i;
 
 export const PACKAGE_METADATA_KEYS = new Set([
   "author",

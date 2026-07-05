@@ -1,4 +1,4 @@
-import type { CodeDecayReport, Finding, ImpactedArea } from "@submuxhq/codedecay-core";
+import type { ChangedPathTestProofEntry, CodeDecayReport, Finding, ImpactedArea } from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
 import type {
   RedteamConfiguredCheck,
@@ -40,6 +40,21 @@ export function createFixTasks(input: {
       file: finding.file,
       line: finding.line,
       scope: scopeForFinding(finding, input.analysisReport.impactedAreas)
+    });
+  }
+
+  for (const entry of (input.analysisReport.testProofMap?.entries ?? [])
+    .filter((item) => item.status !== "proven_by_runtime_coverage")
+    .slice(0, 8)) {
+    tasks.push({
+      title: `Prove changed path: ${proofTargetLabel(entry)}`,
+      priority: priorityForProofEntry(entry),
+      source: "test-proof",
+      proof: entry.status === "unproven" ? "missing-proof" : "deterministic-signal",
+      detail: `${entry.reasons[0] ?? "Changed path lacks runtime-backed proof."} Repair: ${entry.repairTask}`,
+      file: entry.file,
+      line: entry.line,
+      scope: scopeForFiles([entry.file, ...entry.routeFiles], input.analysisReport.impactedAreas)
     });
   }
 
@@ -144,6 +159,18 @@ export function createFixTasks(input: {
   }
 
   return dedupeTasks(tasks).slice(0, 20);
+}
+
+function proofTargetLabel(entry: ChangedPathTestProofEntry): string {
+  return entry.symbol ? `${entry.file}#${entry.symbol}` : entry.file;
+}
+
+function priorityForProofEntry(entry: ChangedPathTestProofEntry): RedteamFixTask["priority"] {
+  if (entry.status === "weakened_by_mocking" || entry.status === "unproven") {
+    return "high";
+  }
+
+  return "medium";
 }
 
 function verificationTaskTitle(status: RedteamVerificationSummary["checks"][number]["status"], name: string): string {

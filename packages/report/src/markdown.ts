@@ -15,7 +15,8 @@ import {
   appendSecurityCandidates,
   appendSummaryTables,
   appendSymbolImpacts,
-  appendTestEvidence
+  appendTestEvidence,
+  appendTestProofMap
 } from "./markdown/sections";
 
 export function renderMarkdownReport(report: CodeDecayReport): string {
@@ -40,6 +41,7 @@ export function renderMarkdownReport(report: CodeDecayReport): string {
   appendSecurityAnalysis(lines, report.securityAnalysis);
   appendSecurityCandidates(lines, report.securityCandidates);
   appendTestEvidence(lines, report.testEvidence);
+  appendTestProofMap(lines, report.testProofMap);
   appendProductFailureBundles(lines, report.productFailureBundles);
 
   appendFindings(lines, "High Risk Findings", highFindings);

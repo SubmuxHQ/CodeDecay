@@ -15,6 +15,7 @@ export function createFixtureReport(): RedteamReport {
       impactedAreas: 1,
       impactedRoutes: 1,
       symbolImpacts: 1,
+      testProofEntries: 1,
       missingTestFindings: 0,
       findings: {
         low: 0,
@@ -90,6 +91,30 @@ export function createFixtureReport(): RedteamReport {
           reasons: ["src/api/imu.ts#submitImu -> src/api/imu.test.ts#submitImu (named import)"]
         }
       ],
+      testProofMap: {
+        summary: {
+          total: 1,
+          provenByRuntimeCoverage: 0,
+          referencedOnlyStatically: 0,
+          weakenedByMocking: 1,
+          unproven: 0
+        },
+        entries: [
+          {
+            file: "src/api/imu.ts",
+            symbol: "submitImu",
+            line: 10,
+            status: "weakened_by_mocking",
+            evidence: "weak-mock",
+            proof: "deterministic",
+            staticReferences: ["src/api/imu.test.ts"],
+            routeFiles: ["src/api/imu.ts"],
+            weakenedByMocks: ["src/api/imu.test.ts"],
+            reasons: ["Static test references mock the changed boundary in src/api/imu.test.ts."],
+            repairTask: "Add an integration test that reaches src/api/imu.ts#submitImu without mocking submitImu."
+          }
+        ]
+      },
       findings: [],
       recommendedTests: [],
       productFailureBundles: [
@@ -157,7 +182,31 @@ export function createFixtureReport(): RedteamReport {
         }
       ],
       recommendedChecks: ["Add API-level IMU regression test."],
-      runtimeCoverage: []
+      runtimeCoverage: [],
+      proofMap: {
+        summary: {
+          total: 1,
+          provenByRuntimeCoverage: 0,
+          referencedOnlyStatically: 0,
+          weakenedByMocking: 1,
+          unproven: 0
+        },
+        entries: [
+          {
+            file: "src/api/imu.ts",
+            symbol: "submitImu",
+            line: 10,
+            status: "weakened_by_mocking",
+            evidence: "weak-mock",
+            proof: "deterministic",
+            staticReferences: ["src/api/imu.test.ts"],
+            routeFiles: ["src/api/imu.ts"],
+            weakenedByMocks: ["src/api/imu.test.ts"],
+            reasons: ["Static test references mock the changed boundary in src/api/imu.test.ts."],
+            repairTask: "Add an integration test that reaches src/api/imu.ts#submitImu without mocking submitImu."
+          }
+        ]
+      }
     },
     weakTestFindings: [
       {

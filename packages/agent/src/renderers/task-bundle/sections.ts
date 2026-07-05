@@ -5,6 +5,7 @@ import type {
   AgentFindingEvidence,
   AgentSuggestedCheck,
   AgentSymbolImpact,
+  AgentTestProofEntry,
   AgentTaskBundle
 } from "../../types";
 import type { AgentProfile } from "../../profiles";
@@ -26,6 +27,7 @@ export function appendEvidence(lines: string[], evidence: AgentEvidence): void {
   appendAreaEvidence(lines, evidence);
   appendRouteEvidence(lines, evidence);
   appendSymbolImpactEvidence(lines, evidence.symbolImpacts);
+  appendTestProofEvidence(lines, evidence.testProofEntries);
   appendFindingEvidence(lines, "Weak or missing test proof:", [
     ...evidence.missingTestFindings,
     ...evidence.weakTestFindings
@@ -97,6 +99,29 @@ function appendSymbolImpactEvidence(lines: string[], impacts: AgentSymbolImpact[
   }
 }
 
+function appendTestProofEvidence(lines: string[], entries: AgentTestProofEntry[]): void {
+  lines.push("", "Changed path test proof:");
+  if (entries.length === 0) {
+    lines.push("- none detected");
+    return;
+  }
+
+  for (const entry of entries.slice(0, 12)) {
+    const target = entry.symbol ? `${entry.file}#${entry.symbol}` : entry.file;
+    lines.push(`- ${formatProofStatus(entry.status)} \`${target}\` (${entry.evidence}, ${entry.proof})`);
+    for (const reason of entry.reasons.slice(0, 2)) {
+      lines.push(`  - Evidence: ${reason}`);
+    }
+    if (entry.staticReferences.length > 0) {
+      lines.push(`  - Static references: ${formatFiles(entry.staticReferences)}`);
+    }
+    if (entry.weakenedByMocks.length > 0) {
+      lines.push(`  - Mocked in: ${formatFiles(entry.weakenedByMocks)}`);
+    }
+    lines.push(`  - Repair task: ${entry.repairTask}`);
+  }
+}
+
 function appendFindingEvidence(
   lines: string[],
   title: string,
@@ -141,6 +166,19 @@ function appendProductFailureEvidence(lines: string[], evidence: AgentEvidence):
 
 function formatFiles(files: string[]): string {
   return files.map((file) => `\`${file}\``).join(", ");
+}
+
+function formatProofStatus(status: AgentTestProofEntry["status"]): string {
+  switch (status) {
+    case "proven_by_runtime_coverage":
+      return "Runtime-proven";
+    case "referenced_only_statically":
+      return "Static-only";
+    case "weakened_by_mocking":
+      return "Weakened by mocks";
+    case "unproven":
+      return "Unproven";
+  }
 }
 
 export function appendTasks(lines: string[], tasks: RedteamFixTask[]): void {

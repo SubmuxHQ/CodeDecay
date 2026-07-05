@@ -29,6 +29,7 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
     `| Changed files | ${bundle.summary.changedFiles} |`,
     `| Impacted areas | ${bundle.summary.impactedAreas} |`,
     `| Route/API impacts | ${bundle.summary.impactedRoutes} |`,
+    `| Changed path proof entries | ${bundle.summary.testProofEntries} |`,
     `| Missing-test findings | ${bundle.summary.missingTestFindings} |`,
     `| Weak-test findings | ${bundle.summary.weakTestFindings} |`,
     `| Test proof status | ${bundle.summary.testProofStatus} |`,

@@ -42,8 +42,8 @@ runs CodeDecay locally and passes the repository path with `--cwd`.
 - `analyze_pr`: returns a Markdown or JSON CodeDecay report.
 - `impact_map`: returns changed files, impacted areas, concrete route/API
   impacts, and symbol-level import impacts when CodeDecay can detect them.
-- `audit_tests`: returns missing-test and weak-test evidence findings plus
-  recommended checks.
+- `audit_tests`: returns missing-test and weak-test evidence findings,
+  changed-path proof evidence, and recommended checks.
 - `suggest_edge_cases`: returns deterministic edge-case suggestions.
 - `tool_recommendations`: returns local OSS tool recommendations for the repo
   shape. It does not install tools, execute commands, call models, or use
@@ -51,14 +51,14 @@ runs CodeDecay locally and passes the repository path with `--cwd`.
 - `pattern_search`: returns local pattern-pack matches for changed areas so
   user-owned agents can consider known edge cases and weak-test traps.
 - `redteam_report`: returns a deterministic merge-safety report for your agent,
-  including impacted areas, weak-test findings, edge cases, configured checks,
-  memory summary, fix tasks, and safety flags.
+  including impacted areas, changed-path proof entries, weak-test findings, edge
+  cases, configured checks, memory summary, fix tasks, and safety flags.
 - `agent_task_bundle`: returns a deterministic task bundle that Codex, Claude
   Code, Cursor, Pi, OpenCode, desktop agents, or other MCP-compatible agents can
-  use to fix PR risks. It packages a copy-paste prompt, tool evidence, weak-test
-  signals, edge cases, suggested checks, skills, and fix tasks. It accepts an
-  optional `profile` value: `generic`, `codex`, `claude-code`, `cursor`, `pi`,
-  `opencode`, or `desktop`.
+  use to fix PR risks. It packages a copy-paste prompt, tool evidence,
+  changed-path proof repair tasks, weak-test signals, edge cases, suggested
+  checks, skills, and fix tasks. It accepts an optional `profile` value:
+  `generic`, `codex`, `claude-code`, `cursor`, `pi`, `opencode`, or `desktop`.
 - `execute_configured_checks`: runs configured CodeDecay commands, probes, and
   enabled tool adapters. It requires `confirmExecution: true` and
   `safety.allowCommands: true`.

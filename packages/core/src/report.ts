@@ -74,6 +74,10 @@ export function createAnalysisReport(input: {
     report.testEvidence = input.analyzerResult.testEvidence;
   }
 
+  if (input.analyzerResult.testProofMap && input.analyzerResult.testProofMap.entries.length > 0) {
+    report.testProofMap = input.analyzerResult.testProofMap;
+  }
+
   if (input.analyzerResult.securityAnalysis) {
     report.securityAnalysis = input.analyzerResult.securityAnalysis;
   }

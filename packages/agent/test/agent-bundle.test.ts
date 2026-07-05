@@ -12,6 +12,7 @@ describe("agent task bundle creation", () => {
       summary: {
         riskLevel: "high",
         impactedRoutes: 1,
+        testProofEntries: 1,
         missingTestFindings: 0,
         weakTestFindings: 1,
         productFailureBundles: 1,
@@ -34,6 +35,7 @@ describe("agent task bundle creation", () => {
     expect(bundle.prompt).toContain("Target agent profile: Generic user-owned agent");
     expect(bundle.prompt).toContain("Current CodeDecay risk is High");
     expect(bundle.prompt).toContain("1 route/API impacts");
+    expect(bundle.prompt).toContain("1 changed-path proof entries");
     expect(bundle.prompt).toContain("0 missing-test findings");
     expect(bundle.prompt).toContain("1 product failure bundles");
     expect(bundle.prompt).toContain("Start with impacted routes/APIs when present");
@@ -55,6 +57,11 @@ describe("agent task bundle creation", () => {
       }
     ]);
     expect(bundle.evidence.weakTestFindings[0]?.ruleId).toBe("mocked-changed-source");
+    expect(bundle.evidence.testProofEntries[0]).toMatchObject({
+      file: "src/api/imu.ts",
+      symbol: "submitImu",
+      status: "weakened_by_mocking"
+    });
     expect(bundle.evidence.productFailureBundles[0]).toMatchObject({
       id: "ui-imu-submit",
       checkId: "ui.imu.submit",

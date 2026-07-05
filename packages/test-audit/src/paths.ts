@@ -1,7 +1,7 @@
 import type { FileChange } from "@submuxhq/codedecay-core";
 
 const TEST_DIR_NAMES = new Set(["test", "tests", "spec", "specs", "e2e", "integration", "__tests__", "__specs__"]);
-const TEST_FILE_STEM_PATTERN = /(^|[._-])(test|spec|e2e|integration)([._-]|$)/i;
+const TEST_FILE_STEM_PATTERN = /(^|[._-])(test|spec|e2e|integration)$/i;
 const SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".py"]);
 
 export function isChangedSourceFile(change: FileChange): boolean {
@@ -17,7 +17,8 @@ export function isTestPath(path: string): boolean {
   }
 
   const fileName = segments.at(-1) ?? normalized;
-  return TEST_FILE_STEM_PATTERN.test(stripExtension(fileName));
+  const stem = stripExtension(fileName);
+  return TEST_FILE_STEM_PATTERN.test(stem) || stem.startsWith("test_");
 }
 
 function isSourcePath(path: string): boolean {
