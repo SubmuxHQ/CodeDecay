@@ -284,7 +284,7 @@ function renderChildServer(port) {
     "import { createServer } from 'node:http';",
     `const port = ${port};`,
     "const server = createServer((request, response) => {",
-    "  const path = new URL(request.url ?? '/', `http://127.0.0.1:${port}`).pathname;",
+    "  const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname;",
     "  if (path === '/health') {",
     "    response.writeHead(200, { 'content-type': 'application/json' });",
     "    response.end(JSON.stringify({ ok: true }));",
