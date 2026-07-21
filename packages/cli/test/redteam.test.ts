@@ -109,6 +109,83 @@ describe("codedecay redteam CLI contract", () => {
     expect(markdown.stdout).toContain("Commands executed: yes");
   });
 
+  it("rejects assertion-free top-level smoke proof when differential execution exposes a regression", async () => {
+    const repo = createRepo({
+      "package.json": JSON.stringify({ type: "module", scripts: { test: "node test/unit.js" } }, null, 2),
+      "src/session.js": "export function getSession(id) { return { id }; }\n",
+      "test/unit.js": [
+        "import assert from 'node:assert/strict';",
+        "import { getSession } from '../src/session.js';",
+        "assert.equal(getSession('user-1').id, 'user-1');",
+        ""
+      ].join("\n"),
+      "probe.js": [
+        "import { getSession } from './src/session.js';",
+        "console.log(JSON.stringify({ session: getSession('user-1') }));",
+        ""
+      ].join("\n"),
+      ".codedecay/config.yml": [
+        "version: 1",
+        "commands:",
+        "  test:",
+        "    - node test/unit.js",
+        "probes:",
+        "  - name: session behavior",
+        "    command: node probe.js",
+        "    timeoutMs: 1000",
+        "safety:",
+        "  commandTimeoutMs: 1000",
+        "  allowCommands: true",
+        ""
+      ].join("\n")
+    });
+    const base = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+
+    writeFile(repo, "src/session.js", "export function getSession() { return null; }\n");
+    writeFile(
+      repo,
+      "test/unit.js",
+      [
+        "import { getSession } from '../src/session.js';",
+        "const session = getSession('user-1');",
+        "console.log('session smoke', session);",
+        ""
+      ].join("\n")
+    );
+    git(repo, ["add", "."]);
+    git(repo, ["commit", "-m", "regress session behavior with assertion-free smoke test"]);
+    const head = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+
+    const result = await run(["redteam", "--with-checks", "--base", base, "--head", head, "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+    const testCheck = report.verification.checks.find((check: { kind: string }) => check.kind === "test");
+    const differentialCheck = report.verification.checks.find(
+      (check: { name: string }) => check.name === "Differential: Probe: session behavior"
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(report.summary).toMatchObject({
+      weakTestFindings: 1,
+      testProofStatus: "weak",
+      verificationStatus: "failed"
+    });
+    expect(report.weakTestFindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "test-without-assertions",
+          file: "test/unit.js",
+          description: expect.stringContaining("may only prove the file runs")
+        })
+      ])
+    );
+    expect(testCheck).toMatchObject({ status: "passed", proof: "tool-evidence" });
+    expect(differentialCheck).toMatchObject({
+      status: "failed",
+      differentialStatus: "changed",
+      proof: "tool-evidence"
+    });
+  });
+
   it("includes base/head differential probe evidence when --with-checks has refs", async () => {
     const { repo, base, head } = createDifferentialRepo({ headValue: "head", allowCommands: true });
 

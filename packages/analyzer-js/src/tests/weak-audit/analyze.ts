@@ -25,7 +25,7 @@ export function detectWeakTests(rootDir: string, changedTestFiles: FileChange[],
   for (const testChange of changedTestFiles) {
     const context = createWeakTestContext(rootDir, testChange);
 
-    addAssertionFindings(testChange, context, findings, recommendedTests);
+    addAssertionFindings(testChange, context, sourceProfiles, findings, recommendedTests);
     addMockedSourceFindings(testChange, context, sourceProfiles, findings, recommendedTests);
 
     if (changedSourceFiles.length > 0 && !referencesAnyChangedSource(testChange, context.content, sourceProfiles)) {

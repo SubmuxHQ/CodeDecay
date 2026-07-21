@@ -42,6 +42,115 @@ describe("weak test audit", () => {
     expect(result.recommendedTests).toContain("Add real assertions to src/auth/session.test.ts");
   });
 
+  it("flags top-level smoke tests that call changed source without assertions", () => {
+    const rootDir = createTempProject({
+      "src/auth/session.ts": "export function getSession(id: string) { return { id }; }\n",
+      "test/unit.ts": [
+        "import { getSession } from '../src/auth/session';",
+        "const id = 'user-1';",
+        "const session = getSession(id);",
+        "console.log(session);",
+        ""
+      ].join("\n")
+    });
+
+    const result = detectWeakTests(rootDir, [change("test/unit.ts", [{ line: 3, content: "const session = getSession(id);" }])], [
+      change("src/auth/session.ts", [{ line: 1, content: "export function getSession(id: string) { return { id }; }" }])
+    ]);
+
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "test-without-assertions",
+          file: "test/unit.ts",
+          line: 3,
+          description: expect.stringContaining("may only prove the file runs")
+        })
+      ])
+    );
+  });
+
+  it("accepts top-level smoke tests with node assert member assertions", () => {
+    const rootDir = createTempProject({
+      "src/auth/session.ts": "export function getSession(id: string) { return { id }; }\n",
+      "test/unit.ts": [
+        "import assert from 'node:assert/strict';",
+        "import { getSession } from '../src/auth/session';",
+        "assert.equal(getSession('user-1').id, 'user-1');",
+        ""
+      ].join("\n")
+    });
+
+    const result = detectWeakTests(rootDir, [change("test/unit.ts", [{ line: 3, content: "assert.equal(getSession('user-1').id, 'user-1');" }])], [
+      change("src/auth/session.ts", [{ line: 1, content: "export function getSession(id: string) { return { id }; }" }])
+    ]);
+
+    expect(result.findings.map((finding) => finding.ruleId)).not.toContain("test-without-assertions");
+  });
+
+  it("flags CommonJS top-level calls to changed source", () => {
+    const rootDir = createTempProject({
+      "src/auth/session.js": "exports.getSession = (id) => ({ id });\n",
+      "test/unit.js": [
+        "const { getSession } = require('../src/auth/session');",
+        "const session = getSession('user-1');",
+        "console.log(session);",
+        ""
+      ].join("\n")
+    });
+
+    const result = detectWeakTests(rootDir, [change("test/unit.js", [{ line: 2, content: "const session = getSession('user-1');" }])], [
+      change("src/auth/session.js", [{ line: 1, content: "exports.getSession = (id) => ({ id });" }])
+    ]);
+
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "test-without-assertions",
+          file: "test/unit.js",
+          line: 2
+        })
+      ])
+    );
+  });
+
+  it("does not flag imported helpers that are declared but never executed", () => {
+    const rootDir = createTempProject({
+      "src/auth/session.ts": "export function getSession(id: string) { return { id }; }\n",
+      "test/fixtures.ts": [
+        "import { getSession } from '../src/auth/session';",
+        "export function createSessionFixture() {",
+        "  return getSession('user-1');",
+        "}",
+        ""
+      ].join("\n")
+    });
+
+    const result = detectWeakTests(rootDir, [change("test/fixtures.ts", [{ line: 2, content: "export function createSessionFixture() {" }])], [
+      change("src/auth/session.ts", [{ line: 1, content: "export function getSession(id: string) { return { id }; }" }])
+    ]);
+
+    expect(result.findings.map((finding) => finding.ruleId)).not.toContain("test-without-assertions");
+  });
+
+  it("does not confuse a same-stem helper import with changed source", () => {
+    const rootDir = createTempProject({
+      "src/auth/session.ts": "export function getSession(id: string) { return { id }; }\n",
+      "src/fixtures/session-helper.ts": "export function getSessionFixture() { return { id: 'fixture' }; }\n",
+      "test/unit.ts": [
+        "import { getSessionFixture } from '../src/fixtures/session-helper';",
+        "console.log(getSessionFixture());",
+        ""
+      ].join("\n")
+    });
+
+    const result = detectWeakTests(rootDir, [change("test/unit.ts", [{ line: 2, content: "console.log(getSessionFixture());" }])], [
+      change("src/auth/session.ts", [{ line: 1, content: "export function getSession(id: string) { return { id }; }" }])
+    ]);
+
+    expect(result.findings.map((finding) => finding.ruleId)).not.toContain("test-without-assertions");
+  });
+
   it("flags snapshot-only and happy-path-only tests for risky changed source", () => {
     const rootDir = createTempProject({
       "app/dashboard/page.tsx": "export default function Page() { return <main />; }\n",

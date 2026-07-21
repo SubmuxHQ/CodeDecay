@@ -5,23 +5,32 @@ import type { CopiedImplementationBlock } from "../copied-implementation";
 import type { SourceProfile } from "../source-profiles";
 import { referencesSourceProfile } from "../source-profiles";
 import { SNAPSHOT_ASSERTION_PATTERN, hasNegativeOrEdgeCaseSignal, looksLikeRunnableTest } from "../weak-patterns";
+import { findTopLevelChangedSourceCallLine } from "./top-level-execution";
 import type { WeakTestContext } from "./types";
 
 export function addAssertionFindings(
   testChange: FileChange,
   context: WeakTestContext,
+  sourceProfiles: SourceProfile[],
   findings: Finding[],
   recommendedTests: string[]
 ): void {
-  if (looksLikeRunnableTest(context.content) && context.assertionLines.length === 0) {
+  const hasTestCase = looksLikeRunnableTest(context.content);
+  const topLevelCallLine = hasTestCase
+    ? undefined
+    : findTopLevelChangedSourceCallLine(testChange.path, context.content, sourceProfiles);
+
+  if ((hasTestCase || topLevelCallLine !== undefined) && context.assertionLines.length === 0) {
     findings.push({
       ruleId: "test-without-assertions",
       title: "Changed test has no assertions",
-      description: `${testChange.path} defines test cases but does not appear to assert behavior.`,
+      description: hasTestCase
+        ? `${testChange.path} defines test cases but does not appear to assert behavior.`
+        : `${testChange.path} executes changed production code at module scope but does not appear to assert behavior; this may only prove the file runs.`,
       severity: "medium",
       category: "coverage",
       file: testChange.path,
-      line: firstLine(testChange) ?? 1
+      line: topLevelCallLine ?? firstLine(testChange) ?? 1
     });
     recommendedTests.push(`Add real assertions to ${testChange.path}`);
   }

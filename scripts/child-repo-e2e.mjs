@@ -268,12 +268,9 @@ function createRiskyChildChange(root) {
       ""
     ].join("\n"),
     "test/checkout.test.js": [
-      "import { test } from 'node:test';",
       "import { calculateTotal } from '../src/checkout.js';",
-      "",
-      "test('calculates a checkout total', () => {",
-      "  calculateTotal(100, 8);",
-      "});",
+      "const total = calculateTotal(100, 8);",
+      "console.log('checkout smoke', total);",
       ""
     ].join("\n")
   });
@@ -322,8 +319,13 @@ function renderChildServer(port) {
 
 function assertInitialRedteam(command) {
   const report = command.parsedStdout?.ok ? command.parsedStdout.value : undefined;
+  const topLevelSmokeFinding = report?.weakTestFindings?.find(
+    (finding) => finding.ruleId === "test-without-assertions" && finding.file === "test/checkout.test.js"
+  );
   assert(command.status === "pass", "initial-redteam-command", "Installed redteam command did not complete.");
-  assert(Number(report?.summary?.weakTestFindings) > 0, "weak-test-detected", "Child repository weak test was not detected.");
+  assert(Boolean(topLevelSmokeFinding), "top-level-smoke-detected", "Installed CLI did not flag the assertion-free top-level smoke test.");
+  assert(report?.summary?.testProofStatus === "weak", "top-level-smoke-proof-weak", "Assertion-free top-level smoke test was not classified as weak proof.");
+  assert(topLevelSmokeFinding?.description?.includes("may only prove the file runs"), "top-level-smoke-actionable", "Top-level smoke finding did not explain that execution without assertions is insufficient proof.");
   assert(report?.summary?.verificationStatus === "verified", "real-check-executed", "Child repository test command did not pass through CodeDecay execution.");
   assert(report?.safety?.commandsExecuted === true, "execution-recorded", "Redteam report did not record configured command execution.");
 }
@@ -478,7 +480,7 @@ function writeSummary() {
     "## Acceptance Targets",
     "",
     "- Packed npm artifact installed in an independent git repository",
-    "- Real configured child-repository test command executed through CodeDecay",
+    "- Real assertion-free top-level smoke command passed but was classified as weak proof",
     "- Real Chromium crawl, screenshots, and generated Playwright regression tests",
     "- Analyze, redteam, agent, execute, differential, MCP, and Action simulation",
     "- Deterministic agent edit loop converged and final real test passed",
