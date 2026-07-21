@@ -1,5 +1,5 @@
 export const ASSERTION_PATTERN =
-  /\b(expect|assert|strictEqual|deepStrictEqual|ok)\s*\(|\bshould\(|\bto(Be|Equal|StrictEqual|Contain|Match|Have|Throw|BeTruthy|BeFalsy)\b/;
+  /\b(expect|assert|strictEqual|deepStrictEqual|ok)\s*\(|\bassert\.(equal|notEqual|strictEqual|notStrictEqual|deepEqual|notDeepEqual|deepStrictEqual|notDeepStrictEqual|ok|ifError|throws|doesNotThrow|rejects|doesNotReject|match|doesNotMatch|fail)\s*\(|\bshould\(|\bto(Be|Equal|StrictEqual|Contain|Match|Have|Throw|BeTruthy|BeFalsy)\b/;
 
 export const SNAPSHOT_ASSERTION_PATTERN = /\b(toMatchSnapshot|toMatchInlineSnapshot|toHaveScreenshot)\s*\(/;
 
