@@ -46,6 +46,7 @@ const reposDir = join(runDir, "repos");
 const demoRepo = join(reposDir, "pr-safety-demo");
 const lowRepo = join(reposDir, "low-risk-demo");
 const mediumRepo = join(reposDir, "medium-risk-demo");
+const loopRepo = join(reposDir, "loop-convergence-demo");
 const mcpClientScriptPath = join(runDir, "mcp-client-smoke.mjs");
 const mcpClientReportPath = join(runDir, "mcp-client-smoke.json");
 const actionSmokeScriptPath = join(runDir, "github-action-smoke.mjs");
@@ -95,12 +96,14 @@ function main() {
   try {
     createLowRiskRepo(lowRepo);
     createMediumRiskRepo(mediumRepo);
+    createLoopConvergenceRepo(loopRepo);
     const { base, head } = createPrSafetyDemoRepo(demoRepo);
     mkdirSync(nonGitDir, { recursive: true });
 
     runLog.artifacts = {
       lowRepo,
       mediumRepo,
+      loopRepo,
       demoRepo,
       nonGitDir,
       base,
@@ -115,6 +118,7 @@ function main() {
     runReportModeChecks();
     runAgentProfileChecks();
     runExecutionChecks();
+    runLoopConvergenceChecks();
     runBaseHeadChecks(base, head);
     runErrorChecks();
     runMcpChecks(base, head);
@@ -332,6 +336,58 @@ function runExecutionChecks() {
   });
 }
 
+function runLoopConvergenceChecks() {
+  const loop = recordCommand({
+    id: "loop-real-edit-convergence",
+    description: "Loop drives a real child-repository edit from weak proof to a merge-safe verdict.",
+    cwd: loopRepo,
+    args: [
+      "loop",
+      "--cwd",
+      loopRepo,
+      "--format",
+      "json",
+      "--max-rounds",
+      "3",
+      "--agent-cmd",
+      "node scripts/fix-test.mjs"
+    ],
+    expectedExitCodes: [0],
+    parseStdoutJson: true
+  });
+  const finalTest = recordProcess({
+    id: "loop-final-real-test",
+    description: "The child repository's real test command passes after the loop edit.",
+    cwd: loopRepo,
+    command: ["node", "--test", "test/checkout.test.js"],
+    expectedExitCodes: [0]
+  });
+
+  const report = loop.parsedStdout?.ok ? loop.parsedStdout.value : undefined;
+  const rounds = Array.isArray(report?.rounds) ? report.rounds : [];
+  const firstRound = rounds[0];
+  const lastRound = rounds.at(-1);
+  const editedTest = readFileSync(join(loopRepo, "test/checkout.test.js"), "utf8");
+  const converged =
+    typeof report?.status === "string" &&
+    report.status.startsWith("merge-safe-") &&
+    rounds.length >= 2 &&
+    Number(firstRound?.weakTestFindings) > Number(lastRound?.weakTestFindings) &&
+    firstRound?.agent?.madeChanges === true &&
+    editedTest.includes("rejects negative totals") &&
+    finalTest.status === "pass";
+
+  if (!converged) {
+    runLog.issues.push({
+      severity: "error",
+      commandId: loop.id,
+      title: "Installed CLI loop did not prove real edit convergence",
+      detail: "Expected multiple rounds, a reduced weak-test count, an agent-authored regression test, and a passing final real test."
+    });
+    writeRunLog();
+  }
+}
+
 function runBaseHeadChecks(base, head) {
   recordCommand({
     id: "analyze-base-head-json",
@@ -438,7 +494,7 @@ function runGitHubActionChecks(base, head) {
 }
 
 function recordCommand(input) {
-  recordProcess({
+  return recordProcess({
     ...input,
     command: [...cliCommand, ...input.args]
   });
@@ -503,6 +559,7 @@ function recordProcess(input) {
   }
 
   writeRunLog();
+  return commandLog;
 }
 
 function addObservation(commandLog) {
@@ -560,7 +617,7 @@ function writeMcpClientSmokeScript({ base, head }) {
     mcpClientScriptPath,
     renderMcpClientSmokeScript({
       outputPath: mcpClientReportPath,
-      cliPath: join(repoRoot, "packages/cli/dist/index.js"),
+      cliCommand,
       repoRoot,
       demoRepo,
       base,
@@ -581,7 +638,8 @@ function writeGitHubActionSmokeScript({ base, head }) {
       workspace: demoRepo,
       base,
       head,
-      runnerTemp: join(runDir, "github-action-temp")
+      runnerTemp: join(runDir, "github-action-temp"),
+      cliCommand
     }),
     "utf8"
   );
@@ -599,6 +657,72 @@ function createMediumRiskRepo(root) {
   writeFiles(root, mediumRiskBaselineFiles());
   initGitRepo(root);
   writeFiles(root, mediumRiskChangedFiles());
+}
+
+function createLoopConvergenceRepo(root) {
+  resetDir(root);
+  writeFiles(root, {
+    ".gitignore": ".codedecay/local/\n",
+    "package.json": JSON.stringify({ name: "codedecay-loop-convergence-demo", private: true, type: "module" }, null, 2),
+    ".codedecay/config.yml": [
+      "version: 1",
+      "commands:",
+      "  test:",
+      "    - node --test test/checkout.test.js",
+      "safety:",
+      "  commandTimeoutMs: 5000",
+      "  allowCommands: true",
+      ""
+    ].join("\n"),
+    "src/checkout.js": "export function calculateTotal(amount, tax) { return amount + tax; }\n",
+    "test/checkout.test.js": [
+      "import { test } from 'node:test';",
+      "import { strictEqual } from 'node:assert/strict';",
+      "import { calculateTotal } from '../src/checkout.js';",
+      "",
+      "test('calculates total', () => {",
+      "  strictEqual(calculateTotal(100, 8), 108);",
+      "});",
+      ""
+    ].join("\n"),
+    "scripts/fix-test.mjs": [
+      "import { writeFileSync } from 'node:fs';",
+      "writeFileSync('test/checkout.test.js', [",
+      "  \"import { test } from 'node:test';\",",
+      "  \"import { strictEqual, throws } from 'node:assert/strict';\",",
+      "  \"import { calculateTotal } from '../src/checkout.js';\",",
+      "  \"\",",
+      "  \"test('calculates total with tax', () => {\",",
+      "  \"  strictEqual(calculateTotal(100, 8), 108);\",",
+      "  \"});\",",
+      "  \"\",",
+      "  \"test('rejects negative totals', () => {\",",
+      "  \"  throws(() => calculateTotal(-1, 0), /amount/);\",",
+      "  \"});\",",
+      "  \"\"",
+      "].join('\\n'));",
+      ""
+    ].join("\n")
+  });
+  initGitRepo(root);
+  writeFiles(root, {
+    "src/checkout.js": [
+      "export function calculateTotal(amount, tax) {",
+      "  if (amount < 0) throw new Error('amount must be positive');",
+      "  return amount + tax;",
+      "}",
+      ""
+    ].join("\n"),
+    "test/checkout.test.js": [
+      "import { test } from 'node:test';",
+      "import { calculateTotal } from '../src/checkout.js';",
+      "",
+      "test('calculates total', () => {",
+      "  calculateTotal(100, 8);",
+      "});",
+      ""
+    ].join("\n")
+  });
 }
 
 function createPrSafetyDemoRepo(root) {
@@ -641,6 +765,7 @@ function writeSummary() {
     `- Run ID: \`${runId}\``,
     `- Status: **${capitalize(runLog.status)}**`,
     `- Demo repo: \`${relative(repoRoot, demoRepo)}\``,
+    `- Loop repo: \`${relative(repoRoot, loopRepo)}\``,
     `- JSON log: \`${relative(repoRoot, join(runDir, "run.json"))}\``,
     `- Commands: ${runLog.commands.length}`,
     `- Issues: ${runLog.issues.length}`,

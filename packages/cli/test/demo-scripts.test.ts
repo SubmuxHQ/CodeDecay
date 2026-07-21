@@ -22,6 +22,17 @@ describe("demo scripts", () => {
     expect(output).toContain("Usage: node scripts/published-package-demo.mjs");
   });
 
+  it("documents the installed child-repository E2E harness", () => {
+    const output = execFileSync("node", ["scripts/child-repo-e2e.mjs", "--", "--help"], {
+      cwd: repoRoot,
+      encoding: "utf8"
+    });
+
+    expect(output).toContain("Usage: node scripts/child-repo-e2e.mjs");
+    expect(output).toContain("independent git repository");
+    expect(output).toContain("real execution, browser, MCP, Action, differential, and repair-loop paths");
+  });
+
   it("accepts pnpm-style argument separators for the PR safety eval harness", () => {
     const output = execFileSync("node", ["scripts/pr-safety-eval.mjs", "--", "--help"], {
       cwd: repoRoot,

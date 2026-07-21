@@ -6,7 +6,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import { run } from "./helpers";
 
 const tempRoots: string[] = [];
-const describeLoopE2e = process.env.CODEDECAY_LOOP_E2E === "1" ? describe : describe.skip;
 
 afterEach(() => {
   for (const root of tempRoots.splice(0)) {
@@ -14,7 +13,7 @@ afterEach(() => {
   }
 });
 
-describeLoopE2e("codedecay loop real edit convergence", () => {
+describe("codedecay loop real edit convergence", () => {
   it("drives a deterministic agent script from weak test to merge-safe-*", async () => {
     const repo = createLoopConvergenceRepo();
 

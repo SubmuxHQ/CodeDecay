@@ -1,4 +1,4 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import type { LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import {
   checkCommandSafety,
@@ -62,6 +62,7 @@ export async function startManagedProductProcess(
   const child = spawn(command, {
     cwd: rootDir,
     shell: true,
+    detached: process.platform !== "win32",
     env: {
       ...process.env,
       CI: process.env.CI ?? "1"
@@ -116,25 +117,67 @@ export async function startManagedProductProcess(
 }
 
 export async function stopManagedProductProcess(child: ChildProcessWithoutNullStreams): Promise<void> {
-  if (child.exitCode !== null || child.killed) {
+  if (child.exitCode !== null && child.stdout.destroyed && child.stderr.destroyed) {
     return;
   }
 
   await new Promise<void>((resolvePromise) => {
-    const timeout = setTimeout(() => {
-      if (child.exitCode === null && !child.killed) {
-        child.kill("SIGKILL");
+    let settled = false;
+    let forceResolveTimeout: NodeJS.Timeout | undefined;
+    const settle = () => {
+      if (settled) {
+        return;
       }
+      settled = true;
+      clearTimeout(forceKillTimeout);
+      if (forceResolveTimeout) {
+        clearTimeout(forceResolveTimeout);
+      }
+      child.stdout.destroy();
+      child.stderr.destroy();
+      child.stdin.destroy();
       resolvePromise();
+    };
+    const forceKillTimeout = setTimeout(() => {
+      signalManagedProductProcess(child, "SIGKILL");
+      forceResolveTimeout = setTimeout(settle, 250);
     }, 1000);
 
-    child.once("close", () => {
-      clearTimeout(timeout);
-      resolvePromise();
-    });
+    child.once("close", settle);
 
-    child.kill("SIGTERM");
+    signalManagedProductProcess(child, "SIGTERM");
   });
+}
+
+function signalManagedProductProcess(
+  child: ChildProcessWithoutNullStreams,
+  signal: NodeJS.Signals
+): void {
+  if (process.platform === "win32" && child.pid) {
+    const result = spawnSync(
+      "taskkill",
+      ["/pid", String(child.pid), "/T", ...(signal === "SIGKILL" ? ["/F"] : [])],
+      { stdio: "ignore", windowsHide: true }
+    );
+    if (result.status === 0) {
+      return;
+    }
+  }
+
+  if (process.platform !== "win32" && child.pid) {
+    try {
+      process.kill(-child.pid, signal);
+      return;
+    } catch {
+      // Fall back to the direct child when the process group has already exited.
+    }
+  }
+
+  try {
+    child.kill(signal);
+  } catch {
+    // Process shutdown is best effort after the managed command has completed.
+  }
 }
 
 function appendLimitedOutput(existing: string, next: string, limit: number): string {
