@@ -5,7 +5,7 @@ const { Client } = await import(${JSON.stringify(input.clientModuleUrl)});
 const { StdioClientTransport } = await import(${JSON.stringify(input.stdioModuleUrl)});
 
 const outputPath = ${JSON.stringify(input.outputPath)};
-const cliPath = ${JSON.stringify(input.cliPath)};
+const cliCommand = ${JSON.stringify(input.cliCommand)};
 const repoRoot = ${JSON.stringify(input.repoRoot)};
 const demoRepo = ${JSON.stringify(input.demoRepo)};
 const base = ${JSON.stringify(input.base)};
@@ -22,8 +22,8 @@ const calls = [];
 let stderr = "";
 
 const transport = new StdioClientTransport({
-  command: process.execPath,
-  args: [cliPath, "mcp", "--cwd", demoRepo],
+  command: cliCommand[0],
+  args: [...cliCommand.slice(1), "mcp", "--cwd", demoRepo],
   cwd: repoRoot,
   stderr: "pipe",
   env: {
@@ -134,7 +134,7 @@ const outputPath = ${JSON.stringify(input.outputPath)};
 const repoRoot = ${JSON.stringify(input.repoRoot)};
 const actionPath = join(repoRoot, "packages/github-action");
 const actionYmlPath = join(actionPath, "action.yml");
-const cliPath = join(repoRoot, "packages/cli/dist/index.js");
+const cliCommand = ${JSON.stringify(input.cliCommand)};
 const workspace = ${JSON.stringify(input.workspace)};
 const base = ${JSON.stringify(input.base)};
 const head = ${JSON.stringify(input.head)};
@@ -151,7 +151,7 @@ mkdirSync(dirname(sarifPath), { recursive: true });
 
 function run(id, args, expectedExitCodes) {
   const startedAt = Date.now();
-  const result = spawnSync(process.execPath, [cliPath, ...args], {
+  const result = spawnSync(cliCommand[0], [...cliCommand.slice(1), ...args], {
     cwd: workspace,
     encoding: "utf8",
     env: {

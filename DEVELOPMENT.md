@@ -86,6 +86,11 @@ Action runtime, and writes command logs to:
 JSON when available, and output file metadata. Use it as the first reproduction
 artifact when filing follow-up bugs from dogfood runs.
 
+The end-user harness also creates a separate loop fixture. A deterministic local
+agent command edits a weak test, CodeDecay re-runs the repository's real test
+command, and the harness requires the weak-test count and merge risk to drop
+before accepting a merge-safe verdict.
+
 Run the published-package demo when you need to test CodeDecay like a new user
 would install it from npm or from a local tarball:
 
@@ -101,6 +106,44 @@ example repos, runs the installed `codedecay` binary, and writes logs to:
 .codedecay/local/published-package-demo/<run-id>/run.json
 .codedecay/local/published-package-demo/<run-id>/summary.md
 ```
+
+## Child-repository end-to-end acceptance
+
+Run the strongest local acceptance path before releases or broad orchestration,
+execution, MCP, Action, loop, or product-testing changes:
+
+```bash
+pnpm test:child-repo-e2e -- --run-id local-child-repo
+```
+
+This is intentionally stronger and slower than `pnpm test`. It:
+
+1. packs the built npm package,
+2. installs that tarball and Playwright in an independent git repository,
+3. executes the child repository's configured test command through CodeDecay,
+4. starts a real local web application,
+5. launches Chromium, crawls two pages, records PNG screenshots, and runs the
+   generated Playwright regression suite,
+6. runs the installed CLI through analyze, redteam, agent, execute,
+   differential, MCP, Action simulation, and deterministic repair-loop paths.
+
+The command downloads `@playwright/test` and Chromium explicitly. It does not
+call a model, require an API key, send telemetry, or access a production
+service. Evidence is written under:
+
+```text
+.codedecay/local/child-repo-e2e/<run-id>/run.json
+.codedecay/local/child-repo-e2e/<run-id>/summary.md
+```
+
+Test levels are deliberately separate:
+
+- `pnpm test`: fast unit, integration, and built-CLI contracts.
+- `pnpm demo:published-package`: fresh package-install smoke.
+- `pnpm test:child-repo-e2e`: installed-package acceptance in child repos with
+  real execution and Chromium.
+- `pnpm test:real-oss-adapters`: opt-in upstream adapter verification for
+  Playwright, StrykerJS, Schemathesis, Pact, Semgrep, and coverage.
 
 ## Optional CodeDecay config and memory
 

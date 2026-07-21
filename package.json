@@ -24,6 +24,7 @@
     "package:github": "node scripts/prepare-github-packages-package.mjs",
     "lint": "tsc -p tsconfig.base.json --noEmit",
     "test": "vitest run",
+    "test:child-repo-e2e": "pnpm build:packages && node scripts/child-repo-e2e.mjs",
     "test:real-oss-adapters": "pnpm build:packages && node scripts/real-oss-adapter-e2e.mjs",
     "typecheck": "tsc -p tsconfig.base.json --noEmit"
   },

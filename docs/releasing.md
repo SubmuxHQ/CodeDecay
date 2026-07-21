@@ -43,7 +43,14 @@ pnpm typecheck
 pnpm test
 pnpm build
 pnpm --filter @submuxhq/codedecay pack --dry-run
+pnpm test:child-repo-e2e -- --run-id release-candidate
 ```
+
+The child-repository acceptance gate packs and installs the CLI outside the
+workspace, runs real configured checks, launches Chromium against a local child
+application, exercises generated Playwright tests, and verifies MCP, Action,
+differential, and repair-loop workflows. Treat a skipped browser or loop path as
+missing release evidence, not a pass.
 
 Inspect the tarball before publishing:
 

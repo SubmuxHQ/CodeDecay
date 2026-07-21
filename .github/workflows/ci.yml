@@ -47,3 +47,20 @@ jobs:
 
       - name: Package dry-run
         run: pnpm --filter @submuxhq/codedecay pack --dry-run
+
+      - name: Child repository end-to-end acceptance
+        run: node scripts/child-repo-e2e.mjs --run-id ci
+
+      - name: Upload child repository end-to-end evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codedecay-child-repo-e2e
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            .codedecay/local/child-repo-e2e/ci/run.json
+            .codedecay/local/child-repo-e2e/ci/summary.md
+            .codedecay/local/child-repo-e2e/ci/logs
+            .codedecay/local/child-repo-e2e/ci/end-user-demo
+            .codedecay/local/child-repo-e2e/ci/child-repo/.codedecay/local
