@@ -65,6 +65,9 @@ describe("analyzer-js path classifiers", () => {
     expect(isTestPath("packages/core/src/types/test-proof.ts")).toBe(false);
     expect(isTestPath("packages/report/src/markdown/test-evidence.ts")).toBe(false);
     expect(isTestPath("packages/analyzer-js/src/test-proof/proof-map.ts")).toBe(false);
+    expect(isTestPath("packages/analyzer-js/src/tests/weak-audit/findings.ts")).toBe(false);
+    expect(isTestPath("packages/analyzer-js/src/tests/weak-audit/findings.test.ts")).toBe(true);
+    expect(isTestPath("packages/analyzer-js/test/weak-audit/findings.ts")).toBe(true);
   });
 });
 

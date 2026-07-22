@@ -12,6 +12,7 @@ export {
   upsertAuditRun
 } from "./audit";
 export { findingCounts, sortFindings } from "./findings";
+export { isTestFilePath } from "./paths/test-files";
 export { productFailureBundlesFromProductTargetReport } from "./product-failures";
 export { compareRiskLevels, riskLevelFromScore, shouldFailForRisk } from "./risk";
 export {

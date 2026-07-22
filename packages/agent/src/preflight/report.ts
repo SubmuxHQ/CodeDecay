@@ -1,4 +1,4 @@
-import { CODEDECAY_VERSION, dedupeStrings } from "@submuxhq/codedecay-core";
+import { CODEDECAY_VERSION, dedupeStrings, isTestFilePath } from "@submuxhq/codedecay-core";
 import type { DesignMatcher } from "@submuxhq/codedecay-core";
 import type { AgentSuggestedCheck } from "../types";
 import type {
@@ -314,7 +314,7 @@ function pathAreasFor(path: string): AgentPreflightAreaKind[] {
     areas.push("config");
   }
 
-  if (isTestPath(normalized)) {
+  if (isTestFilePath(normalized) || normalized.includes("playwright")) {
     areas.push("test");
   }
 
@@ -842,17 +842,6 @@ function isConfigPath(path: string): boolean {
     path.includes("webpack.config") ||
     path.includes("eslint.config") ||
     path.includes("dockerfile")
-  );
-}
-
-function isTestPath(path: string): boolean {
-  return (
-    path.includes(".test.") ||
-    path.includes(".spec.") ||
-    path.includes("/test/") ||
-    path.includes("/tests/") ||
-    path.includes("/__tests__/") ||
-    path.includes("playwright")
   );
 }
 
