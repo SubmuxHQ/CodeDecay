@@ -430,12 +430,21 @@ function findSinkMarkerIndex(value: string, marker: string): number {
 }
 
 function isAllowedSinkMarkerStart(value: string, marker: string, start: number): boolean {
-  if (marker !== "request(") {
-    return true;
+  const before = start === 0 ? "" : value[start - 1] ?? "";
+  const startsWithIdentifier = isIdentifierChar(marker[0] ?? "");
+  if (startsWithIdentifier && isIdentifierChar(before)) {
+    return false;
   }
 
-  const before = start === 0 ? "" : value[start - 1] ?? "";
-  return !isIdentifierChar(before);
+  if (isBareCommandExecutionMarker(marker) && before === ".") {
+    return false;
+  }
+
+  return true;
+}
+
+function isBareCommandExecutionMarker(marker: string): boolean {
+  return marker === "exec(" || marker === "execsync(" || marker === "spawn(";
 }
 
 function hasExportedDestructiveFunction(lowerContent: string): boolean {
