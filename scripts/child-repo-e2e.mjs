@@ -243,11 +243,11 @@ function createBrowserChildRepo(root, port) {
       "  commandTimeoutMs: 120000",
       ""
     ].join("\n"),
-    "src/checkout.js": "export function calculateTotal(amount, tax) { return amount + tax; }\n",
+    "src/tests/checkout.js": "export function calculateTotal(amount, tax) { return amount + tax; }\n",
     "test/checkout.test.js": [
       "import { test } from 'node:test';",
       "import { strictEqual } from 'node:assert/strict';",
-      "import { calculateTotal } from '../src/checkout.js';",
+      "import { calculateTotal } from '../src/tests/checkout.js';",
       "",
       "test('calculates a checkout total', () => {",
       "  strictEqual(calculateTotal(100, 8), 108);",
@@ -260,7 +260,7 @@ function createBrowserChildRepo(root, port) {
 
 function createRiskyChildChange(root) {
   writeFiles(root, {
-    "src/checkout.js": [
+    "src/tests/checkout.js": [
       "export function calculateTotal(amount, tax) {",
       "  if (amount < 0) throw new Error('amount must be positive');",
       "  return amount + tax;",
@@ -268,7 +268,7 @@ function createRiskyChildChange(root) {
       ""
     ].join("\n"),
     "test/checkout.test.js": [
-      "import { calculateTotal } from '../src/checkout.js';",
+      "import { calculateTotal } from '../src/tests/checkout.js';",
       "const total = calculateTotal(100, 8);",
       "console.log('checkout smoke', total);",
       ""
@@ -319,10 +319,17 @@ function renderChildServer(port) {
 
 function assertInitialRedteam(command) {
   const report = command.parsedStdout?.ok ? command.parsedStdout.value : undefined;
+  const productionSourcePath = "src/tests/checkout.js";
   const topLevelSmokeFinding = report?.weakTestFindings?.find(
     (finding) => finding.ruleId === "test-without-assertions" && finding.file === "test/checkout.test.js"
   );
+  const sourceMisclassifiedAsTest = report?.weakTestFindings?.some(
+    (finding) => finding.file === productionSourcePath
+  );
   assert(command.status === "pass", "initial-redteam-command", "Installed redteam command did not complete.");
+  assert(report?.testAudit?.changedSourceFiles?.includes(productionSourcePath), "src-tests-is-source", "Installed CLI did not classify production code under src/tests as changed source.");
+  assert(report?.analysis?.securityAnalysis?.scannedFiles?.includes(productionSourcePath), "src-tests-scanned-as-source", "Installed CLI excluded production code under src/tests from source analysis.");
+  assert(!sourceMisclassifiedAsTest, "src-tests-no-weak-test-finding", "Installed CLI emitted a weak-test finding for production code under src/tests.");
   assert(Boolean(topLevelSmokeFinding), "top-level-smoke-detected", "Installed CLI did not flag the assertion-free top-level smoke test.");
   assert(report?.summary?.testProofStatus === "weak", "top-level-smoke-proof-weak", "Assertion-free top-level smoke test was not classified as weak proof.");
   assert(topLevelSmokeFinding?.description?.includes("may only prove the file runs"), "top-level-smoke-actionable", "Top-level smoke finding did not explain that execution without assertions is insufficient proof.");
@@ -480,6 +487,7 @@ function writeSummary() {
     "## Acceptance Targets",
     "",
     "- Packed npm artifact installed in an independent git repository",
+    "- Production code under src/tests remained source while the root test file remained a test",
     "- Real assertion-free top-level smoke command passed but was classified as weak proof",
     "- Real Chromium crawl, screenshots, and generated Playwright regression tests",
     "- Analyze, redteam, agent, execute, differential, MCP, and Action simulation",
