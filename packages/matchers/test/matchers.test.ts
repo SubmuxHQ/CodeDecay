@@ -139,7 +139,11 @@ describe("scanSecurityCandidates", () => {
         },
         {
           path: "src/api/archive.ts",
-          content: "export function archive(command) { return exec(command); }\n"
+          content: [
+            "import { exec } from 'node:child_process';",
+            "export function archive(command) { return exec(command); }",
+            ""
+          ].join("\n")
         },
         {
           path: "src/api/files.ts",
@@ -152,6 +156,78 @@ describe("scanSecurityCandidates", () => {
       expect.arrayContaining(["security-ssrf", "security-command-injection"])
     );
     expect(result.candidates.map((candidate) => candidate.ruleId)).not.toContain("security-path-traversal");
+  });
+
+  it("distinguishes RegExp exec calls from command execution sinks", () => {
+    const result = scanSecurityCandidates({
+      files: [
+        {
+          path: "src/paths.ts",
+          content: [
+            "export function extensionOf(path: string): string {",
+            "  const match = /\\.[^.\\/]+$/.exec(path);",
+            "  return match?.[0] ?? '';",
+            "}",
+            ""
+          ].join("\n")
+        },
+        {
+          path: "src/patterns.ts",
+          content: [
+            "const pattern = new RegExp('^safe');",
+            "export function matches(input: string) {",
+            "  return pattern.exec(input);",
+            "}",
+            ""
+          ].join("\n")
+        },
+        {
+          path: "src/api/archive.ts",
+          content: [
+            "import { exec } from 'node:child_process';",
+            "export function archive(command) { return exec(command); }",
+            ""
+          ].join("\n")
+        },
+        {
+          path: "src/api/worker.ts",
+          content: [
+            "import * as processRunner from 'node:child_process';",
+            "export function run(command) {",
+            "  return processRunner.spawn(command);",
+            "}",
+            ""
+          ].join("\n")
+        },
+        {
+          path: "src/parser.ts",
+          content: [
+            "function exec(value: string) { return value.trim(); }",
+            "export function parse(input: string) { return exec(input); }",
+            ""
+          ].join("\n")
+        },
+        {
+          path: "src/fixtures.ts",
+          content: [
+            "const example = \"import { exec } from 'node:child_process';\";",
+            "function exec(value: string) { return value; }",
+            "export function render(input: string) { return exec(input) + example; }",
+            ""
+          ].join("\n")
+        }
+      ]
+    });
+
+    const commandInjectionFiles = result.candidates
+      .filter((candidate) => candidate.ruleId === "security-command-injection")
+      .map((candidate) => candidate.file);
+
+    expect(commandInjectionFiles).toEqual(expect.arrayContaining(["src/api/archive.ts", "src/api/worker.ts"]));
+    expect(commandInjectionFiles).not.toContain("src/paths.ts");
+    expect(commandInjectionFiles).not.toContain("src/patterns.ts");
+    expect(commandInjectionFiles).not.toContain("src/parser.ts");
+    expect(commandInjectionFiles).not.toContain("src/fixtures.ts");
   });
 
   it("tracks one-hop local variables assigned from request input into high-risk sinks", () => {

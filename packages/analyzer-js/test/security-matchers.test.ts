@@ -70,4 +70,26 @@ describe("analyzer-js security matcher integration", () => {
     );
     expect(result.securityAnalysis?.scannedFiles).toEqual(["src/api/proxy.ts"]);
   });
+
+  it("does not report RegExp exec as command execution", () => {
+    const path = "packages/test-audit/src/paths.ts";
+    const content = [
+      "export function extensionOf(path: string): string {",
+      "  const match = /\\.[^.\\/]+$/.exec(path);",
+      "  return match?.[0]?.toLowerCase() ?? '';",
+      "}",
+      ""
+    ].join("\n");
+    const rootDir = createTempProject({ [path]: content });
+
+    const result = analyzeJsProject({
+      rootDir,
+      changedFiles: [change(path, "const match = /\\.[^.\\/]+$/.exec(path);")]
+    });
+
+    expect(result.securityAnalysis?.scannedFiles).toEqual([path]);
+    expect((result.securityCandidates ?? []).map((candidate) => candidate.ruleId)).not.toContain(
+      "security-command-injection"
+    );
+  });
 });

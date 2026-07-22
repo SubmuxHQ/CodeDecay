@@ -1,3 +1,4 @@
+import { commandExecutionSinkMarkers } from "./command-execution";
 import type { SecurityMatcher } from "./types";
 import {
   containsAny,
@@ -128,16 +129,17 @@ export const commandInjectionMatcher: SecurityMatcher = {
   examples: [
     {
       filePath: "src/api/archive.ts",
-      content: "exec(`tar -czf ${req.query.name}.tgz uploads/${req.query.name}`);"
+      content: "import { exec } from 'node:child_process';\nexec(`tar -czf ${req.query.name}.tgz uploads/${req.query.name}`);"
     }
   ],
   match(context) {
+    const sinkMarkers = commandExecutionSinkMarkers(context.content);
     const directMatches = lineMatches(context.content, (line, lowerLine) => {
       const codeLine = maskStringLiterals(line).toLowerCase();
       const usesUserInput = hasUserInputMarker(codeLine) || lowerLine.includes("${");
-      return containsAny(codeLine, ["exec(", "execsync(", "spawn("]) && usesUserInput;
+      return containsAnySinkMarker(codeLine, sinkMarkers) && usesUserInput;
     });
-    const taintedMatches = findParameterTaintedSinkLines(context.content, ["exec(", "execsync(", "spawn("]);
+    const taintedMatches = findParameterTaintedSinkLines(context.content, sinkMarkers);
 
     return uniqueMatches([...directMatches, ...taintedMatches]).map((match) =>
       createCandidate({
