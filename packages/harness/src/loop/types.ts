@@ -26,8 +26,10 @@ export interface LoopRedteamReport {
   summary: {
     riskLevel: RiskLevel;
     mergeRiskScore: number;
+    decayScore: number;
     securityScore: number;
     weakTestFindings: number;
+    productFailureBundles: number;
     fixTasks: number;
   };
   analysis: {
@@ -130,14 +132,31 @@ export interface LoopRoundSnapshot {
   round: number;
   riskLevel: RiskLevel;
   mergeRiskScore: number;
+  decayScore: number;
+  securityScore: number;
   weakTestFindings: number;
+  productFailureBundles: number;
   fixTasks: number;
   checkStatus: LoopCheckStatus;
   checksConfigured: boolean;
   checksTotal: number;
   riskReducedFromPreviousRound?: boolean | undefined;
+  postAgentVerification?: LoopVerificationSnapshot | undefined;
   planOnlyBundle?: string | undefined;
   agent?: LoopAgentResult | undefined;
+}
+
+export interface LoopVerificationSnapshot {
+  riskLevel: RiskLevel;
+  mergeRiskScore: number;
+  decayScore: number;
+  securityScore: number;
+  weakTestFindings: number;
+  productFailureBundles: number;
+  fixTasks: number;
+  checkStatus: LoopCheckStatus;
+  checksConfigured: boolean;
+  checksTotal: number;
 }
 
 export interface LoopReport {
@@ -154,8 +173,10 @@ export interface LoopReport {
   planOnly: boolean;
   finalRiskLevel: RiskLevel;
   finalMergeRiskScore: number;
+  finalDecayScore: number;
   finalSecurityScore: number;
   finalWeakTestFindings: number;
+  finalProductFailureBundles: number;
   finalCheckStatus: LoopCheckStatus;
   verdict: LoopVerdictEvidence;
   finalFixTasks: LoopFixTask[];
