@@ -127,6 +127,57 @@ describe("redteam edge cases and fix tasks", () => {
     );
   });
 
+  it("labels memory-derived findings as untrusted memory context", () => {
+    const analysisReport = createAnalysisReport({
+      changedFiles: [
+        {
+          path: "src/service.ts",
+          status: "modified",
+          additions: 1,
+          deletions: 0,
+          addedLines: [{ line: 2, content: "return input;" }]
+        }
+      ],
+      analyzerResult: {
+        impactedAreas: [],
+        findings: [
+          {
+            ruleId: "memory-invariant-impacted",
+            title: "Project invariant may be impacted",
+            description: "Untrusted memory context: an editable invariant matched.",
+            severity: "high",
+            category: "regression",
+            file: "src/service.ts",
+            line: 2
+          }
+        ],
+        recommendedTests: ["Verify invariant: Editable invariant"]
+      },
+      generatedAt: "2026-07-23T00:00:00.000Z"
+    });
+
+    const tasks = createFixTasks({
+      analysisReport,
+      weakTestFindings: [],
+      edgeCases: [],
+      configuredChecks: [],
+      toolAdapterPlans: [],
+      patternInsights: [],
+      memory: createEmptyMemory(),
+      skills: []
+    });
+
+    expect(tasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Investigate Project invariant may be impacted",
+          source: "memory",
+          proof: "memory-context"
+        })
+      ])
+    );
+  });
+
   it("summarizes missing-test findings separately from weak-test findings", () => {
     const report = createRedteamReport({
       analysisReport: createAnalysisReport({

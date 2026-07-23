@@ -1,3 +1,4 @@
+import { isMemoryContextFinding } from "@submuxhq/codedecay-core";
 import { riskRank } from "./risk";
 import { driveAgent } from "./agent";
 import { changedFilePaths, createChangedFilesFingerprint } from "./fingerprint";
@@ -215,7 +216,9 @@ export function createLoopVerdictEvidence(
   securityScoreThreshold: number,
   status: LoopStatus
 ): LoopVerdictEvidence {
-  const highFindings = report.analysis.findings.filter((finding) => finding.severity === "high");
+  const highFindings = report.analysis.findings.filter(
+    (finding) => finding.severity === "high" && !isMemoryContextFinding(finding)
+  );
   const highSecurityFindings = highFindings.filter((finding) => finding.category === "security");
   const securityMatcherFindings = report.analysis.securityCandidates?.length ?? report.analysis.securityAnalysis?.candidateCount ?? 0;
   const securityMatcherHighFindings = (report.analysis.securityCandidates ?? []).filter(

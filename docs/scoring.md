@@ -95,9 +95,16 @@ Reports include:
 Each breakdown records:
 
 - top contributors
-- whether the contributor is `direct`, `heuristic`, or `structural`
+- whether the contributor is `direct`, `heuristic`, `structural`, or
+  `memory-context`
 - any dampeners that lowered the final score
 - notes about severity caps or heuristic-only handling
+
+`memory-context` contributors remain visible with their source severity and
+recommended checks, but contribute `0` score. Editable repository memory cannot
+raise merge risk, activate structural score lifts, or prove a merge-safe
+verdict. A configured command, runtime result, or tool finding that confirms the
+same concern contributes through its own trusted evidence source.
 
 `languageAnalysis` records which changed source files had full parser-backed
 support, which files were analyzed with limited path/diff/coverage/test-audit

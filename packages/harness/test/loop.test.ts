@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -100,6 +100,35 @@ describe("CodeDecay loop controller", () => {
     expect(report.finalCheckStatus).toBe("not-configured");
   });
 
+  it("does not invoke the agent when only untrusted memory context remains", async () => {
+    const repo = createRepo();
+    const report = await runCodeDecayLoop({
+      ...baseInput(repo),
+      agentCommand: "node -e \"require('fs').writeFileSync('agent-ran.txt', 'yes')\"",
+      createRedteamReport: async () =>
+        redteamReport({
+          riskLevel: "low",
+          mergeRiskScore: 0,
+          weakTestFindings: 0,
+          findings: [
+            {
+              ruleId: "memory-invariant-impacted",
+              title: "Project invariant may be impacted",
+              severity: "high",
+              category: "regression",
+              file: "src/index.ts"
+            }
+          ]
+        }),
+      runConfiguredChecks: async () => checkSnapshot("passed", true)
+    });
+
+    expect(report.status).toBe("merge-safe-shallow");
+    expect(report.verdict.highFindingCount).toBe(0);
+    expect(report.rounds[0]?.agent).toBeUndefined();
+    expect(existsSync(join(repo, "agent-ran.txt"))).toBe(false);
+  });
+
   it("stops as needs-human when max rounds are reached without safety", async () => {
     const repo = createRepo();
     const report = await runCodeDecayLoop({
@@ -135,6 +164,36 @@ describe("CodeDecay loop controller", () => {
 });
 
 describe("classifySafeStatus", () => {
+  it("does not let memory-only high findings block a configured-check-clean verdict", () => {
+    const status = classifySafeStatus(
+      redteamReport({
+        riskLevel: "low",
+        mergeRiskScore: 0,
+        weakTestFindings: 0,
+        findings: [
+          {
+            ruleId: "memory-invariant-impacted",
+            title: "Project invariant may be impacted",
+            severity: "high",
+            category: "regression",
+            file: "src/service.ts"
+          },
+          {
+            ruleId: "memory-past-regression-area",
+            title: "Past regression area changed",
+            severity: "high",
+            category: "regression",
+            file: "src/service.ts"
+          }
+        ]
+      }),
+      checkSnapshot("passed", true),
+      "low"
+    );
+
+    expect(status).toBe("merge-safe-shallow");
+  });
+
   it("does not return merge-safe when a high security finding remains", () => {
     const status = classifySafeStatus(
       redteamReport({

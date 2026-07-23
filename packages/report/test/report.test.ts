@@ -440,6 +440,83 @@ describe("reports", () => {
     expect(markdown).not.toContain("https://github.com/SubmuxHQ/CodeDecay?");
   });
 
+  it("does not present untrusted memory context as a direct PR lead", () => {
+    const memoryOnlyReport: CodeDecayReport = {
+      ...report,
+      summary: {
+        ...report.summary,
+        mergeRiskScore: 0,
+        decayScore: 0,
+        securityScore: 0,
+        riskLevel: "low",
+        findingCounts: {
+          low: 0,
+          medium: 0,
+          high: 1
+        },
+        mergeRiskBreakdown: {
+          score: 0,
+          rawScore: 0,
+          adjustedScore: 0,
+          heuristicOnly: false,
+          contextOnly: true,
+          contributors: [
+            {
+              id: "memory-invariant-impacted:src/auth/session.ts:3",
+              label: "Project invariant may be impacted",
+              points: 0,
+              evidence: "memory-context",
+              reason: "Untrusted memory context: an editable invariant matched.",
+              category: "regression",
+              severity: "high",
+              ruleId: "memory-invariant-impacted",
+              file: "src/auth/session.ts",
+              line: 3
+            }
+          ],
+          dampeners: [],
+          notes: [
+            "Untrusted memory context is visible but contributes 0 score until trusted evidence corroborates it."
+          ]
+        },
+        decayBreakdown: undefined,
+        securityBreakdown: undefined
+      },
+      findings: [
+        {
+          ruleId: "memory-invariant-impacted",
+          title: "Project invariant may be impacted",
+          description: "Untrusted memory context: an editable invariant matched.",
+          severity: "high",
+          category: "regression",
+          file: "src/auth/session.ts",
+          line: 3
+        }
+      ],
+      productFailureBundles: []
+    };
+
+    const markdown = renderPrCommentReport(memoryOnlyReport);
+
+    expect(markdown).toContain("**Lead catch:** No direct high-signal catch found");
+    expect(markdown).not.toContain("**Lead catch:** Project invariant may be impacted");
+    expect(markdown).toContain("Project invariant may be impacted (memory-context)");
+    expect(markdown).toContain("### Untrusted Memory Context");
+    expect(markdown).not.toContain("### High Risk Findings");
+
+    const sarif = JSON.parse(renderSarifReport(memoryOnlyReport));
+    const memoryResult = sarif.runs[0].results[0];
+    const memoryRule = sarif.runs[0].tool.driver.rules[0];
+    expect(memoryResult.ruleId).toBe("memory-invariant-impacted");
+    expect(memoryResult.level).toBe("note");
+    expect(memoryResult.properties.evidence).toBe("memory-context");
+    expect(memoryResult.properties.trustedProof).toBe(false);
+    expect(memoryRule.id).toBe("memory-invariant-impacted");
+    expect(memoryRule.defaultConfiguration.level).toBe("note");
+    expect(memoryRule.properties.evidence).toBe("memory-context");
+    expect(memoryRule.properties.trustedProof).toBe(false);
+  });
+
   it("dispatches pr-comment format through renderReport", () => {
     const markdown = renderReport(report, "pr-comment");
 

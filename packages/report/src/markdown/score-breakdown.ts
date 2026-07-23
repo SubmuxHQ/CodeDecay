@@ -16,6 +16,9 @@ export function appendScoreBreakdown(lines: string[], title: string, breakdown: 
   if (breakdown.heuristicOnly) {
     lines.push("- Evidence mode: heuristic-only");
   }
+  if (breakdown.contextOnly) {
+    lines.push("- Evidence mode: memory-context-only");
+  }
   lines.push("");
 
   if (breakdown.contributors.length > 0) {

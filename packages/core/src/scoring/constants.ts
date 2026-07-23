@@ -22,8 +22,6 @@ export const DIRECT_FINDING_RULE_IDS = new Set([
   "risky-database-change",
   "risky-api-change",
   "risky-config-change",
-  "memory-invariant-impacted",
-  "memory-past-regression-area",
   "runtime-coverage-miss",
   "runtime-coverage-partial",
   "contract",
