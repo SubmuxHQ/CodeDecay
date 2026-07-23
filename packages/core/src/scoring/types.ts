@@ -1,7 +1,7 @@
 import type { RiskLevel } from "../risk";
 import type { FindingCategory } from "../types";
 
-export type ScoreEvidenceKind = "direct" | "heuristic" | "structural";
+export type ScoreEvidenceKind = "direct" | "heuristic" | "structural" | "memory-context";
 
 export interface ScoreContributor {
   id: string;
@@ -22,6 +22,7 @@ export interface ScoreBreakdown {
   adjustedScore: number;
   highestSeverity?: RiskLevel | undefined;
   heuristicOnly: boolean;
+  contextOnly?: boolean | undefined;
   contributors: ScoreContributor[];
   dampeners: ScoreContributor[];
   notes: string[];

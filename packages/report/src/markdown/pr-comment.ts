@@ -1,4 +1,10 @@
-import type { CodeDecayReport, Finding, ProductFailureBundle, ScoreContributor } from "@submuxhq/codedecay-core";
+import {
+  isMemoryContextFinding,
+  type CodeDecayReport,
+  type Finding,
+  type ProductFailureBundle,
+  type ScoreContributor
+} from "@submuxhq/codedecay-core";
 import { renderMarkdownReport } from "../markdown";
 import { riskBadge } from "./helpers";
 
@@ -18,7 +24,6 @@ const DIRECT_RULE_IDS = new Set([
   "risky-auth-change",
   "risky-config-change",
   "risky-database-change",
-  "memory-invariant-impacted",
   "contract-boundary-violation",
   "contract-import-boundary-violation"
 ]);
@@ -139,6 +144,10 @@ function leadFromProductFailure(bundle: ProductFailureBundle): LeadSignal | unde
 }
 
 function isDirectFinding(finding: Finding, report: CodeDecayReport): boolean {
+  if (isMemoryContextFinding(finding)) {
+    return false;
+  }
+
   if (finding.ruleId === "risky-ui-change" && !hasWeakTestBacking(report)) {
     return false;
   }

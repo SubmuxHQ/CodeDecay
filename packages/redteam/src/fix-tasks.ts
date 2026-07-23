@@ -1,4 +1,10 @@
-import type { ChangedPathTestProofEntry, CodeDecayReport, Finding, ImpactedArea } from "@submuxhq/codedecay-core";
+import {
+  isMemoryContextFinding,
+  type ChangedPathTestProofEntry,
+  type CodeDecayReport,
+  type Finding,
+  type ImpactedArea
+} from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
 import type {
   RedteamConfiguredCheck,
@@ -31,10 +37,11 @@ export function createFixTasks(input: {
   const findings = prioritizedFindings.length > 0 ? prioritizedFindings : input.analysisReport.findings.slice(0, 5);
 
   for (const finding of findings) {
+    const memoryContext = isMemoryContextFinding(finding);
     tasks.push({
       title: `Investigate ${finding.title}`,
       priority: finding.severity,
-      source: WEAK_TEST_RULES.has(finding.ruleId) ? "weak-test" : "finding",
+      source: memoryContext ? "memory" : WEAK_TEST_RULES.has(finding.ruleId) ? "weak-test" : "finding",
       proof: proofForFinding(finding),
       detail: finding.description,
       file: finding.file,
@@ -197,6 +204,10 @@ function verificationTaskDetail(check: RedteamVerificationSummary["checks"][numb
 }
 
 function proofForFinding(finding: Finding): RedteamProofGrade {
+  if (isMemoryContextFinding(finding)) {
+    return "memory-context";
+  }
+
   if (finding.category === "coverage" || finding.ruleId.includes("missing") || finding.ruleId.includes("weak")) {
     return "missing-proof";
   }

@@ -1,16 +1,24 @@
-import type { CodeDecayReport } from "@submuxhq/codedecay-core";
+import { isMemoryContextFinding, type CodeDecayReport } from "@submuxhq/codedecay-core";
 import { sarifLevel } from "./level";
 import { productFailureRuleId } from "./product-failures";
 
 export function sarifFindingResults(report: CodeDecayReport): Record<string, unknown>[] {
   return report.findings.map((finding) => {
+    const memoryContext = isMemoryContextFinding(finding);
     const result: Record<string, unknown> = {
       ruleId: finding.ruleId,
-      level: sarifLevel(finding.severity),
+      level: memoryContext ? "note" : sarifLevel(finding.severity),
       message: {
         text: `${finding.title}: ${finding.description}`
       }
     };
+
+    if (memoryContext) {
+      result.properties = {
+        evidence: "memory-context",
+        trustedProof: false
+      };
+    }
 
     if (finding.file) {
       result.locations = [

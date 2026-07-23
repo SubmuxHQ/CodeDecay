@@ -1,5 +1,6 @@
-import type {
-  CodeDecayReport,
+import {
+  isMemoryContextFinding,
+  type CodeDecayReport
 } from "@submuxhq/codedecay-core";
 import {
   appendChangedFiles,
@@ -20,9 +21,11 @@ import {
 } from "./markdown/sections";
 
 export function renderMarkdownReport(report: CodeDecayReport): string {
-  const highFindings = report.findings.filter((finding) => finding.severity === "high");
-  const mediumFindings = report.findings.filter((finding) => finding.severity === "medium");
-  const lowFindings = report.findings.filter((finding) => finding.severity === "low");
+  const memoryContextFindings = report.findings.filter((finding) => isMemoryContextFinding(finding));
+  const scoredFindings = report.findings.filter((finding) => !isMemoryContextFinding(finding));
+  const highFindings = scoredFindings.filter((finding) => finding.severity === "high");
+  const mediumFindings = scoredFindings.filter((finding) => finding.severity === "medium");
+  const lowFindings = scoredFindings.filter((finding) => finding.severity === "low");
 
   const lines: string[] = [
     "## CodeDecay Report",
@@ -44,6 +47,7 @@ export function renderMarkdownReport(report: CodeDecayReport): string {
   appendTestProofMap(lines, report.testProofMap);
   appendProductFailureBundles(lines, report.productFailureBundles);
 
+  appendFindings(lines, "Untrusted Memory Context", memoryContextFindings);
   appendFindings(lines, "High Risk Findings", highFindings);
   appendFindings(lines, "Medium Risk Findings", mediumFindings);
   appendFindings(lines, "Low Risk Findings", lowFindings);

@@ -134,6 +134,82 @@ describe("built codedecay CLI redteam and agent workflows", () => {
     expect(existsSync(join(repo, "codedecay-ran.txt"))).toBe(false);
   });
 
+  it("keeps editable memory visible without changing built CLI risk or executing memory commands", () => {
+    const baselineFiles = {
+      "src/auth/session.ts": "export function session(token?: string) { return Boolean(token); }\n"
+    };
+    const withoutMemoryRepo = createRepo(baselineFiles);
+    const withMemoryRepo = createRepo({
+      ...baselineFiles,
+      ".codedecay/memory.json": JSON.stringify(
+        {
+          version: 1,
+          flows: [],
+          commands: [
+            {
+              name: "Untrusted command",
+              command: "node -e \"require('fs').writeFileSync('memory-command-ran.txt','yes')\"",
+              areas: ["auth"]
+            }
+          ],
+          invariants: [
+            {
+              name: "Editable invariant",
+              description: "This editable context must not become scoring proof.",
+              severity: "high",
+              areas: ["auth"]
+            }
+          ],
+          architecture: [],
+          regressions: [
+            {
+              title: "Editable regression",
+              description: "This editable regression must not become scoring proof.",
+              severity: "high",
+              areas: ["auth"]
+            }
+          ]
+        },
+        null,
+        2
+      )
+    });
+    const changedSource = [
+      "export function session(token?: string) {",
+      "  if (!token) return false;",
+      "  return token.length > 8;",
+      "}",
+      ""
+    ].join("\n");
+    writeFile(withoutMemoryRepo, "src/auth/session.ts", changedSource);
+    writeFile(withMemoryRepo, "src/auth/session.ts", changedSource);
+
+    const withoutMemory = JSON.parse(runBuilt(["analyze", "--cwd", withoutMemoryRepo, "--format", "json"]).stdout);
+    const withMemory = JSON.parse(runBuilt(["analyze", "--cwd", withMemoryRepo, "--format", "json"]).stdout);
+
+    expect(withMemory.summary.mergeRiskScore).toBe(withoutMemory.summary.mergeRiskScore);
+    expect(withMemory.summary.riskLevel).toBe(withoutMemory.summary.riskLevel);
+    expect(withMemory.findings.map((finding: { ruleId: string }) => finding.ruleId)).toEqual(
+      expect.arrayContaining(["memory-invariant-impacted", "memory-past-regression-area"])
+    );
+    expect(withMemory.summary.mergeRiskBreakdown.contributors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "memory-invariant-impacted",
+          evidence: "memory-context",
+          points: 0
+        }),
+        expect.objectContaining({
+          ruleId: "memory-past-regression-area",
+          evidence: "memory-context",
+          points: 0
+        })
+      ])
+    );
+    expect(withMemory.recommendedTests).toContain("Run project command: Untrusted command (node -e \"require('fs').writeFileSync('memory-command-ran.txt','yes')\")");
+    expect(existsSync(join(withMemoryRepo, "memory-command-ran.txt"))).toBe(false);
+  });
+
   it("supports agent handoff profiles from the built CLI", () => {
     const repo = createMediumRiskRepo();
 

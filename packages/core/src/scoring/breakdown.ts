@@ -1,4 +1,5 @@
 import type { FileChange, Finding, FindingCategory } from "../types";
+import { isMemoryContextFinding } from "../finding-evidence";
 import { DECAY_CATEGORIES, MERGE_RISK_CATEGORIES, SECURITY_CATEGORIES } from "./constants";
 import { createFindingContributor, runtimePersistenceBoundaryScore } from "./contributors";
 import {
@@ -29,9 +30,12 @@ function calculateScoreBreakdown(
 ): ScoreBreakdown {
   const relevantFindings = findings.filter((finding) => includedCategories.has(finding.category));
   const contributors = relevantFindings.map((finding) => createFindingContributor(finding));
+  const scoredFindings = relevantFindings.filter((finding) => !isMemoryContextFinding(finding));
+  const scoredContributors = contributors.filter((contributor) => contributor.evidence !== "memory-context");
   const directContributors = contributors.filter((contributor) => contributor.evidence === "direct");
-  const heuristicOnly = relevantFindings.length > 0 && directContributors.length === 0;
-  const structuralMultiplier = directContributors.length > 0 ? 1 : relevantFindings.length > 0 ? 0.5 : 0;
+  const heuristicOnly = scoredFindings.length > 0 && directContributors.length === 0;
+  const contextOnly = relevantFindings.length > 0 && scoredContributors.length === 0;
+  const structuralMultiplier = directContributors.length > 0 ? 1 : scoredFindings.length > 0 ? 0.5 : 0;
   const changeSizeScore = Math.round(
     Math.min(
       18,
@@ -88,7 +92,7 @@ function calculateScoreBreakdown(
     adjustedScore = clampScore(adjustedScore - dampenerPoints);
   }
 
-  let score = capScoreByHighestSeverity(adjustedScore, relevantFindings);
+  let score = capScoreByHighestSeverity(adjustedScore, scoredFindings);
   const notes: string[] = [];
   if (heuristicOnly) {
     const scoreLabel = scoreKind === "merge" ? "merge risk" : scoreKind === "security" ? "security risk" : "decay";
@@ -96,7 +100,11 @@ function calculateScoreBreakdown(
     notes.push(`Heuristic-only ${scoreLabel} is capped at 54/100 until direct evidence exists.`);
   }
 
-  if (changeSizeScore === 0 && fileSpreadScore === 0 && relevantFindings.length > 0) {
+  if (relevantFindings.some((finding) => isMemoryContextFinding(finding))) {
+    notes.push("Untrusted memory context is visible but contributes 0 score until trusted evidence corroborates it.");
+  }
+
+  if (changeSizeScore === 0 && fileSpreadScore === 0 && scoredFindings.length > 0) {
     notes.push("Blast-radius multipliers were suppressed because the current finding set is narrow or low-signal.");
   }
 
@@ -104,8 +112,9 @@ function calculateScoreBreakdown(
     score,
     rawScore,
     adjustedScore,
-    highestSeverity: highestFindingSeverity(relevantFindings),
+    highestSeverity: highestFindingSeverity(scoredFindings),
     heuristicOnly,
+    contextOnly,
     contributors: sortScoreContributors(contributors),
     dampeners: sortScoreContributors(dampeners),
     notes
