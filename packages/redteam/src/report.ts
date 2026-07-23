@@ -1,4 +1,8 @@
-import { CODEDECAY_VERSION } from "@submuxhq/codedecay-core";
+import {
+  CODEDECAY_VERSION,
+  createRequirementTrace,
+  type RequirementTraceExternalEvidence
+} from "@submuxhq/codedecay-core";
 import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
 import { collectConfiguredChecks, collectToolAdapterPlans } from "./checks";
 import { summarizeMemory, summarizeSkills } from "./context";
@@ -34,6 +38,23 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
         skills
       })
     : [];
+  const requirementTrace = input.requirements
+    ? createRequirementTrace({
+        requirements: input.requirements,
+        report: input.analysisReport,
+        externalEvidence: requirementEvidence(verification, configuredChecks, toolAdapterPlans),
+        agentSuggestions: input.investigation?.suggestions,
+        edgeCases,
+        fixTasks
+      })
+    : undefined;
+  const analysisReport = requirementTrace && input.requirements
+    ? {
+        ...input.analysisReport,
+        requirements: input.requirements,
+        requirementTrace
+      }
+    : input.analysisReport;
 
   const report: RedteamReport = {
     tool: "CodeDecay",
@@ -65,8 +86,9 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
       investigationSuggestions: input.investigation?.suggestions.length ?? 0,
       investigationLimitations: input.investigation?.limitations.length ?? 0
     },
-    analysis: input.analysisReport,
+    analysis: analysisReport,
     requirements: input.requirements,
+    requirementTrace,
     testAudit,
     weakTestFindings,
     edgeCases,
@@ -94,6 +116,76 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
   }
 
   return report;
+}
+
+function requirementEvidence(
+  verification: RedteamVerificationSummary,
+  configuredChecks: RedteamReport["configuredChecks"],
+  toolAdapterPlans: RedteamReport["toolAdapterPlans"]
+): RequirementTraceExternalEvidence[] {
+  const executed = verification.checks.map((check) => ({
+    id: `verification:${check.kind}:${check.name}`,
+    kind: requirementEvidenceKind(check.kind, check.differentialStatus),
+    name: check.name,
+    status: requirementEvidenceStatus(check.status),
+    trusted: check.proof === "tool-evidence",
+    summary: [check.summary, ...(check.differences ?? [])].join(" "),
+    command: check.command
+  } satisfies RequirementTraceExternalEvidence));
+  if (verification.status !== "not-run") {
+    return executed;
+  }
+  return [
+    ...configuredChecks.map((check) => ({
+      id: `configured:${check.kind}:${check.name}`,
+      kind: "configured-check" as const,
+      name: check.name,
+      status: "missing" as const,
+      trusted: true,
+      summary: "Configured check is listed but was not executed.",
+      command: check.command
+    })),
+    ...toolAdapterPlans.map((adapter) => ({
+      id: `adapter:${adapter.kind}:${adapter.name}`,
+      kind: requirementEvidenceKind(adapter.kind),
+      name: adapter.name,
+      status: "missing" as const,
+      trusted: true,
+      summary: "Configured tool adapter is listed but was not executed.",
+      command: adapter.command
+    }))
+  ];
+}
+
+function requirementEvidenceKind(
+  kind: RedteamVerificationSummary["checks"][number]["kind"],
+  differentialStatus?: RedteamVerificationSummary["checks"][number]["differentialStatus"]
+): RequirementTraceExternalEvidence["kind"] {
+  if (differentialStatus || kind === "api-contract" || kind === "probe") {
+    return "differential";
+  }
+  if (kind === "coverage") {
+    return "coverage";
+  }
+  if (kind === "stryker") {
+    return "mutation";
+  }
+  if (kind === "semgrep") {
+    return "security";
+  }
+  return "configured-check";
+}
+
+function requirementEvidenceStatus(
+  status: RedteamVerificationSummary["checks"][number]["status"]
+): RequirementTraceExternalEvidence["status"] {
+  if (status === "passed") {
+    return "passed";
+  }
+  if (status === "failed" || status === "timed_out" || status === "error") {
+    return "failed";
+  }
+  return "missing";
 }
 
 function mergeEdgeCases(base: string[], patternEdgeCases: string[]): string[] {

@@ -52,6 +52,7 @@ export function renderLoopMarkdown(report: LoopReport): string {
   ];
 
   appendRoundTable(lines, report);
+  appendRequirementTrace(lines, report);
   appendAgentActivity(lines, report);
   appendPlanOnlyBundle(lines, report);
   appendFixTasks(lines, report);
@@ -73,6 +74,22 @@ export function renderLoopMarkdown(report: LoopReport): string {
   );
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendRequirementTrace(lines: string[], report: LoopReport): void {
+  if (!report.requirementTrace) {
+    return;
+  }
+  lines.push(
+    "",
+    "### Acceptance Criteria Trace",
+    "",
+    "| Requirement | Status |",
+    "| --- | --- |"
+  );
+  for (const criterion of report.requirementTrace.criteria) {
+    lines.push(`| ${criterion.requirementId} | ${criterion.status.replaceAll("-", " ")} |`);
+  }
 }
 
 function appendRoundTable(lines: string[], report: LoopReport): void {

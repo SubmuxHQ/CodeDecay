@@ -10,6 +10,7 @@ import {
   appendLanguageAnalysis,
   appendProductFailureBundles,
   appendRecommendedChecks,
+  appendRequirementTrace,
   appendReportNotes,
   appendScoreBreakdown,
   appendSecurityAnalysis,
@@ -37,6 +38,7 @@ export function renderMarkdownReport(report: CodeDecayReport): string {
   appendImpactedAreas(lines, report);
   appendImpactedRoutes(lines, report);
   appendSymbolImpacts(lines, report);
+  appendRequirementTrace(lines, report.requirementTrace);
   appendLanguageAnalysis(lines, report.languageAnalysis);
   appendScoreBreakdown(lines, "Merge Risk Breakdown", report.summary.mergeRiskBreakdown);
   appendScoreBreakdown(lines, "Decay Risk Breakdown", report.summary.decayBreakdown);

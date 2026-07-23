@@ -64,6 +64,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
   }
 
   appendRequirements(lines, report);
+  appendRequirementTrace(lines, report);
   appendImpactedAreas(lines, report.analysis.impactedAreas);
   appendImpactedRoutes(lines, report.analysis.impactedRoutes ?? []);
   appendSymbolImpacts(lines, report.analysis.symbolImpacts ?? []);
@@ -92,6 +93,33 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
   );
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendRequirementTrace(lines: string[], report: RedteamReport): void {
+  if (!report.requirementTrace) {
+    return;
+  }
+  lines.push(
+    "### Acceptance Criteria Trace",
+    "",
+    "| Requirement | Status | Implementation | Evidence |",
+    "| --- | --- | --- | --- |"
+  );
+  for (const criterion of report.requirementTrace.criteria) {
+    const implementation = [
+      ...criterion.implementation.routes,
+      ...criterion.implementation.files
+    ].slice(0, 3).join(", ") || "none";
+    const evidence = criterion.evidence
+      .filter((item) => item.outcome === "passed" || item.outcome === "failed" || item.outcome === "missing")
+      .slice(0, 2)
+      .map((item) => item.source)
+      .join(", ") || "mapping only";
+    const label = criterion.status.replaceAll("-", " ");
+    const status = `${label[0]?.toUpperCase() ?? ""}${label.slice(1)}`;
+    lines.push(`| ${criterion.requirementId} | ${status} | ${implementation} | ${evidence} |`);
+  }
+  lines.push("");
 }
 
 function appendRequirements(lines: string[], report: RedteamReport): void {

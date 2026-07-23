@@ -16,6 +16,7 @@ export { isMemoryContextFinding } from "./finding-evidence";
 export { isTestFilePath } from "./paths/test-files";
 export { productFailureBundlesFromProductTargetReport } from "./product-failures";
 export { normalizeRequirementContext } from "./requirements";
+export { createRequirementTrace, hasBlockingRequirementTrace } from "./requirement-trace";
 export { compareRiskLevels, riskLevelFromScore, shouldFailForRisk } from "./risk";
 export {
   createRevalidationReport,
@@ -105,6 +106,17 @@ export type {
   ChangedPathTestProofEvidence,
   ChangedPathTestProofMap,
   ChangedPathTestProofStatus,
-  ChangedPathTestProofSummary
+  ChangedPathTestProofSummary,
+  RequirementCriterionTrace,
+  RequirementTraceAgentSuggestionInput,
+  RequirementTraceEvidence,
+  RequirementTraceEvidenceKind,
+  RequirementTraceEvidenceOutcome,
+  RequirementTraceExternalEvidence,
+  RequirementTraceExternalStatus,
+  RequirementTraceGraph,
+  RequirementTraceImplementation,
+  RequirementTraceStatus,
+  RequirementTraceSummary
 } from "./types";
 export { CODEDECAY_VERSION } from "./version";

@@ -45,6 +45,7 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
 
   appendList(lines, bundle.instructions);
   appendRequirements(lines, bundle);
+  appendRequirementTrace(lines, bundle);
   appendInvestigation(lines, bundle);
   appendHandoff(lines, bundle.agentProfile);
   appendPrompt(lines, bundle.prompt);
@@ -55,6 +56,28 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
   appendSafety(lines, bundle);
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendRequirementTrace(lines: string[], bundle: AgentTaskBundle): void {
+  if (!bundle.requirementTrace) {
+    return;
+  }
+  lines.push(
+    "",
+    "### Acceptance Criteria Trace",
+    "",
+    "| Requirement | Status | Implementation |",
+    "| --- | --- | --- |"
+  );
+  for (const criterion of bundle.requirementTrace.criteria) {
+    const implementation = [
+      ...criterion.implementation.routes,
+      ...criterion.implementation.files
+    ].slice(0, 3).join(", ") || "none";
+    const label = criterion.status.replaceAll("-", " ");
+    const status = `${label[0]?.toUpperCase() ?? ""}${label.slice(1)}`;
+    lines.push(`| ${criterion.requirementId} | ${status} | ${implementation} |`);
+  }
 }
 
 function appendInvestigation(lines: string[], bundle: AgentTaskBundle): void {

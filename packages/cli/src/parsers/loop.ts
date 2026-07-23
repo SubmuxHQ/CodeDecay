@@ -21,6 +21,28 @@ export function parseLoopArgs(args: string[]): LoopOptions {
       throw new HelpRequested();
     }
 
+    if (arg.startsWith("--task=")) {
+      options.task = arg.slice("--task=".length);
+      continue;
+    }
+
+    if (arg === "--task") {
+      options.task = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--requirements=")) {
+      options.requirements = arg.slice("--requirements=".length);
+      continue;
+    }
+
+    if (arg === "--requirements") {
+      options.requirements = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
     if (arg.startsWith("--cwd=")) {
       options.cwd = arg.slice("--cwd=".length);
       continue;

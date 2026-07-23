@@ -16,6 +16,9 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--format <format>", description: "json or markdown (default: markdown)" },
       { flag: "--output <path>", description: "Write redteam report to a file instead of stdout" },
       { flag: "--fail-on <level>", description: "Exit non-zero on low, medium, or high risk" },
+      { flag: "--task <text>", description: "Task description used with a structured requirements artifact" },
+      { flag: "--requirements <path>", description: "Repo-local JSON, YAML, or Markdown requirements artifact" },
+      { flag: "--fail-on-requirements", description: "Exit non-zero when any supplied acceptance criterion is not verified" },
       { flag: "--with-checks", description: "Run configured commands and tool adapters through safety gates and include verification evidence" },
       { flag: "--investigate", description: "Explicitly run the configured local/BYOK LLM provider for untrusted suggestions" }
     ],
@@ -141,6 +144,8 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--agent-cmd <command>", description: "Explicit user-owned agent command that reads the task bundle on stdin and may edit the working tree" },
       { flag: "--safe-risk <level>", description: "Maximum acceptable risk level: low, medium, or high (default: low)" },
       { flag: "--max-security-score <score>", description: "Maximum acceptable security score from deterministic analysis, 0-100 (default: 0)" },
+      { flag: "--task <text>", description: "Task description used with a structured requirements artifact" },
+      { flag: "--requirements <path>", description: "Preserve acceptance-criteria IDs and trace status across loop rounds" },
       { flag: "--format <format>", description: "json or markdown (default: markdown)" },
       { flag: "--output <path>", description: "Write loop report to a file instead of stdout" }
     ],

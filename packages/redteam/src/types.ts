@@ -4,6 +4,7 @@ import type {
   Finding,
   ImpactedArea,
   RequirementContext,
+  RequirementTraceGraph,
   RiskLevel
 } from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
@@ -47,6 +48,7 @@ export interface RedteamReportInput {
   verification?: RedteamVerificationSummary | undefined;
   generatedAt?: string | undefined;
   requirements?: RequirementContext | undefined;
+  requirementTrace?: RequirementTraceGraph | undefined;
 }
 
 export interface RedteamReport {
@@ -59,6 +61,7 @@ export interface RedteamReport {
   summary: RedteamSummary;
   analysis: CodeDecayReport;
   requirements?: RequirementContext | undefined;
+  requirementTrace?: RequirementTraceGraph | undefined;
   testAudit: TestProofAudit;
   weakTestFindings: Finding[];
   edgeCases: string[];

@@ -11,6 +11,7 @@ describe("GitHub Action metadata", () => {
       "base",
       "cwd",
       "fail-on",
+      "fail-on-requirements",
       "format",
       "github-token",
       "head",
@@ -91,12 +92,13 @@ describe("GitHub Action metadata", () => {
     expect(actionYaml).toContain('if [[ "$MODE" != "agent" && -n "${{ inputs.fail-on }}" ]]; then');
   });
 
-  it("forwards explicit structured requirement inputs only to agent mode", () => {
+  it("forwards explicit structured requirement inputs and the opt-in CI gate", () => {
     const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
 
-    expect(actionYaml).toContain('if [[ "$MODE" == "agent" && -n "${{ inputs.task }}" ]]; then');
+    expect(actionYaml).toContain('if [[ -n "${{ inputs.task }}" ]]; then');
     expect(actionYaml).toContain('args+=(--task "${{ inputs.task }}")');
     expect(actionYaml).toContain('args+=(--requirements "${{ inputs.requirements }}")');
+    expect(actionYaml).toContain('args+=(--fail-on-requirements)');
     expect(actionYaml).not.toContain("pull_request.body");
   });
 
