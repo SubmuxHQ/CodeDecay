@@ -122,6 +122,7 @@ export function renderAgentPreflightMarkdown(report: AgentPreflightReport): stri
   appendMemory(lines, report.deterministicEvidence.memory);
   appendDesignConstraints(lines, report);
   appendConfiguredChecks(lines, report);
+  appendInvestigation(lines, report);
 
   lines.push("", "### Suggestions For Agent", "", "Implementation brief:");
   appendList(lines, report.suggestions.implementationBrief);
@@ -151,6 +152,17 @@ export function renderAgentPreflightMarkdown(report: AgentPreflightReport): stri
   appendList(lines, report.limits);
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendInvestigation(lines: string[], report: AgentPreflightReport): void {
+  if (!report.investigation) {
+    return;
+  }
+  lines.push("", "### Untrusted Agent Investigation", "", `Status: ${report.investigation.status}`, "");
+  appendList(
+    lines,
+    report.investigation.suggestions.map((suggestion) => `${suggestion.title}: ${suggestion.detail}`)
+  );
 }
 
 function appendMemory(lines: string[], memory: AgentPreflightMemoryEvidence): void {

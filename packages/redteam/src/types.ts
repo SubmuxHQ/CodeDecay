@@ -211,6 +211,10 @@ export interface RedteamInvestigationSuggestion {
   detail: string;
   severity?: RiskLevel | undefined;
   evidence?: string[] | undefined;
+  affectedFlows?: string[] | undefined;
+  edgeCases?: string[] | undefined;
+  proposedProof?: string[] | undefined;
+  unresolvedQuestions?: string[] | undefined;
 }
 
 export interface RedteamInvestigationProvider {

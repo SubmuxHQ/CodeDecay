@@ -32,6 +32,7 @@ export interface AgentTaskBundle {
   purpose: string;
   agentProfile: AgentProfile;
   requirements?: RequirementContext | undefined;
+  investigation?: RedteamReport["investigation"] | undefined;
   summary: AgentTaskSummary;
   prompt: string;
   instructions: string[];

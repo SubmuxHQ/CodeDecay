@@ -64,6 +64,9 @@ runs CodeDecay locally and passes the repository path with `--cwd`.
   git diff, execute commands, or call models. Use it to give Codex, Claude Code,
   Cursor, or another agent likely files/routes, constraints, and expected proof
   before implementation starts.
+- `agent_investigation`: explicitly calls the configured local/BYOK provider
+  with grounded requirements and deterministic evidence only when
+  `confirmInvestigation: true`; returned suggestions remain untrusted.
 - `execute_configured_checks`: runs configured CodeDecay commands, probes, and
   enabled tool adapters. It requires `confirmExecution: true` and
   `safety.allowCommands: true`.

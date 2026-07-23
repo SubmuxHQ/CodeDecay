@@ -3,6 +3,7 @@ import type { CodeDecayMcpToolHandlers } from "./registry";
 import { textResult } from "./result";
 import {
   agentPreflightToolSchema,
+  agentInvestigationToolSchema,
   agentTaskBundleToolSchema,
   analyzePrToolSchema,
   designContractCheckToolSchema,
@@ -12,6 +13,7 @@ import {
 } from "./schemas";
 import type {
   AgentPreflightToolInput,
+  AgentInvestigationToolInput,
   AgentTaskBundleToolInput,
   AnalyzePrToolInput,
   DesignContractCheckToolInput,
@@ -77,6 +79,13 @@ export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayM
     "Return a deterministic CodeDecay task bundle that user-owned coding agents can use to fix PR risks. Report-only: does not execute commands or call models.",
     agentTaskBundleToolSchema,
     async (input) => textResult(handlers.agentTaskBundle(input as AgentTaskBundleToolInput))
+  );
+
+  server.tool(
+    "agent_investigation",
+    "Explicitly call the configured user-owned provider with grounded CodeDecay evidence. Suggestions remain untrusted.",
+    agentInvestigationToolSchema,
+    async (input) => textResult(handlers.agentInvestigation(input as AgentInvestigationToolInput))
   );
 
   server.tool(

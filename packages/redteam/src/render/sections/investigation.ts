@@ -29,6 +29,18 @@ export function appendInvestigation(lines: string[], investigation: RedteamInves
       if (suggestion.evidence && suggestion.evidence.length > 0) {
         lines.push(`  Evidence: ${suggestion.evidence.join("; ")}`);
       }
+      if (suggestion.affectedFlows?.length) {
+        lines.push(`  Affected flows: ${suggestion.affectedFlows.join("; ")}`);
+      }
+      if (suggestion.edgeCases?.length) {
+        lines.push(`  Edge cases: ${suggestion.edgeCases.join("; ")}`);
+      }
+      if (suggestion.proposedProof?.length) {
+        lines.push(`  Proposed proof: ${suggestion.proposedProof.join("; ")}`);
+      }
+      if (suggestion.unresolvedQuestions?.length) {
+        lines.push(`  Unresolved questions: ${suggestion.unresolvedQuestions.join("; ")}`);
+      }
     }
     lines.push("");
   }

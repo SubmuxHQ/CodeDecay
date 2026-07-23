@@ -39,6 +39,11 @@ export function parseAgentArgs(args: string[]): AgentOptions {
       throw new HelpRequested();
     }
 
+    if (arg === "--investigate") {
+      options.investigate = true;
+      continue;
+    }
+
     if (arg.startsWith("--cwd=")) {
       options.cwd = arg.slice("--cwd=".length);
       continue;

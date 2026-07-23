@@ -79,6 +79,13 @@ export const agentTaskBundleToolSchema = {
   profile: z.enum(AGENT_PROFILE_IDS).optional().describe("User-owned agent handoff profile.")
 };
 
+export const agentInvestigationToolSchema = {
+  ...agentTaskBundleToolSchema,
+  confirmInvestigation: z.boolean().optional().describe(
+    "Must be true before CodeDecay calls the explicitly configured user-owned provider."
+  )
+};
+
 export const agentPreflightToolSchema = {
   cwd: cwdSchema,
   task: z.string().min(1).describe("Intended task/change description before code generation."),

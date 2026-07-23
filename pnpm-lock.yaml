@@ -176,6 +176,9 @@ importers:
       '@submuxhq/codedecay-harness':
         specifier: workspace:*
         version: link:../harness
+      '@submuxhq/codedecay-llm':
+        specifier: workspace:*
+        version: link:../llm
       '@submuxhq/codedecay-memory':
         specifier: workspace:*
         version: link:../memory
