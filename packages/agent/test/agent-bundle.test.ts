@@ -3,6 +3,37 @@ import { createAgentTaskBundle, listAgentProfiles, renderAgentTaskBundle } from 
 import { createFixtureReport } from "./helpers/agent";
 
 describe("agent task bundle creation", () => {
+  it("preserves requirement evidence from redteam through the agent handoff", () => {
+    const report = createFixtureReport();
+    report.requirements = {
+      schemaVersion: 1,
+      confidence: "high",
+      sources: [{ id: "issue-663", kind: "issue", label: "Issue #663" }],
+      task: { text: "Add billing export", sourceIds: ["issue-663"] },
+      currentBehavior: [],
+      expectedBehavior: [],
+      acceptanceCriteria: [{
+        id: "AC-1",
+        text: "Authorized users can export CSV.",
+        requiredProof: ["Call the real export route."],
+        sourceIds: ["issue-663"]
+      }],
+      nonGoals: [],
+      affectedFlows: [{ name: "Billing export", kind: "api", sourceIds: ["issue-663"] }],
+      invariants: [],
+      architectureConstraints: [],
+      unresolvedQuestions: []
+    };
+
+    const bundle = createAgentTaskBundle(report);
+    const markdown = renderAgentTaskBundle(bundle, "markdown");
+
+    expect(bundle.requirements?.acceptanceCriteria[0]?.id).toBe("AC-1");
+    expect(markdown).toContain("### Requirement Evidence");
+    expect(markdown).toContain("Call the real export route.");
+    expect(markdown.indexOf("### Requirement Evidence")).toBeLessThan(markdown.indexOf("### Tool Evidence"));
+  });
+
   it("creates an agent-facing bundle from redteam evidence", () => {
     const bundle = createAgentTaskBundle(createFixtureReport());
 

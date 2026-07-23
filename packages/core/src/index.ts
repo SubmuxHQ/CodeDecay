@@ -15,6 +15,7 @@ export { findingCounts, sortFindings } from "./findings";
 export { isMemoryContextFinding } from "./finding-evidence";
 export { isTestFilePath } from "./paths/test-files";
 export { productFailureBundlesFromProductTargetReport } from "./product-failures";
+export { normalizeRequirementContext } from "./requirements";
 export { compareRiskLevels, riskLevelFromScore, shouldFailForRisk } from "./risk";
 export {
   createRevalidationReport,
@@ -22,6 +23,20 @@ export {
 } from "./revalidate";
 export { createAnalysisReport } from "./report";
 export type { RiskLevel } from "./risk";
+export type {
+  AcceptanceCriterion,
+  AcceptanceCriterionInput,
+  AffectedFlow,
+  AffectedFlowInput,
+  RequirementConfidence,
+  RequirementContext,
+  RequirementContextInput,
+  RequirementFlowKind,
+  RequirementSource,
+  RequirementSourceKind,
+  RequirementStatement,
+  RequirementStatementInput
+} from "./requirements";
 export type { ScoreBreakdown, ScoreContributor, ScoreEvidenceKind } from "./scoring";
 export { CODEDECAY_PRODUCT_LATEST_REPORT_PATH } from "./types";
 export type {

@@ -10,6 +10,7 @@ import { loadCodeDecayConfig } from "@submuxhq/codedecay-config";
 import { loadCodeDecayMemory } from "@submuxhq/codedecay-memory";
 import { parseAgentArgs } from "../parsers/args";
 import type { CliCommandContext, CliRuntime } from "../types";
+import { loadRequirementArtifact } from "../requirements/load";
 import { createRedteamReportForCli, type RedteamReportDependencies } from "./redteam-report";
 
 export interface RunAgentCommandDependencies extends RedteamReportDependencies {
@@ -32,8 +33,13 @@ export async function runAgentCommand(
     const rootDir = dependencies.resolveRepoRoot(cwd, options);
     const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
     const loadedMemory = loadCodeDecayMemory(rootDir);
+    const loadedRequirements = options.requirements
+      ? loadRequirementArtifact(rootDir, options.requirements)
+      : undefined;
     const report = createAgentPreflightReport({
       task: options.task ?? "",
+      requirements: loadedRequirements?.context,
+      requirementSource: loadedRequirements?.source,
       rootDir,
       repoFiles: listRepoFiles(rootDir),
       config: loadedConfig.config,

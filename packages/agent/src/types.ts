@@ -2,6 +2,7 @@ import type {
   ChangedPathTestProofEntry,
   ImpactedRoute,
   ProductFailureBundle,
+  RequirementContext,
   RiskLevel,
   SymbolImpact
 } from "@submuxhq/codedecay-core";
@@ -30,6 +31,7 @@ export interface AgentTaskBundle {
   generatedAt: string;
   purpose: string;
   agentProfile: AgentProfile;
+  requirements?: RequirementContext | undefined;
   summary: AgentTaskSummary;
   prompt: string;
   instructions: string[];

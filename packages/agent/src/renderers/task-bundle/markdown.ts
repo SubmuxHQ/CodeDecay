@@ -44,6 +44,7 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
   ];
 
   appendList(lines, bundle.instructions);
+  appendRequirements(lines, bundle);
   appendHandoff(lines, bundle.agentProfile);
   appendPrompt(lines, bundle.prompt);
   appendEvidence(lines, bundle.evidence);
@@ -53,4 +54,26 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
   appendSafety(lines, bundle);
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendRequirements(lines: string[], bundle: AgentTaskBundle): void {
+  if (!bundle.requirements) {
+    return;
+  }
+
+  lines.push("", "### Requirement Evidence", "", "Acceptance criteria:");
+  appendList(
+    lines,
+    bundle.requirements.acceptanceCriteria.map((criterion) => {
+      const proof = criterion.requiredProof.length > 0
+        ? ` Required proof: ${criterion.requiredProof.join(" ")}`
+        : "";
+      return `${criterion.id}: ${criterion.text} [sources: ${criterion.sourceIds.join(", ")}].${proof}`;
+    })
+  );
+  lines.push("", "Provenance:");
+  appendList(
+    lines,
+    bundle.requirements.sources.map((source) => `\`${source.id}\` (${source.kind}): ${source.label}`)
+  );
 }

@@ -271,9 +271,15 @@ and fix tasks for a user-owned agent:
     base: ${{ github.event.pull_request.base.sha }}
     head: ${{ github.event.pull_request.head.sha }}
     cwd: .
+    task: Add a billing export API
+    requirements: .codedecay/requirements.yml
     format: markdown
     output: codedecay-agent.md
 ```
+
+`task` and `requirements` are explicit agent-mode inputs. The requirements path
+must resolve inside `cwd`; the action does not scrape the pull-request body,
+discover remote requirements, or call a model.
 
 Supported modes are `analyze`, `redteam`, `agent`, and `product`. The action
 does not expose arbitrary command passthrough. Product mode only forwards the

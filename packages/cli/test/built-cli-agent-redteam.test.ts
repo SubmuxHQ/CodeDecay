@@ -21,6 +21,43 @@ import {
 beforeAll(ensureBuiltCli);
 
 describe("built codedecay CLI redteam and agent workflows", () => {
+  it("loads structured requirements in built agent preflight", () => {
+    const repo = createRepo({
+      "src/billing/export.ts": "export function exportBilling() { return []; }\n",
+      "packages/tool-adapters/src/openapi.ts": "export const openapi = true;\n",
+      ".codedecay/requirements.json": JSON.stringify({
+        confidence: "high",
+        acceptanceCriteria: [{
+          id: "AC-1",
+          text: "Authorized users can export billing rows.",
+          requiredProof: ["Call the real billing export route."]
+        }],
+        affectedFlows: [{ name: "Billing export", kind: "api" }]
+      })
+    });
+
+    const result = runBuilt([
+      "agent",
+      "preflight",
+      "--cwd",
+      repo,
+      "--task",
+      "Add a billing export API",
+      "--requirements",
+      ".codedecay/requirements.json",
+      "--format",
+      "json"
+    ]);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(report.requirements.acceptanceCriteria[0]).toMatchObject({ id: "AC-1" });
+    expect(report.deterministicEvidence.candidateFiles.map((file: { path: string }) => file.path)).toEqual([
+      "src/billing/export.ts"
+    ]);
+    expect(report.summary).toMatchObject({ confidence: "high", insufficientContext: false });
+  });
+
   it("runs redteam reports from the built CLI without executing configured commands", () => {
     const repo = createMediumRiskRepo();
     writeFile(

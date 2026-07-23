@@ -22,10 +22,18 @@ not require a git diff, run configured commands, call models, or send telemetry.
 ```bash
 npx codedecay agent preflight \
   --task "Add a dashboard filter for reviewed uploads" \
+  --requirements .codedecay/requirements.yml \
   --format markdown
 ```
 
-The preflight report separates deterministic repo evidence from suggestions:
+The optional requirements artifact is repo-local JSON or YAML. It can provide
+`acceptanceCriteria`, `currentBehavior`, `expectedBehavior`, `affectedFlows`,
+`nonGoals`, `invariants`, `architectureConstraints`, and
+`unresolvedQuestions`. CodeDecay records the artifact as provenance and keeps
+requirement evidence separate from its own suggestions.
+
+The preflight report separates requirement evidence, deterministic repo
+evidence, and suggestions:
 
 - likely impacted areas from the task description
 - candidate files and route/API surfaces from repo paths
@@ -33,6 +41,12 @@ The preflight report separates deterministic repo evidence from suggestions:
 - matched design-contract boundaries
 - configured checks listed as follow-up proof with `willRun=false`
 - proof plan and non-goals for the receiving agent
+
+Candidate files require domain-specific task terms or stronger repo evidence.
+Generic words such as `api` alone do not make every API-related file a
+candidate. When CodeDecay cannot ground the task in the repository, it returns
+low confidence, no candidate files, and an unresolved question instead of
+inventing scope.
 
 Treat preflight as a before-coding brief. After the agent edits code, run
 `codedecay redteam`, `codedecay agent`, and the relevant project checks to
