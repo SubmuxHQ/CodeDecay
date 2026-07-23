@@ -149,6 +149,17 @@ export function parseAgentArgs(args: string[]): AgentOptions {
       continue;
     }
 
+    if (arg.startsWith("--requirements=")) {
+      options.requirements = arg.slice("--requirements=".length);
+      continue;
+    }
+
+    if (arg === "--requirements") {
+      options.requirements = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
     throwUnknownOption(arg, "agent");
   }
 

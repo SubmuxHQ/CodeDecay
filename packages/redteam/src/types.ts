@@ -1,5 +1,11 @@
 import type { CodeDecayConfig } from "@submuxhq/codedecay-config";
-import type { CodeDecayReport, Finding, ImpactedArea, RiskLevel } from "@submuxhq/codedecay-core";
+import type {
+  CodeDecayReport,
+  Finding,
+  ImpactedArea,
+  RequirementContext,
+  RiskLevel
+} from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
 import type { LoadedCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import type { TestProofAudit } from "@submuxhq/codedecay-test-audit";
@@ -40,6 +46,7 @@ export interface RedteamReportInput {
   investigation?: RedteamInvestigation | undefined;
   verification?: RedteamVerificationSummary | undefined;
   generatedAt?: string | undefined;
+  requirements?: RequirementContext | undefined;
 }
 
 export interface RedteamReport {
@@ -51,6 +58,7 @@ export interface RedteamReport {
   head?: string | undefined;
   summary: RedteamSummary;
   analysis: CodeDecayReport;
+  requirements?: RequirementContext | undefined;
   testAudit: TestProofAudit;
   weakTestFindings: Finding[];
   edgeCases: string[];

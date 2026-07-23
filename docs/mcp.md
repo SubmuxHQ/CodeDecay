@@ -95,6 +95,21 @@ Example preflight input:
 ```json
 {
   "task": "Add a GET /api/users export endpoint",
+  "requirements": {
+    "acceptanceCriteria": [
+      {
+        "id": "AC-1",
+        "text": "Authorized users can export rows.",
+        "requiredProof": ["Call the real export route."]
+      }
+    ],
+    "affectedFlows": [
+      {
+        "name": "User export",
+        "kind": "api"
+      }
+    ]
+  },
   "format": "markdown"
 }
 ```

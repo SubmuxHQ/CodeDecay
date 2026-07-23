@@ -1,9 +1,11 @@
 import { loadCodeDecayConfig } from "@submuxhq/codedecay-config";
+import { normalizeRequirementContext } from "@submuxhq/codedecay-core";
 import { createRedteamReport, type RedteamExecutionStatus, type RedteamVerificationSummary } from "@submuxhq/codedecay-redteam";
 import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import type { AdapterStatus } from "@submuxhq/codedecay-adapters";
 import type { AgentOptions, AnalyzeOptions, CliAnalysisContext, CliRuntime, RedteamOptions } from "../types";
 import { loadConfiguredRedteamMemory } from "../memory/configured-providers";
+import { loadRequirementArtifact } from "../requirements/load";
 import type { DifferentialApiContractResult, DifferentialProbeArtifacts, DifferentialProbeResult, DifferentialReport, DifferentialSideResult, ExecutionReport, ExecutionResult, ExecutionToolAdapterResult } from "../types";
 import { configuredOpenApiContractPaths } from "./differential/api-contracts";
 import { createDifferentialReport } from "./differential/report";
@@ -36,6 +38,16 @@ export async function createRedteamReportForCli(
     memoryProviders: loadedConfig.config.memoryProviders
   });
   const loadedSkills = loadCodeDecaySkills({ cwd: rootDir });
+  const loadedRequirements = "requirements" in options && options.requirements
+    ? loadRequirementArtifact(rootDir, options.requirements)
+    : undefined;
+  const requirements = loadedRequirements
+    ? normalizeRequirementContext({
+        task: requirementTask(options, loadedRequirements.context),
+        context: loadedRequirements.context,
+        source: loadedRequirements.source
+      })
+    : undefined;
   const investigation = "investigate" in options && options.investigate
     ? await createRedteamInvestigation({
         llmConfig: loadedConfig.config.llm,
@@ -60,9 +72,27 @@ export async function createRedteamReportForCli(
     memorySource: memoryContext.sourcePath,
     memoryProviderSources: memoryContext.providerSources,
     skills: loadedSkills,
+    requirements,
     investigation,
     verification
   });
+}
+
+function requirementTask(
+  options: AgentOptions | RedteamOptions,
+  context: ReturnType<typeof loadRequirementArtifact>["context"]
+): string {
+  const explicitTask = "task" in options ? options.task?.trim() : undefined;
+  if (explicitTask) {
+    return explicitTask;
+  }
+  if (typeof context.task === "string") {
+    return context.task;
+  }
+  if (context.task?.text) {
+    return context.task.text;
+  }
+  throw new Error("agent --requirements requires --task <description> or a task in the requirements artifact.");
 }
 
 function executionDependencies(dependencies: RedteamReportDependencies): RunExecuteCommandDependencies {

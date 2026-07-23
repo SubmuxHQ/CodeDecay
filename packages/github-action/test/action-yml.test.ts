@@ -23,7 +23,9 @@ describe("GitHub Action metadata", () => {
       "product-generate-tests",
       "product-run-generated-api-tests",
       "product-run-generated-tests",
-      "target"
+      "requirements",
+      "target",
+      "task"
     ]);
     expect(action.inputs.mode.default).toBe("analyze");
     expect(action.inputs["github-token"].default).toBe("${{ github.token }}");
@@ -87,6 +89,15 @@ describe("GitHub Action metadata", () => {
     const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
 
     expect(actionYaml).toContain('if [[ "$MODE" != "agent" && -n "${{ inputs.fail-on }}" ]]; then');
+  });
+
+  it("forwards explicit structured requirement inputs only to agent mode", () => {
+    const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
+
+    expect(actionYaml).toContain('if [[ "$MODE" == "agent" && -n "${{ inputs.task }}" ]]; then');
+    expect(actionYaml).toContain('args+=(--task "${{ inputs.task }}")');
+    expect(actionYaml).toContain('args+=(--requirements "${{ inputs.requirements }}")');
+    expect(actionYaml).not.toContain("pull_request.body");
   });
 
   it("builds the scoped npm package", () => {

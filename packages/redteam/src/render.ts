@@ -63,6 +63,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
     );
   }
 
+  appendRequirements(lines, report);
   appendImpactedAreas(lines, report.analysis.impactedAreas);
   appendImpactedRoutes(lines, report.analysis.impactedRoutes ?? []);
   appendSymbolImpacts(lines, report.analysis.symbolImpacts ?? []);
@@ -91,4 +92,19 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
   );
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendRequirements(lines: string[], report: RedteamReport): void {
+  if (!report.requirements) {
+    return;
+  }
+  lines.push("### Requirement Evidence", "", "Acceptance criteria:");
+  if (report.requirements.acceptanceCriteria.length === 0) {
+    lines.push("- none supplied");
+  } else {
+    for (const criterion of report.requirements.acceptanceCriteria) {
+      lines.push(`- ${criterion.id}: ${criterion.text} [sources: ${criterion.sourceIds.join(", ")}]`);
+    }
+  }
+  lines.push("");
 }

@@ -137,6 +137,12 @@ export function runAgentPreflightTool(serverOptions: StartMcpServerOptions, inpu
   const loadedMemory = loadCodeDecayMemory(rootDir);
   const report = createAgentPreflightReport({
     task: input.task,
+    requirements: input.requirements,
+    requirementSource: {
+      id: "mcp-input",
+      kind: "integration",
+      label: "MCP agent_preflight input"
+    },
     rootDir,
     repoFiles: listRepoFiles(rootDir),
     config: loadedConfig.config,

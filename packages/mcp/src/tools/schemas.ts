@@ -19,6 +19,44 @@ const taskSourceSchema = z.enum([
   "product-failure"
 ]);
 const impactedAreaKindSchema = z.enum(["api", "ui", "database", "auth", "config", "test", "source", "docs"]);
+const requirementStatementSchema = z.union([
+  z.string(),
+  z.object({
+    text: z.string().min(1),
+    sourceIds: z.array(z.string()).optional()
+  })
+]);
+const requirementContextSchema = z.object({
+  confidence: z.enum(["low", "medium", "high"]).optional(),
+  sources: z.array(z.object({
+    id: z.string().min(1),
+    kind: z.enum(["task", "artifact", "issue", "pull-request", "repository", "memory", "integration"]),
+    label: z.string().min(1),
+    location: z.string().optional()
+  })).optional(),
+  task: requirementStatementSchema.optional(),
+  currentBehavior: z.array(requirementStatementSchema).optional(),
+  expectedBehavior: z.array(requirementStatementSchema).optional(),
+  acceptanceCriteria: z.array(z.union([
+    z.string(),
+    z.object({
+      id: z.string().optional(),
+      text: z.string().min(1),
+      requiredProof: z.array(z.string()).optional(),
+      sourceIds: z.array(z.string()).optional()
+    })
+  ])).optional(),
+  nonGoals: z.array(requirementStatementSchema).optional(),
+  affectedFlows: z.array(z.object({
+    name: z.string().min(1),
+    kind: z.enum(["user", "api", "job", "data", "config"]),
+    description: z.string().optional(),
+    sourceIds: z.array(z.string()).optional()
+  })).optional(),
+  invariants: z.array(requirementStatementSchema).optional(),
+  architectureConstraints: z.array(requirementStatementSchema).optional(),
+  unresolvedQuestions: z.array(requirementStatementSchema).optional()
+});
 
 export const analyzePrToolSchema = {
   cwd: cwdSchema,
@@ -44,6 +82,7 @@ export const agentTaskBundleToolSchema = {
 export const agentPreflightToolSchema = {
   cwd: cwdSchema,
   task: z.string().min(1).describe("Intended task/change description before code generation."),
+  requirements: requirementContextSchema.optional().describe("Structured acceptance criteria and product-flow context."),
   format: formatSchema
 };
 

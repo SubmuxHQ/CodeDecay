@@ -101,6 +101,7 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--format <format>", description: "json or markdown (default: markdown)" },
       { flag: "--profile <profile>", description: `${AGENT_PROFILE_IDS.join(", ")} (default: generic)` },
       { flag: "--task <text>", description: "Required for `agent preflight`; intended task/change description before code generation" },
+      { flag: "--requirements <path>", description: "Optional repo-local JSON or YAML requirements artifact with acceptance criteria and affected flows" },
       { flag: "--filter-source <source>", description: "Only include fix tasks from one source such as finding, weak-test, edge-case, memory, pattern, or product-failure" },
       { flag: "--filter-priority <level>", description: "Only include fix tasks with priority low, medium, or high" },
       { flag: "--filter-file <path>", description: "Only include fix tasks tied to a file path" },
@@ -108,6 +109,7 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
     ],
     examples: [
       "codedecay agent preflight --task \"Add a GET /api/users export endpoint\" --format markdown",
+      "codedecay agent preflight --task \"Add billing export\" --requirements .codedecay/requirements.yml --format markdown",
       "codedecay agent --profile codex --base main --head HEAD --format markdown",
       "codedecay agent --cwd ../my-repo --profile opencode --format json",
       "codedecay agent --format json --filter-source weak-test --filter-priority high"
@@ -115,6 +117,7 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
     notes: [
       "Agent preflight and agent bundles package evidence and instructions only. They do not trigger agent or model calls by themselves.",
       "Preflight does not require changed files and does not run configured commands; it lists follow-up proof checks with willRun=false.",
+      "Requirement evidence retains source ids and is rendered separately from CodeDecay suggestions.",
       "Design contract findings are deterministic evidence and appear in the bundle when `codedecay.contract.*` is configured.",
       "Exit codes stay stable: 0 for a generated bundle, 2 for CLI/internal errors."
     ]

@@ -66,6 +66,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
       investigationLimitations: input.investigation?.limitations.length ?? 0
     },
     analysis: input.analysisReport,
+    requirements: input.requirements,
     testAudit,
     weakTestFindings,
     edgeCases,
