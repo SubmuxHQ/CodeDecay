@@ -4,6 +4,8 @@ export {
   changedFilePaths,
   createChangedFilesFingerprint,
   driveAgent,
+  createLoopProgressSnapshot,
+  didLoopEvidenceImprove,
   classifySafeStatus,
   createLoopVerdictEvidence,
   renderLoopMarkdown,
@@ -23,9 +25,11 @@ export type {
   LoopMutationSnapshot,
   LoopRedteamReport,
   LoopReport,
+  LoopProgressSnapshot,
   LoopRoundSnapshot,
   LoopSecurityToolSnapshot,
   LoopStatus,
+  LoopVerificationSnapshot,
   LoopVerdictEvidence
 } from "./loop";
 export type {

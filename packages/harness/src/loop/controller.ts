@@ -2,6 +2,11 @@ import { isMemoryContextFinding } from "@submuxhq/codedecay-core";
 import { riskRank } from "./risk";
 import { driveAgent } from "./agent";
 import { changedFilePaths, createChangedFilesFingerprint } from "./fingerprint";
+import {
+  createLoopProgressSnapshot,
+  didLoopEvidenceImprove,
+  type LoopProgressSnapshot
+} from "./progress";
 import type {
   CodeDecayLoopInput,
   LoopAgentResult,
@@ -10,12 +15,12 @@ import type {
   LoopReport,
   LoopRoundSnapshot,
   LoopStatus,
+  LoopVerificationSnapshot,
   LoopVerdictEvidence
 } from "./types";
 
 interface PreviousAgentRound {
-  mergeRiskScore: number;
-  weakTestFindings: number;
+  evidence: LoopProgressSnapshot;
   madeChanges: boolean;
 }
 
@@ -29,6 +34,7 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
   let previousAgentRound: PreviousAgentRound | undefined;
   let latestReport: LoopRedteamReport | undefined;
   let latestChecks: LoopCheckSnapshot | undefined;
+  let postAgentVerificationPending = false;
 
   for (let roundNumber = 1; roundNumber <= maxRounds; roundNumber += 1) {
     const beforeChanges = input.getChangedFiles();
@@ -38,20 +44,19 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
     latestReport = report;
     latestChecks = checks;
 
-    const round: LoopRoundSnapshot = {
-      round: roundNumber,
-      riskLevel: report.summary.riskLevel,
-      mergeRiskScore: report.summary.mergeRiskScore,
-      weakTestFindings: report.summary.weakTestFindings,
-      fixTasks: report.summary.fixTasks,
-      checkStatus: checks.status,
-      checksConfigured: checks.configured,
-      checksTotal: checks.total
-    };
+    if (postAgentVerificationPending) {
+      recordPostAgentVerification(rounds.at(-1), report, checks);
+      postAgentVerificationPending = false;
+    }
+
+    const round = createRoundSnapshot(roundNumber, report, checks);
     rounds.push(round);
 
     if (previousAgentRound?.madeChanges) {
-      const riskReduced = didRiskReduce(previousAgentRound, report);
+      const riskReduced = didLoopEvidenceImprove(
+        previousAgentRound.evidence,
+        createLoopProgressSnapshot(report, checks)
+      );
       round.riskReducedFromPreviousRound = riskReduced;
       noProgressCount = riskReduced ? 0 : noProgressCount + 1;
       if (noProgressCount >= 2) {
@@ -72,38 +77,12 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
       break;
     }
 
-    const bundle = input.renderAgentBundle(report);
-    const execution = await driveAgent({
-      cwd: input.cwd,
-      command: input.agentCommand,
-      bundle,
-      timeoutMs: input.agentTimeoutMs,
-      safety: input.commandSafety
-    });
-    const afterChanges = input.getChangedFiles();
-    const afterFingerprint = createChangedFilesFingerprint(afterChanges);
-    const madeChanges = beforeFingerprint !== afterFingerprint;
-    const agent: LoopAgentResult = {
-      command: input.agentCommand,
-      status: execution.status,
-      durationMs: execution.durationMs,
-      stdout: execution.stdout,
-      stderr: execution.stderr,
-      madeChanges,
-      changedFiles: changedFilePaths(afterChanges)
-    };
-
-    if (execution.exitCode !== undefined) {
-      agent.exitCode = execution.exitCode;
-    }
-
-    if (execution.error !== undefined) {
-      agent.error = execution.error;
-    }
-
+    const agent = await executeAgentRound(input, report, beforeFingerprint);
+    const madeChanges = agent.madeChanges;
     round.agent = agent;
+    postAgentVerificationPending = madeChanges;
 
-    if (execution.status !== "passed") {
+    if (agent.status !== "passed") {
       status = "agent-error";
       break;
     }
@@ -117,8 +96,7 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
     }
 
     previousAgentRound = {
-      mergeRiskScore: report.summary.mergeRiskScore,
-      weakTestFindings: report.summary.weakTestFindings,
+      evidence: createLoopProgressSnapshot(report, checks),
       madeChanges
     };
 
@@ -127,9 +105,106 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
     }
   }
 
-  const finalReport = latestReport ?? await input.createRedteamReport();
-  const finalChecks = latestChecks ?? await input.runConfiguredChecks();
+  let finalReport = latestReport ?? await input.createRedteamReport();
+  let finalChecks = latestChecks ?? await input.runConfiguredChecks();
+
+  if (postAgentVerificationPending) {
+    const verification = await revalidateFinalAgentEdit(
+      input,
+      rounds.at(-1),
+      previousAgentRound,
+      safeRiskLevel,
+      securityScoreThreshold,
+      status
+    );
+    finalReport = verification.report;
+    finalChecks = verification.checks;
+    status = verification.status;
+  }
+
   const verdict = createLoopVerdictEvidence(finalReport, finalChecks, safeRiskLevel, securityScoreThreshold, status);
+  return assembleLoopReport({
+    input,
+    maxRounds,
+    rounds,
+    status,
+    finalReport,
+    finalChecks,
+    verdict
+  });
+}
+
+function createRoundSnapshot(
+  round: number,
+  report: LoopRedteamReport,
+  checks: LoopCheckSnapshot
+): LoopRoundSnapshot {
+  return {
+    round,
+    riskLevel: report.summary.riskLevel,
+    mergeRiskScore: report.summary.mergeRiskScore,
+    decayScore: report.summary.decayScore,
+    securityScore: report.summary.securityScore,
+    weakTestFindings: report.summary.weakTestFindings,
+    productFailureBundles: report.summary.productFailureBundles,
+    fixTasks: report.summary.fixTasks,
+    checkStatus: checks.status,
+    checksConfigured: checks.configured,
+    checksTotal: checks.total
+  };
+}
+
+async function executeAgentRound(
+  input: CodeDecayLoopInput,
+  report: LoopRedteamReport,
+  beforeFingerprint: string
+): Promise<LoopAgentResult> {
+  const command = input.agentCommand;
+  if (!command) {
+    throw new Error("Cannot execute an agent round without an agent command.");
+  }
+
+  const execution = await driveAgent({
+    cwd: input.cwd,
+    command,
+    bundle: input.renderAgentBundle(report),
+    timeoutMs: input.agentTimeoutMs,
+    safety: input.commandSafety
+  });
+  const afterChanges = input.getChangedFiles();
+  const agent: LoopAgentResult = {
+    command,
+    status: execution.status,
+    durationMs: execution.durationMs,
+    stdout: execution.stdout,
+    stderr: execution.stderr,
+    madeChanges: beforeFingerprint !== createChangedFilesFingerprint(afterChanges),
+    changedFiles: changedFilePaths(afterChanges)
+  };
+
+  if (execution.exitCode !== undefined) {
+    agent.exitCode = execution.exitCode;
+  }
+
+  if (execution.error !== undefined) {
+    agent.error = execution.error;
+  }
+
+  return agent;
+}
+
+interface AssembleLoopReportInput {
+  input: CodeDecayLoopInput;
+  maxRounds: number;
+  rounds: LoopRoundSnapshot[];
+  status: LoopStatus;
+  finalReport: LoopRedteamReport;
+  finalChecks: LoopCheckSnapshot;
+  verdict: LoopVerdictEvidence;
+}
+
+function assembleLoopReport(state: AssembleLoopReportInput): LoopReport {
+  const { input, maxRounds, rounds, status, finalReport, finalChecks, verdict } = state;
   return {
     tool: "CodeDecay",
     mode: "closed-loop",
@@ -144,8 +219,10 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
     planOnly: !input.agentCommand,
     finalRiskLevel: finalReport.summary.riskLevel,
     finalMergeRiskScore: finalReport.summary.mergeRiskScore,
+    finalDecayScore: finalReport.summary.decayScore,
     finalSecurityScore: finalReport.summary.securityScore,
     finalWeakTestFindings: finalReport.summary.weakTestFindings,
+    finalProductFailureBundles: finalReport.summary.productFailureBundles,
     finalCheckStatus: finalChecks.status,
     verdict,
     finalFixTasks: finalReport.fixTasks,
@@ -308,16 +385,65 @@ export function createLoopVerdictEvidence(
   return evidence;
 }
 
-function didRiskReduce(previous: PreviousAgentRound, current: LoopRedteamReport): boolean {
-  return (
-    current.summary.mergeRiskScore < previous.mergeRiskScore ||
-    current.summary.weakTestFindings < previous.weakTestFindings
-  );
+function createVerificationSnapshot(
+  report: LoopRedteamReport,
+  checks: LoopCheckSnapshot
+): LoopVerificationSnapshot {
+  return {
+    riskLevel: report.summary.riskLevel,
+    mergeRiskScore: report.summary.mergeRiskScore,
+    decayScore: report.summary.decayScore,
+    securityScore: report.summary.securityScore,
+    weakTestFindings: report.summary.weakTestFindings,
+    productFailureBundles: report.summary.productFailureBundles,
+    fixTasks: report.summary.fixTasks,
+    checkStatus: checks.status,
+    checksConfigured: checks.configured,
+    checksTotal: checks.total
+  };
+}
+
+function recordPostAgentVerification(
+  round: LoopRoundSnapshot | undefined,
+  report: LoopRedteamReport,
+  checks: LoopCheckSnapshot
+): void {
+  if (round?.agent?.madeChanges) {
+    round.postAgentVerification = createVerificationSnapshot(report, checks);
+  }
+}
+
+async function revalidateFinalAgentEdit(
+  input: CodeDecayLoopInput,
+  finalRound: LoopRoundSnapshot | undefined,
+  previousAgentRound: PreviousAgentRound | undefined,
+  safeRiskLevel: LoopRedteamReport["summary"]["riskLevel"],
+  securityScoreThreshold: number,
+  currentStatus: LoopStatus
+): Promise<{ report: LoopRedteamReport; checks: LoopCheckSnapshot; status: LoopStatus }> {
+  const report = await input.createRedteamReport();
+  const checks = await input.runConfiguredChecks();
+  recordPostAgentVerification(finalRound, report, checks);
+
+  if (finalRound?.agent?.madeChanges && previousAgentRound?.madeChanges) {
+    finalRound.riskReducedFromPreviousRound = didLoopEvidenceImprove(
+      previousAgentRound.evidence,
+      createLoopProgressSnapshot(report, checks)
+    );
+  }
+
+  const status = finalRound?.agent?.status === "passed"
+    ? classifySafeStatus(report, checks, safeRiskLevel, securityScoreThreshold) ?? "needs-human"
+    : currentStatus;
+  return { report, checks, status };
 }
 
 function didExecuteCommands(rounds: LoopRoundSnapshot[]): boolean {
   return rounds.some((round) => {
-    if (didCheckExecuteCommand(round.checkStatus)) {
+    if (
+      didCheckExecuteCommand(round.checkStatus) ||
+      (round.postAgentVerification && didCheckExecuteCommand(round.postAgentVerification.checkStatus))
+    ) {
       return true;
     }
 
