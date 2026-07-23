@@ -7,6 +7,7 @@ import type {
   RiskLevel
 } from "@submuxhq/codedecay-core";
 import type { AgentSuggestedCheck, AgentTaskBundleFormat } from "../types";
+import type { RedteamInvestigation } from "@submuxhq/codedecay-redteam";
 
 export type AgentPreflightFormat = AgentTaskBundleFormat;
 export type AgentPreflightAreaKind = ImpactedArea["kind"];
@@ -22,6 +23,7 @@ export interface AgentPreflightReport {
   requirements: RequirementContext;
   summary: AgentPreflightSummary;
   deterministicEvidence: AgentPreflightEvidence;
+  investigation?: RedteamInvestigation | undefined;
   suggestions: AgentPreflightSuggestions;
   safety: AgentPreflightSafety;
   limits: string[];
@@ -138,7 +140,7 @@ export interface AgentPreflightSuggestions {
 }
 
 export interface AgentPreflightSafety {
-  llmCalled: false;
+  llmCalled: boolean;
   commandsExecuted: false;
   telemetrySent: false;
   cloudDependency: false;

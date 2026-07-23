@@ -21,6 +21,23 @@ import {
 beforeAll(ensureBuiltCli);
 
 describe("built codedecay CLI redteam and agent workflows", () => {
+  it("supports explicit investigation with deterministic fallback in the built CLI", () => {
+    const repo = createMediumRiskRepo();
+
+    const result = runBuilt(["agent", "--cwd", repo, "--investigate", "--format", "json"]);
+    const bundle = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(bundle.investigation).toMatchObject({
+      status: "disabled",
+      suggestions: [],
+      llmCalled: false,
+      untrusted: true
+    });
+    expect(bundle.summary.changedFiles).toBeGreaterThan(0);
+    expect(bundle.safety.llmCalled).toBe(false);
+  });
+
   it("loads structured requirements in built agent preflight", () => {
     const repo = createRepo({
       "src/billing/export.ts": "export function exportBilling() { return []; }\n",

@@ -48,20 +48,26 @@ export async function createRedteamReportForCli(
         source: loadedRequirements.source
       })
     : undefined;
-  const investigation = "investigate" in options && options.investigate
-    ? await createRedteamInvestigation({
-        llmConfig: loadedConfig.config.llm,
-        analysisReport: analysis.report,
-        memory: memoryContext.memory,
-        memorySource: memoryContext.sourcePath,
-        skills: loadedSkills
-      })
-    : undefined;
   const verification = "withChecks" in options && options.withChecks
     ? verificationFromExecutionReport(
         await createExecutionReport(rootDir, loadedConfig, executionDependencies(dependencies)),
         await maybeCreateDifferentialReport(rootDir, options, loadedConfig)
       )
+    : undefined;
+  const investigation = "investigate" in options && options.investigate
+    ? await createRedteamInvestigation({
+        phase: "post-diff",
+        llmConfig: loadedConfig.config.llm,
+        analysisReport: analysis.report,
+        requirements,
+        verification,
+        limitations: [
+          "Agent suggestions are untrusted and cannot change deterministic risk or prove merge safety."
+        ],
+        memory: memoryContext.memory,
+        memorySource: memoryContext.sourcePath,
+        skills: loadedSkills
+      })
     : undefined;
 
   return createRedteamReport({

@@ -45,6 +45,7 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
 
   appendList(lines, bundle.instructions);
   appendRequirements(lines, bundle);
+  appendInvestigation(lines, bundle);
   appendHandoff(lines, bundle.agentProfile);
   appendPrompt(lines, bundle.prompt);
   appendEvidence(lines, bundle.evidence);
@@ -54,6 +55,20 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
   appendSafety(lines, bundle);
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendInvestigation(lines: string[], bundle: AgentTaskBundle): void {
+  if (!bundle.investigation) {
+    return;
+  }
+  lines.push("", "### Untrusted Agent Investigation", "", `Status: ${bundle.investigation.status}`, "");
+  appendList(
+    lines,
+    bundle.investigation.suggestions.map((suggestion) => {
+      const proof = suggestion.proposedProof?.length ? ` Proposed proof: ${suggestion.proposedProof.join(" ")}` : "";
+      return `${suggestion.title}: ${suggestion.detail}.${proof}`;
+    })
+  );
 }
 
 function appendRequirements(lines: string[], bundle: AgentTaskBundle): void {

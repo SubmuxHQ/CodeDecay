@@ -52,6 +52,28 @@ Treat preflight as a before-coding brief. After the agent edits code, run
 `codedecay redteam`, `codedecay agent`, and the relevant project checks to
 gather merge evidence.
 
+## Explicit Agent Investigation
+
+Add `--investigate` to preflight or post-diff agent bundles to call the
+repo-configured local/BYOK provider:
+
+```bash
+npx codedecay agent preflight --investigate \
+  --task "Add a billing export API" \
+  --requirements .codedecay/requirements.yml
+
+npx codedecay agent --investigate \
+  --task "Review billing export regressions" \
+  --requirements .codedecay/requirements.yml
+```
+
+CodeDecay sends structured requirements, deterministic impact and changed-path
+proof, memory, skills, verification results, and limitations. Returned
+candidate risks, affected flows, edge cases, proof proposals, and unresolved
+questions remain untrusted suggestions. They never raise deterministic risk or
+prove merge safety without corroborating tool/runtime evidence. Without
+`--investigate`, no provider is selected or called.
+
 The bundle includes:
 
 - a copy-paste prompt for any user-owned coding agent

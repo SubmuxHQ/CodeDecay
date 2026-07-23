@@ -21,6 +21,10 @@ export interface AgentTaskBundleToolInput extends AnalyzePrToolInput {
   profile?: AgentProfileId | undefined;
 }
 
+export interface AgentInvestigationToolInput extends AgentTaskBundleToolInput {
+  confirmInvestigation?: boolean | undefined;
+}
+
 export interface AgentPreflightToolInput {
   cwd?: string | undefined;
   task: string;

@@ -8,10 +8,12 @@ import {
 } from "@submuxhq/codedecay-agent";
 import { loadCodeDecayConfig } from "@submuxhq/codedecay-config";
 import { loadCodeDecayMemory } from "@submuxhq/codedecay-memory";
+import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import { parseAgentArgs } from "../parsers/args";
 import type { CliCommandContext, CliRuntime } from "../types";
 import { loadRequirementArtifact } from "../requirements/load";
 import { createRedteamReportForCli, type RedteamReportDependencies } from "./redteam-report";
+import { createRedteamInvestigation } from "./redteam-investigation";
 
 export interface RunAgentCommandDependencies extends RedteamReportDependencies {
   writeOutput(input: {
@@ -47,6 +49,19 @@ export async function runAgentCommand(
       memory: loadedMemory.memory,
       memorySource: loadedMemory.sourcePath
     });
+    if (options.investigate) {
+      report.investigation = await createRedteamInvestigation({
+        phase: "pre-change",
+        llmConfig: loadedConfig.config.llm,
+        requirements: report.requirements,
+        deterministicEvidence: report.deterministicEvidence,
+        limitations: report.limits,
+        memory: loadedMemory.memory,
+        memorySource: loadedMemory.sourcePath,
+        skills: loadCodeDecaySkills({ cwd: rootDir })
+      });
+      report.safety.llmCalled = report.investigation.llmCalled;
+    }
 
     dependencies.writeOutput({
       cwd,

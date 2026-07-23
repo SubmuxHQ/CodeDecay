@@ -46,6 +46,7 @@ export function createAgentTaskBundle(report: RedteamReport, options: CreateAgen
     purpose: agentProfile.description,
     agentProfile,
     requirements: report.requirements,
+    investigation: report.investigation,
     summary,
     prompt: createPortableAgentPrompt(summary, agentProfile),
     instructions: [...DEFAULT_INSTRUCTIONS],
