@@ -179,6 +179,38 @@ describe("CodeDecay loop controller", () => {
     );
   });
 
+  it("keeps agent edits untrusted until post-edit requirement evidence verifies them", async () => {
+    const repo = createRepo();
+    const createRedteamReport = vi.fn()
+      .mockResolvedValueOnce(redteamReport({
+        riskLevel: "high",
+        mergeRiskScore: 90,
+        weakTestFindings: 1,
+        requirementStatus: "proof-missing"
+      }))
+      .mockResolvedValueOnce(redteamReport({
+        riskLevel: "low",
+        mergeRiskScore: 10,
+        weakTestFindings: 0,
+        requirementStatus: "verified"
+      }));
+    const report = await runCodeDecayLoop({
+      ...baseInput(repo),
+      maxRounds: 1,
+      agentCommand: "node -e \"require('fs').mkdirSync('src',{recursive:true}); require('fs').writeFileSync('src/users.ts','fixed')\"",
+      createRedteamReport,
+      runConfiguredChecks: async () => checkSnapshot("passed", true)
+    });
+
+    expect(report.rounds[0]?.agentRequirementEdits).toEqual([
+      { file: "src/users.ts", requirementIds: ["AC-USERS"], trusted: false }
+    ]);
+    expect(report.rounds[0]?.postAgentVerification?.requirementStatuses).toEqual([
+      { requirementId: "AC-USERS", status: "verified" }
+    ]);
+    expect(report.requirementTrace?.criteria[0]?.status).toBe("verified");
+  });
+
   it("reports a worsening final edit and its failed post-edit checks as current evidence", async () => {
     const repo = createRepo();
     const createRedteamReport = vi.fn()
@@ -349,6 +381,7 @@ function redteamReport(input: {
   productFailureBundles?: number | undefined;
   findings?: LoopRedteamReport["analysis"]["findings"] | undefined;
   securityAnalysis?: LoopRedteamReport["analysis"]["securityAnalysis"] | undefined;
+  requirementStatus?: "proof-missing" | "verified" | undefined;
 }): LoopRedteamReport {
   return {
     version: "0.3.3",
@@ -373,11 +406,55 @@ function redteamReport(input: {
           source: "finding",
           detail: "Fix the risky changed path."
         }],
+    requirementTrace: input.requirementStatus ? requirementTrace(input.requirementStatus) : undefined,
     safety: {
       commandsExecuted: false,
       llmCalled: false,
       telemetrySent: false,
       cloudDependency: false
+    }
+  };
+}
+
+function requirementTrace(status: "proof-missing" | "verified"): NonNullable<LoopRedteamReport["requirementTrace"]> {
+  return {
+    schemaVersion: 1,
+    criteria: [{
+      requirementId: "AC-USERS",
+      text: "Users API works.",
+      sourceIds: ["issue"],
+      requiredProof: ["Integration test"],
+      status,
+      implementation: {
+        files: ["src/users.ts"],
+        symbols: [],
+        routes: ["/api/users"],
+        flows: [{ name: "Users API", kind: "api" }]
+      },
+      risks: [],
+      edgeCases: [],
+      evidence: [{
+        id: `AC-USERS::${status}`,
+        kind: status === "verified" ? "configured-check" : "limitation",
+        outcome: status === "verified" ? "passed" : "missing",
+        trusted: true,
+        source: "test",
+        target: "users integration",
+        summary: status
+      }],
+      limitations: status === "verified" ? [] : ["Proof missing."]
+    }],
+    summary: {
+      total: 1,
+      statuses: {
+        unmapped: 0,
+        "implementation-found": 0,
+        "proof-missing": status === "proof-missing" ? 1 : 0,
+        "proof-failed": 0,
+        verified: status === "verified" ? 1 : 0,
+        "needs-human": 0
+      },
+      blockingRequirementIds: status === "verified" ? [] : ["AC-USERS"]
     }
   };
 }

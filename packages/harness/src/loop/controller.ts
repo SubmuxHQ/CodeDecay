@@ -80,6 +80,11 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
     const agent = await executeAgentRound(input, report, beforeFingerprint);
     const madeChanges = agent.madeChanges;
     round.agent = agent;
+    round.agentRequirementEdits = agent.changedFiles.map((file) => ({
+      file,
+      requirementIds: requirementIdsForFile(report, file),
+      trusted: false
+    }));
     postAgentVerificationPending = madeChanges;
 
     if (agent.status !== "passed") {
@@ -150,7 +155,8 @@ function createRoundSnapshot(
     fixTasks: report.summary.fixTasks,
     checkStatus: checks.status,
     checksConfigured: checks.configured,
-    checksTotal: checks.total
+    checksTotal: checks.total,
+    requirementStatuses: requirementStatuses(report)
   };
 }
 
@@ -226,6 +232,7 @@ function assembleLoopReport(state: AssembleLoopReportInput): LoopReport {
     finalCheckStatus: finalChecks.status,
     verdict,
     finalFixTasks: finalReport.fixTasks,
+    requirementTrace: finalReport.requirementTrace,
     rounds,
     nextSteps: nextStepsForStatus(status, verdict),
     safety: {
@@ -317,8 +324,15 @@ export function createLoopVerdictEvidence(
     securityMatcherHighFindings,
     verifiedBy: [],
     missingDepth: [],
-    blockingReasons: []
+    blockingReasons: [],
+    requirementsSatisfied: (report.requirementTrace?.summary.blockingRequirementIds.length ?? 0) === 0,
+    blockingRequirementIds: [...(report.requirementTrace?.summary.blockingRequirementIds ?? [])]
   };
+  if (!evidence.requirementsSatisfied) {
+    evidence.blockingReasons.push(
+      `Acceptance criteria remain unverified: ${evidence.blockingRequirementIds.join(", ")}.`
+    );
+  }
 
   if (evidence.checksPassed) {
     evidence.verifiedBy.push("configured checks (passed)");
@@ -399,8 +413,22 @@ function createVerificationSnapshot(
     fixTasks: report.summary.fixTasks,
     checkStatus: checks.status,
     checksConfigured: checks.configured,
-    checksTotal: checks.total
+    checksTotal: checks.total,
+    requirementStatuses: requirementStatuses(report)
   };
+}
+
+function requirementStatuses(report: LoopRedteamReport): LoopRoundSnapshot["requirementStatuses"] {
+  return report.requirementTrace?.criteria.map((criterion) => ({
+    requirementId: criterion.requirementId,
+    status: criterion.status
+  }));
+}
+
+function requirementIdsForFile(report: LoopRedteamReport, file: string): string[] {
+  return report.requirementTrace?.criteria
+    .filter((criterion) => criterion.implementation.files.includes(file))
+    .map((criterion) => criterion.requirementId) ?? [];
 }
 
 function recordPostAgentVerification(

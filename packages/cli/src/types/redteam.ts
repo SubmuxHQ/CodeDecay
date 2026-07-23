@@ -10,4 +10,7 @@ export interface RedteamOptions {
   failOn?: RiskLevel | undefined;
   investigate?: boolean | undefined;
   withChecks?: boolean | undefined;
+  task?: string | undefined;
+  requirements?: string | undefined;
+  failOnRequirements?: boolean | undefined;
 }

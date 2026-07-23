@@ -21,6 +21,39 @@ import {
 beforeAll(ensureBuiltCli);
 
 describe("built codedecay CLI redteam and agent workflows", () => {
+  it("renders requirement trace JSON and Markdown from the built CLI", () => {
+    const repo = createRepo({
+      "src/api/users.ts": "export const users = () => [];\n",
+      "requirements.json": JSON.stringify({
+        acceptanceCriteria: [
+          { id: "AC-USERS", text: "Users API returns active users.", requiredProof: ["API integration proof."] },
+          { id: "AC-BILLING", text: "Billing refunds remain available." }
+        ],
+        affectedFlows: [{ name: "Users API", kind: "api" }]
+      })
+    });
+    writeFile(repo, "src/api/users.ts", "export const users = () => [{ id: 1, active: true }];\n");
+
+    const args = [
+      "--cwd", repo,
+      "--task", "Update users API",
+      "--requirements", "requirements.json"
+    ];
+    const json = runBuilt(["analyze", ...args, "--format", "json"]);
+    const markdown = runBuilt(["redteam", ...args, "--format", "markdown"]);
+    const trace = JSON.parse(json.stdout).requirementTrace;
+
+    expect(json.status).toBe(0);
+    expect(trace.criteria).toEqual(expect.arrayContaining([
+      expect.objectContaining({ requirementId: "AC-USERS", status: "proof-missing" }),
+      expect.objectContaining({ requirementId: "AC-BILLING", status: "unmapped" })
+    ]));
+    expect(markdown.status).toBe(0);
+    expect(markdown.stdout).toContain("### Acceptance Criteria Trace");
+    expect(markdown.stdout).toContain("| AC-USERS | Proof missing |");
+    expect(markdown.stdout).toContain("| AC-BILLING | Unmapped |");
+  });
+
   it("supports explicit investigation with deterministic fallback in the built CLI", () => {
     const repo = createMediumRiskRepo();
 

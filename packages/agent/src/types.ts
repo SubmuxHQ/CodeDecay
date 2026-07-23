@@ -3,6 +3,7 @@ import type {
   ImpactedRoute,
   ProductFailureBundle,
   RequirementContext,
+  RequirementTraceGraph,
   RiskLevel,
   SymbolImpact
 } from "@submuxhq/codedecay-core";
@@ -32,6 +33,7 @@ export interface AgentTaskBundle {
   purpose: string;
   agentProfile: AgentProfile;
   requirements?: RequirementContext | undefined;
+  requirementTrace?: RequirementTraceGraph | undefined;
   investigation?: RedteamReport["investigation"] | undefined;
   summary: AgentTaskSummary;
   prompt: string;

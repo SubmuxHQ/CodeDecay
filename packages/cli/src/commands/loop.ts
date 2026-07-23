@@ -70,6 +70,8 @@ export async function runLoopCommand(
       await createRedteamReportForCli(rootDir, {
         base: options.base,
         head: options.head,
+        task: options.task,
+        requirements: options.requirements,
         format: "json"
       }, dependencies),
     renderAgentBundle: (redteamReport) =>

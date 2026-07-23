@@ -1,5 +1,5 @@
 import type { CommandExecutionResult, SafeCommandPolicy } from "@submuxhq/codedecay-execution";
-import type { FileChange, RiskLevel } from "@submuxhq/codedecay-core";
+import type { FileChange, RequirementTraceGraph, RequirementTraceStatus, RiskLevel } from "@submuxhq/codedecay-core";
 
 export type LoopStatus =
   | "merge-safe-verified"
@@ -55,6 +55,7 @@ export interface LoopRedteamReport {
     }> | undefined;
   };
   fixTasks: LoopFixTask[];
+  requirementTrace?: RequirementTraceGraph | undefined;
   safety: {
     commandsExecuted: boolean;
     llmCalled: boolean;
@@ -144,6 +145,19 @@ export interface LoopRoundSnapshot {
   postAgentVerification?: LoopVerificationSnapshot | undefined;
   planOnlyBundle?: string | undefined;
   agent?: LoopAgentResult | undefined;
+  requirementStatuses?: LoopRequirementStatusSnapshot[] | undefined;
+  agentRequirementEdits?: LoopAgentRequirementEdit[] | undefined;
+}
+
+export interface LoopRequirementStatusSnapshot {
+  requirementId: string;
+  status: RequirementTraceStatus;
+}
+
+export interface LoopAgentRequirementEdit {
+  file: string;
+  requirementIds: string[];
+  trusted: false;
 }
 
 export interface LoopVerificationSnapshot {
@@ -157,6 +171,7 @@ export interface LoopVerificationSnapshot {
   checkStatus: LoopCheckStatus;
   checksConfigured: boolean;
   checksTotal: number;
+  requirementStatuses?: LoopRequirementStatusSnapshot[] | undefined;
 }
 
 export interface LoopReport {
@@ -180,6 +195,7 @@ export interface LoopReport {
   finalCheckStatus: LoopCheckStatus;
   verdict: LoopVerdictEvidence;
   finalFixTasks: LoopFixTask[];
+  requirementTrace?: RequirementTraceGraph | undefined;
   rounds: LoopRoundSnapshot[];
   nextSteps: string[];
   safety: {
@@ -210,6 +226,8 @@ export interface LoopVerdictEvidence {
   verifiedBy: string[];
   missingDepth: string[];
   blockingReasons: string[];
+  requirementsSatisfied: boolean;
+  blockingRequirementIds: string[];
 }
 
 export interface CodeDecayLoopInput {

@@ -40,9 +40,13 @@ inputs:
     required: false
     default: ""
   requirements:
-    description: "Agent mode: optional repo-local JSON, YAML, or Markdown requirements artifact."
+    description: "Analyze, redteam, or agent mode: optional repo-local JSON, YAML, or Markdown requirements artifact."
     required: false
     default: ""
+  fail-on-requirements:
+    description: "Analyze or redteam mode: fail when any supplied acceptance criterion is not verified."
+    required: false
+    default: "false"
   target:
     description: "Product mode target id to run"
     required: false
@@ -118,10 +122,10 @@ runs:
         if [[ -n "${{ inputs.head }}" ]]; then
           args+=(--head "${{ inputs.head }}")
         fi
-        if [[ "$MODE" == "agent" && -n "${{ inputs.task }}" ]]; then
+        if [[ -n "${{ inputs.task }}" ]]; then
           args+=(--task "${{ inputs.task }}")
         fi
-        if [[ "$MODE" == "agent" && -n "${{ inputs.requirements }}" ]]; then
+        if [[ -n "${{ inputs.requirements }}" ]]; then
           args+=(--requirements "${{ inputs.requirements }}")
         fi
 
@@ -275,11 +279,14 @@ runs:
           if [[ -n "${{ inputs.output }}" ]]; then
             args+=(--output "${{ inputs.output }}")
           fi
-          if [[ "$MODE" == "agent" && -n "${{ inputs.task }}" ]]; then
+          if [[ -n "${{ inputs.task }}" ]]; then
             args+=(--task "${{ inputs.task }}")
           fi
-          if [[ "$MODE" == "agent" && -n "${{ inputs.requirements }}" ]]; then
+          if [[ -n "${{ inputs.requirements }}" ]]; then
             args+=(--requirements "${{ inputs.requirements }}")
+          fi
+          if [[ "$MODE" != "agent" && "${{ inputs.fail-on-requirements }}" == "true" ]]; then
+            args+=(--fail-on-requirements)
           fi
           if [[ "$MODE" != "agent" && -n "${{ inputs.fail-on }}" ]]; then
             args+=(--fail-on "${{ inputs.fail-on }}")

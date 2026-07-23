@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { shouldFailForRisk } from "@submuxhq/codedecay-core";
+import { hasBlockingRequirementTrace, shouldFailForRisk } from "@submuxhq/codedecay-core";
 import { renderRedteamReport } from "@submuxhq/codedecay-redteam";
 import { CliExit } from "../errors";
 import { parseRedteamArgs } from "../parsers/args";
@@ -35,6 +35,9 @@ export async function runRedteamCommand(
   }
 
   if (options.withChecks && isBlockingVerificationStatus(report.summary.verificationStatus)) {
+    throw new CliExit(1);
+  }
+  if (options.failOnRequirements && hasBlockingRequirementTrace(report.requirementTrace)) {
     throw new CliExit(1);
   }
 }

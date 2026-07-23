@@ -8,6 +8,8 @@ import type { LanguageAnalysisSummary } from "./language";
 import type { SecurityAnalysisSummary, SecurityCandidate } from "./security";
 import type { TestEvidenceSummary } from "./test-evidence";
 import type { ChangedPathTestProofMap } from "./test-proof";
+import type { RequirementContext } from "../requirements";
+import type { RequirementTraceGraph } from "./requirement-trace";
 
 export interface ReportSummary {
   mergeRiskScore: number;
@@ -40,4 +42,6 @@ export interface CodeDecayReport {
   testEvidence?: TestEvidenceSummary | undefined;
   testProofMap?: ChangedPathTestProofMap | undefined;
   productFailureBundles?: ProductFailureBundle[] | undefined;
+  requirements?: RequirementContext | undefined;
+  requirementTrace?: RequirementTraceGraph | undefined;
 }

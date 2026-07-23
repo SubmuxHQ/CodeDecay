@@ -1,9 +1,10 @@
 import { resolve } from "node:path";
-import { shouldFailForRisk } from "@submuxhq/codedecay-core";
+import { createRequirementTrace, hasBlockingRequirementTrace, shouldFailForRisk } from "@submuxhq/codedecay-core";
 import { renderReport } from "@submuxhq/codedecay-report";
 import { CliExit } from "../errors";
 import { parseAnalyzeArgs } from "../parsers/args";
 import type { AnalyzeOptions, CliAnalysisContext, CliCommandContext, CliRuntime } from "../types";
+import { loadNormalizedRequirementContext } from "../requirements/context";
 
 export interface RunAnalyzeCommandDependencies {
   createAnalysisContext(rootDir: string, options: AnalyzeOptions): CliAnalysisContext;
@@ -23,7 +24,15 @@ export function runAnalyzeCommand(
   const options = parseAnalyzeArgs(context.args);
   const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
   const rootDir = dependencies.resolveRepoRoot(cwd, options);
-  const { report } = dependencies.createAnalysisContext(rootDir, options);
+  const { report: analysisReport } = dependencies.createAnalysisContext(rootDir, options);
+  const requirements = loadNormalizedRequirementContext(rootDir, options.requirements, options.task);
+  const report = requirements
+    ? {
+        ...analysisReport,
+        requirements,
+        requirementTrace: createRequirementTrace({ requirements, report: analysisReport })
+      }
+    : analysisReport;
 
   dependencies.writeOutput({
     cwd,
@@ -33,6 +42,9 @@ export function runAnalyzeCommand(
   });
 
   if (options.failOn && shouldFailForRisk(report.summary.riskLevel, options.failOn)) {
+    throw new CliExit(1);
+  }
+  if (options.failOnRequirements && hasBlockingRequirementTrace(report.requirementTrace)) {
     throw new CliExit(1);
   }
 }

@@ -11,4 +11,6 @@ export interface LoopOptions {
   output?: string | undefined;
   safeRiskLevel: RiskLevel;
   securityScoreThreshold: number;
+  task?: string | undefined;
+  requirements?: string | undefined;
 }
