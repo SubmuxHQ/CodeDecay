@@ -11,6 +11,7 @@ describe("GitHub Action metadata", () => {
       "base",
       "cwd",
       "fail-on",
+      "fail-on-requirements",
       "format",
       "github-token",
       "head",
@@ -24,7 +25,9 @@ describe("GitHub Action metadata", () => {
       "product-run-generated-api-tests",
       "product-run-generated-tests",
       "profile",
+      "requirements",
       "target",
+      "task",
       "with-checks"
     ]);
     expect(action.inputs.mode.default).toBe("analyze");
@@ -85,19 +88,31 @@ describe("GitHub Action metadata", () => {
     expect(actionYaml).not.toContain("product-extra-args");
   });
 
-  it("wires ai mode profile and configured checks without arbitrary command passthrough", () => {
+  it("does not forward fail-on to agent mode", () => {
     const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
 
+    expect(actionYaml).toContain('if [[ "$MODE" != "agent" && -n "${{ inputs.fail-on }}" ]]; then');
+  });
+
+  it("wires the AI profile and explicit checks without arbitrary argument passthrough", () => {
+    const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
+
+    expect(actionYaml).toContain('if [[ "$MODE" == "agent" || "$MODE" == "ai" ]]; then');
     expect(actionYaml).toContain('args+=(--profile "${{ inputs.profile }}")');
+    expect(actionYaml).toContain('if [[ "$MODE" == "redteam" || "$MODE" == "ai" ]]; then');
     expect(actionYaml).toContain("args+=(--with-checks)");
     expect(actionYaml).not.toContain("agent-extra-args");
     expect(actionYaml).not.toContain("ai-extra-args");
   });
 
-  it("does not forward fail-on to agent mode", () => {
+  it("forwards explicit structured requirement inputs and the opt-in CI gate", () => {
     const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
 
-    expect(actionYaml).toContain('if [[ "$MODE" != "agent" && -n "${{ inputs.fail-on }}" ]]; then');
+    expect(actionYaml).toContain('if [[ -n "${{ inputs.task }}" ]]; then');
+    expect(actionYaml).toContain('args+=(--task "${{ inputs.task }}")');
+    expect(actionYaml).toContain('args+=(--requirements "${{ inputs.requirements }}")');
+    expect(actionYaml).toContain('args+=(--fail-on-requirements)');
+    expect(actionYaml).not.toContain("pull_request.body");
   });
 
   it("builds the scoped npm package", () => {

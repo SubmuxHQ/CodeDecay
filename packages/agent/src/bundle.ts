@@ -1,6 +1,6 @@
 import type { RedteamReport } from "@submuxhq/codedecay-redteam";
 import { collectSuggestedChecks } from "./bundle/checks";
-import { DEFAULT_INSTRUCTIONS, DEFAULT_LIMITS } from "./bundle/defaults";
+import { createDefaultLimits, DEFAULT_INSTRUCTIONS } from "./bundle/defaults";
 import { createAgentEvidence } from "./bundle/evidence";
 import { createPortableAgentPrompt } from "./bundle/prompt";
 import { getAgentProfile } from "./profiles";
@@ -30,12 +30,21 @@ export function createAgentTaskBundle(report: RedteamReport, options: CreateAgen
     weakTestFindings: report.summary.weakTestFindings,
     testProofStatus: report.summary.testProofStatus,
     edgeCases: report.summary.edgeCases,
+    edgeCaseOverflow: report.summary.edgeCaseOverflow,
     productFailureBundles: report.summary.productFailureBundles,
     fixTasks: tasks.length,
     totalFixTasks: report.summary.fixTasks,
     scopeFindings: evidence.scopeFindings.length,
-    contractFindings: evidence.contractFindings.length
+    contractFindings: evidence.contractFindings.length,
+    verificationStatus: report.summary.verificationStatus
   };
+  const safety = {
+    llmCalled: report.safety.llmCalled,
+    commandsExecuted: report.safety.commandsExecuted,
+    telemetrySent: false,
+    cloudDependency: false,
+    agentOutputTrusted: false
+  } as const;
 
   return {
     tool: "CodeDecay",
@@ -45,22 +54,20 @@ export function createAgentTaskBundle(report: RedteamReport, options: CreateAgen
     generatedAt: report.generatedAt,
     purpose: agentProfile.description,
     agentProfile,
+    requirements: report.requirements,
+    requirementTrace: report.requirementTrace,
+    investigation: report.investigation,
+    verification: report.verification,
     summary,
-    prompt: createPortableAgentPrompt(summary, agentProfile),
+    prompt: createPortableAgentPrompt(summary, agentProfile, safety),
     instructions: [...DEFAULT_INSTRUCTIONS],
     evidence,
     tasks,
     taskFilters: options.taskFilters ?? {},
     suggestedChecks: collectSuggestedChecks(report.configuredChecks, report.toolAdapterPlans),
     skills: [...report.skills],
-    safety: {
-      llmCalled: report.safety.llmCalled,
-      commandsExecuted: report.safety.commandsExecuted,
-      telemetrySent: false,
-      cloudDependency: false,
-      agentOutputTrusted: false
-    },
-    limits: [...DEFAULT_LIMITS]
+    safety,
+    limits: createDefaultLimits(safety)
   };
 }
 

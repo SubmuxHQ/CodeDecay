@@ -159,6 +159,121 @@ describe("codedecay agent CLI contract", () => {
     expect(result.stdout).toContain("LLM/model called by CodeDecay: no");
   });
 
+  it("loads a local requirements artifact and exposes provenance before suggestions", async () => {
+    const repo = createRepo({
+      "src/billing/export.ts": "export function exportBilling() { return []; }\n",
+      "packages/tool-adapters/src/openapi.ts": "export const openapi = true;\n",
+      ".codedecay/requirements.yml": [
+        "confidence: high",
+        "acceptanceCriteria:",
+        "  - id: AC-1",
+        "    text: Authorized users can export billing rows as CSV.",
+        "    requiredProof:",
+        "      - Call the real billing export route.",
+        "affectedFlows:",
+        "  - name: Billing export",
+        "    kind: api",
+        ""
+      ].join("\n")
+    });
+
+    const result = await run([
+      "agent",
+      "preflight",
+      "--task",
+      "Add a billing export API",
+      "--requirements",
+      ".codedecay/requirements.yml",
+      "--format",
+      "markdown"
+    ], repo);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("### Requirement Evidence");
+    expect(result.stdout).toContain("AC-1: Authorized users can export billing rows as CSV.");
+    expect(result.stdout).toContain(".codedecay/requirements.yml");
+    expect(result.stdout.indexOf("### Requirement Evidence")).toBeLessThan(
+      result.stdout.indexOf("### Suggestions For Agent")
+    );
+    expect(result.stdout).toContain("src/billing/export.ts");
+    expect(result.stdout).not.toContain("packages/tool-adapters/src/openapi.ts");
+  });
+
+  it("rejects requirement artifacts outside the repository boundary", async () => {
+    const repo = createPreflightRepo();
+    const outside = createTempDir();
+    const artifact = join(outside, "requirements.yml");
+    writeFileSync(artifact, "acceptanceCriteria:\n  - must stay local\n");
+
+    const result = await run([
+      "agent",
+      "preflight",
+      "--task",
+      "Update users API",
+      "--requirements",
+      artifact
+    ], repo);
+
+    expect(result.exitCode).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("--requirements must point to a file inside the repository");
+  });
+
+  it("loads acceptance criteria and flows from a Markdown requirements artifact", async () => {
+    const repo = createRepo({
+      "src/billing/export.ts": "export function exportBilling() { return []; }\n",
+      "requirements.md": [
+        "# Task",
+        "Add a billing export API",
+        "",
+        "## Acceptance Criteria",
+        "- AC-1: Authorized users can export billing rows.",
+        "  - Proof: Call the real billing export route.",
+        "",
+        "## Affected Flows",
+        "- api: Billing export",
+        ""
+      ].join("\n")
+    });
+
+    const result = await run([
+      "agent", "preflight", "--task", "Add a billing export API",
+      "--requirements", "requirements.md", "--format", "json"
+    ], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(report.requirements.acceptanceCriteria[0]).toMatchObject({
+      id: "AC-1",
+      requiredProof: ["Call the real billing export route."]
+    });
+    expect(report.requirements.affectedFlows[0]).toMatchObject({ kind: "api", name: "Billing export" });
+  });
+
+  it("preserves requirements in a post-diff agent task bundle", async () => {
+    const repo = createMediumRiskRepo();
+    writeFile(repo, "requirements.json", JSON.stringify({
+      acceptanceCriteria: [{
+        id: "AC-1",
+        text: "The users API keeps its response contract.",
+        requiredProof: ["Call the changed users API."]
+      }],
+      affectedFlows: [{ name: "Users API", kind: "api" }]
+    }));
+
+    const result = await run([
+      "agent", "--task", "Update the users API",
+      "--requirements", "requirements.json", "--format", "json"
+    ], repo);
+    const bundle = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(0);
+    expect(bundle.requirements.acceptanceCriteria[0]).toMatchObject({
+      id: "AC-1",
+      requiredProof: ["Call the changed users API."]
+    });
+  });
+
   it("requires a task for preflight", async () => {
     const repo = createPreflightRepo();
 

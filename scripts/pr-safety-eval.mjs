@@ -31,6 +31,7 @@ const evalReport = {
   repoRoot,
   cliCommand,
   scenarios: [],
+  edgeCaseMetrics: undefined,
   issues: []
 };
 
@@ -52,6 +53,7 @@ function main() {
       evalReport.scenarios.push(runScenario(scenario));
     }
 
+    evalReport.edgeCaseMetrics = aggregateEdgeCaseMetrics(evalReport.scenarios);
     evalReport.status = evalReport.issues.length === 0 ? "passed" : "failed";
   } catch (error) {
     evalReport.status = "failed";
@@ -155,12 +157,13 @@ function runScenario(scenario) {
 
   const analysis = readJsonFile(join(scenarioReportsDir, "analyze.json"));
   const redteam = readJsonFile(join(scenarioReportsDir, "redteam.json"));
+  const edgeCaseMetrics = evaluateEdgeCaseRelevance(scenario, redteam);
   const assertions = evaluateScenario(scenario, analysis, redteam, {
     baselineTest,
     baselineProbe,
     riskyTest,
     riskyProbe
-  });
+  }, edgeCaseMetrics);
   const result = {
     id: scenario.id,
     title: scenario.title,
@@ -190,6 +193,8 @@ function runScenario(scenario) {
       weakTestFindings: redteam.summary.weakTestFindings,
       missingTestFindings: redteam.summary.missingTestFindings,
       edgeCases: redteam.edgeCases,
+      edgeCaseOverflow: redteam.edgeCaseOverflow ?? [],
+      edgeCaseMetrics,
       fixTasks: redteam.fixTasks
     },
     assertions
@@ -210,7 +215,7 @@ function runScenario(scenario) {
   return result;
 }
 
-function evaluateScenario(scenario, analysis, redteam, commands) {
+function evaluateScenario(scenario, analysis, redteam, commands, edgeCaseMetrics) {
   return [
     assertCondition({
       name: "baseline tests pass",
@@ -263,14 +268,29 @@ function evaluateScenario(scenario, analysis, redteam, commands) {
       detail: `Expected at least ${scenario.expected.missingTestFindingsAtLeast}, got ${redteam.summary.missingTestFindings}.`
     }),
     assertCondition({
-      name: "Redteam report suggests edge cases",
-      passed: Array.isArray(redteam.edgeCases) && redteam.edgeCases.length > 0,
-      detail: "Expected deterministic edge cases for impacted areas."
+      name: "Redteam report returns structured behavior scenarios",
+      passed:
+        Array.isArray(redteam.edgeCases) &&
+        redteam.edgeCases.length > 0 &&
+        redteam.edgeCases.every(isStructuredEdgeCase) &&
+        redteam.edgeCases.every(hasActionableProof),
+      detail:
+        "Expected ranked scenarios with trigger, invariant, failure, scope, provenance, score, and an executable proof target."
+    }),
+    assertIncludesAll({
+      name: "Redteam report includes required behavior scenarios",
+      actual: edgeCaseMetrics.actualIds,
+      expected: scenario.expected.requiredEdgeCaseIds
     }),
     assertCondition({
-      name: "Redteam edge cases are actionable",
-      passed: redteam.edgeCases.every((edgeCase) => !isBarePathOnly(edgeCase) && hasActionVerb(edgeCase)),
-      detail: "Expected edge cases to describe behavior to run, verify, exercise, check, add, or strengthen."
+      name: "Redteam edge-case relevance meets the fixture threshold",
+      passed: edgeCaseMetrics.noiseRate <= scenario.expected.maxEdgeCaseNoiseRate,
+      detail: `Expected noise <= ${scenario.expected.maxEdgeCaseNoiseRate}, got ${edgeCaseMetrics.noiseRate}. Unexpected: ${edgeCaseMetrics.noiseIds.join(", ") || "none"}.`
+    }),
+    assertCondition({
+      name: "Generic proof chores are not rendered as edge cases",
+      passed: redteam.edgeCases.every((edgeCase) => !isGenericProofChore(edgeCase.title)),
+      detail: "Run/add/strengthen test recommendations belong in proof tasks or checks, not behavior scenarios."
     }),
     assertCondition({
       name: "Redteam report creates fix tasks",
@@ -281,18 +301,78 @@ function evaluateScenario(scenario, analysis, redteam, commands) {
       name: "Redteam fix tasks are actionable",
       passed: redteam.fixTasks
         .filter((task) => task.source === "edge-case")
-        .every((task) => task.title !== "Add or run an edge-case check" && hasActionVerb(task.detail)),
+        .every((task) => task.title !== "Add or run an edge-case check" && task.detail.includes("Expected:")),
       detail: "Expected edge-case fix tasks to have specific titles and action-oriented details."
     })
   ];
 }
 
-function isBarePathOnly(value) {
-  return /^[a-z0-9._/-]+\.[a-z0-9]+$/i.test(value.trim()) && !/\s/.test(value.trim()) && /[/\\]/.test(value);
+function evaluateEdgeCaseRelevance(scenario, redteam) {
+  const edgeCases = [
+    ...(Array.isArray(redteam.edgeCases) ? redteam.edgeCases : []),
+    ...(Array.isArray(redteam.edgeCaseOverflow) ? redteam.edgeCaseOverflow : [])
+  ];
+  const actualIds = uniqueSorted(edgeCases.map((edgeCase) => edgeCase.id).filter(Boolean));
+  const allowed = new Set(scenario.expected.allowedEdgeCaseIds);
+  const required = new Set(scenario.expected.requiredEdgeCaseIds);
+  const relevantIds = actualIds.filter((id) => allowed.has(id));
+  const noiseIds = actualIds.filter((id) => !allowed.has(id));
+  const matchedRequired = actualIds.filter((id) => required.has(id));
+  return {
+    total: actualIds.length,
+    relevant: relevantIds.length,
+    noise: noiseIds.length,
+    relevanceRate: actualIds.length === 0 ? 0 : relevantIds.length / actualIds.length,
+    noiseRate: actualIds.length === 0 ? 0 : noiseIds.length / actualIds.length,
+    requiredRecall: required.size === 0 ? 1 : matchedRequired.length / required.size,
+    actualIds,
+    relevantIds,
+    noiseIds
+  };
 }
 
-function hasActionVerb(value) {
-  return /\b(add|check|exercise|run|verify|strengthen|replace|confirm)\b/i.test(value);
+function aggregateEdgeCaseMetrics(results) {
+  const totals = results.reduce(
+    (metrics, result) => ({
+      total: metrics.total + result.codeDecay.edgeCaseMetrics.total,
+      relevant: metrics.relevant + result.codeDecay.edgeCaseMetrics.relevant,
+      noise: metrics.noise + result.codeDecay.edgeCaseMetrics.noise
+    }),
+    { total: 0, relevant: 0, noise: 0 }
+  );
+  return {
+    ...totals,
+    relevanceRate: totals.total === 0 ? 0 : totals.relevant / totals.total,
+    noiseRate: totals.total === 0 ? 0 : totals.noise / totals.total
+  };
+}
+
+function isStructuredEdgeCase(edgeCase) {
+  return Boolean(
+    edgeCase &&
+    typeof edgeCase.id === "string" &&
+    typeof edgeCase.title === "string" &&
+    typeof edgeCase.trigger === "string" &&
+    typeof edgeCase.expectedBehavior === "string" &&
+    typeof edgeCase.userVisibleFailure === "string" &&
+    typeof edgeCase.score === "number" &&
+    edgeCase.scope &&
+    Array.isArray(edgeCase.scope.files) &&
+    Array.isArray(edgeCase.sources) &&
+    edgeCase.proof &&
+    typeof edgeCase.proof.recommendation === "string"
+  );
+}
+
+function hasActionableProof(edgeCase) {
+  if (edgeCase.scope.routes.length > 0) {
+    return true;
+  }
+  return !/\bHTTP requests? to [^\n]*#/i.test(edgeCase.proof.recommendation);
+}
+
+function isGenericProofChore(value) {
+  return /\b(?:add|run|re-run|rerun|strengthen|update|replace)\b.*\b(?:test|check|coverage|suite|command)\b/i.test(value);
 }
 
 function assertIncludesAll({ name, actual, expected }) {
@@ -343,6 +423,11 @@ function printResult(report) {
   console.log(`CodeDecay PR safety eval: ${report.status}`);
   console.log(`Run directory: ${runDir}`);
   console.log(`Scenarios: ${passedScenarios}/${report.scenarios.length} passed`);
+  if (report.edgeCaseMetrics) {
+    console.log(
+      `Edge-case relevance: ${(report.edgeCaseMetrics.relevanceRate * 100).toFixed(1)}%; noise: ${(report.edgeCaseMetrics.noiseRate * 100).toFixed(1)}%`
+    );
+  }
 
   if (report.issues.length > 0) {
     console.log("Issues:");

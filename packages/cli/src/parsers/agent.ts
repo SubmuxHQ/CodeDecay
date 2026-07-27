@@ -6,6 +6,7 @@ const AGENT_TASK_SOURCES = [
   "finding",
   "weak-test",
   "edge-case",
+  "test-proof",
   "configured-check",
   "tool-adapter",
   "memory",
@@ -15,11 +16,17 @@ const AGENT_TASK_SOURCES = [
 
 type AgentTaskSourceValue = (typeof AGENT_TASK_SOURCES)[number];
 
-export function parseAgentArgs(args: string[]): AgentOptions {
+export interface AgentParserDefaults {
+  commandName?: "agent" | "ai";
+  profile?: AgentOptions["profile"];
+}
+
+export function parseAgentArgs(args: string[], defaults: AgentParserDefaults = {}): AgentOptions {
+  const commandName = defaults.commandName ?? "agent";
   const options: AgentOptions = {
     mode: "task-bundle",
     format: "markdown",
-    profile: "generic"
+    profile: defaults.profile ?? "generic"
   };
 
   let startIndex = 0;
@@ -37,6 +44,11 @@ export function parseAgentArgs(args: string[]): AgentOptions {
 
     if (arg === "--help" || arg === "-h") {
       throw new HelpRequested();
+    }
+
+    if (arg === "--investigate") {
+      options.investigate = true;
+      continue;
     }
 
     if (arg.startsWith("--cwd=")) {
@@ -149,11 +161,22 @@ export function parseAgentArgs(args: string[]): AgentOptions {
       continue;
     }
 
-    throwUnknownOption(arg, "agent");
+    if (arg.startsWith("--requirements=")) {
+      options.requirements = arg.slice("--requirements=".length);
+      continue;
+    }
+
+    if (arg === "--requirements") {
+      options.requirements = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    throwUnknownOption(arg, commandName);
   }
 
   if (options.mode === "preflight" && !options.task?.trim()) {
-    throw new Error("agent preflight requires --task <description>.");
+    throw new Error(`${commandName} preflight requires --task <description>.`);
   }
 
   return options;

@@ -2,6 +2,7 @@ import { existsSync, readFileSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
+  cliPath,
   createHighRiskRepo,
   createLowRiskRepo,
   createMediumRiskRepo,
@@ -18,9 +19,96 @@ import {
   writeFile
 } from "./helpers/built-cli";
 
-beforeAll(ensureBuiltCli);
+beforeAll(ensureBuiltCli, 120_000);
 
 describe("built codedecay CLI redteam and agent workflows", () => {
+  it("renders requirement trace JSON and Markdown from the built CLI", () => {
+    const repo = createRepo({
+      "src/api/users.ts": "export const users = () => [];\n",
+      "requirements.json": JSON.stringify({
+        acceptanceCriteria: [
+          { id: "AC-USERS", text: "Users API returns active users.", requiredProof: ["API integration proof."] },
+          { id: "AC-BILLING", text: "Billing refunds remain available." }
+        ],
+        affectedFlows: [{ name: "Users API", kind: "api" }]
+      })
+    });
+    writeFile(repo, "src/api/users.ts", "export const users = () => [{ id: 1, active: true }];\n");
+
+    const args = [
+      "--cwd", repo,
+      "--task", "Update users API",
+      "--requirements", "requirements.json"
+    ];
+    const json = runBuilt(["analyze", ...args, "--format", "json"]);
+    const markdown = runBuilt(["redteam", ...args, "--format", "markdown"]);
+    const trace = JSON.parse(json.stdout).requirementTrace;
+
+    expect(json.status).toBe(0);
+    expect(trace.criteria).toEqual(expect.arrayContaining([
+      expect.objectContaining({ requirementId: "AC-USERS", status: "proof-missing" }),
+      expect.objectContaining({ requirementId: "AC-BILLING", status: "unmapped" })
+    ]));
+    expect(markdown.status).toBe(0);
+    expect(markdown.stdout).toContain("### Acceptance Criteria Trace");
+    expect(markdown.stdout).toContain("| AC-USERS | Proof missing |");
+    expect(markdown.stdout).toContain("| AC-BILLING | Unmapped |");
+  });
+
+  it("supports explicit investigation with deterministic fallback in the built CLI", () => {
+    const repo = createMediumRiskRepo();
+
+    const result = runBuilt(["agent", "--cwd", repo, "--investigate", "--format", "json"]);
+    const bundle = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(bundle.investigation).toMatchObject({
+      status: "disabled",
+      suggestions: [],
+      llmCalled: false,
+      untrusted: true
+    });
+    expect(bundle.summary.changedFiles).toBeGreaterThan(0);
+    expect(bundle.safety.llmCalled).toBe(false);
+  });
+
+  it("loads structured requirements in built agent preflight", () => {
+    const repo = createRepo({
+      "src/billing/export.ts": "export function exportBilling() { return []; }\n",
+      "packages/tool-adapters/src/openapi.ts": "export const openapi = true;\n",
+      ".codedecay/requirements.json": JSON.stringify({
+        confidence: "high",
+        acceptanceCriteria: [{
+          id: "AC-1",
+          text: "Authorized users can export billing rows.",
+          requiredProof: ["Call the real billing export route."]
+        }],
+        affectedFlows: [{ name: "Billing export", kind: "api" }]
+      })
+    });
+
+    const result = runBuilt([
+      "agent",
+      "preflight",
+      "--cwd",
+      repo,
+      "--task",
+      "Add a billing export API",
+      "--requirements",
+      ".codedecay/requirements.json",
+      "--format",
+      "json"
+    ]);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(report.requirements.acceptanceCriteria[0]).toMatchObject({ id: "AC-1" });
+    expect(report.deterministicEvidence.candidateFiles.map((file: { path: string }) => file.path)).toEqual([
+      "src/billing/export.ts"
+    ]);
+    expect(report.summary).toMatchObject({ confidence: "high", insufficientContext: false });
+  });
+
   it("runs redteam reports from the built CLI without executing configured commands", () => {
     const repo = createMediumRiskRepo();
     writeFile(
@@ -134,6 +222,82 @@ describe("built codedecay CLI redteam and agent workflows", () => {
     expect(existsSync(join(repo, "codedecay-ran.txt"))).toBe(false);
   });
 
+  it("keeps editable memory visible without changing built CLI risk or executing memory commands", () => {
+    const baselineFiles = {
+      "src/auth/session.ts": "export function session(token?: string) { return Boolean(token); }\n"
+    };
+    const withoutMemoryRepo = createRepo(baselineFiles);
+    const withMemoryRepo = createRepo({
+      ...baselineFiles,
+      ".codedecay/memory.json": JSON.stringify(
+        {
+          version: 1,
+          flows: [],
+          commands: [
+            {
+              name: "Untrusted command",
+              command: "node -e \"require('fs').writeFileSync('memory-command-ran.txt','yes')\"",
+              areas: ["auth"]
+            }
+          ],
+          invariants: [
+            {
+              name: "Editable invariant",
+              description: "This editable context must not become scoring proof.",
+              severity: "high",
+              areas: ["auth"]
+            }
+          ],
+          architecture: [],
+          regressions: [
+            {
+              title: "Editable regression",
+              description: "This editable regression must not become scoring proof.",
+              severity: "high",
+              areas: ["auth"]
+            }
+          ]
+        },
+        null,
+        2
+      )
+    });
+    const changedSource = [
+      "export function session(token?: string) {",
+      "  if (!token) return false;",
+      "  return token.length > 8;",
+      "}",
+      ""
+    ].join("\n");
+    writeFile(withoutMemoryRepo, "src/auth/session.ts", changedSource);
+    writeFile(withMemoryRepo, "src/auth/session.ts", changedSource);
+
+    const withoutMemory = JSON.parse(runBuilt(["analyze", "--cwd", withoutMemoryRepo, "--format", "json"]).stdout);
+    const withMemory = JSON.parse(runBuilt(["analyze", "--cwd", withMemoryRepo, "--format", "json"]).stdout);
+
+    expect(withMemory.summary.mergeRiskScore).toBe(withoutMemory.summary.mergeRiskScore);
+    expect(withMemory.summary.riskLevel).toBe(withoutMemory.summary.riskLevel);
+    expect(withMemory.findings.map((finding: { ruleId: string }) => finding.ruleId)).toEqual(
+      expect.arrayContaining(["memory-invariant-impacted", "memory-past-regression-area"])
+    );
+    expect(withMemory.summary.mergeRiskBreakdown.contributors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "memory-invariant-impacted",
+          evidence: "memory-context",
+          points: 0
+        }),
+        expect.objectContaining({
+          ruleId: "memory-past-regression-area",
+          evidence: "memory-context",
+          points: 0
+        })
+      ])
+    );
+    expect(withMemory.recommendedTests).toContain("Run project command: Untrusted command (node -e \"require('fs').writeFileSync('memory-command-ran.txt','yes')\")");
+    expect(existsSync(join(withMemoryRepo, "memory-command-ran.txt"))).toBe(false);
+  });
+
   it("supports agent handoff profiles from the built CLI", () => {
     const repo = createMediumRiskRepo();
 
@@ -157,10 +321,15 @@ describe("built codedecay CLI redteam and agent workflows", () => {
   it("runs the Node API example redteam, agent, and execute workflow from the built CLI", () => {
     const repo = createNodeApiExampleRepo();
 
-    const redteam = runBuilt(["redteam", "--cwd", repo, "--format", "json"]);
+    const redteam = runBuilt(
+      ["redteam", "--cwd", repo, "--format", "json"],
+      cliPath,
+      10_000
+    );
     const redteamReport = JSON.parse(redteam.stdout);
 
     expect(redteam.status).toBe(0);
+    expect(redteam.timedOut).toBe(false);
     expect(redteamReport.summary.riskLevel).toBe("high");
     expect(redteamReport.toolAdapterPlans).toEqual(
       expect.arrayContaining([
@@ -177,10 +346,15 @@ describe("built codedecay CLI redteam and agent workflows", () => {
       ])
     );
 
-    const agent = runBuilt(["agent", "--cwd", repo, "--format", "json"]);
+    const agent = runBuilt(
+      ["agent", "--cwd", repo, "--format", "json"],
+      cliPath,
+      10_000
+    );
     const agentBundle = JSON.parse(agent.stdout);
 
     expect(agent.status).toBe(0);
+    expect(agent.timedOut).toBe(false);
     expect(agentBundle).toMatchObject({
       tool: "CodeDecay",
       mode: "agent-task-bundle",
@@ -199,10 +373,15 @@ describe("built codedecay CLI redteam and agent workflows", () => {
     );
     expect(agentBundle.tasks.length).toBeGreaterThan(0);
 
-    const execute = runBuilt(["execute", "--cwd", repo, "--format", "json"]);
+    const execute = runBuilt(
+      ["execute", "--cwd", repo, "--format", "json"],
+      cliPath,
+      10_000
+    );
     const executeReport = JSON.parse(execute.stdout);
 
     expect(execute.status).toBe(1);
+    expect(execute.timedOut).toBe(false);
     expect(executeReport.summary).toMatchObject({
       status: "failed",
       total: 3,
@@ -238,7 +417,7 @@ describe("built codedecay CLI redteam and agent workflows", () => {
         })
       ])
     );
-  });
+  }, 30_000);
 
   it("runs the Next.js example analyze and agent workflow from the built CLI", () => {
     const repo = createNextjsExampleRepo();
@@ -306,8 +485,16 @@ describe("built codedecay CLI redteam and agent workflows", () => {
     );
     expect(agentBundle.evidence.edgeCases).toEqual(
       expect.arrayContaining([
-        "Exercise the real API route with malformed, missing, and boundary-value payloads.",
-        "Check loading, empty, error, and permission-denied UI states."
+        expect.objectContaining({
+          id: "api-invalid-input",
+          scope: expect.objectContaining({ routes: ["GET /api/users"] }),
+          proof: expect.objectContaining({ kind: "api-integration" })
+        }),
+        expect.objectContaining({
+          id: "ui-empty-error-permission",
+          scope: expect.objectContaining({ routes: ["/dashboard"] }),
+          proof: expect.objectContaining({ kind: "browser" })
+        })
       ])
     );
   });

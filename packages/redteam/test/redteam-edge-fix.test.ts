@@ -14,14 +14,18 @@ import {
 } from "./helpers/redteam";
 
 describe("redteam edge cases and fix tasks", () => {
-  it("suggests deterministic edge cases from impacted areas and recommended tests", () => {
-    expect(suggestEdgeCases(createFixtureAnalysisReport())).toEqual(
+  it("suggests structured scenarios without promoting recommended test chores", () => {
+    const scenarios = suggestEdgeCases(createFixtureAnalysisReport());
+
+    expect(scenarios).toEqual(
       expect.arrayContaining([
-        "Check missing, expired, malformed, and privilege-escalation credentials.",
-        "Check whether changed tests exercise real production boundaries or only mocked helper logic.",
-        "Run or strengthen src/auth/session.test.ts with negative, malformed, boundary, or integration coverage."
+        expect.objectContaining({
+          id: "auth-fail-closed",
+          trigger: expect.stringMatching(/missing.*expired.*lower-privilege/i)
+        })
       ])
     );
+    expect(scenarios.map((scenario) => scenario.title).join("\n")).not.toContain("src/auth/session.test.ts");
     expect(
       suggestEdgeCases(
         createAnalysisReport({
@@ -34,17 +38,17 @@ describe("redteam edge cases and fix tasks", () => {
           generatedAt: "2026-01-01T00:00:00.000Z"
         })
       )
-    ).toEqual(["Run the relevant unit, integration, and smoke checks for changed packages."]);
+    ).toEqual([]);
   });
 
   it("creates deterministic fix tasks for weak tests and deduped edge cases", () => {
+    const authScenario = suggestEdgeCases(createFixtureAnalysisReport())
+      .find((scenario) => scenario.id === "auth-fail-closed");
+    expect(authScenario).toBeDefined();
     const tasks = createFixTasks({
       analysisReport: createFixtureAnalysisReport(),
       weakTestFindings: [],
-      edgeCases: [
-        "Check missing, expired, malformed, and privilege-escalation credentials.",
-        "Check missing, expired, malformed, and privilege-escalation credentials."
-      ],
+      edgeCases: authScenario ? [authScenario, authScenario] : [],
       configuredChecks: [],
       toolAdapterPlans: [],
       patternInsights: [],
@@ -60,13 +64,15 @@ describe("redteam edge cases and fix tasks", () => {
           priority: "medium"
         }),
         expect.objectContaining({
-          title: "Add auth negative-path proof",
+          title: "Keep GET /api/session closed to unauthorized credentials",
           source: "edge-case",
           priority: "high"
         })
       ])
     );
-    expect(tasks.filter((task) => task.title === "Add auth negative-path proof")).toHaveLength(1);
+    expect(
+      tasks.filter((task) => task.title === "Keep GET /api/session closed to unauthorized credentials")
+    ).toHaveLength(1);
   });
 
   it("labels static security findings as deterministic signals, not tool proof", () => {
@@ -122,6 +128,57 @@ describe("redteam edge cases and fix tasks", () => {
           title: "Investigate SQL injection candidate",
           source: "finding",
           proof: "deterministic-signal"
+        })
+      ])
+    );
+  });
+
+  it("labels memory-derived findings as untrusted memory context", () => {
+    const analysisReport = createAnalysisReport({
+      changedFiles: [
+        {
+          path: "src/service.ts",
+          status: "modified",
+          additions: 1,
+          deletions: 0,
+          addedLines: [{ line: 2, content: "return input;" }]
+        }
+      ],
+      analyzerResult: {
+        impactedAreas: [],
+        findings: [
+          {
+            ruleId: "memory-invariant-impacted",
+            title: "Project invariant may be impacted",
+            description: "Untrusted memory context: an editable invariant matched.",
+            severity: "high",
+            category: "regression",
+            file: "src/service.ts",
+            line: 2
+          }
+        ],
+        recommendedTests: ["Verify invariant: Editable invariant"]
+      },
+      generatedAt: "2026-07-23T00:00:00.000Z"
+    });
+
+    const tasks = createFixTasks({
+      analysisReport,
+      weakTestFindings: [],
+      edgeCases: [],
+      configuredChecks: [],
+      toolAdapterPlans: [],
+      patternInsights: [],
+      memory: createEmptyMemory(),
+      skills: []
+    });
+
+    expect(tasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: "Investigate Project invariant may be impacted",
+          source: "memory",
+          proof: "memory-context"
         })
       ])
     );

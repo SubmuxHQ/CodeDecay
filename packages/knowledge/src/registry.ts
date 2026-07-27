@@ -14,6 +14,7 @@ export function matchKnowledgePacks(input: KnowledgePackMatchInput): KnowledgePa
   return KNOWLEDGE_PACKS.filter((pack) => {
     const areaMatch = pack.match.impactedAreas.some((area) => impactedAreas.has(area));
     const pathMatch = changedPaths.some((path) => pack.match.fileKeywords.some((keyword) => path.includes(keyword)));
-    return areaMatch || pathMatch;
+    const genericSourceMatch = impactedAreas.has("source") && pathMatch;
+    return (areaMatch && pathMatch) || genericSourceMatch;
   }).sort((left, right) => left.area.localeCompare(right.area));
 }

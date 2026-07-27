@@ -64,6 +64,7 @@ export interface BenchmarkReport {
 
 export interface BenchmarkDependencies {
   createRedteamReport(cwd: string): Promise<RedteamReport>;
+  loadCorpus?(corpusOption: string | undefined): BenchmarkCorpus;
   now?(): Date;
 }
 
@@ -79,7 +80,7 @@ export async function runBenchmark(
   dependencies: BenchmarkDependencies
 ): Promise<BenchmarkReport> {
   const startedAt = Date.now();
-  const corpus = loadBenchmarkCorpus(options.corpus);
+  const corpus = dependencies.loadCorpus?.(options.corpus) ?? loadBenchmarkCorpus(options.corpus);
 
   try {
     const scenarioResults: BenchmarkScenarioResult[] = [];

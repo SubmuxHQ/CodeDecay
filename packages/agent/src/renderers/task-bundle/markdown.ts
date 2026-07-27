@@ -8,7 +8,8 @@ import {
   appendPrompt,
   appendSafety,
   appendSkills,
-  appendTasks
+  appendTasks,
+  appendVerification
 } from "./sections";
 
 export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
@@ -38,19 +39,82 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
     `| Fix tasks | ${bundle.summary.fixTasks} / ${bundle.summary.totalFixTasks} |`,
     `| Scope findings | ${bundle.summary.scopeFindings} |`,
     `| Contract findings | ${bundle.summary.contractFindings} |`,
+    `| Verification status | ${bundle.summary.verificationStatus} |`,
     "",
     "### Instructions For The Agent",
     ""
   ];
 
   appendList(lines, bundle.instructions);
+  appendRequirements(lines, bundle);
+  appendRequirementTrace(lines, bundle);
+  appendInvestigation(lines, bundle);
   appendHandoff(lines, bundle.agentProfile);
   appendPrompt(lines, bundle.prompt);
   appendEvidence(lines, bundle.evidence);
+  appendVerification(lines, bundle.verification);
   appendTasks(lines, bundle.tasks);
   appendChecks(lines, bundle.suggestedChecks);
   appendSkills(lines, bundle.skills);
   appendSafety(lines, bundle);
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendRequirementTrace(lines: string[], bundle: AgentTaskBundle): void {
+  if (!bundle.requirementTrace) {
+    return;
+  }
+  lines.push(
+    "",
+    "### Acceptance Criteria Trace",
+    "",
+    "| Requirement | Status | Implementation |",
+    "| --- | --- | --- |"
+  );
+  for (const criterion of bundle.requirementTrace.criteria) {
+    const implementation = [
+      ...criterion.implementation.routes,
+      ...criterion.implementation.files
+    ].slice(0, 3).join(", ") || "none";
+    const label = criterion.status.replaceAll("-", " ");
+    const status = `${label[0]?.toUpperCase() ?? ""}${label.slice(1)}`;
+    lines.push(`| ${criterion.requirementId} | ${status} | ${implementation} |`);
+  }
+}
+
+function appendInvestigation(lines: string[], bundle: AgentTaskBundle): void {
+  if (!bundle.investigation) {
+    return;
+  }
+  lines.push("", "### Untrusted Agent Investigation", "", `Status: ${bundle.investigation.status}`, "");
+  appendList(
+    lines,
+    bundle.investigation.suggestions.map((suggestion) => {
+      const proof = suggestion.proposedProof?.length ? ` Proposed proof: ${suggestion.proposedProof.join(" ")}` : "";
+      return `${suggestion.title}: ${suggestion.detail}.${proof}`;
+    })
+  );
+}
+
+function appendRequirements(lines: string[], bundle: AgentTaskBundle): void {
+  if (!bundle.requirements) {
+    return;
+  }
+
+  lines.push("", "### Requirement Evidence", "", "Acceptance criteria:");
+  appendList(
+    lines,
+    bundle.requirements.acceptanceCriteria.map((criterion) => {
+      const proof = criterion.requiredProof.length > 0
+        ? ` Required proof: ${criterion.requiredProof.join(" ")}`
+        : "";
+      return `${criterion.id}: ${criterion.text} [sources: ${criterion.sourceIds.join(", ")}].${proof}`;
+    })
+  );
+  lines.push("", "Provenance:");
+  appendList(
+    lines,
+    bundle.requirements.sources.map((source) => `\`${source.id}\` (${source.kind}): ${source.label}`)
+  );
 }

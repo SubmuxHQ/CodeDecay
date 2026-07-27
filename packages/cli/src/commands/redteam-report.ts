@@ -4,6 +4,7 @@ import { loadCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import type { AdapterStatus } from "@submuxhq/codedecay-adapters";
 import type { AgentOptions, AnalyzeOptions, CliAnalysisContext, CliRuntime, RedteamOptions } from "../types";
 import { loadConfiguredRedteamMemory } from "../memory/configured-providers";
+import { loadNormalizedRequirementContext } from "../requirements/context";
 import type { DifferentialApiContractResult, DifferentialProbeArtifacts, DifferentialProbeResult, DifferentialReport, DifferentialSideResult, ExecutionReport, ExecutionResult, ExecutionToolAdapterResult } from "../types";
 import { configuredOpenApiContractPaths } from "./differential/api-contracts";
 import { createDifferentialReport } from "./differential/report";
@@ -36,20 +37,31 @@ export async function createRedteamReportForCli(
     memoryProviders: loadedConfig.config.memoryProviders
   });
   const loadedSkills = loadCodeDecaySkills({ cwd: rootDir });
-  const investigation = "investigate" in options && options.investigate
-    ? await createRedteamInvestigation({
-        llmConfig: loadedConfig.config.llm,
-        analysisReport: analysis.report,
-        memory: memoryContext.memory,
-        memorySource: memoryContext.sourcePath,
-        skills: loadedSkills
-      })
-    : undefined;
+  const requirements = loadNormalizedRequirementContext(
+    rootDir,
+    "requirements" in options ? options.requirements : undefined,
+    "task" in options ? options.task : undefined
+  );
   const verification = "withChecks" in options && options.withChecks
     ? verificationFromExecutionReport(
         await createExecutionReport(rootDir, loadedConfig, executionDependencies(dependencies)),
         await maybeCreateDifferentialReport(rootDir, options, loadedConfig)
       )
+    : undefined;
+  const investigation = "investigate" in options && options.investigate
+    ? await createRedteamInvestigation({
+        phase: "post-diff",
+        llmConfig: loadedConfig.config.llm,
+        analysisReport: analysis.report,
+        requirements,
+        verification,
+        limitations: [
+          "Agent suggestions are untrusted and cannot change deterministic risk or prove merge safety."
+        ],
+        memory: memoryContext.memory,
+        memorySource: memoryContext.sourcePath,
+        skills: loadedSkills
+      })
     : undefined;
 
   return createRedteamReport({
@@ -60,6 +72,7 @@ export async function createRedteamReportForCli(
     memorySource: memoryContext.sourcePath,
     memoryProviderSources: memoryContext.providerSources,
     skills: loadedSkills,
+    requirements,
     investigation,
     verification
   });

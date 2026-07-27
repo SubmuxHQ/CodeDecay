@@ -3,10 +3,10 @@ import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import type { LoopReport } from "@submuxhq/codedecay-harness";
 import { run } from "./helpers";
 
 const tempRoots: string[] = [];
-const describeLoopE2e = process.env.CODEDECAY_LOOP_E2E === "1" ? describe : describe.skip;
 
 afterEach(() => {
   for (const root of tempRoots.splice(0)) {
@@ -14,7 +14,34 @@ afterEach(() => {
   }
 });
 
-describeLoopE2e("codedecay loop real edit convergence", () => {
+describe("codedecay loop real edit convergence", () => {
+  // UAT for packages/harness/src/loop/controller.ts through the public CLI boundary.
+  it("revalidates the edit and converges with maxRounds=1", async () => {
+    const repo = createLoopConvergenceRepo();
+
+    const result = await run([
+      "loop",
+      "--format",
+      "json",
+      "--max-rounds",
+      "1",
+      "--agent-cmd",
+      "node scripts/fix-test.mjs"
+    ], repo);
+    const report = JSON.parse(result.stdout) as LoopReport;
+
+    expect(result.exitCode).toBe(0);
+    expect(report.status.startsWith("merge-safe-")).toBe(true);
+    expect(report.rounds).toHaveLength(1);
+    expect(report.rounds[0]?.agent?.madeChanges).toBe(true);
+    expect(report.rounds[0]?.postAgentVerification).toMatchObject({
+      mergeRiskScore: report.finalMergeRiskScore,
+      weakTestFindings: report.finalWeakTestFindings,
+      checkStatus: report.finalCheckStatus
+    });
+    expect(readFileSync(join(repo, ".git/codedecay-agent-runs"), "utf8")).toBe("x");
+  });
+
   it("drives a deterministic agent script from weak test to merge-safe-*", async () => {
     const repo = createLoopConvergenceRepo();
 
@@ -92,7 +119,8 @@ function createLoopConvergenceRepo(): string {
     repo,
     "scripts/fix-test.mjs",
     [
-      "import { writeFileSync } from 'node:fs';",
+      "import { appendFileSync, writeFileSync } from 'node:fs';",
+      "appendFileSync('.git/codedecay-agent-runs', 'x');",
       "writeFileSync('test/checkout.test.js', [",
       "  \"import { test } from 'node:test';\",",
       "  \"import { strictEqual, throws } from 'node:assert/strict';\",",

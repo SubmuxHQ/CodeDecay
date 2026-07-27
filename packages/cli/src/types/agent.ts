@@ -10,6 +10,8 @@ export interface AgentOptions {
   format: AgentTaskBundleFormat;
   profile: AgentProfileId;
   task?: string | undefined;
+  requirements?: string | undefined;
+  investigate?: boolean | undefined;
   output?: string | undefined;
   filterSource?: RedteamTaskSource | undefined;
   filterPriority?: RiskLevel | undefined;

@@ -16,7 +16,7 @@ export function renderRootManual(input: {
     "  codedecay <command> [options]",
     "",
     "DESCRIPTION",
-    "  CodeDecay is a local-first CLI for AI-assisted PR safety, regression-risk analysis, blast-radius mapping, weak-test auditing, and agent handoff workflows.",
+    "  CodeDecay is a local-first orchestration CLI for AI-assisted PR safety, regression-risk analysis, impact mapping, weak-test auditing, and agent handoff workflows.",
     "  It does not require hosted services or hidden model calls to produce the core analysis.",
     "",
     "DISCOVERY",

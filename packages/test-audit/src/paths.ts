@@ -1,7 +1,6 @@
+import { isTestFilePath } from "@submuxhq/codedecay-core";
 import type { FileChange } from "@submuxhq/codedecay-core";
 
-const TEST_DIR_NAMES = new Set(["test", "tests", "spec", "specs", "e2e", "integration", "__tests__", "__specs__"]);
-const TEST_FILE_STEM_PATTERN = /(^|[._-])(test|spec|e2e|integration)$/i;
 const SOURCE_EXTENSIONS = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".py"]);
 
 export function isChangedSourceFile(change: FileChange): boolean {
@@ -9,16 +8,7 @@ export function isChangedSourceFile(change: FileChange): boolean {
 }
 
 export function isTestPath(path: string): boolean {
-  const normalized = path.replaceAll("\\", "/").toLowerCase();
-  const segments = normalized.split("/").filter(Boolean);
-  const directorySegments = segments.slice(0, -1);
-  if (directorySegments.some((segment) => TEST_DIR_NAMES.has(segment))) {
-    return true;
-  }
-
-  const fileName = segments.at(-1) ?? normalized;
-  const stem = stripExtension(fileName);
-  return TEST_FILE_STEM_PATTERN.test(stem) || stem.startsWith("test_");
+  return isTestFilePath(path);
 }
 
 function isSourcePath(path: string): boolean {
@@ -32,8 +22,4 @@ function isDocsPath(path: string): boolean {
 function extensionOf(path: string): string {
   const match = /\.[^.\/]+$/.exec(path);
   return match?.[0].toLowerCase() ?? "";
-}
-
-function stripExtension(path: string): string {
-  return path.replace(/\.[^.]+$/, "");
 }

@@ -1,5 +1,12 @@
 import type { CodeDecayConfig } from "@submuxhq/codedecay-config";
-import type { CodeDecayReport, Finding, ImpactedArea, RiskLevel } from "@submuxhq/codedecay-core";
+import type {
+  CodeDecayReport,
+  Finding,
+  ImpactedArea,
+  RequirementContext,
+  RequirementTraceGraph,
+  RiskLevel
+} from "@submuxhq/codedecay-core";
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
 import type { LoadedCodeDecaySkills } from "@submuxhq/codedecay-skills";
 import type { TestProofAudit } from "@submuxhq/codedecay-test-audit";
@@ -28,6 +35,29 @@ export type RedteamTaskSource =
   | "memory"
   | "pattern"
   | "product-failure";
+export type RedteamEdgeCaseConfidence = "low" | "medium" | "high";
+export type RedteamEdgeCaseDerivation = "deterministic" | "agent-suggestion" | "mixed";
+export type RedteamEdgeCaseProofKind =
+  | "unit"
+  | "integration"
+  | "api-integration"
+  | "browser"
+  | "database-integration"
+  | "differential"
+  | "contract";
+export type RedteamEdgeCaseSourceKind =
+  | "area-rule"
+  | "route-impact"
+  | "symbol-impact"
+  | "requirement"
+  | "memory"
+  | "pattern-pack"
+  | "agent-investigation";
+export type RedteamEdgeCaseSourceTrust =
+  | "deterministic"
+  | "curated-guidance"
+  | "untrusted-context"
+  | "untrusted-suggestion";
 
 export interface RedteamReportInput {
   analysisReport: CodeDecayReport;
@@ -40,6 +70,8 @@ export interface RedteamReportInput {
   investigation?: RedteamInvestigation | undefined;
   verification?: RedteamVerificationSummary | undefined;
   generatedAt?: string | undefined;
+  requirements?: RequirementContext | undefined;
+  requirementTrace?: RequirementTraceGraph | undefined;
 }
 
 export interface RedteamReport {
@@ -51,9 +83,12 @@ export interface RedteamReport {
   head?: string | undefined;
   summary: RedteamSummary;
   analysis: CodeDecayReport;
+  requirements?: RequirementContext | undefined;
+  requirementTrace?: RequirementTraceGraph | undefined;
   testAudit: TestProofAudit;
   weakTestFindings: Finding[];
-  edgeCases: string[];
+  edgeCases: RedteamEdgeCase[];
+  edgeCaseOverflow: RedteamEdgeCase[];
   configuredChecks: RedteamConfiguredCheck[];
   toolAdapterPlans: RedteamToolAdapterPlan[];
   patternInsights: RedteamPatternInsight[];
@@ -80,6 +115,8 @@ export interface RedteamSummary {
   testProofEntries: number;
   testProofStatus: TestProofAudit["status"];
   edgeCases: number;
+  edgeCasesShown: number;
+  edgeCaseOverflow: number;
   configuredChecks: number;
   toolAdapters: number;
   patternInsights: number;
@@ -198,11 +235,58 @@ export interface RedteamPatternInsight {
   proof: "suggestion";
 }
 
+export interface RedteamEdgeCaseSource {
+  kind: RedteamEdgeCaseSourceKind;
+  id: string;
+  label: string;
+  trust: RedteamEdgeCaseSourceTrust;
+}
+
+export interface RedteamEdgeCaseScope {
+  areas: ImpactedArea["kind"][];
+  files: string[];
+  symbols: string[];
+  routes: string[];
+  flows: string[];
+  requirementIds: string[];
+}
+
+export interface RedteamEdgeCaseProof {
+  kind: RedteamEdgeCaseProofKind;
+  recommendation: string;
+  command?: string | undefined;
+}
+
+export interface RedteamEdgeCase {
+  id: string;
+  title: string;
+  trigger: string;
+  expectedBehavior: string;
+  userVisibleFailure: string;
+  downstreamConsumers: string[];
+  scope: RedteamEdgeCaseScope;
+  confidence: RedteamEdgeCaseConfidence;
+  derivation: RedteamEdgeCaseDerivation;
+  sources: RedteamEdgeCaseSource[];
+  proof: RedteamEdgeCaseProof;
+  score: number;
+}
+
+export interface RedteamEdgeCasePlan {
+  ranked: RedteamEdgeCase[];
+  overflow: RedteamEdgeCase[];
+  all: RedteamEdgeCase[];
+}
+
 export interface RedteamInvestigationSuggestion {
   title: string;
   detail: string;
   severity?: RiskLevel | undefined;
   evidence?: string[] | undefined;
+  affectedFlows?: string[] | undefined;
+  edgeCases?: string[] | undefined;
+  proposedProof?: string[] | undefined;
+  unresolvedQuestions?: string[] | undefined;
 }
 
 export interface RedteamInvestigationProvider {

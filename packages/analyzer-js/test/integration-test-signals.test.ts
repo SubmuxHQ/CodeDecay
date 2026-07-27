@@ -115,6 +115,36 @@ describe("analyzeJsProject test signal integration", () => {
     expect(result.recommendedTests).toContain("Add real assertions to src/auth/session.test.ts");
   });
 
+  it("flags top-level smoke execution without assertions", () => {
+    const rootDir = createTempProject({
+      "src/auth/session.ts": "export function getSession(id: string) { return { id }; }\n",
+      "test/unit.ts": [
+        "import { getSession } from '../src/auth/session';",
+        "const session = getSession('user-1');",
+        "console.log(session);",
+        ""
+      ].join("\n")
+    });
+
+    const result = analyzeJsProject({
+      rootDir,
+      changedFiles: [
+        change("src/auth/session.ts", "export function getSession(id: string) { return { id }; }"),
+        change("test/unit.ts", "const session = getSession('user-1');")
+      ]
+    });
+
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "test-without-assertions",
+          file: "test/unit.ts",
+          line: 2
+        })
+      ])
+    );
+  });
+
   it("flags snapshot-only changed tests", () => {
     const rootDir = createTempProject({
       "app/dashboard/page.tsx": "export default function Page() { return <main />; }\n",

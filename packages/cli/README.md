@@ -1,10 +1,10 @@
 # CodeDecay CLI
 
-Find what your coding agent missed before merge.
+Catch AI code decay before it reaches main.
 
-CodeDecay is an open-source AI orchestration layer that red-teams PRs before
-merge. It uses your own coding agents and open-source tools to find missed
-bugs, weak tests, edge cases, and user-facing regressions.
+CodeDecay is an open-source, deterministic, local-first CLI and GitHub Action
+for PR regression-risk analysis, maintainability decay detection, weak-test
+auditing, and agent handoff workflows.
 
 It does not require telemetry, cloud services, API keys, LLMs, or model calls.
 Optional LLM, agent, memory, and tool integrations are user-owned and explicit.
@@ -25,8 +25,8 @@ npx codedecay man analyze
 ## Quickstart
 
 ```bash
+npx codedecay ai preflight --task "Add an authorized billing export API"
 npx codedecay ai --format markdown
-npx codedecay ai --profile claude-code --base main --head HEAD --format markdown
 npx codedecay ai --with-checks --base main --head HEAD --format markdown
 npx codedecay analyze --format markdown
 npx codedecay analyze --base main --head HEAD --format json
@@ -34,6 +34,7 @@ npx codedecay analyze --format sarif --output codedecay.sarif
 npx codedecay snapshot --format json --output .codedecay/snapshot.json
 npx codedecay llm-review --ping
 npx codedecay redteam --base main --head HEAD --format markdown
+npx codedecay agent --profile codex --base main --head HEAD --format markdown
 npx codedecay memory-import --input incidents.json
 npx codedecay memory-learn --input ci-failure.json
 ```
@@ -42,7 +43,7 @@ npx codedecay memory-learn --input ci-failure.json
 
 | Command | Purpose |
 | --- | --- |
-| `codedecay ai` | Recommended AI-first PR safety workflow for Codex, Claude Code, Cursor, Pi, OpenCode, desktop agents, or MCP clients. |
+| `codedecay ai` | Recommended AI-first workflow with Codex-ready preflight and post-diff task bundles plus explicit investigation and verification options. |
 | `codedecay analyze` | Deterministic PR risk, impact, and decay report. |
 | `codedecay snapshot` | Stable repository health snapshot and comparison artifact. |
 | `codedecay redteam` | Merge-safety report with impact, weak-test evidence, edge cases, skills, memory, and fix tasks. |
@@ -94,7 +95,7 @@ the analysis working directory.
 
 | Workflow | Default | Behavior |
 | --- | --- | --- |
-| `ai`, `analyze`, `redteam`, `agent`, `snapshot` | Yes | Deterministic local analysis with no model calls. |
+| `ai`, `analyze`, `redteam`, `agent`, `snapshot` | Yes | Deterministic local analysis with no model calls unless investigation is explicit. |
 | `execute`, `differential` | No | Runs only repo-allowlisted local commands after explicit opt-in. |
 | `llm-review` | No | Calls a user-owned provider only when invoked directly. |
 | Optional LLM providers | No | Disabled by default and only used by commands that explicitly opt in. |

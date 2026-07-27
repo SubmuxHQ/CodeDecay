@@ -1,5 +1,13 @@
-import type { DesignContract, ImpactedArea, RiskLevel } from "@submuxhq/codedecay-core";
+import type {
+  DesignContract,
+  ImpactedArea,
+  RequirementContext,
+  RequirementContextInput,
+  RequirementSource,
+  RiskLevel
+} from "@submuxhq/codedecay-core";
 import type { AgentSuggestedCheck, AgentTaskBundleFormat } from "../types";
+import type { RedteamInvestigation } from "@submuxhq/codedecay-redteam";
 
 export type AgentPreflightFormat = AgentTaskBundleFormat;
 export type AgentPreflightAreaKind = ImpactedArea["kind"];
@@ -12,8 +20,10 @@ export interface AgentPreflightReport {
   mode: "agent-preflight";
   generatedAt: string;
   task: string;
+  requirements: RequirementContext;
   summary: AgentPreflightSummary;
   deterministicEvidence: AgentPreflightEvidence;
+  investigation?: RedteamInvestigation | undefined;
   suggestions: AgentPreflightSuggestions;
   safety: AgentPreflightSafety;
   limits: string[];
@@ -27,6 +37,9 @@ export interface AgentPreflightSummary {
   memoryMatches: number;
   designConstraints: number;
   configuredChecks: number;
+  acceptanceCriteria: number;
+  unresolvedQuestions: number;
+  insufficientContext: boolean;
 }
 
 export interface AgentPreflightEvidence {
@@ -127,7 +140,7 @@ export interface AgentPreflightSuggestions {
 }
 
 export interface AgentPreflightSafety {
-  llmCalled: false;
+  llmCalled: boolean;
   commandsExecuted: false;
   telemetrySent: false;
   cloudDependency: false;
@@ -136,6 +149,8 @@ export interface AgentPreflightSafety {
 
 export interface CreateAgentPreflightReportOptions {
   task: string;
+  requirements?: RequirementContext | RequirementContextInput | undefined;
+  requirementSource?: RequirementSource | undefined;
   rootDir: string;
   repoFiles: string[];
   config?: AgentPreflightConfigInput | undefined;

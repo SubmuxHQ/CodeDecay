@@ -1,16 +1,8 @@
 import { resolve } from "node:path";
-import { listRepoFiles } from "@submuxhq/codedecay-analyzer-js";
-import {
-  createAgentPreflightReport,
-  createAgentTaskBundle,
-  renderAgentPreflightReport,
-  renderAgentTaskBundle
-} from "@submuxhq/codedecay-agent";
-import { loadCodeDecayConfig } from "@submuxhq/codedecay-config";
-import { loadCodeDecayMemory } from "@submuxhq/codedecay-memory";
 import { parseAgentArgs } from "../parsers/args";
 import type { CliCommandContext, CliRuntime } from "../types";
-import { createRedteamReportForCli, type RedteamReportDependencies } from "./redteam-report";
+import { createAgentWorkflow } from "./agent-workflow";
+import type { RedteamReportDependencies } from "./redteam-report";
 
 export interface RunAgentCommandDependencies extends RedteamReportDependencies {
   writeOutput(input: {
@@ -27,44 +19,12 @@ export async function runAgentCommand(
 ): Promise<void> {
   const options = parseAgentArgs(context.args);
   const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
-
-  if (options.mode === "preflight") {
-    const rootDir = dependencies.resolveRepoRoot(cwd, options);
-    const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
-    const loadedMemory = loadCodeDecayMemory(rootDir);
-    const report = createAgentPreflightReport({
-      task: options.task ?? "",
-      rootDir,
-      repoFiles: listRepoFiles(rootDir),
-      config: loadedConfig.config,
-      configSource: loadedConfig.sourcePath,
-      memory: loadedMemory.memory,
-      memorySource: loadedMemory.sourcePath
-    });
-
-    dependencies.writeOutput({
-      cwd,
-      output: options.output,
-      rendered: renderAgentPreflightReport(report, options.format),
-      runtime: context.runtime
-    });
-    return;
-  }
-
-  const report = await createRedteamReportForCli(cwd, options, dependencies);
-  const bundle = createAgentTaskBundle(report, {
-    profile: options.profile,
-    taskFilters: {
-      source: options.filterSource,
-      priority: options.filterPriority,
-      file: options.filterFile
-    }
-  });
+  const workflow = await createAgentWorkflow(cwd, options, dependencies);
 
   dependencies.writeOutput({
     cwd,
     output: options.output,
-    rendered: renderAgentTaskBundle(bundle, options.format),
+    rendered: workflow.rendered,
     runtime: context.runtime
   });
 }

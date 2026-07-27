@@ -49,6 +49,7 @@ export default defineConfig({
       { text: "GitHub Action", link: "/github-action" },
       { text: "Redteam", link: "/redteam" },
       { text: "MCP", link: "/mcp" },
+      { text: "Hackathon", link: "/hackathon/" },
       { text: "AI Bundle", link: `${base}llms.txt` }
     ],
     sidebar: [
@@ -63,6 +64,7 @@ export default defineConfig({
           { text: "Sample Reports", link: "/sample-reports/" },
           { text: "Scoring Model", link: "/scoring" },
           { text: "Benchmark Corpus", link: "/benchmark-corpus" },
+          { text: "Hackathon Submission", link: "/hackathon/" },
           { text: "Release Policy", link: "/release-policy" },
           { text: "Research Basis", link: "/research" }
         ]
@@ -73,6 +75,7 @@ export default defineConfig({
           { text: "Configuration", link: "/configuration" },
           { text: "Redteam Reports", link: "/redteam" },
           { text: "Agent Task Bundles", link: "/agent" },
+          { text: "Requirement Traceability", link: "/requirement-trace" },
           { text: "Closed-Loop Orchestration", link: "/loop" },
           { text: "MCP Server", link: "/mcp" },
           { text: "GitHub App", link: "/github-app" },

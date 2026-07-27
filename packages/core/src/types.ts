@@ -61,6 +61,19 @@ export type {
 } from "./types/language";
 export type { CodeDecayReport, ReportSummary } from "./types/report";
 export type {
+  RequirementCriterionTrace,
+  RequirementTraceAgentSuggestionInput,
+  RequirementTraceEvidence,
+  RequirementTraceEvidenceKind,
+  RequirementTraceEvidenceOutcome,
+  RequirementTraceExternalEvidence,
+  RequirementTraceExternalStatus,
+  RequirementTraceGraph,
+  RequirementTraceImplementation,
+  RequirementTraceStatus,
+  RequirementTraceSummary
+} from "./types/requirement-trace";
+export type {
   SecurityAnalysisSummary,
   SecurityCandidate,
   SecurityCandidateConfidence,

@@ -13,3 +13,4 @@ export { appendProductFailureBundles } from "./product-failures";
 export { appendScoreBreakdown } from "./score-breakdown";
 export { appendSecurityAnalysis, appendSecurityCandidates } from "./security";
 export { appendTestEvidence, appendTestProofMap } from "./test-evidence";
+export { appendRequirementTrace } from "./requirement-trace";

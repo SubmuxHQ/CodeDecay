@@ -98,6 +98,7 @@ describe("createTestProofAudit", () => {
           sourceChange("packages/test-audit/src/index.ts"),
           sourceChange("packages/core/src/types/test-proof.ts"),
           sourceChange("packages/report/src/markdown/test-evidence.ts"),
+          sourceChange("packages/analyzer-js/src/tests/weak-audit/findings.ts"),
           testChange("packages/test-audit/test/index.test.ts"),
           testChange("packages/test-audit/__tests__/fixture.ts"),
           testChange("test_users.py")
@@ -113,6 +114,7 @@ describe("createTestProofAudit", () => {
     expect(audit.changedSourceFiles).toContain("packages/test-audit/src/index.ts");
     expect(audit.changedSourceFiles).toContain("packages/core/src/types/test-proof.ts");
     expect(audit.changedSourceFiles).toContain("packages/report/src/markdown/test-evidence.ts");
+    expect(audit.changedSourceFiles).toContain("packages/analyzer-js/src/tests/weak-audit/findings.ts");
     expect(audit.changedTestFiles).toEqual([
       "packages/test-audit/__tests__/fixture.ts",
       "packages/test-audit/test/index.test.ts",

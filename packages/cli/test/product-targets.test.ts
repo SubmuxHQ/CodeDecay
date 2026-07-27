@@ -116,9 +116,22 @@ describe("codedecay product target CLI contract", () => {
     expect(existsSync(join(repo, "should-not-exist.txt"))).toBe(false);
   });
 
-  it("starts, health-checks, stops, and tears down an allowed local product target", async () => {
+  it("starts, health-checks, stops the startup process tree, and tears down an allowed local product target", async () => {
     const repo = createLowRiskRepo();
     const port = await getFreePort();
+    writeFile(
+      repo,
+      "package.json",
+      JSON.stringify(
+        {
+          name: "codedecay-product-target-fixture",
+          private: true,
+          scripts: { start: `node product-server.mjs ${port}` }
+        },
+        null,
+        2
+      )
+    );
     writeFile(
       repo,
       "product-server.mjs",
@@ -150,7 +163,7 @@ describe("codedecay product target CLI contract", () => {
         "productTesting:",
         "  targets:",
         "    web:",
-        `      startCommand: ${JSON.stringify(`${process.execPath} product-server.mjs ${port}`)}`,
+        "      startCommand: npm start",
         `      healthCheck: http://127.0.0.1:${port}/health`,
         `      teardownCommand: ${JSON.stringify(`${process.execPath} teardown.mjs`)}`,
         "      timeoutMs: 3000",
@@ -186,6 +199,7 @@ describe("codedecay product target CLI contract", () => {
     expect(report.safety.commandsExecuted).toBe(true);
     expect(readFileSync(join(repo, "started.txt"), "utf8")).toBe("yes");
     expect(readFileSync(join(repo, "teardown.txt"), "utf8")).toBe("yes");
+    await expect(fetch(`http://127.0.0.1:${port}/health`)).rejects.toThrow();
   });
 
   it("fails clearly when a requested product target is unknown", async () => {

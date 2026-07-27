@@ -26,11 +26,11 @@
 
 ![CodeDecay hero](docs/public/hero.png)
 
-Find what your coding agent missed before merge.
+Catch what your AI coding agent missed — free, in CI, before merge.
 
-CodeDecay is an open-source AI orchestration layer that red-teams PRs before
-merge. It uses your own coding agents and open-source tools to find missed
-bugs, weak tests, edge cases, and user-facing regressions.
+CodeDecay is an open-source, deterministic, local-first CLI and GitHub Action
+for AI-assisted PR safety. It catches weak or fake-looking tests, regression
+risk, maintainability decay, and changed product areas before they reach main.
 
 It is not a generic AI code reviewer and it is not an AI-authorship detector.
 CodeDecay asks a narrower, more useful question:
@@ -39,21 +39,13 @@ CodeDecay asks a narrower, more useful question:
 What could this PR break, and are the tests actually proving it won't?
 ```
 
-## At A Glance
-
-- Trace changed code into impacted routes, APIs, schemas, auth boundaries, and downstream product flows.
-- Flag weak tests that look reassuring without proving the production path.
-- Hand evidence-rich repair tasks to Codex, Claude Code, Cursor, Pi, OpenCode, desktop agents, or MCP workflows.
-- Keep execution explicit with repo-owned checks, OSS adapters, and safety gates.
-- Stay local-first by default with no telemetry, no required hosted service, and no forced model calls.
-
 <!-- BENCHMARK:START -->
 ## Catch what your AI coding agent missed — free, in CI, before merge.
 
 Latest reproducible benchmark: **23/23 planted issues caught (100.0% recall)**, **2.22% false-positive rate** on clean decoys, **$0.00 cost**, LLM called: **no**, telemetry sent: **no**.
 
 ```bash
-npx codedecay ai
+npx codedecay analyze
 ```
 
 Generated from `codedecay benchmark --format json` by `pnpm gen:launch`.
@@ -76,10 +68,8 @@ agents a structured merge-safety pass:
 - compare base/head behavior through configured probes, with field-level JSON
   diffs, rerun commands, and local artifacts
 
-CodeDecay is agent-first without hidden agent calls. The default AI workflow
-creates evidence and tasks for Codex, Claude Code, Cursor, Pi, OpenCode,
-desktop agents, or MCP-compatible tools. Command execution, local/BYOK LLMs,
-and agent process adapters remain user-owned and explicit.
+CodeDecay is useful by itself in deterministic mode. Optional agent, LLM,
+memory, and tool integrations must be user-owned and explicit.
 
 Under the hood, CodeDecay is growing into a PR red-team orchestration platform:
 blast-radius mapping, local repo memory, security matchers, OSS tool adapters,
@@ -132,40 +122,34 @@ pnpm docs:dev
 
 ## Quickstart
 
-Generate an AI-agent task bundle for the current working tree:
+Give your coding agent a CodeDecay task bundle for the current working tree:
 
 ```bash
 npx codedecay ai --format markdown
 ```
 
-Red-team a pull request range and hand the work to Codex:
+Guide the agent before it edits:
+
+```bash
+npx codedecay ai preflight --task "Add an authorized billing export API" --format markdown
+```
+
+Run the AI workflow on a pull request range:
 
 ```bash
 npx codedecay ai --base main --head HEAD --format markdown
 ```
 
-Use Claude Code handoff wording instead:
-
-```bash
-npx codedecay ai --profile claude-code --base main --head HEAD --format markdown
-```
-
-Include configured test/build/probe/tool evidence in the AI bundle:
+Include explicitly configured test, build, probe, and OSS-tool evidence:
 
 ```bash
 npx codedecay ai --with-checks --base main --head HEAD --format markdown
 ```
 
-Use deterministic analysis directly when you only want machine-readable risk:
+Use deterministic analysis directly when you only want the risk report:
 
 ```bash
 npx codedecay analyze --base main --head HEAD --format markdown
-```
-
-Generate the lower-level red-team report without agent handoff:
-
-```bash
-npx codedecay redteam --base main --head HEAD --format markdown
 ```
 
 Fail CI on high-risk PRs:
@@ -206,7 +190,7 @@ npx codedecay product --target web --generate-tests --run-generated-tests --form
 
 | Command | Purpose |
 | --- | --- |
-| `codedecay ai` | Recommended AI-first PR safety workflow. Produces a Codex-ready bundle by default and can target Claude Code, Cursor, Pi, OpenCode, desktop agents, or MCP clients. |
+| `codedecay ai` | Recommended AI-first workflow: preflight guidance, post-diff evidence, optional explicit investigation, configured proof, and a Codex-ready task bundle. |
 | `codedecay analyze` | Deterministic PR risk, impact, and decay analysis. |
 | `codedecay snapshot` | Emit a stable repository health snapshot and compare it with a previous snapshot artifact. |
 | `codedecay redteam` | Merge-safety report with impact, weak-test evidence, verification status, edge cases, memory, skills, and fix tasks. |
@@ -263,7 +247,7 @@ codedecay uninstall --purge-local
 
 | Workflow | Default | What it does today |
 | --- | --- | --- |
-| `codedecay ai`, `analyze`, `redteam`, `agent`, `snapshot` | Yes | Runs deterministic local analysis with no model calls. |
+| `codedecay ai`, `analyze`, `redteam`, `agent`, `snapshot` | Yes | Runs deterministic local analysis with no model calls unless `--investigate` is explicit. |
 | `codedecay execute`, `differential` | No | Runs only repo-allowlisted local commands after explicit opt-in. |
 | `codedecay product --explore` | No | Uses a project-provided Playwright install to crawl configured live app targets after explicit opt-in. |
 | `codedecay llm-review` | No | Calls a user-owned provider only when the user invokes it directly. |
@@ -368,10 +352,10 @@ Use the red-team workflow when reviewing AI-assisted PRs:
 
 ```bash
 npx codedecay redteam --base main --head HEAD --format markdown --output codedecay-redteam.md
-npx codedecay ai --profile codex --base main --head HEAD --format markdown --output codedecay-ai.md
+npx codedecay agent --profile codex --base main --head HEAD --format markdown --output codedecay-agent.md
 ```
 
-Then give `codedecay-ai.md` to your preferred agent and ask it to:
+Then give `codedecay-agent.md` to your preferred agent and ask it to:
 
 1. inspect the changed files and impacted routes/APIs
 2. explain what real user/API/database path could break

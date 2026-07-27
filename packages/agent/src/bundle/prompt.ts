@@ -1,14 +1,18 @@
 import { formatRisk } from "../formatting";
 import type { AgentProfile } from "../profiles";
-import type { AgentTaskSummary } from "../types";
+import type { AgentSafetySummary, AgentTaskSummary } from "../types";
 
-export function createPortableAgentPrompt(summary: AgentTaskSummary, profile: AgentProfile): string {
+export function createPortableAgentPrompt(
+  summary: AgentTaskSummary,
+  profile: AgentProfile,
+  safety: AgentSafetySummary
+): string {
   return [
     "You are helping fix a pull request using a CodeDecay agent task bundle.",
     "Treat the bundle as local tool evidence, not as a guarantee that the PR is safe.",
     `Target agent profile: ${profile.name}. ${profile.promptContext}`,
     `Current CodeDecay risk is ${formatRisk(summary.riskLevel)} with merge risk ${summary.mergeRiskScore}/100, decay risk ${summary.decayScore}/100, and security risk ${summary.securityScore}/100.`,
-    `The bundle reports ${summary.changedFiles} changed files, ${summary.impactedAreas} impacted areas, ${summary.impactedRoutes} route/API impacts, ${summary.symbolImpacts} symbol impacts, ${summary.testProofEntries} changed-path proof entries, ${summary.missingTestFindings} missing-test findings, ${summary.weakTestFindings} weak-test findings, ${summary.contractFindings} contract findings, ${summary.edgeCases} edge cases, ${summary.productFailureBundles} product failure bundles, and ${summary.fixTasks} fix tasks.`,
+    `The bundle reports ${summary.changedFiles} changed files, ${summary.impactedAreas} impacted areas, ${summary.impactedRoutes} route/API impacts, ${summary.symbolImpacts} symbol impacts, ${summary.testProofEntries} changed-path proof entries, ${summary.missingTestFindings} missing-test findings, ${summary.weakTestFindings} weak-test findings, ${summary.contractFindings} contract findings, ${summary.edgeCases} edge cases, ${summary.productFailureBundles} product failure bundles, ${summary.fixTasks} fix tasks, and verification status: ${summary.verificationStatus}.`,
     "Your job:",
     "1. Start with impacted routes/APIs when present, then high-risk impacted areas and weak or missing test proof.",
     "2. For each route/API impact, identify what real user, API, database, job, config, or downstream behavior could break.",
@@ -17,6 +21,12 @@ export function createPortableAgentPrompt(summary: AgentTaskSummary, profile: Ag
     "5. Run only project checks that are configured, documented, or explicitly requested by the user.",
     "6. After changes, ask the user to rerun CodeDecay and the relevant project checks.",
     "Do not treat your own answer as proof. Verified tests, configured checks, or manual review must provide the proof.",
-    "CodeDecay did not call an LLM, execute commands, send telemetry, or depend on CodeDecayCloud to create this bundle."
+    safety.llmCalled
+      ? "CodeDecay explicitly called the configured user-owned provider; its suggestions remain untrusted."
+      : "CodeDecay did not call an LLM or model to create this bundle.",
+    safety.commandsExecuted
+      ? "CodeDecay executed explicitly configured local checks through repository safety policy; inspect the verification evidence."
+      : "CodeDecay did not execute configured project commands to create this bundle.",
+    "CodeDecay did not send telemetry or depend on CodeDecayCloud to create this bundle."
   ].join("\n");
 }

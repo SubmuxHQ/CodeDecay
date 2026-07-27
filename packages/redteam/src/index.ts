@@ -1,4 +1,5 @@
 export { createRedteamReport } from "./report";
+export { createEdgeCasePlan, MAX_RANKED_EDGE_CASES } from "./edge-cases";
 export { matchPatternIntelligence } from "./patterns";
 export { renderRedteamMarkdown, renderRedteamReport } from "./render";
 export { weakTestRuleIds } from "./weak-tests";
@@ -7,6 +8,16 @@ export type {
   RedteamCheckKind,
   RedteamConfiguredCheck,
   RedteamExecutionStatus,
+  RedteamEdgeCase,
+  RedteamEdgeCaseConfidence,
+  RedteamEdgeCaseDerivation,
+  RedteamEdgeCasePlan,
+  RedteamEdgeCaseProof,
+  RedteamEdgeCaseProofKind,
+  RedteamEdgeCaseScope,
+  RedteamEdgeCaseSource,
+  RedteamEdgeCaseSourceKind,
+  RedteamEdgeCaseSourceTrust,
   RedteamFixTask,
   RedteamFormat,
   RedteamInvestigation,

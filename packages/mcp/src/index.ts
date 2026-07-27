@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CODEDECAY_VERSION } from "@submuxhq/codedecay-core";
 import {
   runAgentPreflightTool,
+  runAgentInvestigationTool,
   runAgentTaskBundleTool,
   runAnalyzePrTool,
   runAuditTestsTool,
@@ -30,6 +31,7 @@ import { registerCodeDecayMcpTools } from "./tools/registry";
 export type { StartMcpServerOptions } from "./server/types";
 export {
   runAgentPreflightTool,
+  runAgentInvestigationTool,
   runAgentTaskBundleTool,
   runAnalyzePrTool,
   runAuditTestsTool,
@@ -74,6 +76,7 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
     redteamReport: (input) => runRedteamReportTool(options, input),
     agentTaskBundle: (input) => runAgentTaskBundleTool(options, input),
     agentPreflight: (input) => runAgentPreflightTool(options, input),
+    agentInvestigation: (input) => runAgentInvestigationTool(options, input),
     scopeCheck: (input) => runScopeCheckTool(options, input),
     designContractCheck: (input) => runDesignContractCheckTool(options, input),
     fixTasks: (input) => runFixTasksTool(options, input),

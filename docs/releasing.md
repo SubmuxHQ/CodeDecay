@@ -28,7 +28,14 @@ requires registry authentication for installs.
 Before opening the release PR, bump the published version in:
 
 - `packages/cli/package.json`
-- `packages/core/src/index.ts`
+- `packages/core/src/version.ts`
+- `judge-lab/lib/source.ts` when the Judge Lab links to the tagged release
+
+Regenerate versioned Judge Lab evidence after the package/core bump:
+
+```bash
+pnpm judge-lab:evidence
+```
 
 After the release PR is merged, release only from a clean `main` branch at the
 commit that will be tagged and published. Do not publish npm contents from a
@@ -43,7 +50,14 @@ pnpm typecheck
 pnpm test
 pnpm build
 pnpm --filter @submuxhq/codedecay pack --dry-run
+pnpm test:child-repo-e2e -- --run-id release-candidate
 ```
+
+The child-repository acceptance gate packs and installs the CLI outside the
+workspace, runs real configured checks, launches Chromium against a local child
+application, exercises generated Playwright tests, and verifies MCP, Action,
+differential, and repair-loop workflows. Treat a skipped browser or loop path as
+missing release evidence, not a pass.
 
 Inspect the tarball before publishing:
 

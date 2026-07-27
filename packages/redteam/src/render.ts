@@ -47,7 +47,9 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
     `| Changed path proof entries | ${report.summary.testProofEntries} |`,
     `| Missing-test findings | ${report.summary.missingTestFindings} |`,
     `| Weak-test findings | ${report.summary.weakTestFindings} |`,
-    `| Edge cases suggested | ${report.summary.edgeCases} |`,
+    `| Behavior scenarios | ${report.summary.edgeCases} |`,
+    `| Ranked scenarios shown | ${report.summary.edgeCasesShown} |`,
+    `| Scenario overflow | ${report.summary.edgeCaseOverflow} |`,
     `| Configured checks listed | ${report.summary.configuredChecks} |`,
     `| Tool adapters planned | ${report.summary.toolAdapters} |`,
     `| Verification status | ${report.summary.verificationStatus} |`,
@@ -63,13 +65,15 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
     );
   }
 
+  appendRequirements(lines, report);
+  appendRequirementTrace(lines, report);
   appendImpactedAreas(lines, report.analysis.impactedAreas);
   appendImpactedRoutes(lines, report.analysis.impactedRoutes ?? []);
   appendSymbolImpacts(lines, report.analysis.symbolImpacts ?? []);
   appendTestAudit(lines, report.testAudit);
   appendVerification(lines, report.verification);
   appendProductFailures(lines, report.analysis.productFailureBundles ?? []);
-  appendEdgeCases(lines, report.edgeCases);
+  appendEdgeCases(lines, report.edgeCases, report.edgeCaseOverflow.length);
   appendPatternInsights(lines, report.patternInsights);
   appendConfiguredChecks(lines, report.configuredChecks);
   appendToolAdapterPlans(lines, report.toolAdapterPlans);
@@ -91,4 +95,46 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
   );
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendRequirementTrace(lines: string[], report: RedteamReport): void {
+  if (!report.requirementTrace) {
+    return;
+  }
+  lines.push(
+    "### Acceptance Criteria Trace",
+    "",
+    "| Requirement | Status | Implementation | Evidence |",
+    "| --- | --- | --- | --- |"
+  );
+  for (const criterion of report.requirementTrace.criteria) {
+    const implementation = [
+      ...criterion.implementation.routes,
+      ...criterion.implementation.files
+    ].slice(0, 3).join(", ") || "none";
+    const evidence = criterion.evidence
+      .filter((item) => item.outcome === "passed" || item.outcome === "failed" || item.outcome === "missing")
+      .slice(0, 2)
+      .map((item) => item.source)
+      .join(", ") || "mapping only";
+    const label = criterion.status.replaceAll("-", " ");
+    const status = `${label[0]?.toUpperCase() ?? ""}${label.slice(1)}`;
+    lines.push(`| ${criterion.requirementId} | ${status} | ${implementation} | ${evidence} |`);
+  }
+  lines.push("");
+}
+
+function appendRequirements(lines: string[], report: RedteamReport): void {
+  if (!report.requirements) {
+    return;
+  }
+  lines.push("### Requirement Evidence", "", "Acceptance criteria:");
+  if (report.requirements.acceptanceCriteria.length === 0) {
+    lines.push("- none supplied");
+  } else {
+    for (const criterion of report.requirements.acceptanceCriteria) {
+      lines.push(`- ${criterion.id}: ${criterion.text} [sources: ${criterion.sourceIds.join(", ")}]`);
+    }
+  }
+  lines.push("");
 }

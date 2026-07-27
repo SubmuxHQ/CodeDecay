@@ -25,6 +25,8 @@ export function createFixtureReport(): RedteamReport {
       weakTestFindings: 1,
       testProofStatus: "weak",
       edgeCases: 1,
+      edgeCasesShown: 1,
+      edgeCaseOverflow: 0,
       configuredChecks: 1,
       toolAdapters: 1,
       patternInsights: 0,
@@ -219,7 +221,40 @@ export function createFixtureReport(): RedteamReport {
         line: 3
       }
     ],
-    edgeCases: ["Exercise malformed IMU payloads through the real API route."],
+    edgeCases: [
+      {
+        id: "api-invalid-input",
+        title: "Reject invalid and boundary input on POST /api/imu",
+        trigger: "A real request sends malformed, missing, empty, or zero-value IMU input.",
+        expectedBehavior: "The API rejects invalid input without a partial write.",
+        userVisibleFailure: "The caller sees a false success or an internal error.",
+        downstreamConsumers: [],
+        scope: {
+          areas: ["api"],
+          files: ["src/api/imu.ts"],
+          symbols: ["src/api/imu.ts#submitImu"],
+          routes: ["POST /api/imu"],
+          flows: [],
+          requirementIds: []
+        },
+        confidence: "high",
+        derivation: "deterministic",
+        sources: [
+          {
+            kind: "route-impact",
+            id: "route:POST /api/imu",
+            label: "POST /api/imu",
+            trust: "deterministic"
+          }
+        ],
+        proof: {
+          kind: "api-integration",
+          recommendation: "Exercise malformed IMU payloads through the real API route."
+        },
+        score: 90
+      }
+    ],
+    edgeCaseOverflow: [],
     configuredChecks: [
       {
         kind: "test",

@@ -1,3 +1,6 @@
+import { commandExecutionSinkMarkers } from "./command-execution";
+import { findHardcodedSecretMatches } from "./javascript/hardcoded-secrets";
+import { findPathTraversalMatches } from "./javascript/path-traversal";
 import type { SecurityMatcher } from "./types";
 import {
   containsAny,
@@ -87,30 +90,15 @@ export const hardcodedSecretMatcher: SecurityMatcher = {
     }
   ],
   match(context) {
-    return lineMatches(context.content, (line, lowerLine) => {
-      const codeLine = maskStringLiterals(line).toLowerCase();
-      if (!containsAny(codeLine, ["secret", "api_key", "apikey", "access_token", "accesstoken", "private_key", "privatekey", "password"])) {
-        return false;
-      }
-
-      if (!hasCredentialAssignment(codeLine)) {
-        return false;
-      }
-
-      const quoted = line.match(/["']([^"']{12,})["']/);
-      if (!quoted) {
-        return false;
-      }
-
-      const literal = (quoted[1] ?? "").toLowerCase();
-      return !containsAny(literal, ["example", "placeholder", "changeme", "test-secret", "dummy"]);
-    }).map((match) =>
+    return findHardcodedSecretMatches(context.content).map((match) =>
       createCandidate({
         ...this,
+        severity: match.severity,
+        confidence: match.confidence,
         file: context.filePath,
         line: match.line,
         snippet: match.text,
-        evidence: "Credential-like identifier is assigned a long literal value."
+        evidence: match.evidence
       })
     );
   }
@@ -128,16 +116,17 @@ export const commandInjectionMatcher: SecurityMatcher = {
   examples: [
     {
       filePath: "src/api/archive.ts",
-      content: "exec(`tar -czf ${req.query.name}.tgz uploads/${req.query.name}`);"
+      content: "import { exec } from 'node:child_process';\nexec(`tar -czf ${req.query.name}.tgz uploads/${req.query.name}`);"
     }
   ],
   match(context) {
+    const sinkMarkers = commandExecutionSinkMarkers(context.content);
     const directMatches = lineMatches(context.content, (line, lowerLine) => {
       const codeLine = maskStringLiterals(line).toLowerCase();
       const usesUserInput = hasUserInputMarker(codeLine) || lowerLine.includes("${");
-      return containsAny(codeLine, ["exec(", "execsync(", "spawn("]) && usesUserInput;
+      return containsAnySinkMarker(codeLine, sinkMarkers) && usesUserInput;
     });
-    const taintedMatches = findParameterTaintedSinkLines(context.content, ["exec(", "execsync(", "spawn("]);
+    const taintedMatches = findParameterTaintedSinkLines(context.content, sinkMarkers);
 
     return uniqueMatches([...directMatches, ...taintedMatches]).map((match) =>
       createCandidate({
@@ -163,49 +152,28 @@ export const pathTraversalMatcher: SecurityMatcher = {
   examples: [
     {
       filePath: "src/api/files.ts",
-      content: "return readFileSync(path.join(uploadRoot, req.query.file), \"utf8\");"
+      content: [
+        "import { readFileSync } from 'node:fs';",
+        "export function GET(req) {",
+        '  return readFileSync(path.join(uploadRoot, req.query.file), "utf8");',
+        "}"
+      ].join("\n")
     }
   ],
   match(context) {
-    const directMatches = lineMatches(context.content, (line) => {
-      const codeLine = maskStringLiterals(line).toLowerCase();
-      const fileAccess = containsAny(codeLine, ["readfile", "writefile", "createreadstream", "createwritestream"]);
-      return fileAccess && hasUserInputMarker(codeLine);
-    });
-    const taintedMatches = hasPathInputSurface(context.filePath, context.content)
-      ? findParameterTaintedSinkLines(context.content, [
-          "readfile",
-          "writefile",
-          "createreadstream",
-          "createwritestream"
-        ])
-      : [];
-
-    return uniqueMatches([...directMatches, ...taintedMatches]).map((match) =>
+    return findPathTraversalMatches(context.content).map((match) =>
       createCandidate({
         ...this,
+        severity: match.severity,
+        confidence: match.confidence,
         file: context.filePath,
         line: match.line,
         snippet: match.text,
-        evidence: "File access is built from request-controlled input."
+        evidence: match.evidence
       })
     );
   }
 };
-
-function hasPathInputSurface(filePath: string, content: string): boolean {
-  const normalized = maskStringLiterals(stripComments(content)).toLowerCase();
-  return hasRouteEntryPoint(filePath, content) || hasExplicitUserInputMarker(normalized);
-}
-
-function hasExplicitUserInputMarker(content: string): boolean {
-  return (
-    /\b(?:req|request)\s*\./.test(content) ||
-    /\b(?:req|request)\s*\[/.test(content) ||
-    /\b(?:params|body|headers|searchparams)\b/.test(content) ||
-    content.includes("process.argv")
-  );
-}
 
 export const ssrfMatcher: SecurityMatcher = {
   ruleId: "security-ssrf",
@@ -403,21 +371,6 @@ export const DEFAULT_SECURITY_MATCHERS: SecurityMatcher[] = [
   insecureCookieMatcher,
   jwtUnsafeVerificationMatcher
 ];
-
-function hasCredentialAssignment(codeLine: string): boolean {
-  const compact = codeLine.replaceAll(" ", "").replaceAll("\t", "").toLowerCase();
-  const markers = ["secret", "api_key", "apikey", "access_token", "accesstoken", "private_key", "privatekey", "password"];
-
-  return markers.some((marker) => {
-    const markerIndex = compact.indexOf(marker);
-    if (markerIndex < 0) {
-      return false;
-    }
-
-    const assignmentWindow = compact.slice(markerIndex + marker.length, markerIndex + marker.length + 80);
-    return assignmentWindow.includes("=") || assignmentWindow.includes(":");
-  });
-}
 
 function hasAuthGuard(content: string): boolean {
   const codeOnly = stripComments(content)

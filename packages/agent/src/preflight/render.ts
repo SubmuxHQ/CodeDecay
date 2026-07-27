@@ -31,13 +31,56 @@ export function renderAgentPreflightMarkdown(report: AgentPreflightReport): stri
     `| Memory matches | ${report.summary.memoryMatches} |`,
     `| Design constraints | ${report.summary.designConstraints} |`,
     `| Configured checks listed | ${report.summary.configuredChecks} |`,
+    `| Acceptance criteria | ${report.summary.acceptanceCriteria} |`,
+    `| Unresolved questions | ${report.summary.unresolvedQuestions} |`,
+    `| Insufficient repo context | ${report.summary.insufficientContext ? "yes" : "no"} |`,
+    "",
+    "### Requirement Evidence",
+    "",
+    `Requirement confidence: ${report.requirements.confidence}`,
+    "",
+    "Provenance:"
+  ];
+
+  appendList(
+    lines,
+    report.requirements.sources.map((source) => {
+      const location = source.location ? ` at \`${source.location}\`` : "";
+      return `\`${source.id}\` (${source.kind}): ${source.label}${location}`;
+    })
+  );
+  lines.push("", "Acceptance criteria:");
+  appendList(
+    lines,
+    report.requirements.acceptanceCriteria.map((criterion) => {
+      const proof = criterion.requiredProof.length > 0
+        ? ` Required proof: ${criterion.requiredProof.join(" ")}`
+        : "";
+      return `${criterion.id}: ${criterion.text} [sources: ${criterion.sourceIds.join(", ")}].${proof}`;
+    })
+  );
+  lines.push("", "Affected flows:");
+  appendList(
+    lines,
+    report.requirements.affectedFlows.map(
+      (flow) => `${flow.kind}: ${flow.name} [sources: ${flow.sourceIds.join(", ")}]`
+    )
+  );
+  lines.push("", "Unresolved questions:");
+  appendList(
+    lines,
+    report.requirements.unresolvedQuestions.map(
+      (question) => `${question.text} [sources: ${question.sourceIds.join(", ")}]`
+    )
+  );
+  lines.push(
     "",
     "### Deterministic Repo Evidence",
     "",
     `No git diff required: ${report.deterministicEvidence.taskSignals.noDiffRequired ? "yes" : "no"}`,
     "",
     "Task signals:"
-  ];
+  );
 
   appendList(lines, report.deterministicEvidence.taskSignals.tokens.map((token) => `\`${token}\``), "- none");
   lines.push("", "Matched task keywords:");
@@ -79,6 +122,7 @@ export function renderAgentPreflightMarkdown(report: AgentPreflightReport): stri
   appendMemory(lines, report.deterministicEvidence.memory);
   appendDesignConstraints(lines, report);
   appendConfiguredChecks(lines, report);
+  appendInvestigation(lines, report);
 
   lines.push("", "### Suggestions For Agent", "", "Implementation brief:");
   appendList(lines, report.suggestions.implementationBrief);
@@ -108,6 +152,17 @@ export function renderAgentPreflightMarkdown(report: AgentPreflightReport): stri
   appendList(lines, report.limits);
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendInvestigation(lines: string[], report: AgentPreflightReport): void {
+  if (!report.investigation) {
+    return;
+  }
+  lines.push("", "### Untrusted Agent Investigation", "", `Status: ${report.investigation.status}`, "");
+  appendList(
+    lines,
+    report.investigation.suggestions.map((suggestion) => `${suggestion.title}: ${suggestion.detail}`)
+  );
 }
 
 function appendMemory(lines: string[], memory: AgentPreflightMemoryEvidence): void {

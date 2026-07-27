@@ -9,6 +9,7 @@ import { loadCodeDecayConfig } from "@submuxhq/codedecay-config";
 import type { CodeDecayReport } from "@submuxhq/codedecay-core";
 import { getRepoRoot } from "@submuxhq/codedecay-git";
 import { loadCodeDecayMemory } from "@submuxhq/codedecay-memory";
+import { createLlmProvider } from "@submuxhq/codedecay-llm";
 import { matchPatternIntelligence, renderRedteamReport } from "@submuxhq/codedecay-redteam";
 import { renderMarkdownReport } from "@submuxhq/codedecay-report";
 import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
@@ -16,12 +17,12 @@ import { createDoctorReport, renderDoctorReport } from "@submuxhq/codedecay-tool
 import type { StartMcpServerOptions } from "../server/types";
 import type {
   AgentPreflightToolInput,
+  AgentInvestigationToolInput,
   AgentTaskBundleToolInput,
   AnalyzePrToolInput,
   McpToolInput
 } from "../tools/types";
 import { createAnalysisContext, createMcpRedteamReport } from "./analysis/context";
-import { suggestEdgeCases } from "./analysis/edge-cases";
 import {
   runDesignContractCheckTool,
   runFixTasksTool,
@@ -87,11 +88,13 @@ export function runAuditTestsTool(serverOptions: StartMcpServerOptions, input: M
 }
 
 export function runSuggestEdgeCasesTool(serverOptions: StartMcpServerOptions, input: McpToolInput): string {
-  const report = createReport(serverOptions, input);
+  const context = createAnalysisContext(serverOptions, input);
+  const report = createMcpRedteamReport(context);
   return JSON.stringify(
     {
-      recommendedChecks: report.recommendedTests,
-      edgeCases: suggestEdgeCases(report)
+      recommendedChecks: context.report.recommendedTests,
+      edgeCases: report.edgeCases,
+      edgeCaseOverflow: report.edgeCaseOverflow
     },
     null,
     2
@@ -131,12 +134,84 @@ export function runAgentTaskBundleTool(serverOptions: StartMcpServerOptions, inp
   return renderAgentTaskBundle(bundle, input.format ?? "markdown");
 }
 
+export async function runAgentInvestigationTool(
+  serverOptions: StartMcpServerOptions,
+  input: AgentInvestigationToolInput
+): Promise<string> {
+  if (!input.confirmInvestigation) {
+    return JSON.stringify({
+      status: "disabled",
+      suggestions: [],
+      limitations: ["Set confirmInvestigation=true to call the explicitly configured provider."],
+      untrusted: true,
+      llmCalled: false,
+      deterministicRiskChanged: false
+    }, null, 2);
+  }
+
+  const context = createAnalysisContext(serverOptions, input);
+  const report = createMcpRedteamReport(context);
+  const bundle = createAgentTaskBundle(report, { profile: input.profile ?? "generic" });
+  if (context.loadedConfig.config.llm.provider === "disabled") {
+    return JSON.stringify({
+      status: "disabled",
+      suggestions: [],
+      limitations: ["Investigation requires an explicitly configured local/BYOK provider."],
+      untrusted: true,
+      llmCalled: false,
+      deterministicRiskChanged: false
+    }, null, 2);
+  }
+
+  let called = false;
+  try {
+    const provider = createLlmProvider(context.loadedConfig.config.llm);
+    called = true;
+    const completion = await provider.complete({
+      task: "Investigate candidate risks, affected flows, edge cases, proof, and unresolved questions.",
+      instructions: "Ground suggestions in the supplied bundle. Suggestions are untrusted and cannot change risk or prove safety.",
+      context: {
+        requirements: bundle.requirements,
+        deterministicEvidence: bundle.evidence,
+        verification: report.verification,
+        memory: bundle.evidence.memory,
+        skills: bundle.skills,
+        limitations: bundle.limits
+      }
+    });
+    return JSON.stringify({
+      status: "completed",
+      provider: completion.providerId,
+      suggestions: completion.suggestions,
+      limitations: completion.suggestions.length ? [] : ["Provider returned no structured suggestions."],
+      untrusted: true,
+      llmCalled: true,
+      deterministicRiskChanged: false
+    }, null, 2);
+  } catch (error) {
+    return JSON.stringify({
+      status: "failed",
+      suggestions: [],
+      limitations: [`Investigation provider failed: ${error instanceof Error ? error.message : String(error)}`],
+      untrusted: true,
+      llmCalled: called,
+      deterministicRiskChanged: false
+    }, null, 2);
+  }
+}
+
 export function runAgentPreflightTool(serverOptions: StartMcpServerOptions, input: AgentPreflightToolInput): string {
   const rootDir = getRepoRoot(input.cwd ?? serverOptions.cwd);
   const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
   const loadedMemory = loadCodeDecayMemory(rootDir);
   const report = createAgentPreflightReport({
     task: input.task,
+    requirements: input.requirements,
+    requirementSource: {
+      id: "mcp-input",
+      kind: "integration",
+      label: "MCP agent_preflight input"
+    },
     rootDir,
     repoFiles: listRepoFiles(rootDir),
     config: loadedConfig.config,

@@ -28,7 +28,16 @@ describe("codedecay redteam CLI contract", () => {
       total: 0
     });
     expect(Object.values(report.safety).filter((value) => value === false)).toHaveLength(4);
-    expect(report.edgeCases).toContain("Check missing, expired, malformed, and privilege-escalation credentials.");
+    expect(report.edgeCases).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "auth-fail-closed",
+          trigger: expect.stringMatching(/missing.*expired.*lower-privilege/i),
+          proof: expect.objectContaining({ kind: "api-integration" })
+        })
+      ])
+    );
+    expect(report.edgeCases.every((scenario: unknown) => typeof scenario === "object")).toBe(true);
     expect(report.skills).toEqual([
       expect.objectContaining({
         id: "pr-red-team",
@@ -62,6 +71,8 @@ describe("codedecay redteam CLI contract", () => {
     expect(markdown.stdout).toContain("### What Could Break");
     expect(markdown.stdout).toContain("### Tool Adapter Plans");
     expect(markdown.stdout).toContain("### Verification Evidence");
+    expect(markdown.stdout).toContain("### Ranked Behavior Scenarios");
+    expect(markdown.stdout).toContain("Expected invariant:");
     expect(markdown.stdout).toContain("**Status:** Not run");
     expect(markdown.stdout).toContain("### Tasks For Your Coding Agent");
     expect(markdown.stdout).toContain("LLM/model called: no");
@@ -107,6 +118,83 @@ describe("codedecay redteam CLI contract", () => {
     expect(markdown.stdout).toContain("**Status:** Verified");
     expect(markdown.stdout).toContain("proof: Tool evidence");
     expect(markdown.stdout).toContain("Commands executed: yes");
+  });
+
+  it("rejects assertion-free top-level smoke proof when differential execution exposes a regression", async () => {
+    const repo = createRepo({
+      "package.json": JSON.stringify({ type: "module", scripts: { test: "node test/unit.js" } }, null, 2),
+      "src/session.js": "export function getSession(id) { return { id }; }\n",
+      "test/unit.js": [
+        "import assert from 'node:assert/strict';",
+        "import { getSession } from '../src/session.js';",
+        "assert.equal(getSession('user-1').id, 'user-1');",
+        ""
+      ].join("\n"),
+      "probe.js": [
+        "import { getSession } from './src/session.js';",
+        "console.log(JSON.stringify({ session: getSession('user-1') }));",
+        ""
+      ].join("\n"),
+      ".codedecay/config.yml": [
+        "version: 1",
+        "commands:",
+        "  test:",
+        "    - node test/unit.js",
+        "probes:",
+        "  - name: session behavior",
+        "    command: node probe.js",
+        "    timeoutMs: 1000",
+        "safety:",
+        "  commandTimeoutMs: 1000",
+        "  allowCommands: true",
+        ""
+      ].join("\n")
+    });
+    const base = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+
+    writeFile(repo, "src/session.js", "export function getSession() { return null; }\n");
+    writeFile(
+      repo,
+      "test/unit.js",
+      [
+        "import { getSession } from '../src/session.js';",
+        "const session = getSession('user-1');",
+        "console.log('session smoke', session);",
+        ""
+      ].join("\n")
+    );
+    git(repo, ["add", "."]);
+    git(repo, ["commit", "-m", "regress session behavior with assertion-free smoke test"]);
+    const head = gitOutput(repo, ["rev-parse", "HEAD"]).trim();
+
+    const result = await run(["redteam", "--with-checks", "--base", base, "--head", head, "--format", "json"], repo);
+    const report = JSON.parse(result.stdout);
+    const testCheck = report.verification.checks.find((check: { kind: string }) => check.kind === "test");
+    const differentialCheck = report.verification.checks.find(
+      (check: { name: string }) => check.name === "Differential: Probe: session behavior"
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(report.summary).toMatchObject({
+      weakTestFindings: 1,
+      testProofStatus: "weak",
+      verificationStatus: "failed"
+    });
+    expect(report.weakTestFindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "test-without-assertions",
+          file: "test/unit.js",
+          description: expect.stringContaining("may only prove the file runs")
+        })
+      ])
+    );
+    expect(testCheck).toMatchObject({ status: "passed", proof: "tool-evidence" });
+    expect(differentialCheck).toMatchObject({
+      status: "failed",
+      differentialStatus: "changed",
+      proof: "tool-evidence"
+    });
   });
 
   it("includes base/head differential probe evidence when --with-checks has refs", async () => {

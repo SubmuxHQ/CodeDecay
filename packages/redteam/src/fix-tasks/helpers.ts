@@ -1,18 +1,5 @@
 import { compareRiskLevels, type ImpactedArea, type RiskLevel } from "@submuxhq/codedecay-core";
 import type { RedteamFixTask } from "../types";
-import { EDGE_CASE_TASK_RULES } from "./rules";
-
-export function edgeCaseTaskTitle(edgeCase: string): string {
-  const lower = edgeCase.toLowerCase();
-
-  for (const rule of EDGE_CASE_TASK_RULES) {
-    if (rule.keywords.some((keyword) => lower.includes(keyword))) {
-      return rule.title;
-    }
-  }
-
-  return "Add concrete edge-case proof";
-}
 
 export function edgeCasePriority(areas: ImpactedArea[]): RiskLevel {
   if (areas.some((area) => area.risk === "high")) {
@@ -31,7 +18,9 @@ export function dedupeTasks(tasks: RedteamFixTask[]): RedteamFixTask[] {
   const deduped: RedteamFixTask[] = [];
 
   for (const task of tasks) {
-    const key = `${task.source}:${task.title}:${task.file ?? ""}:${task.line ?? ""}`;
+    const key = task.source === "test-proof"
+      ? `${task.source}:${task.title}:${task.file ?? ""}`
+      : `${task.source}:${task.title}:${task.file ?? ""}:${task.line ?? ""}`;
     if (seen.has(key)) {
       continue;
     }

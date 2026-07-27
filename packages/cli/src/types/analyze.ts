@@ -9,6 +9,9 @@ export interface AnalyzeOptions {
   format: ReportFormat;
   output?: string | undefined;
   failOn?: RiskLevel | undefined;
+  task?: string | undefined;
+  requirements?: string | undefined;
+  failOnRequirements?: boolean | undefined;
 }
 
 export interface CliAnalysisContext {

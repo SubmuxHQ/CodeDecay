@@ -1,11 +1,7 @@
 import { basename, extname } from "node:path";
-import {
-  ASSET_EXTENSIONS,
-  SOURCE_EXTENSIONS,
-  TEST_DIR_NAMES,
-  TEST_FILE_STEM_PATTERN
-} from "./path-constants";
-import { normalizePath, stripExtension } from "./path-utils";
+import { isTestFilePath } from "@submuxhq/codedecay-core";
+import { ASSET_EXTENSIONS, SOURCE_EXTENSIONS } from "./path-constants";
+import { normalizePath } from "./path-utils";
 
 export function isSourcePath(path: string): boolean {
   return SOURCE_EXTENSIONS.has(extname(path).toLowerCase());
@@ -33,14 +29,5 @@ export function isLockfilePath(path: string): boolean {
 }
 
 export function isTestPath(path: string): boolean {
-  const normalized = normalizePath(path).toLowerCase();
-  const segments = normalized.split("/").filter(Boolean);
-  const directorySegments = segments.slice(0, -1);
-  if (directorySegments.some((segment) => TEST_DIR_NAMES.has(segment))) {
-    return true;
-  }
-
-  const fileName = segments.at(-1) ?? normalized;
-  const stem = stripExtension(fileName);
-  return TEST_FILE_STEM_PATTERN.test(stem) || stem.startsWith("test_");
+  return isTestFilePath(path);
 }

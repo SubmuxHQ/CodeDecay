@@ -1,6 +1,6 @@
 # First PR Safety Efficacy Benchmark
 
-This benchmark is a small, deterministic demonstration that CodeDecay can catch seeded PR risks that ordinary passing tests miss.
+This benchmark is a small, deterministic proof that CodeDecay can catch seeded PR risks that ordinary passing tests miss.
 
 It is not a claim that CodeDecay makes every PR safe. It is a regression harness for the product promise: find what a coding agent may have missed before merge.
 
@@ -17,6 +17,8 @@ Artifacts are written under `.codedecay/local/evals/<run-id>/`.
 - Status: passed
 - Scenarios: 2
 - Issues: 0
+- Edge-case relevance: 100.0%
+- Edge-case noise: 0.0%
 
 ## Scenarios
 
@@ -31,10 +33,12 @@ A coding agent can add tests that mirror the changed implementation while missin
 | Baseline behavior probe | exit 0 |
 | Risky weak tests | exit 0 |
 | Risky behavior probe | exit 1 |
-| CodeDecay risk | high (100/100 merge, 0/100 decay) |
-| Test evidence status | weak |
+| CodeDecay risk | high (92/100 merge, 0/100 decay) |
+| Test proof status | weak |
 | Weak-test findings | 2 |
 | Missing-test findings | 0 |
+| Edge-case relevance | 100.0% |
+| Edge-case noise | 0.0% |
 
 Expected evidence:
 
@@ -45,11 +49,13 @@ Expected evidence:
 - Pass: CodeDecay reports high risk
 - Pass: CodeDecay reports expected impacted areas
 - Pass: CodeDecay reports expected finding rules
-- Pass: Redteam report classifies test evidence correctly
+- Pass: Redteam report classifies test proof correctly
 - Pass: Redteam report contains expected weak-test evidence
 - Pass: Redteam report contains expected missing-test evidence
-- Pass: Redteam report suggests edge cases
-- Pass: Redteam edge cases are actionable
+- Pass: Redteam report returns structured behavior scenarios
+- Pass: Redteam report includes required behavior scenarios
+- Pass: Redteam edge-case relevance meets the fixture threshold
+- Pass: Generic proof chores are not rendered as edge cases
 - Pass: Redteam report creates fix tasks
 - Pass: Redteam fix tasks are actionable
 
@@ -64,10 +70,12 @@ A PR can pass a narrow unit test while changing runtime defaults and database se
 | Baseline behavior probe | exit 0 |
 | Risky weak tests | exit 0 |
 | Risky behavior probe | exit 1 |
-| CodeDecay risk | high (76/100 merge, 0/100 decay) |
-| Test evidence status | missing |
+| CodeDecay risk | high (72/100 merge, 0/100 decay) |
+| Test proof status | missing |
 | Weak-test findings | 0 |
 | Missing-test findings | 1 |
+| Edge-case relevance | 100.0% |
+| Edge-case noise | 0.0% |
 
 Expected evidence:
 
@@ -78,11 +86,13 @@ Expected evidence:
 - Pass: CodeDecay reports high risk
 - Pass: CodeDecay reports expected impacted areas
 - Pass: CodeDecay reports expected finding rules
-- Pass: Redteam report classifies test evidence correctly
+- Pass: Redteam report classifies test proof correctly
 - Pass: Redteam report contains expected weak-test evidence
 - Pass: Redteam report contains expected missing-test evidence
-- Pass: Redteam report suggests edge cases
-- Pass: Redteam edge cases are actionable
+- Pass: Redteam report returns structured behavior scenarios
+- Pass: Redteam report includes required behavior scenarios
+- Pass: Redteam edge-case relevance meets the fixture threshold
+- Pass: Generic proof chores are not rendered as edge cases
 - Pass: Redteam report creates fix tasks
 - Pass: Redteam fix tasks are actionable
 

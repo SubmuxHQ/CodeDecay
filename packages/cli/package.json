@@ -1,6 +1,6 @@
 {
   "name": "@submuxhq/codedecay",
-  "version": "0.3.5",
+  "version": "0.4.0",
   "description": "Catch what your AI coding agent missed before merge with local PR safety checks",
   "license": "Apache-2.0",
   "author": "SubmuxHQ",
@@ -35,7 +35,6 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
     "zod": "^4.0.0",
     "yaml": "^2.8.1"
   },

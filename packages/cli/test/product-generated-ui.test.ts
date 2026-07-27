@@ -66,6 +66,8 @@ describe("codedecay generated UI product test CLI contract", () => {
       });
       expect(report.targets[0].generatedTestRun.passed).toBeGreaterThanOrEqual(3);
       expect(report.targets[0].generatedTestRun.command).toContain("node_modules/playwright/cli.js");
+      expect(report.targets[0].generatedTestRun.command).toContain("--config");
+      expect(report.targets[0].generatedTestRun.command).toContain(".codedecay/local/generated-tests/web");
       expect(report.safety.generatedTestsRan).toBe(true);
     } finally {
       await server.close();

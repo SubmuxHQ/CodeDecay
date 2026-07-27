@@ -7,8 +7,8 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
     summary: "AI-first PR safety workflow for Codex, Claude Code, Cursor, and local agent loops.",
     usage: ["codedecay ai [options]", "codedecay ai preflight --task <description> [options]"],
     description: [
-      "Generate a Codex-ready task bundle by red-teaming the diff, loading local memory and repo skills, auditing tests, listing OSS proof checks, and packaging concrete fix tasks for a user-owned agent.",
-      "Use `ai preflight` before code generation to give the agent repo-grounded likely files, routes, constraints, and proof expectations without requiring a git diff."
+      "Generate a Codex-ready task bundle by red-teaming the diff, loading requirements, local memory, and repo skills, auditing tests, and packaging concrete proof and repair tasks for a user-owned agent.",
+      "Use `ai preflight` before code generation to give the agent grounded likely files, routes, constraints, unresolved questions, and proof expectations without requiring a git diff."
     ],
     options: [
       { flag: "--base <ref>", description: "Base git ref to compare from" },
@@ -16,25 +16,28 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
       { flag: "--format <format>", description: "json or markdown (default: markdown)" },
       { flag: "--profile <profile>", description: `${AGENT_PROFILE_IDS.join(", ")} (default: codex)` },
-      { flag: "--task <text>", description: "Required for `ai preflight`; intended task/change description before code generation" },
-      { flag: "--filter-source <source>", description: "Only include fix tasks from one source such as finding, weak-test, edge-case, memory, pattern, or product-failure" },
+      { flag: "--task <text>", description: "Required for `ai preflight`; optional post-diff task context" },
+      { flag: "--requirements <path>", description: "Optional repo-local JSON, YAML, or Markdown requirements artifact" },
+      { flag: "--investigate", description: "Explicitly call the configured local/BYOK provider and include untrusted grounded suggestions" },
+      { flag: "--filter-source <source>", description: "Only include fix tasks from one source such as finding, weak-test, edge-case, test-proof, or product-failure" },
       { flag: "--filter-priority <level>", description: "Only include fix tasks with priority low, medium, or high" },
       { flag: "--filter-file <path>", description: "Only include fix tasks tied to a file path" },
-      { flag: "--with-checks", description: "Run configured commands and tool adapters through safety gates and include verification-backed agent tasks" },
-      { flag: "--investigate", description: "Explicitly run the configured local/BYOK LLM provider for untrusted suggestions" },
+      { flag: "--with-checks", description: "Run configured commands and tool adapters through safety gates after code changes" },
       { flag: "--fail-on <level>", description: "Exit non-zero on low, medium, or high risk after writing the bundle" },
-      { flag: "--output <path>", description: "Write agent task bundle to a file instead of stdout" }
+      { flag: "--fail-on-requirements", description: "Exit non-zero when supplied acceptance criteria remain blocking after writing the bundle" },
+      { flag: "--output <path>", description: "Write the task bundle to a file instead of stdout" }
     ],
     examples: [
+      "codedecay ai preflight --task \"Add a GET /api/users export endpoint\" --format markdown",
       "codedecay ai --base main --head HEAD --format markdown",
-      "codedecay ai --profile claude-code --base main --head HEAD --format markdown",
-      "codedecay ai --with-checks --base main --head HEAD --format markdown",
-      "codedecay ai preflight --task \"Add a GET /api/users export endpoint\" --format markdown"
+      "codedecay ai --profile claude-code --requirements .codedecay/requirements.yml --format markdown",
+      "codedecay ai --with-checks --base main --head HEAD --format markdown"
     ],
     notes: [
-      "This is the recommended AI-assisted workflow. It packages evidence for a user-owned agent, but does not call Codex, Claude Code, Cursor, hosted models, or CodeDecayCloud by itself.",
-      "Use --with-checks when you want configured local commands and OSS tool adapters to produce verification evidence before the bundle is handed to an agent.",
-      "With --with-checks, failed or blocked verification exits 1 after the bundle is written."
+      "The default workflow packages deterministic evidence for a user-owned agent. It does not call Codex, Claude Code, Cursor, hosted models, or CodeDecayCloud.",
+      "Use --investigate only when you explicitly want the configured local/BYOK provider to produce untrusted suggestions.",
+      "Use --with-checks only after edits when you want configured local commands and OSS adapters to produce verification evidence.",
+      "Failed or blocked checks and configured risk/requirement gates exit non-zero after the bundle is written."
     ]
   },
   redteam: {
@@ -51,6 +54,9 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--format <format>", description: "json or markdown (default: markdown)" },
       { flag: "--output <path>", description: "Write redteam report to a file instead of stdout" },
       { flag: "--fail-on <level>", description: "Exit non-zero on low, medium, or high risk" },
+      { flag: "--task <text>", description: "Task description used with a structured requirements artifact" },
+      { flag: "--requirements <path>", description: "Repo-local JSON, YAML, or Markdown requirements artifact" },
+      { flag: "--fail-on-requirements", description: "Exit non-zero when any supplied acceptance criterion is not verified" },
       { flag: "--with-checks", description: "Run configured commands and tool adapters through safety gates and include verification evidence" },
       { flag: "--investigate", description: "Explicitly run the configured local/BYOK LLM provider for untrusted suggestions" }
     ],
@@ -136,13 +142,17 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--format <format>", description: "json or markdown (default: markdown)" },
       { flag: "--profile <profile>", description: `${AGENT_PROFILE_IDS.join(", ")} (default: generic)` },
       { flag: "--task <text>", description: "Required for `agent preflight`; intended task/change description before code generation" },
-      { flag: "--filter-source <source>", description: "Only include fix tasks from one source such as finding, weak-test, edge-case, memory, pattern, or product-failure" },
+      { flag: "--requirements <path>", description: "Optional repo-local JSON or YAML requirements artifact with acceptance criteria and affected flows" },
+      { flag: "--investigate", description: "Explicitly call the configured local/BYOK provider and include untrusted grounded suggestions" },
+      { flag: "--filter-source <source>", description: "Only include fix tasks from one source such as finding, weak-test, edge-case, test-proof, or product-failure" },
       { flag: "--filter-priority <level>", description: "Only include fix tasks with priority low, medium, or high" },
       { flag: "--filter-file <path>", description: "Only include fix tasks tied to a file path" },
       { flag: "--output <path>", description: "Write agent task bundle to a file instead of stdout" }
     ],
     examples: [
       "codedecay agent preflight --task \"Add a GET /api/users export endpoint\" --format markdown",
+      "codedecay agent preflight --task \"Add billing export\" --requirements .codedecay/requirements.yml --format markdown",
+      "codedecay agent --investigate --task \"Review billing export regressions\" --requirements .codedecay/requirements.yml --format json",
       "codedecay agent --profile codex --base main --head HEAD --format markdown",
       "codedecay agent --cwd ../my-repo --profile opencode --format json",
       "codedecay agent --format json --filter-source weak-test --filter-priority high"
@@ -150,6 +160,8 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
     notes: [
       "Agent preflight and agent bundles package evidence and instructions only. They do not trigger agent or model calls by themselves.",
       "Preflight does not require changed files and does not run configured commands; it lists follow-up proof checks with willRun=false.",
+      "Requirement evidence retains source ids and is rendered separately from CodeDecay suggestions.",
+      "Investigation is opt-in, uses only the explicitly configured provider, and cannot change deterministic risk or prove safety.",
       "Design contract findings are deterministic evidence and appear in the bundle when `codedecay.contract.*` is configured.",
       "Exit codes stay stable: 0 for a generated bundle, 2 for CLI/internal errors."
     ]
@@ -170,6 +182,8 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--agent-cmd <command>", description: "Explicit user-owned agent command that reads the task bundle on stdin and may edit the working tree" },
       { flag: "--safe-risk <level>", description: "Maximum acceptable risk level: low, medium, or high (default: low)" },
       { flag: "--max-security-score <score>", description: "Maximum acceptable security score from deterministic analysis, 0-100 (default: 0)" },
+      { flag: "--task <text>", description: "Task description used with a structured requirements artifact" },
+      { flag: "--requirements <path>", description: "Preserve acceptance-criteria IDs and trace status across loop rounds" },
       { flag: "--format <format>", description: "json or markdown (default: markdown)" },
       { flag: "--output <path>", description: "Write loop report to a file instead of stdout" }
     ],

@@ -43,6 +43,18 @@ inputs:
     description: "For redteam or ai mode, run configured commands and tool adapters through CodeDecay safety gates"
     required: false
     default: "false"
+  task:
+    description: "Analyze, redteam, agent, or ai mode: explicit task or user story."
+    required: false
+    default: ""
+  requirements:
+    description: "Analyze, redteam, agent, or ai mode: optional repo-local JSON, YAML, or Markdown requirements artifact."
+    required: false
+    default: ""
+  fail-on-requirements:
+    description: "Analyze, redteam, or ai mode: fail when any supplied acceptance criterion is not verified."
+    required: false
+    default: "false"
   target:
     description: "Product mode target id to run"
     required: false
@@ -117,6 +129,17 @@ runs:
         fi
         if [[ -n "${{ inputs.head }}" ]]; then
           args+=(--head "${{ inputs.head }}")
+        fi
+        if [[ -n "${{ inputs.task }}" ]]; then
+          args+=(--task "${{ inputs.task }}")
+        fi
+        if [[ -n "${{ inputs.requirements }}" ]]; then
+          args+=(--requirements "${{ inputs.requirements }}")
+        fi
+        if [[ "$MODE" == "agent" || "$MODE" == "ai" ]]; then
+          if [[ -n "${{ inputs.profile }}" ]]; then
+            args+=(--profile "${{ inputs.profile }}")
+          fi
         fi
 
         cd "$GITHUB_WORKSPACE"
@@ -269,6 +292,12 @@ runs:
           if [[ -n "${{ inputs.output }}" ]]; then
             args+=(--output "${{ inputs.output }}")
           fi
+          if [[ -n "${{ inputs.task }}" ]]; then
+            args+=(--task "${{ inputs.task }}")
+          fi
+          if [[ -n "${{ inputs.requirements }}" ]]; then
+            args+=(--requirements "${{ inputs.requirements }}")
+          fi
           if [[ "$MODE" == "agent" || "$MODE" == "ai" ]]; then
             if [[ -n "${{ inputs.profile }}" ]]; then
               args+=(--profile "${{ inputs.profile }}")
@@ -278,6 +307,9 @@ runs:
             if [[ "${{ inputs.with-checks }}" == "true" ]]; then
               args+=(--with-checks)
             fi
+          fi
+          if [[ "$MODE" != "agent" && "${{ inputs.fail-on-requirements }}" == "true" ]]; then
+            args+=(--fail-on-requirements)
           fi
           if [[ "$MODE" != "agent" && -n "${{ inputs.fail-on }}" ]]; then
             args+=(--fail-on "${{ inputs.fail-on }}")

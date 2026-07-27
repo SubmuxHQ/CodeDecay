@@ -26,7 +26,9 @@ codedecay loop --agent-cmd "your-agent-command" --max-rounds 4
 
 The command must be user-owned and explicit. CodeDecay passes the rendered task bundle on stdin. The agent may edit the working tree, but CodeDecay never commits or pushes those edits.
 
-After each agent action, CodeDecay re-runs deterministic analysis and configured checks. Agent output is treated as untrusted suggestion text until the deterministic checks prove the result.
+After each agent action that changes files, CodeDecay re-runs deterministic analysis and configured checks. This post-agent verification still runs when the edit happens in the final allowed round, including `--max-rounds 1`, and it never invokes the agent a second time. Agent output is treated as untrusted suggestion text until the deterministic checks prove the current working tree.
+
+Progress considers merge risk, decay risk, security risk, weak-test findings, product-failure bundles, and configured-check state. The JSON report records a `postAgentVerification` snapshot on the agent round so callers can distinguish agent execution failure from a deterministic check failure after an edit.
 
 ## Safety Rules
 

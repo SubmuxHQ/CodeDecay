@@ -18,7 +18,9 @@ import {
   writeFile
 } from "./helpers/built-cli";
 
-beforeAll(ensureBuiltCli);
+const MULTI_PROCESS_CONTRACT_TIMEOUT_MS = 20_000;
+
+beforeAll(ensureBuiltCli, 120_000);
 
 describe("built codedecay CLI analysis and diff behavior", () => {
   it("returns correct fail-on exit codes for low, medium, and high risk repos", () => {
@@ -36,7 +38,7 @@ describe("built codedecay CLI analysis and diff behavior", () => {
     expect(runBuilt(["analyze", "--cwd", highRepo, "--fail-on", "high"]).status).toBe(1);
     expect(runBuilt(["analyze", "--cwd", highRepo, "--fail-on", "medium"]).status).toBe(1);
     expect(runBuilt(["analyze", "--cwd", highRepo, "--fail-on", "low"]).status).toBe(1);
-  });
+  }, MULTI_PROCESS_CONTRACT_TIMEOUT_MS);
 
   it("honors cwd and writes relative output inside the analyzed repo", () => {
     const repo = createLowRiskRepo();
@@ -150,5 +152,56 @@ describe("built codedecay CLI analysis and diff behavior", () => {
         riskLevel: "low"
       }
     });
+  });
+
+  it("treats production modules under src/tests as source in a real git repository", () => {
+    const sourcePath = "packages/demo/src/tests/rules.ts";
+    const testPath = "packages/demo/tests/rules.test.ts";
+    const repo = createRepo({
+      [sourcePath]: "export function accepts(value: number) { return value > 0; }\n",
+      [testPath]: [
+        "import { strictEqual } from 'node:assert/strict';",
+        "import { test } from 'node:test';",
+        "import { accepts } from '../src/tests/rules.js';",
+        "test('accepts positive values', () => strictEqual(accepts(1), true));",
+        ""
+      ].join("\n")
+    });
+
+    writeFile(repo, sourcePath, "export function accepts(value: number) { return Number.isFinite(value) && value > 0; }\n");
+    writeFile(
+      repo,
+      testPath,
+      [
+        "import { strictEqual } from 'node:assert/strict';",
+        "import { test } from 'node:test';",
+        "import { accepts } from '../src/tests/rules.js';",
+        "test('accepts only finite positive values', () => {",
+        "  strictEqual(accepts(1), true);",
+        "  strictEqual(accepts(Number.POSITIVE_INFINITY), false);",
+        "});",
+        ""
+      ].join("\n")
+    );
+
+    const result = runBuilt(["analyze", "--cwd", repo, "--format", "json"]);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.status).toBe(0);
+    expect(report.securityAnalysis.scannedFiles).toContain(sourcePath);
+    expect(report.impactedAreas).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "source", files: expect.arrayContaining([sourcePath]) }),
+        expect.objectContaining({ kind: "test", files: expect.arrayContaining([testPath]) })
+      ])
+    );
+    expect(report.findings).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          file: sourcePath,
+          ruleId: expect.stringMatching(/^(test-without-assertions|test-bloat)$/)
+        })
+      ])
+    );
   });
 });

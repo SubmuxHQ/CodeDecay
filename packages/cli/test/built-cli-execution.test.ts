@@ -18,7 +18,7 @@ import {
   writeFile
 } from "./helpers/built-cli";
 
-beforeAll(ensureBuiltCli);
+beforeAll(ensureBuiltCli, 120_000);
 
 describe("built codedecay CLI execution workflows", () => {
   it("executes configured commands from the built CLI", () => {

@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { escapeRegExp, shellQuote } from "../strings";
 import type { PlaywrightCommandResult } from "./types";
 
@@ -9,6 +9,7 @@ export function resolveProjectPlaywrightTestCommand(
   grepTitle?: string | undefined
 ): PlaywrightCommandResult {
   const absoluteSourcePath = join(rootDir, sourcePath);
+  const generatedTestDir = dirname(absoluteSourcePath);
   const grepArgs = grepTitle ? ` --grep ${shellQuote(`^${escapeRegExp(grepTitle)}$`)}` : "";
   const candidates = [
     join(rootDir, "node_modules", "playwright", "cli.js"),
@@ -19,7 +20,7 @@ export function resolveProjectPlaywrightTestCommand(
     if (existsSync(candidate)) {
       return {
         ok: true,
-        command: `${shellQuote(process.execPath)} ${shellQuote(candidate)} test ${shellQuote(absoluteSourcePath)} --reporter=json${grepArgs}`
+        command: `${shellQuote(process.execPath)} ${shellQuote(candidate)} test --config ${shellQuote(generatedTestDir)} --reporter=json${grepArgs}`
       };
     }
   }
@@ -28,7 +29,7 @@ export function resolveProjectPlaywrightTestCommand(
   if (existsSync(bin)) {
     return {
       ok: true,
-      command: `${shellQuote(bin)} test ${shellQuote(absoluteSourcePath)} --reporter=json${grepArgs}`
+      command: `${shellQuote(bin)} test --config ${shellQuote(generatedTestDir)} --reporter=json${grepArgs}`
     };
   }
 

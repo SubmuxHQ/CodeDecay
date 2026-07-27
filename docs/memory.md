@@ -247,6 +247,12 @@ When memory matches a PR, CodeDecay may add:
 CodeDecay does not run memory commands automatically. They are reported as
 project-specific checks for the user or future execution adapters.
 
+Memory matches are rendered as untrusted `memory-context`, contribute `0` score,
+and do not count as high-severity blockers in the closed loop. Markdown reports
+separate them from scored risk findings, and SARIF emits them as informational
+notes. Memory can guide a user or agent toward a check, but only the resulting
+deterministic tool or runtime evidence can change trusted risk.
+
 ## Future Adapters
 
 The v1 default memory provider is the local `.codedecay/memory.json` file.

@@ -53,7 +53,23 @@ function normalizeSuggestion(value: unknown): LlmSuggestion[] {
     suggestion.evidence = [...value.evidence];
   }
 
+  copyStringArray(value, suggestion, "affectedFlows");
+  copyStringArray(value, suggestion, "edgeCases");
+  copyStringArray(value, suggestion, "proposedProof");
+  copyStringArray(value, suggestion, "unresolvedQuestions");
+
   return [suggestion];
+}
+
+function copyStringArray(
+  source: Record<string, unknown>,
+  target: LlmSuggestion,
+  key: "affectedFlows" | "edgeCases" | "proposedProof" | "unresolvedQuestions"
+): void {
+  const value = source[key];
+  if (Array.isArray(value) && value.every((item) => typeof item === "string")) {
+    target[key] = [...value];
+  }
 }
 
 function parseJsonFromText(text: string): unknown {

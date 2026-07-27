@@ -1,5 +1,10 @@
-import { CODEDECAY_VERSION, dedupeStrings } from "@submuxhq/codedecay-core";
-import type { DesignMatcher } from "@submuxhq/codedecay-core";
+import {
+  CODEDECAY_VERSION,
+  dedupeStrings,
+  isTestFilePath,
+  normalizeRequirementContext
+} from "@submuxhq/codedecay-core";
+import type { DesignMatcher, RequirementContext } from "@submuxhq/codedecay-core";
 import type { AgentSuggestedCheck } from "../types";
 import type {
   AgentPreflightArea,
@@ -45,6 +50,31 @@ const MAX_CANDIDATE_FILES = 24;
 const MAX_CANDIDATE_ROUTES = 16;
 const MAX_MEMORY_MATCHES_PER_SECTION = 8;
 const MAX_DESIGN_CONSTRAINTS = 16;
+const GENERIC_SCOPE_TOKENS = new Set([
+  "add",
+  "api",
+  "change",
+  "component",
+  "create",
+  "endpoint",
+  "fix",
+  "function",
+  "handler",
+  "implement",
+  "logic",
+  "module",
+  "page",
+  "refactor",
+  "request",
+  "response",
+  "route",
+  "service",
+  "source",
+  "test",
+  "tests",
+  "update",
+  "user"
+]);
 
 export function createAgentPreflightReport(options: CreateAgentPreflightReportOptions): AgentPreflightReport {
   const task = options.task.trim();
@@ -52,11 +82,32 @@ export function createAgentPreflightReport(options: CreateAgentPreflightReportOp
     throw new Error("agent preflight requires --task <description>.");
   }
 
-  const tokens = tokenize(task);
+  let requirements = normalizeRequirementContext({
+    task,
+    context: options.requirements,
+    source: options.requirementSource ?? {
+      id: "task-input",
+      kind: "task",
+      label: "Agent preflight task"
+    }
+  });
+  const tokens = tokenize(requirementSearchText(requirements));
+  const scopeTokens = tokenize(requirementScopeText(requirements));
   const keywordMatches = collectKeywordMatches(tokens);
   const likelyAreas = collectLikelyAreas(keywordMatches, tokens);
-  const candidateFiles = collectCandidateFiles(options.repoFiles, likelyAreas, tokens);
-  const candidateRoutes = collectCandidateRoutes(candidateFiles, options.config);
+  const candidateFiles = collectCandidateFiles(options.repoFiles, likelyAreas, scopeTokens);
+  if (candidateFiles.length === 0 && requirements.unresolvedQuestions.length === 0) {
+    requirements = {
+      ...requirements,
+      unresolvedQuestions: [
+        {
+          text: `Which repository path implements ${strongScopeTokens(scopeTokens).slice(0, 4).join(" / ") || "this requirement"}?`,
+          sourceIds: [requirements.task.sourceIds[0] ?? "task-input"]
+        }
+      ]
+    };
+  }
+  const candidateRoutes = collectCandidateRoutes(candidateFiles, options.config, scopeTokens);
   const configuredChecks = collectConfiguredChecks(options.config);
   const memory = collectMemoryEvidence(options.memory, likelyAreas, candidateFiles, candidateRoutes, tokens);
   const designConstraints = collectDesignConstraints(options.config, likelyAreas, candidateFiles, candidateRoutes, tokens);
@@ -88,14 +139,23 @@ export function createAgentPreflightReport(options: CreateAgentPreflightReportOp
     mode: "agent-preflight",
     generatedAt: options.generatedAt ?? new Date().toISOString(),
     task,
+    requirements,
     summary: {
-      confidence: confidenceFor(likelyAreas.length, candidateFiles.length, memoryCount(memory)),
+      confidence: confidenceFor(
+        likelyAreas.length,
+        candidateFiles.length,
+        memoryCount(memory),
+        requirements.confidence
+      ),
       likelyAreas: likelyAreas.length,
       candidateFiles: candidateFiles.length,
       candidateRoutes: candidateRoutes.length,
       memoryMatches: memoryCount(memory),
       designConstraints: designConstraints.length,
-      configuredChecks: configuredChecks.length
+      configuredChecks: configuredChecks.length,
+      acceptanceCriteria: requirements.acceptanceCriteria.length,
+      unresolvedQuestions: requirements.unresolvedQuestions.length,
+      insufficientContext: candidateFiles.length === 0
     },
     deterministicEvidence,
     suggestions,
@@ -107,7 +167,7 @@ export function createAgentPreflightReport(options: CreateAgentPreflightReportOp
       agentOutputTrusted: false
     },
     limits: [
-      "Preflight does not inspect a PR diff; file and route candidates are heuristic matches from the task description and repo paths.",
+      "Preflight does not inspect a PR diff; file and route candidates require domain-specific task terms or stronger repo evidence.",
       "Preflight does not execute configured commands, open browsers, call models, install tools, or send telemetry.",
       "Memory and docs are treated as review context, not trusted executable instruction.",
       "Use the proof plan as a starting point, then verify with real tests, configured checks, or product/runtime evidence."
@@ -208,7 +268,11 @@ function collectCandidateFiles(
     .filter(isPreflightRepoFile)
     .map((path) => scoreCandidateFile(path, likelyAreas, tokens))
     .filter((candidate): candidate is AgentPreflightCandidateFile & { score: number } => candidate !== undefined)
-    .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path));
+    .sort((left, right) =>
+      right.score - left.score ||
+      Number(isTestFilePath(left.path)) - Number(isTestFilePath(right.path)) ||
+      left.path.localeCompare(right.path)
+    );
 
   return scored.slice(0, MAX_CANDIDATE_FILES).map(({ score: _score, ...candidate }) => candidate);
 }
@@ -229,20 +293,20 @@ function scoreCandidateFile(
 ): (AgentPreflightCandidateFile & { score: number }) | undefined {
   const normalizedPath = path.toLowerCase();
   const pathAreas = pathAreasFor(path);
+  const tokenHits = strongScopeTokens(tokens).filter((token) => normalizedPath.includes(token));
+  if (tokenHits.length === 0) {
+    return undefined;
+  }
+
   const reasons: string[] = [];
-  let score = 0;
+  let score = Math.min(tokenHits.length * 4, 16);
+  reasons.push(`Path includes requirement term(s): ${tokenHits.slice(0, 5).join(", ")}.`);
 
   for (const area of likelyAreas) {
     if (pathAreas.includes(area.kind)) {
       score += area.confidence === "high" ? 5 : 4;
       reasons.push(`Path matches likely ${area.kind} work.`);
     }
-  }
-
-  const tokenHits = tokens.filter((token) => token.length >= 3 && normalizedPath.includes(token));
-  if (tokenHits.length > 0) {
-    score += Math.min(tokenHits.length * 2, 8);
-    reasons.push(`Path includes task term(s): ${tokenHits.slice(0, 5).join(", ")}.`);
   }
 
   if (pathAreas.includes("test") && likelyAreas.some((area) => area.kind === "test")) {
@@ -314,7 +378,7 @@ function pathAreasFor(path: string): AgentPreflightAreaKind[] {
     areas.push("config");
   }
 
-  if (isTestPath(normalized)) {
+  if (isTestFilePath(normalized) || normalized.includes("playwright")) {
     areas.push("test");
   }
 
@@ -331,7 +395,8 @@ function pathAreasFor(path: string): AgentPreflightAreaKind[] {
 
 function collectCandidateRoutes(
   candidateFiles: AgentPreflightCandidateFile[],
-  config: AgentPreflightConfigInput | undefined
+  config: AgentPreflightConfigInput | undefined,
+  tokens: string[]
 ): AgentPreflightCandidateRoute[] {
   const routes: AgentPreflightCandidateRoute[] = [];
 
@@ -344,12 +409,20 @@ function collectCandidateRoutes(
 
   for (const [targetId, target] of Object.entries(config?.productTesting?.targets ?? {})) {
     for (const endpoint of target?.apiEndpoints ?? []) {
+      const endpointText = `${endpoint.id ?? ""} ${endpoint.path}`.toLowerCase();
+      const matchedTerms = strongScopeTokens(tokens).filter((token) => endpointText.includes(token));
+      if (matchedTerms.length === 0) {
+        continue;
+      }
       routes.push({
         route: endpoint.path,
         kind: "product-api",
         methods: [endpoint.method.toUpperCase()],
         files: [],
-        reasons: [`Configured product target \`${targetId}\` includes endpoint \`${endpoint.id ?? endpoint.path}\`.`]
+        reasons: [
+          `Configured product target \`${targetId}\` includes endpoint \`${endpoint.id ?? endpoint.path}\`.`,
+          `Endpoint includes requirement term(s): ${matchedTerms.slice(0, 5).join(", ")}.`
+        ]
       });
     }
   }
@@ -799,8 +872,16 @@ function tokenize(value: string): string[] {
   ).slice(0, MAX_TASK_TOKENS);
 }
 
-function confidenceFor(areaCount: number, candidateFileCount: number, memoryMatches: number): AgentPreflightConfidence {
-  if (areaCount >= 2 && candidateFileCount >= 2) {
+function confidenceFor(
+  areaCount: number,
+  candidateFileCount: number,
+  memoryMatches: number,
+  requirementConfidence: AgentPreflightConfidence
+): AgentPreflightConfidence {
+  if (
+    (requirementConfidence === "high" && candidateFileCount >= 1) ||
+    (areaCount >= 2 && candidateFileCount >= 2)
+  ) {
     return "high";
   }
 
@@ -809,6 +890,30 @@ function confidenceFor(areaCount: number, candidateFileCount: number, memoryMatc
   }
 
   return "low";
+}
+
+function requirementSearchText(requirements: RequirementContext): string {
+  return [
+    requirements.task.text,
+    ...requirements.currentBehavior.map((entry) => entry.text),
+    ...requirements.expectedBehavior.map((entry) => entry.text),
+    ...requirements.acceptanceCriteria.flatMap((entry) => [entry.text, ...entry.requiredProof]),
+    ...requirements.affectedFlows.flatMap((flow) => [flow.name, flow.description ?? ""]),
+    ...requirements.invariants.map((entry) => entry.text),
+    ...requirements.architectureConstraints.map((entry) => entry.text)
+  ].join(" ");
+}
+
+function requirementScopeText(requirements: RequirementContext): string {
+  return [
+    requirements.task.text,
+    ...requirements.affectedFlows.flatMap((flow) => [flow.name, flow.description ?? ""]),
+    ...requirements.architectureConstraints.map((entry) => entry.text)
+  ].join(" ");
+}
+
+function strongScopeTokens(tokens: string[]): string[] {
+  return tokens.filter((token) => token.length >= 3 && !GENERIC_SCOPE_TOKENS.has(token));
 }
 
 function confidenceRank(confidence: AgentPreflightConfidence): number {
@@ -842,17 +947,6 @@ function isConfigPath(path: string): boolean {
     path.includes("webpack.config") ||
     path.includes("eslint.config") ||
     path.includes("dockerfile")
-  );
-}
-
-function isTestPath(path: string): boolean {
-  return (
-    path.includes(".test.") ||
-    path.includes(".spec.") ||
-    path.includes("/test/") ||
-    path.includes("/tests/") ||
-    path.includes("/__tests__/") ||
-    path.includes("playwright")
   );
 }
 

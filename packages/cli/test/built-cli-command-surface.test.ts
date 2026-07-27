@@ -18,9 +18,22 @@ import {
   writeFile
 } from "./helpers/built-cli";
 
-beforeAll(ensureBuiltCli);
+const MULTI_PROCESS_CONTRACT_TIMEOUT_MS = 30_000;
+
+beforeAll(ensureBuiltCli, 120_000);
 
 describe("built codedecay CLI command surface", () => {
+  it("terminates a CLI subprocess that exceeds its explicit timeout", () => {
+    const cwd = createTempDir();
+    const hangingCli = join(cwd, "hanging-cli.mjs");
+    writeFile(cwd, "hanging-cli.mjs", "setInterval(() => {}, 1_000);\n");
+
+    const result = runBuilt([], hangingCli, 100);
+
+    expect(result.status).toBeNull();
+    expect(result.timedOut).toBe(true);
+  });
+
   it("supports help, man, version, and update from the built CLI", () => {
     const cwd = createTempDir();
     writeFile(
@@ -42,12 +55,6 @@ describe("built codedecay CLI command surface", () => {
     expect(help.stdout).toContain("CodeDecay analyze");
     expect(help.stdout).toContain("--fail-on <level>");
 
-    const aiHelp = runBuilt(["ai", "--help"]);
-    expect(aiHelp.status).toBe(0);
-    expect(aiHelp.stdout).toContain("CodeDecay ai");
-    expect(aiHelp.stdout).toContain("--profile <profile>");
-    expect(aiHelp.stdout).toContain("--with-checks");
-
     const analyzeHelp = runBuilt(["analyze", "--help"]);
     expect(analyzeHelp.status).toBe(0);
     expect(analyzeHelp.stdout).toContain("CodeDecay analyze");
@@ -62,6 +69,12 @@ describe("built codedecay CLI command surface", () => {
     expect(agentHelp.status).toBe(0);
     expect(agentHelp.stdout).toContain("CodeDecay agent");
     expect(agentHelp.stdout).toContain("--profile <profile>");
+
+    const aiHelp = runBuilt(["ai", "--help"]);
+    expect(aiHelp.status).toBe(0);
+    expect(aiHelp.stdout).toContain("CodeDecay ai");
+    expect(aiHelp.stdout).toContain("--profile <profile>");
+    expect(aiHelp.stdout).toContain("--with-checks");
 
     const productHelp = runBuilt(["product", "--help"]);
     expect(productHelp.status).toBe(0);
@@ -126,7 +139,7 @@ describe("built codedecay CLI command surface", () => {
     expect(uninstallWithManagerOverride.status).toBe(0);
     expect(uninstallWithManagerOverride.stdout).toContain("Package manager: npm (override)");
     expect(uninstallWithManagerOverride.stdout).toContain("npm uninstall @submuxhq/codedecay");
-  });
+  }, MULTI_PROCESS_CONTRACT_TIMEOUT_MS);
 
   it("suggests similar commands and flags from the built CLI", () => {
     const repo = createLowRiskRepo();

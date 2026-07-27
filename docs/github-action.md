@@ -36,6 +36,41 @@ uses the workflow `github-token` input, defaults to the GitHub Actions workflow
 token, and is skipped without failing the workflow when the token or PR context
 is unavailable. The Step Summary is still written on every run.
 
+## AI Task Bundle
+
+Use `mode: ai` to produce the recommended Codex-ready task bundle in CI:
+
+```yaml
+- uses: SubmuxHQ/CodeDecay/packages/github-action@v0
+  with:
+    mode: ai
+    base: ${{ github.event.pull_request.base.sha }}
+    head: ${{ github.event.pull_request.head.sha }}
+    cwd: .
+    format: markdown
+    profile: codex
+    fail-on: high
+```
+
+Set `with-checks: true` only when repository config explicitly defines allowed
+commands or tool adapters and `safety.allowCommands` permits them. The Action
+does not accept arbitrary command arguments.
+
+```yaml
+- uses: SubmuxHQ/CodeDecay/packages/github-action@v0
+  with:
+    mode: ai
+    base: ${{ github.event.pull_request.base.sha }}
+    head: ${{ github.event.pull_request.head.sha }}
+    profile: claude-code
+    with-checks: true
+    format: json
+    output: codedecay-ai.json
+```
+
+`profile` is forwarded only to `agent` and `ai`. `with-checks` is forwarded
+only to `redteam` and `ai`. Existing `agent` mode never receives `fail-on`.
+
 ## SARIF Output
 
 ```yaml
@@ -227,7 +262,7 @@ jobs:
 
 ## Trend Snapshot Artifacts
 
-The composite action supports `analyze`, `redteam`, `agent`, `ai`, and `product`.
+The composite action supports `analyze`, `redteam`, `agent`, and `product`.
 For code-risk trend snapshots, call the CLI directly in the workflow and upload
 the artifact:
 
@@ -248,26 +283,11 @@ To compare against a saved snapshot:
 See [Trend snapshots](trend-snapshots.md) for a fuller artifact and history
 workflow.
 
-## AI, Redteam, And Agent Modes
+## Redteam And Agent Modes
 
-The action can also run AI-first, redteam, and agent bundle modes. `mode: ai`
-is the recommended PR handoff path because it produces a Codex-ready agent
-bundle by default while still using local deterministic evidence:
-
-```yaml
-- uses: SubmuxHQ/CodeDecay/packages/github-action@v0
-  with:
-    mode: ai
-    base: ${{ github.event.pull_request.base.sha }}
-    head: ${{ github.event.pull_request.head.sha }}
-    cwd: .
-    format: markdown
-    profile: claude-code
-    output: codedecay-ai.md
-```
-
-Redteam mode is useful as a Step Summary because it includes impact, memory,
-edge cases, and fix tasks for a user-owned agent:
+The action can also run report-only redteam and agent bundle modes. Redteam
+mode is useful as a Step Summary because it includes impact, memory, edge cases,
+and fix tasks for a user-owned agent:
 
 ```yaml
 - uses: SubmuxHQ/CodeDecay/packages/github-action@v0
@@ -286,16 +306,21 @@ edge cases, and fix tasks for a user-owned agent:
     base: ${{ github.event.pull_request.base.sha }}
     head: ${{ github.event.pull_request.head.sha }}
     cwd: .
+    task: Add a billing export API
+    requirements: .codedecay/requirements.yml
     format: markdown
     output: codedecay-agent.md
 ```
 
-Supported modes are `analyze`, `redteam`, `agent`, `ai`, and `product`. The
-action does not expose arbitrary command passthrough. Product mode only forwards
-the explicit product verification inputs documented above and still relies on
+`task` and `requirements` are explicit agent-mode inputs. The requirements path
+must resolve inside `cwd`; the action does not scrape the pull-request body,
+discover remote requirements, or call a model.
+
+Supported modes are `analyze`, `redteam`, `agent`, and `product`. The action
+does not expose arbitrary command passthrough. Product mode only forwards the
+explicit product verification inputs documented above and still relies on
 repo-local CodeDecay config for command safety. `format: sarif` is supported
-only with `mode: analyze`. `with-checks: true` is forwarded only for `redteam`
-and `ai`. `fail-on` is forwarded for `analyze`, `redteam`, and `ai`;
+only with `mode: analyze`. `fail-on` is forwarded for `analyze` and `redteam`;
 `product-fail-on-classification` gates product mode; `agent` mode produces a
 task bundle for a user-owned coding agent and does not gate the workflow by risk
 level.

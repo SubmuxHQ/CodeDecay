@@ -19,8 +19,10 @@ export function renderLoopMarkdown(report: LoopReport): string {
     `| Rounds run | ${report.roundsRun} / ${report.maxRounds} |`,
     `| Final risk | ${report.finalRiskLevel} |`,
     `| Final merge risk | ${report.finalMergeRiskScore}/100 |`,
+    `| Final decay risk | ${report.finalDecayScore}/100 |`,
     `| Final security risk | ${report.finalSecurityScore}/100 |`,
     `| Final weak-test findings | ${report.finalWeakTestFindings} |`,
+    `| Final product failure bundles | ${report.finalProductFailureBundles} |`,
     `| Final check status | ${report.finalCheckStatus} |`,
     "",
     "### Verdict Evidence",
@@ -45,59 +47,16 @@ export function renderLoopMarkdown(report: LoopReport): string {
     "",
     "### Rounds",
     "",
-    "| Round | Risk | Merge | Weak tests | Checks | Agent |",
-    "| ---: | --- | ---: | ---: | --- | --- |"
+    "| Round | Risk | Merge | Decay | Security | Weak tests | Product failures | Checks | Agent |",
+    "| ---: | --- | ---: | ---: | ---: | ---: | ---: | --- | --- |"
   ];
 
-  for (const round of report.rounds) {
-    lines.push(
-      `| ${round.round} | ${round.riskLevel} | ${round.mergeRiskScore}/100 | ${round.weakTestFindings} | ${round.checkStatus} | ${round.agent ? round.agent.status : report.planOnly ? "plan-only" : "not run"} |`
-    );
-  }
-
-  const agentRounds = report.rounds.filter((round) => round.agent);
-  if (agentRounds.length > 0) {
-    lines.push("", "### Agent Activity", "");
-    for (const round of agentRounds) {
-      const agent = round.agent;
-      if (!agent) {
-        continue;
-      }
-
-      lines.push(
-        `- Round ${round.round}: \`${agent.command}\` ${agent.status}; changed files: ${
-          agent.changedFiles.length > 0 ? agent.changedFiles.map((file) => `\`${file}\``).join(", ") : "none"
-        }`
-      );
-      if (agent.stderr.trim()) {
-        lines.push(`  - stderr: ${singleLine(agent.stderr)}`);
-      }
-    }
-  }
-
-  if (report.status === "plan-only") {
-    const bundle = report.rounds.find((round) => round.planOnlyBundle)?.planOnlyBundle;
-    lines.push("", "### Plan-Only Agent Bundle", "");
-    lines.push("No agent command was configured, so CodeDecay did not run an agent or edit files.");
-    if (bundle) {
-      lines.push("", "<details>", "<summary>Agent bundle that would be sent</summary>", "", "```markdown", bundle.trim(), "```", "", "</details>");
-    }
-  }
-
-  lines.push("", "### Remaining Fix Tasks", "");
-  if (report.finalFixTasks.length === 0) {
-    lines.push("- no fix tasks remain");
-  } else {
-    for (const task of report.finalFixTasks.slice(0, 12)) {
-      const location = task.file ? ` (\`${task.file}${task.line ? `:${task.line}` : ""}\`)` : "";
-      lines.push(`- ${task.priority} **${task.title}**${location}: ${task.detail}`);
-    }
-  }
-
-  lines.push("", "### Next Steps", "");
-  for (const step of report.nextSteps) {
-    lines.push(`- ${step}`);
-  }
+  appendRoundTable(lines, report);
+  appendRequirementTrace(lines, report);
+  appendAgentActivity(lines, report);
+  appendPlanOnlyBundle(lines, report);
+  appendFixTasks(lines, report);
+  appendNextSteps(lines, report);
 
   lines.push(
     "",
@@ -115,6 +74,97 @@ export function renderLoopMarkdown(report: LoopReport): string {
   );
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendRequirementTrace(lines: string[], report: LoopReport): void {
+  if (!report.requirementTrace) {
+    return;
+  }
+  lines.push(
+    "",
+    "### Acceptance Criteria Trace",
+    "",
+    "| Requirement | Status |",
+    "| --- | --- |"
+  );
+  for (const criterion of report.requirementTrace.criteria) {
+    lines.push(`| ${criterion.requirementId} | ${criterion.status.replaceAll("-", " ")} |`);
+  }
+}
+
+function appendRoundTable(lines: string[], report: LoopReport): void {
+  for (const round of report.rounds) {
+    const agentStatus = round.agent?.status ?? (report.planOnly ? "plan-only" : "not run");
+    lines.push(
+      `| ${round.round} | ${round.riskLevel} | ${round.mergeRiskScore}/100 | ${round.decayScore}/100 | ${round.securityScore}/100 | ${round.weakTestFindings} | ${round.productFailureBundles} | ${round.checkStatus} | ${agentStatus} |`
+    );
+  }
+}
+
+function appendAgentActivity(lines: string[], report: LoopReport): void {
+  const agentRounds = report.rounds.filter((round) => round.agent);
+  if (agentRounds.length === 0) {
+    return;
+  }
+
+  lines.push("", "### Agent Activity", "");
+  for (const round of agentRounds) {
+    const agent = round.agent;
+    if (!agent) {
+      continue;
+    }
+
+    const changedFiles = agent.changedFiles.length > 0
+      ? agent.changedFiles.map((file) => `\`${file}\``).join(", ")
+      : "none";
+    lines.push(`- Round ${round.round}: \`${agent.command}\` ${agent.status}; changed files: ${changedFiles}`);
+    if (round.postAgentVerification) {
+      const verification = round.postAgentVerification;
+      lines.push(
+        `  - Post-agent verification: ${verification.riskLevel} risk, merge ${verification.mergeRiskScore}/100, checks ${verification.checkStatus}.`
+      );
+    }
+    if (agent.stderr.trim()) {
+      lines.push(`  - stderr: ${singleLine(agent.stderr)}`);
+    }
+  }
+}
+
+function appendPlanOnlyBundle(lines: string[], report: LoopReport): void {
+  if (report.status !== "plan-only") {
+    return;
+  }
+
+  const bundle = report.rounds.find((round) => round.planOnlyBundle)?.planOnlyBundle;
+  lines.push(
+    "",
+    "### Plan-Only Agent Bundle",
+    "",
+    "No agent command was configured, so CodeDecay did not run an agent or edit files."
+  );
+  if (bundle) {
+    lines.push("", "<details>", "<summary>Agent bundle that would be sent</summary>", "", "```markdown", bundle.trim(), "```", "", "</details>");
+  }
+}
+
+function appendFixTasks(lines: string[], report: LoopReport): void {
+  lines.push("", "### Remaining Fix Tasks", "");
+  if (report.finalFixTasks.length === 0) {
+    lines.push("- no fix tasks remain");
+    return;
+  }
+
+  for (const task of report.finalFixTasks.slice(0, 12)) {
+    const location = task.file ? ` (\`${task.file}${task.line ? `:${task.line}` : ""}\`)` : "";
+    lines.push(`- ${task.priority} **${task.title}**${location}: ${task.detail}`);
+  }
+}
+
+function appendNextSteps(lines: string[], report: LoopReport): void {
+  lines.push("", "### Next Steps", "");
+  for (const step of report.nextSteps) {
+    lines.push(`- ${step}`);
+  }
 }
 
 function statusLabel(status: LoopReport["status"]): string {
