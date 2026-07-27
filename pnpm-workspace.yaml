@@ -1,7 +1,12 @@
 packages:
   - "packages/*"
 overrides:
+  # Security floors for transitive build and MCP dependencies.
+  "@hono/node-server@<2.0.10": "2.0.12"
   "esbuild@<0.28.1": "0.25.12"
+  "fast-uri@<3.1.4": "3.1.4"
+  "hono@<4.12.27": "4.12.27"
+  "postcss@<8.5.18": "8.5.23"
   "vite@<6.4.3": "6.4.3"
 allowBuilds:
   esbuild: true

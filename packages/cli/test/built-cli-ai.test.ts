@@ -17,6 +17,7 @@ import {
 
 const PACKED_CLI_PROCESS_TIMEOUT_MS = 20_000;
 let packedFixtureRoot = "";
+let packedInstallRoot = "";
 let packedPackageRoot = "";
 let packedCliPath = "";
 
@@ -25,6 +26,7 @@ beforeAll(() => {
   packedFixtureRoot = mkdtempSync(join(tmpdir(), "codedecay-packed-ai-"));
   const packDir = join(packedFixtureRoot, "pack");
   const installDir = join(packedFixtureRoot, "install");
+  packedInstallRoot = installDir;
   mkdirSync(packDir, { recursive: true });
   mkdirSync(installDir, { recursive: true });
 
@@ -70,6 +72,9 @@ beforeAll(() => {
   if (dependencySpecs.some((specifier) => /^(workspace:|link:|file:)/.test(specifier))) {
     throw new Error("Packed CLI contains a workspace-only dependency protocol.");
   }
+  if (installedPackage.dependencies?.["@modelcontextprotocol/sdk"]) {
+    throw new Error("Packed CLI should bundle its MCP server surface instead of installing the SDK dependency graph.");
+  }
 }, 120_000);
 
 afterAll(() => {
@@ -77,6 +82,16 @@ afterAll(() => {
 });
 
 describe("packed codedecay AI workflow", () => {
+  it("keeps the packed MCP surface self-contained without the vulnerable HTTP server dependency", () => {
+    expect(existsSync(join(packedInstallRoot, "node_modules/@hono/node-server"))).toBe(false);
+    expect(existsSync(join(packedInstallRoot, "node_modules/hono"))).toBe(false);
+
+    const help = runPacked(["mcp", "--help"]);
+
+    expect(help).toMatchObject({ status: 0, stderr: "", timedOut: false });
+    expect(help.stdout).toContain("codedecay mcp");
+  });
+
   it("runs the complete AI bundle contract without workspace dependencies", () => {
     const repo = createRepo({
       "src/api/users.ts": "export function users() { return []; }\n"
