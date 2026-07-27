@@ -24,9 +24,11 @@ describe("GitHub Action metadata", () => {
       "product-generate-tests",
       "product-run-generated-api-tests",
       "product-run-generated-tests",
+      "profile",
       "requirements",
       "target",
-      "task"
+      "task",
+      "with-checks"
     ]);
     expect(action.inputs.mode.default).toBe("analyze");
     expect(action.inputs["github-token"].default).toBe("${{ github.token }}");
@@ -43,11 +45,11 @@ describe("GitHub Action metadata", () => {
   it("supports report modes and explicit product verification only", () => {
     const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
 
-    expect(actionYaml).toContain("analyze|redteam|agent|product");
+    expect(actionYaml).toContain("analyze|redteam|agent|ai|product");
     expect(actionYaml).toContain('args=("product" --cwd "${{ inputs.cwd }}" --format "$FORMAT")');
     expect(actionYaml).toContain("Unsupported CodeDecay mode");
     expect(actionYaml).toContain("does not support SARIF output");
-    expect(actionYaml).not.toContain("analyze|redteam|agent|product|execute");
+    expect(actionYaml).not.toContain("analyze|redteam|agent|ai|product|execute");
   });
 
   it("posts sticky pull request comments without colliding with the GitHub App marker", () => {
@@ -90,6 +92,17 @@ describe("GitHub Action metadata", () => {
     const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
 
     expect(actionYaml).toContain('if [[ "$MODE" != "agent" && -n "${{ inputs.fail-on }}" ]]; then');
+  });
+
+  it("wires the AI profile and explicit checks without arbitrary argument passthrough", () => {
+    const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
+
+    expect(actionYaml).toContain('if [[ "$MODE" == "agent" || "$MODE" == "ai" ]]; then');
+    expect(actionYaml).toContain('args+=(--profile "${{ inputs.profile }}")');
+    expect(actionYaml).toContain('if [[ "$MODE" == "redteam" || "$MODE" == "ai" ]]; then');
+    expect(actionYaml).toContain("args+=(--with-checks)");
+    expect(actionYaml).not.toContain("agent-extra-args");
+    expect(actionYaml).not.toContain("ai-extra-args");
   });
 
   it("forwards explicit structured requirement inputs and the opt-in CI gate", () => {

@@ -25,6 +25,9 @@ npx codedecay man analyze
 ## Quickstart
 
 ```bash
+npx codedecay ai preflight --task "Add an authorized billing export API"
+npx codedecay ai --format markdown
+npx codedecay ai --with-checks --base main --head HEAD --format markdown
 npx codedecay analyze --format markdown
 npx codedecay analyze --base main --head HEAD --format json
 npx codedecay analyze --format sarif --output codedecay.sarif
@@ -40,6 +43,7 @@ npx codedecay memory-learn --input ci-failure.json
 
 | Command | Purpose |
 | --- | --- |
+| `codedecay ai` | Recommended AI-first workflow with Codex-ready preflight and post-diff task bundles plus explicit investigation and verification options. |
 | `codedecay analyze` | Deterministic PR risk, impact, and decay report. |
 | `codedecay snapshot` | Stable repository health snapshot and comparison artifact. |
 | `codedecay redteam` | Merge-safety report with impact, weak-test evidence, edge cases, skills, memory, and fix tasks. |
@@ -67,6 +71,7 @@ Common flags:
 --format json|markdown|sarif
 --output <path>
 --fail-on low|medium|high
+--with-checks
 --profile generic|codex|claude-code|cursor|pi|opencode|desktop
 ```
 
@@ -90,7 +95,7 @@ the analysis working directory.
 
 | Workflow | Default | Behavior |
 | --- | --- | --- |
-| `analyze`, `redteam`, `agent`, `snapshot` | Yes | Deterministic local analysis with no model calls. |
+| `ai`, `analyze`, `redteam`, `agent`, `snapshot` | Yes | Deterministic local analysis with no model calls unless investigation is explicit. |
 | `execute`, `differential` | No | Runs only repo-allowlisted local commands after explicit opt-in. |
 | `llm-review` | No | Calls a user-owned provider only when invoked directly. |
 | Optional LLM providers | No | Disabled by default and only used by commands that explicitly opt in. |
@@ -100,10 +105,11 @@ the analysis working directory.
 ```yaml
 - uses: SubmuxHQ/CodeDecay/packages/github-action@v0
   with:
-    mode: redteam
+    mode: ai
     base: ${{ github.event.pull_request.base.sha }}
     head: ${{ github.event.pull_request.head.sha }}
     format: markdown
+    profile: codex
     fail-on: high
 ```
 

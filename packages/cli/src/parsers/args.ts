@@ -1,4 +1,5 @@
 export { parseAgentArgs } from "./agent";
+export { parseAiArgs } from "./ai";
 export { parseAnalyzeArgs } from "./analyze";
 export { parseBenchmarkArgs } from "./benchmark";
 export { parseConfigArgs } from "./config";

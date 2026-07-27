@@ -35,6 +35,7 @@ export interface AgentTaskBundle {
   requirements?: RequirementContext | undefined;
   requirementTrace?: RequirementTraceGraph | undefined;
   investigation?: RedteamReport["investigation"] | undefined;
+  verification: RedteamReport["verification"];
   summary: AgentTaskSummary;
   prompt: string;
   instructions: string[];
@@ -66,6 +67,7 @@ export interface AgentTaskSummary {
   totalFixTasks: number;
   scopeFindings: number;
   contractFindings: number;
+  verificationStatus: RedteamReport["summary"]["verificationStatus"];
 }
 
 export interface AgentEvidence {

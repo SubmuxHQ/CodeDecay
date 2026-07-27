@@ -70,6 +70,11 @@ describe("built codedecay CLI command surface", () => {
     expect(agentHelp.stdout).toContain("CodeDecay agent");
     expect(agentHelp.stdout).toContain("--profile <profile>");
 
+    const aiHelp = runBuilt(["ai", "--help"]);
+    expect(aiHelp.status).toBe(0);
+    expect(aiHelp.stdout).toContain("CodeDecay ai");
+    expect(aiHelp.stdout).toContain("--with-checks");
+
     const productHelp = runBuilt(["product", "--help"]);
     expect(productHelp.status).toBe(0);
     expect(productHelp.stdout).toContain("CodeDecay product");

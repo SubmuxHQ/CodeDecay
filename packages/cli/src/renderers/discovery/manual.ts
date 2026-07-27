@@ -10,13 +10,13 @@ export function renderRootManual(input: {
     "CODEDECAY(1)",
     "",
     "NAME",
-    "  codedecay - deterministic PR regression-risk and code-decay CLI",
+    "  codedecay - local-first AI PR safety orchestration CLI",
     "",
     "SYNOPSIS",
     "  codedecay <command> [options]",
     "",
     "DESCRIPTION",
-    "  CodeDecay is a local-first CLI for regression-risk analysis, blast-radius mapping, maintainability decay detection, weak-test auditing, and agent handoff workflows.",
+    "  CodeDecay is a local-first orchestration CLI for AI-assisted PR safety, regression-risk analysis, impact mapping, weak-test auditing, and agent handoff workflows.",
     "  It does not require hosted services or hidden model calls to produce the core analysis.",
     "",
     "DISCOVERY",
@@ -38,7 +38,7 @@ export function renderRootManual(input: {
     "",
     "SAFETY",
     "  CodeDecay does not execute project commands unless they are explicitly configured and allowed by repo-local safety settings.",
-    "  Redteam and agent workflows package evidence and recommendations without executing configured checks by default.",
+    "  AI, redteam, and agent workflows package evidence and recommendations without executing configured checks by default.",
     ""
   );
 

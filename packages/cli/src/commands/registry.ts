@@ -1,4 +1,5 @@
 import { runAgentCommand as runAgentCommandWithDependencies } from "./agent";
+import { runAiCommand as runAiCommandWithDependencies } from "./ai";
 import { runAnalyzeCommand as runAnalyzeCommandWithDependencies } from "./analyze";
 import { runBenchmarkCommand as runBenchmarkCommandWithDependencies } from "./benchmark";
 import { runConfigCommand } from "./config";
@@ -36,6 +37,11 @@ export interface CommandRegistryOptions {
 export function createCommandHandlers(options: CommandRegistryOptions): Record<string, CliCommandHandler> {
   return {
     agent: (context) => runAgentCommandWithDependencies(context, {
+      createAnalysisContext: createAnalysisContextForCli,
+      resolveRepoRoot: getRepoRootForCli,
+      writeOutput: writeCliOutput
+    }),
+    ai: (context) => runAiCommandWithDependencies(context, {
       createAnalysisContext: createAnalysisContextForCli,
       resolveRepoRoot: getRepoRootForCli,
       writeOutput: writeCliOutput

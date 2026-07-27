@@ -10,6 +10,7 @@ describe("codedecay CLI discovery commands", () => {
     const rootHelp = await run(["help"], cwd);
     expect(rootHelp.exitCode).toBe(0);
     expect(rootHelp.stdout).toContain("codedecay help [command]");
+    expect(rootHelp.stdout).toContain("codedecay ai");
     expect(rootHelp.stdout).toContain("update");
 
     const commandHelp = await run(["help", "analyze"], cwd);
@@ -21,6 +22,12 @@ describe("codedecay CLI discovery commands", () => {
     expect(inlineHelp.exitCode).toBe(0);
     expect(inlineHelp.stdout).toContain("CodeDecay analyze");
     expect(inlineHelp.stdout).toContain("codedecay analyze [options]");
+
+    const aiHelp = await run(["ai", "--help"], cwd);
+    expect(aiHelp.exitCode).toBe(0);
+    expect(aiHelp.stdout).toContain("CodeDecay ai");
+    expect(aiHelp.stdout).toContain("codedecay ai preflight");
+    expect(aiHelp.stdout).toContain("--with-checks");
 
     const manual = await run(["man", "update"], cwd);
     expect(manual.exitCode).toBe(0);

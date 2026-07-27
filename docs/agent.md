@@ -1,18 +1,28 @@
 # Agent Task Bundles
 
-`codedecay agent` turns a deterministic redteam report into a task bundle for a
-user-owned coding agent.
+`codedecay ai` is the recommended workflow for turning CodeDecay evidence into
+a Codex-ready task bundle. `codedecay agent` remains the lower-level equivalent
+with a generic profile default.
 
 Use it when you want Codex, Claude Code, Cursor, Pi, OpenCode, a desktop agent,
 or another local agent to fix what CodeDecay found without CodeDecay making a
 hidden model call.
 
 ```bash
+npx codedecay ai preflight --task "Add a GET /api/users export endpoint" --format markdown
+npx codedecay ai --base main --head HEAD --format markdown
+npx codedecay ai --profile claude-code --format markdown
+npx codedecay ai --with-checks --base main --head HEAD --format markdown
 npx codedecay agent --base main --head HEAD --format markdown
 npx codedecay agent --profile codex --format markdown
 npx codedecay agent preflight --task "Add a GET /api/users export endpoint" --format markdown
 npx codedecay agent --cwd ../my-repo --format json --output codedecay-agent.json
 ```
+
+`ai` does not call the selected coding agent. `--investigate` explicitly calls
+only the configured local/BYOK provider, while `--with-checks` explicitly runs
+configured commands and adapters through CodeDecay safety policy. The bundle
+records whether either action occurred and includes verification evidence.
 
 ## Preflight Before Code Generation
 
@@ -49,8 +59,8 @@ low confidence, no candidate files, and an unresolved question instead of
 inventing scope.
 
 Treat preflight as a before-coding brief. After the agent edits code, run
-`codedecay redteam`, `codedecay agent`, and the relevant project checks to
-gather merge evidence.
+`codedecay ai --with-checks` to gather configured proof and produce the next
+agent bundle.
 
 ## Explicit Agent Investigation
 

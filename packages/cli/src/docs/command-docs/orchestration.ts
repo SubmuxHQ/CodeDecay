@@ -2,6 +2,44 @@ import { AGENT_PROFILE_IDS } from "@submuxhq/codedecay-agent";
 import type { CommandDoc } from "../../renderers/discovery";
 
 export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
+  ai: {
+    name: "ai",
+    summary: "AI-first PR safety workflow for Codex, Claude Code, Cursor, and local agent loops.",
+    usage: ["codedecay ai [options]", "codedecay ai preflight --task <description> [options]"],
+    description: [
+      "Generate a Codex-ready task bundle by red-teaming the diff, loading requirements, local memory, and repo skills, auditing tests, and packaging concrete proof and repair tasks for a user-owned agent.",
+      "Use `ai preflight` before code generation to give the agent grounded likely files, routes, constraints, unresolved questions, and proof expectations without requiring a git diff."
+    ],
+    options: [
+      { flag: "--base <ref>", description: "Base git ref to compare from" },
+      { flag: "--head <ref>", description: "Head git ref to compare to" },
+      { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
+      { flag: "--format <format>", description: "json or markdown (default: markdown)" },
+      { flag: "--profile <profile>", description: `${AGENT_PROFILE_IDS.join(", ")} (default: codex)` },
+      { flag: "--task <text>", description: "Required for `ai preflight`; optional post-diff task context" },
+      { flag: "--requirements <path>", description: "Optional repo-local JSON, YAML, or Markdown requirements artifact" },
+      { flag: "--investigate", description: "Explicitly call the configured local/BYOK provider and include untrusted grounded suggestions" },
+      { flag: "--filter-source <source>", description: "Only include fix tasks from one source such as finding, weak-test, edge-case, test-proof, or product-failure" },
+      { flag: "--filter-priority <level>", description: "Only include fix tasks with priority low, medium, or high" },
+      { flag: "--filter-file <path>", description: "Only include fix tasks tied to a file path" },
+      { flag: "--with-checks", description: "Run configured commands and tool adapters through safety gates after code changes" },
+      { flag: "--fail-on <level>", description: "Exit non-zero on low, medium, or high risk after writing the bundle" },
+      { flag: "--fail-on-requirements", description: "Exit non-zero when supplied acceptance criteria remain blocking after writing the bundle" },
+      { flag: "--output <path>", description: "Write the task bundle to a file instead of stdout" }
+    ],
+    examples: [
+      "codedecay ai preflight --task \"Add a GET /api/users export endpoint\" --format markdown",
+      "codedecay ai --base main --head HEAD --format markdown",
+      "codedecay ai --profile claude-code --requirements .codedecay/requirements.yml --format markdown",
+      "codedecay ai --with-checks --base main --head HEAD --format markdown"
+    ],
+    notes: [
+      "The default workflow packages deterministic evidence for a user-owned agent. It does not call Codex, Claude Code, Cursor, hosted models, or CodeDecayCloud.",
+      "Use --investigate only when you explicitly want the configured local/BYOK provider to produce untrusted suggestions.",
+      "Use --with-checks only after edits when you want configured local commands and OSS adapters to produce verification evidence.",
+      "Failed or blocked checks and configured risk/requirement gates exit non-zero after the bundle is written."
+    ]
+  },
   redteam: {
     name: "redteam",
     summary: "Merge-safety report with impact, weak-test evidence, edge cases, and fix tasks.",
@@ -85,7 +123,7 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       "codedecay llm-review --task \"Focus on auth regressions and missing route checks\" --format json"
     ],
     notes: [
-      "This command is explicit opt-in. Deterministic analyze, redteam, agent, and snapshot commands do not call models by default.",
+      "This command is explicit opt-in. Deterministic ai, analyze, redteam, agent, and snapshot commands do not call models by default.",
       "LLM suggestions are untrusted until verified by tests, configured checks, or manual review."
     ]
   },
