@@ -559,16 +559,7 @@ function createRepo(files: Record<string, string>): string {
   }
 
   git(repo, ["add", "."]);
-  git(repo, [
-    "-c",
-    "user.email=codedecay@example.com",
-    "-c",
-    "user.name=CodeDecay Test",
-    "commit",
-    "--quiet",
-    "-m",
-    "initial"
-  ]);
+  git(repo, ["commit", "--quiet", "-m", "initial"]);
   return repo;
 }
 
@@ -585,7 +576,7 @@ function writeFile(root: string, path: string, contents: string): void {
 }
 
 function git(cwd: string, args: string[]): void {
-  execFileSync("git", args, {
+  execFileSync("git", ["-c", "user.email=codedecay@example.com", "-c", "user.name=CodeDecay Test", ...args], {
     cwd,
     stdio: "ignore"
   });
