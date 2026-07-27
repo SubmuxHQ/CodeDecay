@@ -76,10 +76,7 @@ test("live endpoint finds the curated anonymous admin route", async () => {
   assert.equal(response.status, 200);
   const payload = await response.json();
   assert.equal(payload.execution.mode, "live");
-  assert.equal(
-    payload.links.release,
-    "https://github.com/SubmuxHQ/CodeDecay/releases/tag/v0.4.0",
-  );
+  assert.equal(payload.links.release, "https://github.com/SubmuxHQ/CodeDecay/releases/tag/v0.4.0");
   assert.equal(payload.summary.riskLevel, "high");
   assert.equal(payload.impactedRoute.route, "/api/users");
   assert.ok(
