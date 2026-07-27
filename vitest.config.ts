@@ -6,7 +6,10 @@ const fromRoot = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 export default defineConfig({
   test: {
     include: ["packages/**/*.test.ts"],
-    globals: true
+    globals: true,
+    // Integration files spawn CLIs and tool processes; cap file workers so
+    // existing timeout budgets detect real hangs instead of host contention.
+    maxWorkers: 2
   },
   resolve: {
     alias: {
