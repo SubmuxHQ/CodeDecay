@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { resolve } from "node:path";
+import { isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readOptionValue } from "../lib/args.mjs";
 import { resetDir, writeFiles } from "../lib/files.mjs";
@@ -13,7 +13,9 @@ if (options.help) {
   process.exit(0);
 }
 
+const allowedOutputRoot = resolve(repoRoot, ".codedecay/local/hackathon-demo");
 const outputDir = resolve(repoRoot, options.outputDir ?? ".codedecay/local/hackathon-demo/repo");
+assertSafeOutputDir(outputDir);
 
 resetDir(outputDir);
 writeFiles(outputDir, baselineFiles());
@@ -60,6 +62,15 @@ function parseArgs(args) {
   return parsed;
 }
 
+function assertSafeOutputDir(candidate) {
+  const relativePath = relative(allowedOutputRoot, candidate);
+  if (!relativePath || relativePath.startsWith("..") || isAbsolute(relativePath)) {
+    throw new Error(
+      "The fixture output must be a child of .codedecay/local/hackathon-demo/."
+    );
+  }
+}
+
 function printHelp() {
   process.stdout.write(
     [
@@ -68,7 +79,7 @@ function printHelp() {
       "Materialize an isolated git repository for the three-minute Codex demo.",
       "",
       "Options:",
-      "  --output-dir <path>  Fixture destination (default: .codedecay/local/hackathon-demo/repo)",
+      "  --output-dir <path>  Destination under .codedecay/local/hackathon-demo/",
       "  --help               Show this help",
       ""
     ].join("\n")
@@ -77,7 +88,13 @@ function printHelp() {
 
 function baselineFiles() {
   return {
-    ".gitignore": [".codedecay/local/", "codedecay-ai-*.md", ""].join("\n"),
+    ".gitignore": [
+      ".codedecay/local/",
+      "codedecay-ai-*.md",
+      "codedecay-before.json",
+      "codedecay-revalidation.md",
+      ""
+    ].join("\n"),
     "README.md": [
       "# Acme Admin API",
       "",
@@ -86,19 +103,20 @@ function baselineFiles() {
       "Invariant: anonymous requests to `GET /api/users` must return `401`.",
       ""
     ].join("\n"),
-    "package.json": JSON.stringify(
-      {
-        name: "codedecay-hackathon-auth-demo",
-        private: true,
-        type: "module",
-        scripts: {
-          test: "node --test test/unit/session.test.js",
-          "probe:anonymous": "node scripts/probe-anonymous.mjs"
-        }
-      },
-      null,
-      2
-    ),
+    "package.json":
+      JSON.stringify(
+        {
+          name: "codedecay-hackathon-auth-demo",
+          private: true,
+          type: "module",
+          scripts: {
+            test: "node --test test/unit/session.test.js",
+            "probe:anonymous": "node scripts/probe-anonymous.mjs"
+          }
+        },
+        null,
+        2
+      ) + "\n",
     ".codedecay/config.yml": [
       "version: 1",
       "commands:",
@@ -186,15 +204,111 @@ function baselineFiles() {
       "}",
       ""
     ].join("\n"),
+    "scripts/request-app.mjs": [
+      "import { Agent, request } from 'node:http';",
+      "import { Duplex } from 'node:stream';",
+      "",
+      "class MemorySocket extends Duplex {",
+      "  #peer;",
+      "",
+      "  connect(peer) {",
+      "    this.#peer = peer;",
+      "  }",
+      "",
+      "  _read() {}",
+      "",
+      "  _write(chunk, _encoding, callback) {",
+      "    this.#peer.push(Buffer.from(chunk));",
+      "    callback();",
+      "  }",
+      "",
+      "  _final(callback) {",
+      "    this.#peer.push(null);",
+      "    callback();",
+      "  }",
+      "",
+      "  setNoDelay() {",
+      "    return this;",
+      "  }",
+      "",
+      "  setKeepAlive() {",
+      "    return this;",
+      "  }",
+      "",
+      "  setTimeout() {",
+      "    return this;",
+      "  }",
+      "}",
+      "",
+      "function makeSocketPair() {",
+      "  const client = new MemorySocket();",
+      "  const server = new MemorySocket();",
+      "  client.connect(server);",
+      "  server.connect(client);",
+      "  return { client, server };",
+      "}",
+      "",
+      "function makeRequest(options) {",
+      "  return new Promise((resolve, reject) => {",
+      "    const outgoing = request(options, (response) => {",
+      "      let body = '';",
+      "      response.setEncoding('utf8');",
+      "      response.on('data', (chunk) => {",
+      "        body += chunk;",
+      "      });",
+      "      response.on('end', () => resolve({ body, status: response.statusCode }));",
+      "    });",
+      "    outgoing.on('error', reject);",
+      "    outgoing.end();",
+      "  });",
+      "}",
+      "",
+      "export async function requestApp(app, path, { headers } = {}) {",
+      "  try {",
+      "    await new Promise((resolve, reject) => {",
+      "      app.once('error', reject);",
+      "      app.listen(0, '127.0.0.1', resolve);",
+      "    });",
+      "",
+      "    const address = app.address();",
+      "    return await makeRequest({",
+      "      headers,",
+      "      host: '127.0.0.1',",
+      "      method: 'GET',",
+      "      path,",
+      "      port: address.port",
+      "    });",
+      "  } catch (error) {",
+      "    if (error.code !== 'EPERM') throw error;",
+      "",
+      "    const sockets = makeSocketPair();",
+      "    const agent = new Agent();",
+      "    agent.createConnection = () => sockets.client;",
+      "    app.emit('connection', sockets.server);",
+      "    return await makeRequest({",
+      "      agent,",
+      "      headers,",
+      "      host: 'in-memory',",
+      "      method: 'GET',",
+      "      path,",
+      "      port: 80",
+      "    });",
+      "  } finally {",
+      "    if (app.listening) {",
+      "      await new Promise((resolve, reject) => {",
+      "        app.close((error) => (error ? reject(error) : resolve()));",
+      "      });",
+      "    }",
+      "  }",
+      "}",
+      ""
+    ].join("\n"),
     "scripts/probe-anonymous.mjs": [
       "import { createApp } from '../src/server.js';",
+      "import { requestApp } from './request-app.mjs';",
       "",
-      "const server = createApp();",
-      "await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));",
-      "const address = server.address();",
-      "const response = await fetch(`http://127.0.0.1:${address.port}/api/users`);",
-      "const body = await response.json();",
-      "server.close();",
+      "const response = await requestApp(createApp(), '/api/users');",
+      "const body = JSON.parse(response.body);",
       "",
       "console.log(JSON.stringify({ flow: 'anonymous GET /api/users', expected: 401, actual: response.status, body }));",
       "if (response.status !== 401) process.exitCode = 1;",

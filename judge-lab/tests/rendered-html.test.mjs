@@ -37,6 +37,10 @@ test("server-renders the Judge Lab landing experience", async () => {
   assert.match(html, /Red-team the risky PR/);
   assert.match(html, /No login\. No repository upload\./);
   assert.match(html, /Don’t trust the green check\./);
+  assert.match(html, /From false green to real proof\./);
+  assert.match(html, /\/demo\/codedecay-codex-repair\.mp4/);
+  assert.match(html, /\/demo\/codedecay-codex-repair\.vtt/);
+  assert.match(html, /Edited for time from one genuine session/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton/);
 });
 

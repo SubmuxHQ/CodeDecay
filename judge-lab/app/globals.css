@@ -351,6 +351,7 @@ a:focus-visible {
 }
 
 .lab-section,
+.demo-section,
 .proof-section {
   margin: 0 auto;
   max-width: 1480px;
@@ -935,6 +936,72 @@ a:focus-visible {
   border-top: 1px solid var(--line);
 }
 
+.demo-section {
+  border-top: 1px solid var(--line);
+}
+
+.demo-player {
+  border: 1px solid var(--line-bright);
+  background: var(--panel);
+}
+
+.demo-player video {
+  aspect-ratio: 16 / 9;
+  background: #050504;
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.demo-evidence {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 28px;
+  grid-template-columns: auto 1fr auto;
+  padding: 24px 28px;
+}
+
+.demo-evidence > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.demo-evidence span {
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+}
+
+.demo-evidence strong {
+  color: var(--orange-soft);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.demo-evidence p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.demo-links {
+  display: flex;
+  gap: 18px;
+}
+
+.demo-links a {
+  border-bottom: 1px solid var(--line-bright);
+  font-family: var(--mono);
+  font-size: 9px;
+  padding-bottom: 6px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
 .proof-grid {
   border: 1px solid var(--line);
   display: grid;
@@ -1098,6 +1165,11 @@ a:focus-visible {
   .provenance {
     grid-template-columns: 1fr;
   }
+
+  .demo-evidence {
+    align-items: start;
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 680px) {
@@ -1111,6 +1183,7 @@ a:focus-visible {
 
   .hero,
   .lab-section,
+  .demo-section,
   .proof-section {
     padding-left: 20px;
     padding-right: 20px;
@@ -1205,6 +1278,7 @@ a:focus-visible {
   }
 
   .result-footer > div,
+  .demo-links,
   .footer-links {
     flex-wrap: wrap;
   }
