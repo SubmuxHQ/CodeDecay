@@ -27,7 +27,7 @@ export function sourceLinks(commit = sourceCommit()) {
     fixture: `${REPOSITORY_URL}/blob/${ref}/scripts/fixtures/end-user-demo/repo-fixtures.mjs`,
     engine: `${REPOSITORY_URL}/tree/${ref}/packages/matchers`,
     benchmark: `${REPOSITORY_URL}/blob/${ref}/docs/benchmark-corpus.md`,
-    release: `${REPOSITORY_URL}/releases/tag/v0.3.5`,
+    release: `${REPOSITORY_URL}/releases/tag/v0.4.0`,
     sourceTree: `${REPOSITORY_URL}/tree/${ref}/judge-lab`,
   };
 }

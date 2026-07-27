@@ -13,9 +13,11 @@ the agent.
 ## Public links
 
 - **Judge Lab:** [Open the public lab](https://codedecay-judge-lab.kunal277075.chatgpt.site)
+- **Three-minute demo:** [Watch the captioned Codex repair](https://codedecay-judge-lab.kunal277075.chatgpt.site/#demo)
 - **Source:** [View the public repository](https://github.com/SubmuxHQ/CodeDecay)
 - **Current public package:** [View the npm package](https://www.npmjs.com/package/@submuxhq/codedecay)
-- **Current public release:** [View v0.3.5](https://github.com/SubmuxHQ/CodeDecay/releases/tag/v0.3.5)
+- **Hackathon release:** [View v0.4.0](https://github.com/SubmuxHQ/CodeDecay/releases/tag/v0.4.0)
+- **Release notes:** [Read the shipped behavior and limitations](./release-notes-v0.4.0.md)
 - **Benchmark method and limitations:** [Read the benchmark corpus documentation](https://github.com/SubmuxHQ/CodeDecay/blob/main/docs/benchmark-corpus.md)
 - **Hackathon workstream:** [Review milestone epic #694](https://github.com/SubmuxHQ/CodeDecay/issues/694)
 
@@ -135,10 +137,19 @@ Public issues and pull requests show the loop:
 - it added packed CLI and GitHub Action acceptance proof;
 - it diagnosed and fixed a full-suite benchmark timeout rather than hiding the
   flaky test;
-- it built, tested, deployed, and anonymously smoke-tested the Judge Lab;
+- it built, tested, and anonymously smoke-tested the Judge Lab;
 - it ran CodeDecay's own red-team workflow against the app and replaced a
   hardcoded weak-test result with a reproducible full-analyzer artifact;
 - it found and fixed a clean-checkout CI dependency gap;
+- it found and fixed contradictory task-bundle safety notes after real checks
+  had executed;
+- it replaced generic edge-case lists with ranked, behavior-specific scenarios
+  grounded in changed routes, symbols, flows, requirements, memory, and proof;
+- it cleared the release dependency advisories and proved the packed CLI does
+  not install the bundled MCP server's HTTP dependency graph;
+- it recorded a genuine Codex repair session with red-before-green endpoint
+  proof, captions, a sanitized transcript, exact commands, and an honest
+  post-repair limitation;
 - it inspected production worker evidence and fixed the remaining favicon
   request miss;
 - it reran lint, typecheck, API tests, browser tests, accessibility checks,
@@ -252,8 +263,12 @@ submission slice:
 - recommended AI-first CLI and Action workflow;
 - packed CLI and shell-level Action acceptance;
 - explicit investigation/verification grounding;
+- behavior-specific edge-case ranking and overflow evidence;
+- truthful agent-task safety limits after configured execution;
+- a zero-advisory packed CLI dependency boundary;
 - public credential-free Judge Lab;
 - reproducible weak-test evidence and production acceptance;
+- a genuine, reproducible three-minute Codex repair demo;
 - submission, demo, and release evidence workstreams.
 
 This distinction is intentional. The submission claims an original
