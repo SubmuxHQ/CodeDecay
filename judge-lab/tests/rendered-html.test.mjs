@@ -32,6 +32,7 @@ test("server-renders the Judge Lab landing experience", async () => {
   assert.equal(response.headers.get("x-frame-options"), "DENY");
   const html = await response.text();
   assert.match(html, /<title>Judge Lab \| CodeDecay<\/title>/i);
+  assert.match(html, /href="(?:https?:\/\/[^"]+)?\/favicon\.svg"/);
   assert.match(html, /Find what your coding agent/);
   assert.match(html, /Red-team the risky PR/);
   assert.match(html, /No login\. No repository upload\./);
