@@ -97,6 +97,22 @@ body:
       required: true
 
   - type: textarea
+    id: pre_code_test_contract
+    attributes:
+      label: Pre-code test contract
+      description: Define these tests before implementing the fix. See docs/rfcs/0003-test-first-uat-usability-agentic-qa.md.
+      placeholder: |
+        Requirement/scenario IDs:
+        UAT: actor, setup, action, expected observable result
+        Usability: participant task and success/confusion measures
+        Agentic QA: planted defect, clean decoy, repair, and final-tree revalidation
+        Deterministic oracle:
+        Commands/artifacts:
+        Exit criteria:
+    validations:
+      required: true
+
+  - type: textarea
     id: extra
     attributes:
       label: Additional context

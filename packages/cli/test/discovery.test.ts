@@ -10,7 +10,14 @@ describe("codedecay CLI discovery commands", () => {
     const rootHelp = await run(["help"], cwd);
     expect(rootHelp.exitCode).toBe(0);
     expect(rootHelp.stdout).toContain("codedecay help [command]");
+    expect(rootHelp.stdout).toContain("codedecay ai --base main --head HEAD --format markdown");
     expect(rootHelp.stdout).toContain("update");
+
+    const aiHelp = await run(["help", "ai"], cwd);
+    expect(aiHelp.exitCode).toBe(0);
+    expect(aiHelp.stdout).toContain("CodeDecay ai");
+    expect(aiHelp.stdout).toContain("--profile <profile>");
+    expect(aiHelp.stdout).toContain("--with-checks");
 
     const commandHelp = await run(["help", "analyze"], cwd);
     expect(commandHelp.exitCode).toBe(0);

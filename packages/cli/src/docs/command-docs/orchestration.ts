@@ -2,6 +2,41 @@ import { AGENT_PROFILE_IDS } from "@submuxhq/codedecay-agent";
 import type { CommandDoc } from "../../renderers/discovery";
 
 export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
+  ai: {
+    name: "ai",
+    summary: "AI-first PR safety workflow for Codex, Claude Code, Cursor, and local agent loops.",
+    usage: ["codedecay ai [options]", "codedecay ai preflight --task <description> [options]"],
+    description: [
+      "Generate a Codex-ready task bundle by red-teaming the diff, loading local memory and repo skills, auditing tests, listing OSS proof checks, and packaging concrete fix tasks for a user-owned agent.",
+      "Use `ai preflight` before code generation to give the agent repo-grounded likely files, routes, constraints, and proof expectations without requiring a git diff."
+    ],
+    options: [
+      { flag: "--base <ref>", description: "Base git ref to compare from" },
+      { flag: "--head <ref>", description: "Head git ref to compare to" },
+      { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
+      { flag: "--format <format>", description: "json or markdown (default: markdown)" },
+      { flag: "--profile <profile>", description: `${AGENT_PROFILE_IDS.join(", ")} (default: codex)` },
+      { flag: "--task <text>", description: "Required for `ai preflight`; intended task/change description before code generation" },
+      { flag: "--filter-source <source>", description: "Only include fix tasks from one source such as finding, weak-test, edge-case, memory, pattern, or product-failure" },
+      { flag: "--filter-priority <level>", description: "Only include fix tasks with priority low, medium, or high" },
+      { flag: "--filter-file <path>", description: "Only include fix tasks tied to a file path" },
+      { flag: "--with-checks", description: "Run configured commands and tool adapters through safety gates and include verification-backed agent tasks" },
+      { flag: "--investigate", description: "Explicitly run the configured local/BYOK LLM provider for untrusted suggestions" },
+      { flag: "--fail-on <level>", description: "Exit non-zero on low, medium, or high risk after writing the bundle" },
+      { flag: "--output <path>", description: "Write agent task bundle to a file instead of stdout" }
+    ],
+    examples: [
+      "codedecay ai --base main --head HEAD --format markdown",
+      "codedecay ai --profile claude-code --base main --head HEAD --format markdown",
+      "codedecay ai --with-checks --base main --head HEAD --format markdown",
+      "codedecay ai preflight --task \"Add a GET /api/users export endpoint\" --format markdown"
+    ],
+    notes: [
+      "This is the recommended AI-assisted workflow. It packages evidence for a user-owned agent, but does not call Codex, Claude Code, Cursor, hosted models, or CodeDecayCloud by itself.",
+      "Use --with-checks when you want configured local commands and OSS tool adapters to produce verification evidence before the bundle is handed to an agent.",
+      "With --with-checks, failed or blocked verification exits 1 after the bundle is written."
+    ]
+  },
   redteam: {
     name: "redteam",
     summary: "Merge-safety report with impact, weak-test evidence, edge cases, and fix tasks.",
@@ -82,7 +117,7 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       "codedecay llm-review --task \"Focus on auth regressions and missing route checks\" --format json"
     ],
     notes: [
-      "This command is explicit opt-in. Deterministic analyze, redteam, agent, and snapshot commands do not call models by default.",
+      "This command is explicit opt-in. Deterministic ai, analyze, redteam, agent, and snapshot commands do not call models by default.",
       "LLM suggestions are untrusted until verified by tests, configured checks, or manual review."
     ]
   },

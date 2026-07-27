@@ -1,18 +1,26 @@
 # Agent Task Bundles
 
-`codedecay agent` turns a deterministic redteam report into a task bundle for a
-user-owned coding agent.
+`codedecay ai` is the recommended AI-first workflow. It turns a deterministic
+redteam report into a task bundle for a user-owned coding agent and defaults to
+Codex handoff wording.
 
 Use it when you want Codex, Claude Code, Cursor, Pi, OpenCode, a desktop agent,
 or another local agent to fix what CodeDecay found without CodeDecay making a
 hidden model call.
 
 ```bash
+npx codedecay ai --base main --head HEAD --format markdown
+npx codedecay ai --profile claude-code --format markdown
+npx codedecay ai --with-checks --base main --head HEAD --format markdown
 npx codedecay agent --base main --head HEAD --format markdown
 npx codedecay agent --profile codex --format markdown
 npx codedecay agent preflight --task "Add a GET /api/users export endpoint" --format markdown
 npx codedecay agent --cwd ../my-repo --format json --output codedecay-agent.json
 ```
+
+`codedecay agent` remains the lower-level report-only bundle command with a
+generic profile default. `codedecay ai` is the product workflow most developers
+should start with.
 
 ## Preflight Before Code Generation
 
@@ -121,10 +129,10 @@ verification failures created by `codedecay product` or the MCP product tools.
 
 ```bash
 npx codedecay product --target api --generate-api-tests --run-generated-api-tests --format json --output .codedecay/local/product-runs/latest.json
-npx codedecay agent --profile codex --format markdown --output codedecay-agent.md
+npx codedecay ai --profile codex --format markdown --output codedecay-ai.md
 ```
 
-When `.codedecay/local/product-runs/latest.json` exists, `codedecay agent`
+When `.codedecay/local/product-runs/latest.json` exists, `codedecay ai`
 converts generated UI/API failures into product failure bundles and fix tasks.
 Those tasks include:
 

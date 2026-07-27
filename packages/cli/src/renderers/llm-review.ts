@@ -67,7 +67,7 @@ export function renderLlmReviewReport(report: LlmReviewReport, format: ConfigFor
   lines.push(
     "### Notes",
     "",
-    "This command is explicit opt-in and separate from deterministic analyze, redteam, agent, and snapshot workflows.",
+    "This command is explicit opt-in and separate from deterministic ai, analyze, redteam, agent, and snapshot workflows.",
     "LLM suggestions are untrusted until verified by tests, configured checks, or manual review.",
     ""
   );

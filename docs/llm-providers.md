@@ -9,9 +9,9 @@ to execute.
 
 ## Current OSS State
 
-Today, `codedecay analyze`, `codedecay redteam`, `codedecay agent`, and
-`codedecay snapshot` stay deterministic. `codedecay llm-review` is the explicit
-opt-in path for user-owned provider suggestions.
+Today, `codedecay ai`, `codedecay analyze`, `codedecay redteam`,
+`codedecay agent`, and `codedecay snapshot` stay deterministic. `codedecay
+llm-review` is the explicit opt-in path for user-owned provider suggestions.
 
 That means this page is about preparing user-owned providers cleanly and
 explicitly, not about hidden default behavior.

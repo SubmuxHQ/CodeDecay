@@ -1,14 +1,36 @@
-# CodeDecay
+<p align="center">
+  <img src="docs/public/logo.png" alt="CodeDecay logo" width="180">
+</p>
 
-[![CI](https://github.com/SubmuxHQ/CodeDecay/actions/workflows/ci.yml/badge.svg)](https://github.com/SubmuxHQ/CodeDecay/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@submuxhq/codedecay?label=npm)](https://www.npmjs.com/package/@submuxhq/codedecay)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+<h1 align="center">CodeDecay</h1>
 
-Catch what your AI coding agent missed — free, in CI, before merge.
+<p align="center"><strong>Find what your coding agent missed before merge.</strong></p>
 
-CodeDecay is an open-source, deterministic, local-first CLI and GitHub Action
-for AI-assisted PR safety. It catches weak or fake-looking tests, regression
-risk, maintainability decay, and changed product areas before they reach main.
+<p align="center">
+  Open-source AI PR red-teaming with your own coding agents, explicit checks, and local-first evidence.
+</p>
+
+<p align="center">
+  <a href="https://github.com/SubmuxHQ/CodeDecay/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/SubmuxHQ/CodeDecay/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://www.npmjs.com/package/@submuxhq/codedecay"><img alt="npm" src="https://img.shields.io/npm/v/@submuxhq/codedecay?label=npm"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
+</p>
+
+<p align="center">
+  <a href="docs/getting-started.md">Docs</a> ·
+  <a href="docs/github-action.md">GitHub Action</a> ·
+  <a href="docs/sample-reports/sample-report.md">Sample Report</a> ·
+  <a href="docs/mcp.md">MCP</a> ·
+  <a href="docs/product-testing.md">Product Testing</a>
+</p>
+
+![CodeDecay hero](docs/public/hero.png)
+
+Find what your coding agent missed before merge.
+
+CodeDecay is an open-source AI orchestration layer that red-teams PRs before
+merge. It uses your own coding agents and open-source tools to find missed
+bugs, weak tests, edge cases, and user-facing regressions.
 
 It is not a generic AI code reviewer and it is not an AI-authorship detector.
 CodeDecay asks a narrower, more useful question:
@@ -17,13 +39,21 @@ CodeDecay asks a narrower, more useful question:
 What could this PR break, and are the tests actually proving it won't?
 ```
 
+## At A Glance
+
+- Trace changed code into impacted routes, APIs, schemas, auth boundaries, and downstream product flows.
+- Flag weak tests that look reassuring without proving the production path.
+- Hand evidence-rich repair tasks to Codex, Claude Code, Cursor, Pi, OpenCode, desktop agents, or MCP workflows.
+- Keep execution explicit with repo-owned checks, OSS adapters, and safety gates.
+- Stay local-first by default with no telemetry, no required hosted service, and no forced model calls.
+
 <!-- BENCHMARK:START -->
 ## Catch what your AI coding agent missed — free, in CI, before merge.
 
 Latest reproducible benchmark: **23/23 planted issues caught (100.0% recall)**, **2.22% false-positive rate** on clean decoys, **$0.00 cost**, LLM called: **no**, telemetry sent: **no**.
 
 ```bash
-npx codedecay analyze
+npx codedecay ai
 ```
 
 Generated from `codedecay benchmark --format json` by `pnpm gen:launch`.
@@ -46,8 +76,10 @@ agents a structured merge-safety pass:
 - compare base/head behavior through configured probes, with field-level JSON
   diffs, rerun commands, and local artifacts
 
-CodeDecay is useful by itself in deterministic mode. Optional agent, LLM,
-memory, and tool integrations must be user-owned and explicit.
+CodeDecay is agent-first without hidden agent calls. The default AI workflow
+creates evidence and tasks for Codex, Claude Code, Cursor, Pi, OpenCode,
+desktop agents, or MCP-compatible tools. Command execution, local/BYOK LLMs,
+and agent process adapters remain user-owned and explicit.
 
 Under the hood, CodeDecay is growing into a PR red-team orchestration platform:
 blast-radius mapping, local repo memory, security matchers, OSS tool adapters,
@@ -100,34 +132,40 @@ pnpm docs:dev
 
 ## Quickstart
 
-Analyze the current working tree:
+Generate an AI-agent task bundle for the current working tree:
 
 ```bash
-npx codedecay analyze --format markdown
+npx codedecay ai --format markdown
 ```
 
-Analyze a pull request range:
+Red-team a pull request range and hand the work to Codex:
+
+```bash
+npx codedecay ai --base main --head HEAD --format markdown
+```
+
+Use Claude Code handoff wording instead:
+
+```bash
+npx codedecay ai --profile claude-code --base main --head HEAD --format markdown
+```
+
+Include configured test/build/probe/tool evidence in the AI bundle:
+
+```bash
+npx codedecay ai --with-checks --base main --head HEAD --format markdown
+```
+
+Use deterministic analysis directly when you only want machine-readable risk:
 
 ```bash
 npx codedecay analyze --base main --head HEAD --format markdown
 ```
 
-Generate a red-team report:
+Generate the lower-level red-team report without agent handoff:
 
 ```bash
 npx codedecay redteam --base main --head HEAD --format markdown
-```
-
-Include configured test/build/probe/tool evidence in that report:
-
-```bash
-npx codedecay redteam --with-checks --base main --head HEAD --format markdown
-```
-
-Create a task bundle for your coding agent:
-
-```bash
-npx codedecay agent --profile codex --base main --head HEAD --format markdown
 ```
 
 Fail CI on high-risk PRs:
@@ -168,6 +206,7 @@ npx codedecay product --target web --generate-tests --run-generated-tests --form
 
 | Command | Purpose |
 | --- | --- |
+| `codedecay ai` | Recommended AI-first PR safety workflow. Produces a Codex-ready bundle by default and can target Claude Code, Cursor, Pi, OpenCode, desktop agents, or MCP clients. |
 | `codedecay analyze` | Deterministic PR risk, impact, and decay analysis. |
 | `codedecay snapshot` | Emit a stable repository health snapshot and compare it with a previous snapshot artifact. |
 | `codedecay redteam` | Merge-safety report with impact, weak-test evidence, verification status, edge cases, memory, skills, and fix tasks. |
@@ -198,8 +237,8 @@ Common flags:
 | `--format json\|markdown\|sarif` | Output format. SARIF is supported by `analyze`. |
 | `--output <path>` | Write output to a file instead of stdout. Relative paths resolve from `--cwd`. |
 | `--fail-on low\|medium\|high` | Exit non-zero when the risk level reaches the threshold. |
-| `--with-checks` | For `redteam`, run configured checks through CodeDecay safety gates and include verification evidence. |
-| `--profile generic\|codex\|claude-code\|cursor\|pi\|opencode\|desktop` | Agent handoff profile for `codedecay agent`. |
+| `--with-checks` | For `ai` or `redteam`, run configured checks through CodeDecay safety gates and include verification evidence. |
+| `--profile generic\|codex\|claude-code\|cursor\|pi\|opencode\|desktop` | Agent handoff profile for `codedecay ai` or `codedecay agent`. |
 
 Exit codes:
 
@@ -224,7 +263,7 @@ codedecay uninstall --purge-local
 
 | Workflow | Default | What it does today |
 | --- | --- | --- |
-| `codedecay analyze`, `redteam`, `agent`, `snapshot` | Yes | Runs deterministic local analysis with no model calls. |
+| `codedecay ai`, `analyze`, `redteam`, `agent`, `snapshot` | Yes | Runs deterministic local analysis with no model calls. |
 | `codedecay execute`, `differential` | No | Runs only repo-allowlisted local commands after explicit opt-in. |
 | `codedecay product --explore` | No | Uses a project-provided Playwright install to crawl configured live app targets after explicit opt-in. |
 | `codedecay llm-review` | No | Calls a user-owned provider only when the user invokes it directly. |
@@ -329,10 +368,10 @@ Use the red-team workflow when reviewing AI-assisted PRs:
 
 ```bash
 npx codedecay redteam --base main --head HEAD --format markdown --output codedecay-redteam.md
-npx codedecay agent --profile codex --base main --head HEAD --format markdown --output codedecay-agent.md
+npx codedecay ai --profile codex --base main --head HEAD --format markdown --output codedecay-ai.md
 ```
 
-Then give `codedecay-agent.md` to your preferred agent and ask it to:
+Then give `codedecay-ai.md` to your preferred agent and ask it to:
 
 1. inspect the changed files and impacted routes/APIs
 2. explain what real user/API/database path could break

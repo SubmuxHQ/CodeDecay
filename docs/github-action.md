@@ -227,7 +227,7 @@ jobs:
 
 ## Trend Snapshot Artifacts
 
-The composite action supports `analyze`, `redteam`, `agent`, and `product`.
+The composite action supports `analyze`, `redteam`, `agent`, `ai`, and `product`.
 For code-risk trend snapshots, call the CLI directly in the workflow and upload
 the artifact:
 
@@ -248,11 +248,26 @@ To compare against a saved snapshot:
 See [Trend snapshots](trend-snapshots.md) for a fuller artifact and history
 workflow.
 
-## Redteam And Agent Modes
+## AI, Redteam, And Agent Modes
 
-The action can also run report-only redteam and agent bundle modes. Redteam
-mode is useful as a Step Summary because it includes impact, memory, edge cases,
-and fix tasks for a user-owned agent:
+The action can also run AI-first, redteam, and agent bundle modes. `mode: ai`
+is the recommended PR handoff path because it produces a Codex-ready agent
+bundle by default while still using local deterministic evidence:
+
+```yaml
+- uses: SubmuxHQ/CodeDecay/packages/github-action@v0
+  with:
+    mode: ai
+    base: ${{ github.event.pull_request.base.sha }}
+    head: ${{ github.event.pull_request.head.sha }}
+    cwd: .
+    format: markdown
+    profile: claude-code
+    output: codedecay-ai.md
+```
+
+Redteam mode is useful as a Step Summary because it includes impact, memory,
+edge cases, and fix tasks for a user-owned agent:
 
 ```yaml
 - uses: SubmuxHQ/CodeDecay/packages/github-action@v0
@@ -275,11 +290,12 @@ and fix tasks for a user-owned agent:
     output: codedecay-agent.md
 ```
 
-Supported modes are `analyze`, `redteam`, `agent`, and `product`. The action
-does not expose arbitrary command passthrough. Product mode only forwards the
-explicit product verification inputs documented above and still relies on
+Supported modes are `analyze`, `redteam`, `agent`, `ai`, and `product`. The
+action does not expose arbitrary command passthrough. Product mode only forwards
+the explicit product verification inputs documented above and still relies on
 repo-local CodeDecay config for command safety. `format: sarif` is supported
-only with `mode: analyze`. `fail-on` is forwarded for `analyze` and `redteam`;
+only with `mode: analyze`. `with-checks: true` is forwarded only for `redteam`
+and `ai`. `fail-on` is forwarded for `analyze`, `redteam`, and `ai`;
 `product-fail-on-classification` gates product mode; `agent` mode produces a
 task bundle for a user-owned coding agent and does not gate the workflow by risk
 level.

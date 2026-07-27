@@ -28,6 +28,7 @@ export const orderedPages = [
   "releasing.md",
   "proposals/framework-aware-impact-map.md",
   "rfcs/0001-agent-agnostic-redteam-harness.md",
+  "rfcs/0003-test-first-uat-usability-agentic-qa.md",
   "launch-post.md"
 ];
 
@@ -61,6 +62,7 @@ export const sectionTitles = new Map([
   ["releasing.md", "Reference"],
   ["proposals/framework-aware-impact-map.md", "Roadmap"],
   ["rfcs/0001-agent-agnostic-redteam-harness.md", "Roadmap"],
+  ["rfcs/0003-test-first-uat-usability-agentic-qa.md", "Roadmap"],
   ["launch-post.md", "Misc"]
 ]);
 

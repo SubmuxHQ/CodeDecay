@@ -59,8 +59,45 @@ body {
   font-weight: 700;
 }
 
+.VPNavBarTitle .logo {
+  width: auto;
+  height: 34px;
+  margin-right: 10px;
+}
+
 .VPButton.brand {
   box-shadow: 0 12px 32px rgba(201, 93, 18, 0.22);
+}
+
+.VPHero.has-image .image {
+  flex: 1.15;
+}
+
+.VPHero .image-container {
+  padding: 8px;
+}
+
+.VPHero .image-bg {
+  width: min(560px, 86%);
+  height: min(560px, 86%);
+  filter: blur(76px);
+}
+
+.VPHero .image-src {
+  width: 100%;
+  max-width: 760px;
+  border-radius: 24px;
+  border: 1px solid rgba(201, 93, 18, 0.18);
+  box-shadow:
+    0 34px 90px rgba(17, 24, 39, 0.18),
+    0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+}
+
+.dark .VPHero .image-src {
+  border-color: rgba(240, 161, 61, 0.22);
+  box-shadow:
+    0 34px 90px rgba(0, 0, 0, 0.48),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
 }
 
 .VPFeature {
@@ -126,4 +163,14 @@ body {
 
 .VPDoc .vp-doc a {
   text-underline-offset: 0.18em;
+}
+
+@media (max-width: 960px) {
+  .VPNavBarTitle .logo {
+    height: 30px;
+  }
+
+  .VPHero .image-src {
+    max-width: 100%;
+  }
 }

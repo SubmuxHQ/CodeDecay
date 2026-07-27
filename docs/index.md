@@ -2,37 +2,42 @@
 layout: home
 
 hero:
-  name: CodeDecay Docs
-  text: PR safety docs for humans and AI agents
-  tagline: Deterministic, local-first docs with deploy-ready llms.txt, llms-full.txt, and raw Markdown endpoints for agent tooling.
+  name: CodeDecay
+  text: Find what your coding agent missed before merge
+  tagline: Open-source PR red-teaming for AI-built code with user-owned agents, real execution evidence, and local-first workflows.
+  image:
+    src: /hero.png
+    alt: CodeDecay Judge Lab hero showing verified diff evidence
   actions:
     - theme: brand
       text: Start with the CLI
       link: /getting-started
+    - theme: alt
+      text: See a sample report
+      link: /sample-reports/
     - theme: alt
       text: Wire GitHub Action
       link: /github-action
     - theme: alt
       text: Read llms.txt
       link: ./llms.txt
-    - theme: alt
-      text: Read llms-full.txt
-      link: ./llms-full.txt
 
 features:
-  - title: Human-first docs
-    details: Fast static pages, local search, edit links, last-updated metadata, and sample outputs for review and adoption.
-  - title: Agent-ready by default
-    details: Each deploy includes llms.txt, llms-full.txt, and stable raw Markdown copies under /markdown for tools and MCP clients.
-  - title: Deterministic first
-    details: The default CLI and GitHub Action workflow is local, deterministic, and free of hidden model calls. Optional assisted workflows are documented separately.
-  - title: Repo-native
-    details: The site reads the existing Markdown in this repository and builds with one command. No separate CMS, dashboard, or hosted docs lock-in.
-  - title: Safe to host anywhere
-    details: VitePress outputs static HTML, so the docs can be deployed on GitHub Pages, Vercel, Netlify, Cloudflare Pages, or any static host.
+  - title: Find real regressions
+    details: Follow the changed code into routes, APIs, auth, config, schemas, and downstream product paths before a risky PR lands.
+  - title: Audit test reality
+    details: Separate runtime proof from static references, mocked boundaries, snapshots, and other tests that look safe without proving the production path.
+  - title: Hand fixes to your agent
+    details: Generate evidence-rich bundles for Codex, Claude Code, Cursor, Pi, OpenCode, desktop agents, or MCP-compatible workflows.
+  - title: Run explicit verification
+    details: Bring configured tests, builds, probes, product checks, and OSS tool adapters into the same merge-safety loop when your repo allows execution.
+  - title: Local-first by default
+    details: No hidden telemetry, no required hosted service, and no forced model calls. Deterministic analysis works even when AI is disabled.
+  - title: Human and agent readable
+    details: The same source docs power the site, llms.txt, llms-full.txt, and raw Markdown endpoints so review guidance stays aligned everywhere.
 ---
 
-## Read This First
+## Start Here
 
 - [Getting Started](/getting-started): install the CLI and run your first PR analysis
 - [GitHub Action](/github-action): add CodeDecay to pull request workflows
