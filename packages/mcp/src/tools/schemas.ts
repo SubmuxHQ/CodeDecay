@@ -12,6 +12,7 @@ const taskSourceSchema = z.enum([
   "finding",
   "weak-test",
   "edge-case",
+  "test-proof",
   "configured-check",
   "tool-adapter",
   "memory",

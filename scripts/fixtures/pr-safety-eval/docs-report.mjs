@@ -23,6 +23,8 @@ export function writePrSafetyDocsReport(repoRoot, report) {
     `- Status: ${report.status}`,
     `- Scenarios: ${report.scenarios.length}`,
     `- Issues: ${report.issues.length}`,
+    `- Edge-case relevance: ${formatPercent(report.edgeCaseMetrics?.relevanceRate)}`,
+    `- Edge-case noise: ${formatPercent(report.edgeCaseMetrics?.noiseRate)}`,
     "",
     "## Scenarios",
     ""
@@ -42,6 +44,8 @@ export function writePrSafetyDocsReport(repoRoot, report) {
     lines.push(`| Test proof status | ${scenario.codeDecay.testProofStatus} |`);
     lines.push(`| Weak-test findings | ${scenario.codeDecay.weakTestFindings} |`);
     lines.push(`| Missing-test findings | ${scenario.codeDecay.missingTestFindings} |`);
+    lines.push(`| Edge-case relevance | ${formatPercent(scenario.codeDecay.edgeCaseMetrics.relevanceRate)} |`);
+    lines.push(`| Edge-case noise | ${formatPercent(scenario.codeDecay.edgeCaseMetrics.noiseRate)} |`);
     lines.push("", "Expected evidence:", "");
     for (const assertion of scenario.assertions) {
       lines.push(`- ${assertion.passed ? "Pass" : "Fail"}: ${assertion.name}`);
@@ -64,4 +68,8 @@ export function writePrSafetyDocsReport(repoRoot, report) {
 
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, `${lines.join("\n").trim()}\n`, "utf8");
+}
+
+function formatPercent(value) {
+  return `${((value ?? 0) * 100).toFixed(1)}%`;
 }

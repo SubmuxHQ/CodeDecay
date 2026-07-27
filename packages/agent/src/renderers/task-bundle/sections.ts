@@ -37,8 +37,23 @@ export function appendEvidence(lines: string[], evidence: AgentEvidence): void {
     ...evidence.contractFindings
   ], "- no deterministic scope or contract findings");
 
-  lines.push("", "Edge cases to check:");
-  appendList(lines, evidence.edgeCases);
+  lines.push("", "Ranked behavior scenarios:");
+  if (evidence.edgeCases.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const scenario of evidence.edgeCases) {
+      const surface = scenario.scope.routes[0] ?? scenario.scope.symbols[0] ?? scenario.scope.files[0] ?? "unknown";
+      lines.push(`- **${scenario.title}** (${scenario.confidence}, ${scenario.derivation}, score ${scenario.score}/100)`);
+      lines.push(`  - Surface: \`${surface}\``);
+      lines.push(`  - Trigger: ${scenario.trigger}`);
+      lines.push(`  - Expected: ${scenario.expectedBehavior}`);
+      lines.push(`  - Failure: ${scenario.userVisibleFailure}`);
+      lines.push(`  - Proof: ${scenario.proof.recommendation}`);
+    }
+  }
+  if (evidence.edgeCaseOverflow.length > 0) {
+    lines.push(`- ${evidence.edgeCaseOverflow.length} lower-ranked scenarios remain in JSON evidence.edgeCaseOverflow.`);
+  }
 
   appendProductFailureEvidence(lines, evidence);
 }

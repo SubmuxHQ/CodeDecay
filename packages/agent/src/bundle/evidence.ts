@@ -53,9 +53,29 @@ export function createAgentEvidence(report: RedteamReport): AgentEvidence {
     contractFindings: report.analysis.findings
       .filter((finding) => finding.ruleId.startsWith("contract-"))
       .map(findingEvidence),
-    edgeCases: [...report.edgeCases],
+    edgeCases: report.edgeCases.map(cloneEdgeCase),
+    edgeCaseOverflow: report.edgeCaseOverflow.map(cloneEdgeCase),
     productFailureBundles: report.analysis.productFailureBundles ? [...report.analysis.productFailureBundles] : [],
     memory: report.memory
+  };
+}
+
+function cloneEdgeCase(
+  edgeCase: RedteamReport["edgeCases"][number]
+): RedteamReport["edgeCases"][number] {
+  return {
+    ...edgeCase,
+    downstreamConsumers: [...edgeCase.downstreamConsumers],
+    scope: {
+      areas: [...edgeCase.scope.areas],
+      files: [...edgeCase.scope.files],
+      symbols: [...edgeCase.scope.symbols],
+      routes: [...edgeCase.scope.routes],
+      flows: [...edgeCase.scope.flows],
+      requirementIds: [...edgeCase.scope.requirementIds]
+    },
+    sources: edgeCase.sources.map((source) => ({ ...source })),
+    proof: { ...edgeCase.proof }
   };
 }
 

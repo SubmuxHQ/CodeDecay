@@ -6,7 +6,7 @@ import {
 import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
 import { collectConfiguredChecks, collectToolAdapterPlans } from "./checks";
 import { summarizeMemory, summarizeSkills } from "./context";
-import { suggestEdgeCases } from "./edge-cases";
+import { createEdgeCasePlan } from "./edge-cases";
 import { createFixTasks } from "./fix-tasks";
 import { matchPatternIntelligence } from "./patterns";
 import { createRedteamSafetySummary } from "./safety";
@@ -17,9 +17,16 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
   const testAudit = createTestProofAudit(input.analysisReport);
   const weakTestFindings = testAudit.weakTestFindings;
   const patternInsights = hasChangedFiles ? matchPatternIntelligence(input.analysisReport) : [];
-  const edgeCases = hasChangedFiles
-    ? mergeEdgeCases(suggestEdgeCases(input.analysisReport), patternInsights.flatMap((pattern) => pattern.edgeCases))
-    : [];
+  const edgeCasePlan = hasChangedFiles
+    ? createEdgeCasePlan({
+        report: input.analysisReport,
+        patterns: patternInsights,
+        memory: input.memory,
+        requirements: input.requirements,
+        investigation: input.investigation
+      })
+    : { ranked: [], overflow: [], all: [] };
+  const edgeCases = edgeCasePlan.ranked;
   const configuredChecks = collectConfiguredChecks(input.config);
   const toolAdapterPlans = collectToolAdapterPlans(input.config);
   const memory = summarizeMemory(input.memory, input.memorySource, input.memoryProviderSources);
@@ -44,7 +51,9 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
         report: input.analysisReport,
         externalEvidence: requirementEvidence(verification, configuredChecks, toolAdapterPlans),
         agentSuggestions: input.investigation?.suggestions,
-        edgeCases,
+        edgeCases: edgeCasePlan.all.map((edgeCase) =>
+          `${edgeCase.title}: ${edgeCase.trigger} ${edgeCase.expectedBehavior}`
+        ),
         fixTasks
       })
     : undefined;
@@ -75,7 +84,9 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
       weakTestFindings: weakTestFindings.length,
       testProofEntries: testAudit.proofMap?.entries.length ?? 0,
       testProofStatus: testAudit.status,
-      edgeCases: edgeCases.length,
+      edgeCases: edgeCasePlan.all.length,
+      edgeCasesShown: edgeCases.length,
+      edgeCaseOverflow: edgeCasePlan.overflow.length,
       configuredChecks: configuredChecks.length,
       toolAdapters: toolAdapterPlans.length,
       patternInsights: patternInsights.length,
@@ -92,6 +103,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
     testAudit,
     weakTestFindings,
     edgeCases,
+    edgeCaseOverflow: edgeCasePlan.overflow,
     configuredChecks,
     toolAdapterPlans,
     patternInsights,
@@ -186,10 +198,6 @@ function requirementEvidenceStatus(
     return "failed";
   }
   return "missing";
-}
-
-function mergeEdgeCases(base: string[], patternEdgeCases: string[]): string[] {
-  return [...new Set([...base, ...patternEdgeCases])].sort((left, right) => left.localeCompare(right));
 }
 
 function createNotRunVerificationSummary(): RedteamVerificationSummary {

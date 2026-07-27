@@ -48,7 +48,7 @@ export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayM
 
   server.tool(
     "suggest_edge_cases",
-    "Return deterministic edge-case and real-check suggestions for impacted areas. This does not call an LLM.",
+    "Return structured, ranked behavior scenarios plus recommended checks for impacted surfaces. This does not call an LLM.",
     gitContextToolSchema,
     async (input) => textResult(handlers.suggestEdgeCases(input as McpToolInput))
   );

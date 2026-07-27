@@ -7,7 +7,13 @@ import type {
   RiskLevel,
   SymbolImpact
 } from "@submuxhq/codedecay-core";
-import type { RedteamFixTask, RedteamReport, RedteamSkillSummary, RedteamTaskSource } from "@submuxhq/codedecay-redteam";
+import type {
+  RedteamEdgeCase,
+  RedteamFixTask,
+  RedteamReport,
+  RedteamSkillSummary,
+  RedteamTaskSource
+} from "@submuxhq/codedecay-redteam";
 import type { AgentProfile, AgentProfileId } from "./profiles";
 
 export type AgentTaskBundleFormat = "json" | "markdown";
@@ -62,6 +68,7 @@ export interface AgentTaskSummary {
   weakTestFindings: number;
   testProofStatus: string;
   edgeCases: number;
+  edgeCaseOverflow: number;
   productFailureBundles: number;
   fixTasks: number;
   totalFixTasks: number;
@@ -80,7 +87,8 @@ export interface AgentEvidence {
   missingTestFindings: AgentFindingEvidence[];
   scopeFindings: AgentFindingEvidence[];
   contractFindings: AgentFindingEvidence[];
-  edgeCases: string[];
+  edgeCases: RedteamEdgeCase[];
+  edgeCaseOverflow: RedteamEdgeCase[];
   productFailureBundles: ProductFailureBundle[];
   memory: RedteamReport["memory"];
 }

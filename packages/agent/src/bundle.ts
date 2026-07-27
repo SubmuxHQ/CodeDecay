@@ -30,6 +30,7 @@ export function createAgentTaskBundle(report: RedteamReport, options: CreateAgen
     weakTestFindings: report.summary.weakTestFindings,
     testProofStatus: report.summary.testProofStatus,
     edgeCases: report.summary.edgeCases,
+    edgeCaseOverflow: report.summary.edgeCaseOverflow,
     productFailureBundles: report.summary.productFailureBundles,
     fixTasks: tasks.length,
     totalFixTasks: report.summary.fixTasks,

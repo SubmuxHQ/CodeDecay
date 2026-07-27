@@ -28,7 +28,16 @@ describe("codedecay redteam CLI contract", () => {
       total: 0
     });
     expect(Object.values(report.safety).filter((value) => value === false)).toHaveLength(4);
-    expect(report.edgeCases).toContain("Check missing, expired, malformed, and privilege-escalation credentials.");
+    expect(report.edgeCases).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "auth-fail-closed",
+          trigger: expect.stringMatching(/missing.*expired.*lower-privilege/i),
+          proof: expect.objectContaining({ kind: "api-integration" })
+        })
+      ])
+    );
+    expect(report.edgeCases.every((scenario: unknown) => typeof scenario === "object")).toBe(true);
     expect(report.skills).toEqual([
       expect.objectContaining({
         id: "pr-red-team",
@@ -62,6 +71,8 @@ describe("codedecay redteam CLI contract", () => {
     expect(markdown.stdout).toContain("### What Could Break");
     expect(markdown.stdout).toContain("### Tool Adapter Plans");
     expect(markdown.stdout).toContain("### Verification Evidence");
+    expect(markdown.stdout).toContain("### Ranked Behavior Scenarios");
+    expect(markdown.stdout).toContain("Expected invariant:");
     expect(markdown.stdout).toContain("**Status:** Not run");
     expect(markdown.stdout).toContain("### Tasks For Your Coding Agent");
     expect(markdown.stdout).toContain("LLM/model called: no");

@@ -8,6 +8,7 @@ import {
 import type { CodeDecayMemory } from "@submuxhq/codedecay-memory";
 import type {
   RedteamConfiguredCheck,
+  RedteamEdgeCase,
   RedteamFixTask,
   RedteamFixTaskScope,
   RedteamPatternInsight,
@@ -16,13 +17,13 @@ import type {
   RedteamToolAdapterPlan,
   RedteamVerificationSummary
 } from "./types";
-import { dedupeTasks, edgeCasePriority, edgeCaseTaskTitle } from "./fix-tasks/helpers";
+import { dedupeTasks, edgeCasePriority } from "./fix-tasks/helpers";
 import { WEAK_TEST_RULES } from "./fix-tasks/rules";
 
 export function createFixTasks(input: {
   analysisReport: CodeDecayReport;
   weakTestFindings: Finding[];
-  edgeCases: string[];
+  edgeCases: RedteamEdgeCase[];
   configuredChecks: RedteamConfiguredCheck[];
   toolAdapterPlans: RedteamToolAdapterPlan[];
   patternInsights: RedteamPatternInsight[];
@@ -65,14 +66,29 @@ export function createFixTasks(input: {
     });
   }
 
-  for (const edgeCase of input.edgeCases.slice(0, 8)) {
+  for (const recommendation of input.analysisReport.recommendedTests.slice(0, 20)) {
     tasks.push({
-      title: edgeCaseTaskTitle(edgeCase),
+      title: proofRecommendationTitle(recommendation),
       priority: edgeCasePriority(input.analysisReport.impactedAreas),
+      source: "test-proof",
+      proof: "missing-proof",
+      detail: normalizeProofRecommendation(recommendation),
+      file: pathFromRecommendation(recommendation),
+      scope: pathFromRecommendation(recommendation)
+        ? scopeForFiles([pathFromRecommendation(recommendation) ?? ""], input.analysisReport.impactedAreas)
+        : scopeForAreas(input.analysisReport.impactedAreas)
+    });
+  }
+
+  for (const edgeCase of input.edgeCases) {
+    tasks.push({
+      title: edgeCase.title,
+      priority: edgeCasePriorityForScenario(edgeCase, input.analysisReport.impactedAreas),
       source: "edge-case",
       proof: "missing-proof",
-      detail: edgeCase,
-      scope: scopeForAreas(input.analysisReport.impactedAreas)
+      detail: `${edgeCase.trigger} Expected: ${edgeCase.expectedBehavior} Failure: ${edgeCase.userVisibleFailure} Proof: ${edgeCase.proof.recommendation}`,
+      file: edgeCase.scope.files[0],
+      scope: createScope(edgeCase.scope.files, edgeCase.scope.areas)
     });
   }
 
@@ -165,7 +181,50 @@ export function createFixTasks(input: {
     });
   }
 
-  return dedupeTasks(tasks).slice(0, 20);
+  return selectBoundedTasks(dedupeTasks(tasks));
+}
+
+function selectBoundedTasks(tasks: RedteamFixTask[]): RedteamFixTask[] {
+  const reservedScenarios = tasks
+    .filter((task) => task.source === "edge-case" && task.priority === "high");
+  const reserved = new Set(reservedScenarios);
+  return dedupeTasks([
+    ...reservedScenarios,
+    ...tasks.filter((task) => !reserved.has(task))
+  ].slice(0, 20));
+}
+
+function edgeCasePriorityForScenario(
+  edgeCase: RedteamEdgeCase,
+  impactedAreas: ImpactedArea[]
+): RedteamFixTask["priority"] {
+  const scopedAreas = impactedAreas.filter((area) => edgeCase.scope.areas.includes(area.kind));
+  return edgeCasePriority(scopedAreas.length > 0 ? scopedAreas : impactedAreas);
+}
+
+function proofRecommendationTitle(recommendation: string): string {
+  const path = pathFromRecommendation(recommendation);
+  if (path) {
+    return `Prove changed path: ${path}`;
+  }
+  const trimmed = recommendation.trim().replace(/[.!]$/, "");
+  return `Complete recommended proof: ${trimmed.slice(0, 80)}`;
+}
+
+function normalizeProofRecommendation(recommendation: string): string {
+  const trimmed = recommendation.trim();
+  const path = pathFromRecommendation(trimmed);
+  return path
+    ? `Run or strengthen ${path} with assertions that exercise the changed production path.`
+    : trimmed;
+}
+
+function pathFromRecommendation(recommendation: string): string | undefined {
+  const directPath = recommendation.trim();
+  if (/^[a-z0-9._/-]+\.[a-z0-9]+$/i.test(directPath) && /[/\\]/.test(directPath)) {
+    return directPath;
+  }
+  return recommendation.match(/\b(?:src|app|lib|packages|test|tests)\/[a-z0-9._/-]+\.[a-z0-9]+\b/i)?.[0];
 }
 
 function proofTargetLabel(entry: ChangedPathTestProofEntry): string {

@@ -113,7 +113,17 @@ describe("CodeDecay MCP analysis tools", () => {
 
     const output = JSON.parse(runSuggestEdgeCasesTool({ cwd: repo }, {}));
 
-    expect(output.edgeCases).toContain("Check missing, expired, malformed, and privilege-escalation credentials.");
+    expect(output.edgeCases).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "auth-fail-closed",
+          trigger: expect.stringMatching(/missing.*expired.*lower-privilege/i),
+          scope: expect.objectContaining({
+            files: ["src/auth/session.ts"]
+          })
+        })
+      ])
+    );
     expect(output.recommendedChecks).toContain("Add real assertions to src/auth/session.test.ts");
   });
 
@@ -124,10 +134,24 @@ describe("CodeDecay MCP analysis tools", () => {
 
     expect(output.edgeCases).toEqual(
       expect.arrayContaining([
-        "Add or run tests covering src/app/api/users/route.ts",
-        "Add or run tests covering src/app/dashboard/page.tsx",
-        "Exercise the real API route with malformed, missing, and boundary-value payloads."
+        expect.objectContaining({
+          id: "api-invalid-input",
+          scope: expect.objectContaining({
+            routes: ["GET|POST /api/users"]
+          }),
+          proof: expect.objectContaining({ kind: "api-integration" })
+        }),
+        expect.objectContaining({
+          id: "ui-empty-error-permission",
+          scope: expect.objectContaining({
+            routes: ["/dashboard"]
+          }),
+          proof: expect.objectContaining({ kind: "browser" })
+        })
       ])
+    );
+    expect(output.edgeCases.map((scenario: { title: string }) => scenario.title).join("\n")).not.toContain(
+      "Add or run tests covering"
     );
     expect(output.recommendedChecks).toEqual(
       expect.arrayContaining([
