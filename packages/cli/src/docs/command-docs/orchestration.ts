@@ -144,7 +144,7 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--task <text>", description: "Required for `agent preflight`; intended task/change description before code generation" },
       { flag: "--requirements <path>", description: "Optional repo-local JSON or YAML requirements artifact with acceptance criteria and affected flows" },
       { flag: "--investigate", description: "Explicitly call the configured local/BYOK provider and include untrusted grounded suggestions" },
-      { flag: "--filter-source <source>", description: "Only include fix tasks from one source such as finding, weak-test, edge-case, memory, pattern, or product-failure" },
+      { flag: "--filter-source <source>", description: "Only include fix tasks from one source such as finding, weak-test, edge-case, test-proof, or product-failure" },
       { flag: "--filter-priority <level>", description: "Only include fix tasks with priority low, medium, or high" },
       { flag: "--filter-file <path>", description: "Only include fix tasks tied to a file path" },
       { flag: "--output <path>", description: "Write agent task bundle to a file instead of stdout" }

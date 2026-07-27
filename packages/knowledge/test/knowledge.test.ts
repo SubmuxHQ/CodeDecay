@@ -37,4 +37,20 @@ describe("jwt-auth knowledge pack", () => {
       }).map((pack) => pack.area)
     ).toContain("jwt-auth");
   });
+
+  it("rejects generic API and documentation decoys without a JWT-shaped source path", () => {
+    expect(
+      matchKnowledgePacks({
+        impactedAreas: ["api"],
+        changedPaths: ["src/api/users.ts"]
+      })
+    ).toEqual([]);
+
+    expect(
+      matchKnowledgePacks({
+        impactedAreas: ["docs"],
+        changedPaths: ["docs/session-token.md"]
+      })
+    ).toEqual([]);
+  });
 });

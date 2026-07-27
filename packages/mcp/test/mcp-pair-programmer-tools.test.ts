@@ -11,6 +11,7 @@ import {
   createWeakTestRepo,
   writeFile
 } from "./helpers/mcp";
+import { fixTasksToolSchema } from "../src/tools/schemas";
 
 describe("CodeDecay MCP pair-programmer tools", () => {
   it("returns an out-of-scope verdict for active design contract fences", () => {
@@ -101,6 +102,21 @@ describe("CodeDecay MCP pair-programmer tools", () => {
       true
     );
     expect(output.safety.commandsExecuted).toBe(false);
+  });
+
+  it("accepts and returns test-proof tasks through the MCP filter contract", () => {
+    const repo = createWeakTestRepo();
+
+    expect(fixTasksToolSchema.source.safeParse("test-proof").success).toBe(true);
+    const output = JSON.parse(runFixTasksTool({ cwd: repo }, { source: "test-proof" }));
+
+    expect(output.matchedTasks).toBeGreaterThan(0);
+    expect(
+      output.tasks.every((task: { source: string }) => task.source === "test-proof")
+    ).toBe(true);
+    expect(output.tasks[0]).toMatchObject({
+      proof: expect.stringMatching(/missing-proof|deterministic-signal/)
+    });
   });
 
   it("returns deterministic missed-risk evidence", () => {

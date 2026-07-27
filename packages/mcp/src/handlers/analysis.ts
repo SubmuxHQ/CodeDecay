@@ -23,7 +23,6 @@ import type {
   McpToolInput
 } from "../tools/types";
 import { createAnalysisContext, createMcpRedteamReport } from "./analysis/context";
-import { suggestEdgeCases } from "./analysis/edge-cases";
 import {
   runDesignContractCheckTool,
   runFixTasksTool,
@@ -89,11 +88,13 @@ export function runAuditTestsTool(serverOptions: StartMcpServerOptions, input: M
 }
 
 export function runSuggestEdgeCasesTool(serverOptions: StartMcpServerOptions, input: McpToolInput): string {
-  const report = createReport(serverOptions, input);
+  const context = createAnalysisContext(serverOptions, input);
+  const report = createMcpRedteamReport(context);
   return JSON.stringify(
     {
-      recommendedChecks: report.recommendedTests,
-      edgeCases: suggestEdgeCases(report)
+      recommendedChecks: context.report.recommendedTests,
+      edgeCases: report.edgeCases,
+      edgeCaseOverflow: report.edgeCaseOverflow
     },
     null,
     2

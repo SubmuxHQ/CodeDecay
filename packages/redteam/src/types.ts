@@ -35,6 +35,29 @@ export type RedteamTaskSource =
   | "memory"
   | "pattern"
   | "product-failure";
+export type RedteamEdgeCaseConfidence = "low" | "medium" | "high";
+export type RedteamEdgeCaseDerivation = "deterministic" | "agent-suggestion" | "mixed";
+export type RedteamEdgeCaseProofKind =
+  | "unit"
+  | "integration"
+  | "api-integration"
+  | "browser"
+  | "database-integration"
+  | "differential"
+  | "contract";
+export type RedteamEdgeCaseSourceKind =
+  | "area-rule"
+  | "route-impact"
+  | "symbol-impact"
+  | "requirement"
+  | "memory"
+  | "pattern-pack"
+  | "agent-investigation";
+export type RedteamEdgeCaseSourceTrust =
+  | "deterministic"
+  | "curated-guidance"
+  | "untrusted-context"
+  | "untrusted-suggestion";
 
 export interface RedteamReportInput {
   analysisReport: CodeDecayReport;
@@ -64,7 +87,8 @@ export interface RedteamReport {
   requirementTrace?: RequirementTraceGraph | undefined;
   testAudit: TestProofAudit;
   weakTestFindings: Finding[];
-  edgeCases: string[];
+  edgeCases: RedteamEdgeCase[];
+  edgeCaseOverflow: RedteamEdgeCase[];
   configuredChecks: RedteamConfiguredCheck[];
   toolAdapterPlans: RedteamToolAdapterPlan[];
   patternInsights: RedteamPatternInsight[];
@@ -91,6 +115,8 @@ export interface RedteamSummary {
   testProofEntries: number;
   testProofStatus: TestProofAudit["status"];
   edgeCases: number;
+  edgeCasesShown: number;
+  edgeCaseOverflow: number;
   configuredChecks: number;
   toolAdapters: number;
   patternInsights: number;
@@ -207,6 +233,49 @@ export interface RedteamPatternInsight {
   citations: Array<{ title: string; url: string }>;
   trust: "pattern-pack";
   proof: "suggestion";
+}
+
+export interface RedteamEdgeCaseSource {
+  kind: RedteamEdgeCaseSourceKind;
+  id: string;
+  label: string;
+  trust: RedteamEdgeCaseSourceTrust;
+}
+
+export interface RedteamEdgeCaseScope {
+  areas: ImpactedArea["kind"][];
+  files: string[];
+  symbols: string[];
+  routes: string[];
+  flows: string[];
+  requirementIds: string[];
+}
+
+export interface RedteamEdgeCaseProof {
+  kind: RedteamEdgeCaseProofKind;
+  recommendation: string;
+  command?: string | undefined;
+}
+
+export interface RedteamEdgeCase {
+  id: string;
+  title: string;
+  trigger: string;
+  expectedBehavior: string;
+  userVisibleFailure: string;
+  downstreamConsumers: string[];
+  scope: RedteamEdgeCaseScope;
+  confidence: RedteamEdgeCaseConfidence;
+  derivation: RedteamEdgeCaseDerivation;
+  sources: RedteamEdgeCaseSource[];
+  proof: RedteamEdgeCaseProof;
+  score: number;
+}
+
+export interface RedteamEdgeCasePlan {
+  ranked: RedteamEdgeCase[];
+  overflow: RedteamEdgeCase[];
+  all: RedteamEdgeCase[];
 }
 
 export interface RedteamInvestigationSuggestion {

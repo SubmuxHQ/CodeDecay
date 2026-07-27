@@ -24,7 +24,6 @@ describe("redteam report assembly and rendering", () => {
       memorySource: "/repo/.codedecay/memory.json",
       generatedAt: "2026-01-01T00:00:00.000Z"
     });
-
     expect(report.tool).toBe("CodeDecay");
     expect(report.mode).toBe("deterministic");
     expect(report.generatedAt).toBe("2026-01-01T00:00:00.000Z");
@@ -49,16 +48,26 @@ describe("redteam report assembly and rendering", () => {
       changedSourceFiles: ["src/auth/session.ts"],
       changedTestFiles: ["src/auth/session.test.ts"]
     });
-    expect(report.edgeCases).toContain("Check missing, expired, malformed, and privilege-escalation credentials.");
-    expect(report.edgeCases).toContain("Check missing, expired, malformed, replayed, and wrong-scope credentials.");
-    expect(report.edgeCases).toContain(
-      "Check decoded token trusted before signature verification: Look for jwt.decode, decodeJwt, atob, or manual base64 claim parsing feeding auth decisions, session objects, or request context."
+    expect(report.edgeCases).toEqual([
+      expect.objectContaining({
+        id: "auth-fail-closed",
+        title: "Keep GET /api/session closed to unauthorized credentials",
+        confidence: "high",
+        scope: expect.objectContaining({
+          files: ["src/auth/session.ts"],
+          routes: ["GET /api/session"],
+          flows: ["Login flow"]
+        }),
+        proof: expect.objectContaining({ kind: "api-integration" })
+      })
+    ]);
+    expect(report.edgeCases[0]?.sources.map((source) => source.kind)).toEqual(
+      expect.arrayContaining(["area-rule", "route-impact", "memory", "pattern-pack"])
     );
-    expect(report.edgeCases).toContain("Add an API-level session regression test");
-    expect(report.edgeCases).toContain(
-      "Run or strengthen src/auth/session.test.ts with negative, malformed, boundary, or integration coverage."
+    expect(report.edgeCaseOverflow).toEqual([]);
+    expect(report.edgeCases.map((scenario) => scenario.title).join("\n")).not.toContain(
+      "src/auth/session.test.ts"
     );
-    expect(report.edgeCases).not.toContain("src/auth/session.test.ts");
     expect(report.configuredChecks).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ kind: "test", command: "pnpm test", willRun: false }),
@@ -104,9 +113,9 @@ describe("redteam report assembly and rendering", () => {
       expect.arrayContaining([
         "Apply pattern: Auth and session boundaries fail closed",
         "Apply pattern: JWT authentication edge cases",
-        "Add auth negative-path proof",
-        "Exercise the real API boundary",
-        "Strengthen test proof",
+        "Keep GET /api/session closed to unauthorized credentials",
+        "Prove changed path: src/auth/session.test.ts",
+        "Complete recommended proof: Add assertion for missing token session handling",
         "Verify invariant: Auth fails closed",
         "Re-check past regression: Anonymous admin",
         "Consider running Playwright harness",
@@ -117,7 +126,8 @@ describe("redteam report assembly and rendering", () => {
     expect(report.fixTasks).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          title: "Strengthen test proof",
+          title: "Prove changed path: src/auth/session.test.ts",
+          source: "test-proof",
           proof: "missing-proof"
         }),
         expect.objectContaining({
@@ -144,6 +154,10 @@ describe("redteam report assembly and rendering", () => {
       skills: createFixtureSkills(),
       generatedAt: "2026-01-01T00:00:00.000Z"
     });
+    if (report.edgeCases[0]) {
+      report.edgeCases[0].downstreamConsumers = ["src/dashboard/session.ts"];
+      report.edgeCases[0].scope.requirementIds = ["AC-AUTH"];
+    }
 
     const json = JSON.parse(renderRedteamReport(report, "json"));
     expect(json.tool).toBe("CodeDecay");
@@ -180,6 +194,8 @@ describe("redteam report assembly and rendering", () => {
     expect(markdown).toContain("### Likely Impacted Routes And APIs");
     expect(markdown).toContain("High `GET /api/session` (Next.js API route)");
     expect(markdown).toContain("Add an API-level session regression test");
+    expect(markdown).toContain("Downstream consumers: `src/dashboard/session.ts`");
+    expect(markdown).toContain("Requirements: `AC-AUTH`");
     expect(markdown).toContain("### Tool Adapter Plans");
     expect(markdown).toContain("### Pattern Intelligence");
     expect(markdown).toContain("Pattern-pack guidance is local curated context, not proof.");

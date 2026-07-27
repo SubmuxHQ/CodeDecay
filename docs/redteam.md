@@ -16,8 +16,8 @@ does not depend on CodeDecayCloud.
 
 Use it when you want a local merge-safety brief for Codex, Claude Code, Cursor,
 desktop agents, or another user-owned agent. CodeDecay provides deterministic
-deterministic signals and optional tool evidence; the receiving agent still has
-to inspect the code and prove fixes with tests or configured checks.
+signals and optional tool evidence; the receiving agent still has to inspect
+the code and prove fixes with tests or configured checks.
 
 ## Run
 
@@ -48,7 +48,9 @@ Exit codes:
 - test evidence audit status: `missing`, `weak`, `present`, or `not_applicable`
 - weak-test and missing-test findings from deterministic rules and runtime
   coverage gaps when present
-- deterministic missing edge-case checklist
+- up to eight ranked, behavior-specific edge-case scenarios grounded in
+  changed files, routes, symbols, requirements, memory, curated pattern packs,
+  or an explicit agent investigation
 - verification status from configured execution checks when `--with-checks` is
   used
 - base/head differential probe and API contract evidence when `--with-checks`,
@@ -89,6 +91,39 @@ The summary `verificationStatus` is:
 
 If no changed files are detected, CodeDecay reports zero PR-specific edge cases
 and zero coding-agent fix tasks instead of fabricating a redteam checklist.
+
+## Ranked Behavior Scenarios
+
+Each edge-case scenario states:
+
+- the concrete trigger
+- the expected invariant or behavior
+- the user-visible or downstream failure
+- the changed files, routes, symbols, flows, and requirement IDs in scope
+- deterministic, memory, requirement, pattern-pack, or agent provenance
+- a recommended proof type such as API integration, database integration, or
+  browser testing
+
+Examples include invalid zero/boundary input, idempotent retries for mutating
+routes, legacy null data, and empty, stale, error, or permission-denied UI
+states. Retry scenarios are not generated for read-only routes.
+
+CodeDecay ranks scenarios by impacted-area risk, confidence, concrete surfaces,
+user visibility, and supporting provenance. The Markdown report shows the top
+eight scenarios so the report stays actionable. JSON output preserves the
+remaining ranked scenarios in `edgeCaseOverflow`; `summary.edgeCasesShown` and
+`summary.edgeCaseOverflow` expose both counts.
+
+JSON consumers should treat `edgeCases` and `edgeCaseOverflow` as arrays of
+scenario objects, not string checklists. Generic test recommendations now
+appear as `fixTasks` with `source: "test-proof"` instead of being mixed into
+`edgeCases`.
+
+Curated knowledge scenarios require a matching changed-code signal. For
+example, a generic API file does not receive JWT advice merely because it is an
+API change. Suggestions produced only by an optional agent investigation stay
+low-confidence and are labeled as untrusted agent suggestions until tool
+evidence proves them.
 
 ## Agent-Agnostic Workflow
 

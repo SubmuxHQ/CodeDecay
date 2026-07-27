@@ -485,8 +485,16 @@ describe("built codedecay CLI redteam and agent workflows", () => {
     );
     expect(agentBundle.evidence.edgeCases).toEqual(
       expect.arrayContaining([
-        "Exercise the real API route with malformed, missing, and boundary-value payloads.",
-        "Check loading, empty, error, and permission-denied UI states."
+        expect.objectContaining({
+          id: "api-invalid-input",
+          scope: expect.objectContaining({ routes: ["GET /api/users"] }),
+          proof: expect.objectContaining({ kind: "api-integration" })
+        }),
+        expect.objectContaining({
+          id: "ui-empty-error-permission",
+          scope: expect.objectContaining({ routes: ["/dashboard"] }),
+          proof: expect.objectContaining({ kind: "browser" })
+        })
       ])
     );
   });

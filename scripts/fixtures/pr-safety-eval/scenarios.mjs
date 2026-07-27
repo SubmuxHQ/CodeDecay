@@ -114,7 +114,10 @@ export const scenarios = [
       ],
       redteamTestProofStatus: "weak",
       weakTestFindingsAtLeast: 1,
-      missingTestFindingsAtLeast: 0
+      missingTestFindingsAtLeast: 0,
+      requiredEdgeCaseIds: ["auth-fail-closed", "api-invalid-input"],
+      allowedEdgeCaseIds: ["auth-fail-closed", "api-invalid-input"],
+      maxEdgeCaseNoiseRate: 0
     }
   },
   {
@@ -222,7 +225,10 @@ export const scenarios = [
       findingRuleIds: ["risky-config-change", "risky-database-change", "missing-nearby-tests"],
       redteamTestProofStatus: "missing",
       weakTestFindingsAtLeast: 0,
-      missingTestFindingsAtLeast: 1
+      missingTestFindingsAtLeast: 1,
+      requiredEdgeCaseIds: ["config-missing-environment", "database-legacy-data"],
+      allowedEdgeCaseIds: ["config-missing-environment", "database-legacy-data"],
+      maxEdgeCaseNoiseRate: 0
     }
   }
 ];

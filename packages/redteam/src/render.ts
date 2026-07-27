@@ -47,7 +47,9 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
     `| Changed path proof entries | ${report.summary.testProofEntries} |`,
     `| Missing-test findings | ${report.summary.missingTestFindings} |`,
     `| Weak-test findings | ${report.summary.weakTestFindings} |`,
-    `| Edge cases suggested | ${report.summary.edgeCases} |`,
+    `| Behavior scenarios | ${report.summary.edgeCases} |`,
+    `| Ranked scenarios shown | ${report.summary.edgeCasesShown} |`,
+    `| Scenario overflow | ${report.summary.edgeCaseOverflow} |`,
     `| Configured checks listed | ${report.summary.configuredChecks} |`,
     `| Tool adapters planned | ${report.summary.toolAdapters} |`,
     `| Verification status | ${report.summary.verificationStatus} |`,
@@ -71,7 +73,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
   appendTestAudit(lines, report.testAudit);
   appendVerification(lines, report.verification);
   appendProductFailures(lines, report.analysis.productFailureBundles ?? []);
-  appendEdgeCases(lines, report.edgeCases);
+  appendEdgeCases(lines, report.edgeCases, report.edgeCaseOverflow.length);
   appendPatternInsights(lines, report.patternInsights);
   appendConfiguredChecks(lines, report.configuredChecks);
   appendToolAdapterPlans(lines, report.toolAdapterPlans);

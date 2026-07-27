@@ -243,6 +243,63 @@ describe("unified harness planted issue corpus", () => {
     });
   });
 
+  it("tracks behavior-scenario relevance and noise for a scoped API change", async () => {
+    const repo = createMissingRealApiTestRepo();
+    const result = await run(["redteam", "--format", "json"], repo);
+    const report = JSON.parse(result.stdout) as {
+      edgeCases: Array<{
+        id: string;
+        title: string;
+        trigger: string;
+        expectedBehavior: string;
+        userVisibleFailure: string;
+        scope: { files: string[]; routes: string[] };
+        sources: Array<{ kind: string }>;
+        proof: { kind: string; recommendation: string };
+      }>;
+      edgeCaseOverflow: Array<{ id: string }>;
+      fixTasks: Array<{ source: string; detail: string }>;
+    };
+    const allowedIds = new Set(["api-invalid-input"]);
+    const allIds = [...report.edgeCases, ...report.edgeCaseOverflow].map((scenario) => scenario.id);
+    const relevant = allIds.filter((id) => allowedIds.has(id));
+    const noise = allIds.filter((id) => !allowedIds.has(id));
+    const metrics = {
+      total: allIds.length,
+      relevant: relevant.length,
+      noise: noise.length,
+      relevanceRate: allIds.length === 0 ? 0 : relevant.length / allIds.length,
+      noiseRate: allIds.length === 0 ? 0 : noise.length / allIds.length
+    };
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(report.edgeCases).toEqual([
+      expect.objectContaining({
+        id: "api-invalid-input",
+        scope: expect.objectContaining({ files: ["src/api/orders.ts"] }),
+        proof: expect.objectContaining({ kind: "api-integration" })
+      })
+    ]);
+    expect(report.edgeCases[0]).toMatchObject({
+      trigger: expect.any(String),
+      expectedBehavior: expect.any(String),
+      userVisibleFailure: expect.any(String)
+    });
+    expect(report.edgeCases[0]?.sources.length).toBeGreaterThan(0);
+    expect(report.edgeCases.map((scenario) => scenario.title).join("\n")).not.toMatch(
+      /\b(?:add|run|strengthen) tests?\b/i
+    );
+    expect(report.fixTasks.some((task) => task.source === "test-proof")).toBe(true);
+    expect(metrics).toEqual({
+      total: 1,
+      relevant: 1,
+      noise: 0,
+      relevanceRate: 1,
+      noiseRate: 0
+    });
+  });
+
   it("exposes the same canonical corpus consumed by the benchmark command", () => {
     const corpus = createDefaultBenchmarkCorpus();
 
