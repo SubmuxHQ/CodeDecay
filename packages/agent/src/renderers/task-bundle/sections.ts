@@ -226,6 +226,28 @@ export function appendChecks(lines: string[], checks: AgentSuggestedCheck[]): vo
   }
 }
 
+export function appendVerification(
+  lines: string[],
+  verification: AgentTaskBundle["verification"]
+): void {
+  lines.push("", "### Verification Evidence", "", `**Status:** ${verification.status}`, "");
+
+  if (verification.checks.length === 0) {
+    lines.push("- no configured checks were executed");
+  } else {
+    for (const check of verification.checks.slice(0, 16)) {
+      lines.push(
+        `- **${check.name}** (${check.kind}, ${check.status}, ${formatProofGrade(check.proof)}): ${check.summary}`
+      );
+    }
+  }
+
+  if (verification.notes.length > 0) {
+    lines.push("", "Verification limitations:");
+    appendList(lines, verification.notes);
+  }
+}
+
 export function appendSkills(lines: string[], skills: RedteamSkillSummary[]): void {
   lines.push("", "### Agent Skills", "");
   if (skills.length === 0) {

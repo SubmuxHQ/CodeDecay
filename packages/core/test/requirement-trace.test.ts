@@ -135,6 +135,57 @@ describe("requirement trace status policy", () => {
       "AC-UNMAPPED"
     ]);
   });
+
+  it("does not treat incidental command output as proof of an acceptance criterion", () => {
+    const requirements = normalizeRequirementContext({
+      task: "Protect the users API",
+      source: { id: "issue-693", kind: "issue", label: "Issue #693 UAT" },
+      context: {
+        acceptanceCriteria: [{
+          id: "AC-AUTH",
+          text: "An anonymous user cannot list user email addresses.",
+          requiredProof: ["Call the real users path as an anonymous user."]
+        }],
+        affectedFlows: [{ name: "List users", kind: "api" }]
+      }
+    });
+    const report = createAnalysisReport({
+      changedFiles: [changed("src/api/users.ts")],
+      analyzerResult: {
+        findings: [],
+        impactedAreas: [{
+          name: "API",
+          kind: "api",
+          risk: "medium",
+          files: ["src/api/users.ts"]
+        }],
+        recommendedTests: []
+      }
+    });
+
+    const trace = createRequirementTrace({
+      requirements,
+      report,
+      externalEvidence: [{
+        id: "generic-test",
+        kind: "configured-check",
+        name: "Test command 1",
+        status: "passed",
+        trusted: true,
+        summary: "codedecay-user tests passed",
+        command: "npm test"
+      }]
+    });
+
+    expect(trace.criteria[0]).toMatchObject({
+      requirementId: "AC-AUTH",
+      status: "proof-missing"
+    });
+    expect(trace.criteria[0]?.evidence).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ target: "generic-test", outcome: "passed" })])
+    );
+    expect(trace.summary.blockingRequirementIds).toEqual(["AC-AUTH"]);
+  });
 });
 
 function changed(path: string) {

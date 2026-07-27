@@ -34,8 +34,16 @@ export function createAgentTaskBundle(report: RedteamReport, options: CreateAgen
     fixTasks: tasks.length,
     totalFixTasks: report.summary.fixTasks,
     scopeFindings: evidence.scopeFindings.length,
-    contractFindings: evidence.contractFindings.length
+    contractFindings: evidence.contractFindings.length,
+    verificationStatus: report.summary.verificationStatus
   };
+  const safety = {
+    llmCalled: report.safety.llmCalled,
+    commandsExecuted: report.safety.commandsExecuted,
+    telemetrySent: false,
+    cloudDependency: false,
+    agentOutputTrusted: false
+  } as const;
 
   return {
     tool: "CodeDecay",
@@ -48,21 +56,16 @@ export function createAgentTaskBundle(report: RedteamReport, options: CreateAgen
     requirements: report.requirements,
     requirementTrace: report.requirementTrace,
     investigation: report.investigation,
+    verification: report.verification,
     summary,
-    prompt: createPortableAgentPrompt(summary, agentProfile),
+    prompt: createPortableAgentPrompt(summary, agentProfile, safety),
     instructions: [...DEFAULT_INSTRUCTIONS],
     evidence,
     tasks,
     taskFilters: options.taskFilters ?? {},
     suggestedChecks: collectSuggestedChecks(report.configuredChecks, report.toolAdapterPlans),
     skills: [...report.skills],
-    safety: {
-      llmCalled: report.safety.llmCalled,
-      commandsExecuted: report.safety.commandsExecuted,
-      telemetrySent: false,
-      cloudDependency: false,
-      agentOutputTrusted: false
-    },
+    safety,
     limits: [...DEFAULT_LIMITS]
   };
 }

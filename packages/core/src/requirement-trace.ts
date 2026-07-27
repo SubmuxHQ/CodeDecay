@@ -63,8 +63,10 @@ export function createRequirementTrace(input: {
     }
 
     for (const external of input.externalEvidence ?? []) {
+      // Stdout is evidence after a check is matched, but it is too noisy to decide
+      // which requirement the check proves (package names alone can overlap).
       if (matchesFilesOrText(implementationFiles, tokens, external.files ?? [], [
-        external.name, external.summary, external.command ?? ""
+        external.name, external.command ?? ""
       ])) {
         evidence.push(traceEvidence(
           criterion.id,

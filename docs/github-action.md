@@ -36,6 +36,41 @@ uses the workflow `github-token` input, defaults to the GitHub Actions workflow
 token, and is skipped without failing the workflow when the token or PR context
 is unavailable. The Step Summary is still written on every run.
 
+## AI Task Bundle
+
+Use `mode: ai` to produce the recommended Codex-ready task bundle in CI:
+
+```yaml
+- uses: SubmuxHQ/CodeDecay/packages/github-action@v0
+  with:
+    mode: ai
+    base: ${{ github.event.pull_request.base.sha }}
+    head: ${{ github.event.pull_request.head.sha }}
+    cwd: .
+    format: markdown
+    profile: codex
+    fail-on: high
+```
+
+Set `with-checks: true` only when repository config explicitly defines allowed
+commands or tool adapters and `safety.allowCommands` permits them. The Action
+does not accept arbitrary command arguments.
+
+```yaml
+- uses: SubmuxHQ/CodeDecay/packages/github-action@v0
+  with:
+    mode: ai
+    base: ${{ github.event.pull_request.base.sha }}
+    head: ${{ github.event.pull_request.head.sha }}
+    profile: claude-code
+    with-checks: true
+    format: json
+    output: codedecay-ai.json
+```
+
+`profile` is forwarded only to `agent` and `ai`. `with-checks` is forwarded
+only to `redteam` and `ai`. Existing `agent` mode never receives `fail-on`.
+
 ## SARIF Output
 
 ```yaml

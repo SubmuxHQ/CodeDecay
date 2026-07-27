@@ -100,34 +100,34 @@ pnpm docs:dev
 
 ## Quickstart
 
-Analyze the current working tree:
+Give your coding agent a CodeDecay task bundle for the current working tree:
 
 ```bash
-npx codedecay analyze --format markdown
+npx codedecay ai --format markdown
 ```
 
-Analyze a pull request range:
+Guide the agent before it edits:
+
+```bash
+npx codedecay ai preflight --task "Add an authorized billing export API" --format markdown
+```
+
+Run the AI workflow on a pull request range:
+
+```bash
+npx codedecay ai --base main --head HEAD --format markdown
+```
+
+Include explicitly configured test, build, probe, and OSS-tool evidence:
+
+```bash
+npx codedecay ai --with-checks --base main --head HEAD --format markdown
+```
+
+Use deterministic analysis directly when you only want the risk report:
 
 ```bash
 npx codedecay analyze --base main --head HEAD --format markdown
-```
-
-Generate a red-team report:
-
-```bash
-npx codedecay redteam --base main --head HEAD --format markdown
-```
-
-Include configured test/build/probe/tool evidence in that report:
-
-```bash
-npx codedecay redteam --with-checks --base main --head HEAD --format markdown
-```
-
-Create a task bundle for your coding agent:
-
-```bash
-npx codedecay agent --profile codex --base main --head HEAD --format markdown
 ```
 
 Fail CI on high-risk PRs:
@@ -168,6 +168,7 @@ npx codedecay product --target web --generate-tests --run-generated-tests --form
 
 | Command | Purpose |
 | --- | --- |
+| `codedecay ai` | Recommended AI-first workflow: preflight guidance, post-diff evidence, optional explicit investigation, configured proof, and a Codex-ready task bundle. |
 | `codedecay analyze` | Deterministic PR risk, impact, and decay analysis. |
 | `codedecay snapshot` | Emit a stable repository health snapshot and compare it with a previous snapshot artifact. |
 | `codedecay redteam` | Merge-safety report with impact, weak-test evidence, verification status, edge cases, memory, skills, and fix tasks. |
@@ -198,8 +199,8 @@ Common flags:
 | `--format json\|markdown\|sarif` | Output format. SARIF is supported by `analyze`. |
 | `--output <path>` | Write output to a file instead of stdout. Relative paths resolve from `--cwd`. |
 | `--fail-on low\|medium\|high` | Exit non-zero when the risk level reaches the threshold. |
-| `--with-checks` | For `redteam`, run configured checks through CodeDecay safety gates and include verification evidence. |
-| `--profile generic\|codex\|claude-code\|cursor\|pi\|opencode\|desktop` | Agent handoff profile for `codedecay agent`. |
+| `--with-checks` | For `ai` or `redteam`, run configured checks through CodeDecay safety gates and include verification evidence. |
+| `--profile generic\|codex\|claude-code\|cursor\|pi\|opencode\|desktop` | Agent handoff profile for `codedecay ai` or `codedecay agent`. |
 
 Exit codes:
 
@@ -224,7 +225,7 @@ codedecay uninstall --purge-local
 
 | Workflow | Default | What it does today |
 | --- | --- | --- |
-| `codedecay analyze`, `redteam`, `agent`, `snapshot` | Yes | Runs deterministic local analysis with no model calls. |
+| `codedecay ai`, `analyze`, `redteam`, `agent`, `snapshot` | Yes | Runs deterministic local analysis with no model calls unless `--investigate` is explicit. |
 | `codedecay execute`, `differential` | No | Runs only repo-allowlisted local commands after explicit opt-in. |
 | `codedecay product --explore` | No | Uses a project-provided Playwright install to crawl configured live app targets after explicit opt-in. |
 | `codedecay llm-review` | No | Calls a user-owned provider only when the user invokes it directly. |

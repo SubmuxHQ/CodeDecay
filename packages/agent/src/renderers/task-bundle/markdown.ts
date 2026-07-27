@@ -8,7 +8,8 @@ import {
   appendPrompt,
   appendSafety,
   appendSkills,
-  appendTasks
+  appendTasks,
+  appendVerification
 } from "./sections";
 
 export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
@@ -38,6 +39,7 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
     `| Fix tasks | ${bundle.summary.fixTasks} / ${bundle.summary.totalFixTasks} |`,
     `| Scope findings | ${bundle.summary.scopeFindings} |`,
     `| Contract findings | ${bundle.summary.contractFindings} |`,
+    `| Verification status | ${bundle.summary.verificationStatus} |`,
     "",
     "### Instructions For The Agent",
     ""
@@ -50,6 +52,7 @@ export function renderAgentTaskBundleMarkdown(bundle: AgentTaskBundle): string {
   appendHandoff(lines, bundle.agentProfile);
   appendPrompt(lines, bundle.prompt);
   appendEvidence(lines, bundle.evidence);
+  appendVerification(lines, bundle.verification);
   appendTasks(lines, bundle.tasks);
   appendChecks(lines, bundle.suggestedChecks);
   appendSkills(lines, bundle.skills);

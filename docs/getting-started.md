@@ -4,14 +4,15 @@ CodeDecay analyzes pull requests for regression risk and maintainability decay.
 It works locally and in CI without cloud services, telemetry, API keys, LLMs,
 or model calls.
 
-## Deterministic Default
+## AI-First, User-Owned Default
 
-Use the deterministic workflow first. Optional assisted workflows are separate
-and never implicit.
+Use `codedecay ai` when you want CodeDecay to guide your own coding agent.
+Without `--investigate` or `--with-checks`, it remains deterministic and
+report-only.
 
 | Workflow | Default | What it does |
 | --- | --- | --- |
-| `analyze`, `redteam`, `agent`, `snapshot` | Yes | Local deterministic analysis and reporting. |
+| `ai`, `analyze`, `redteam`, `agent`, `snapshot` | Yes | Local deterministic analysis and agent-ready reporting. |
 | `execute`, `differential` | No | Runs only repo-allowlisted local commands after explicit opt-in. |
 | `llm-review` | No | Calls a user-owned provider only when invoked directly. |
 | Optional LLM providers | No | Disabled by default and only called by commands that explicitly opt in. |
@@ -45,10 +46,28 @@ repo policy; for local evaluation you can override it explicitly:
 bun add -d @submuxhq/codedecay --minimum-release-age 0
 ```
 
-## Analyze A PR Diff
+## Guide The Agent Before Editing
 
 ```bash
-npx codedecay analyze --base main --head HEAD --format markdown
+npx codedecay ai preflight --task "Add an authorized billing export API" --format markdown
+```
+
+## Run The AI Workflow On A PR Diff
+
+```bash
+npx codedecay ai --base main --head HEAD --format markdown
+```
+
+Use another handoff profile explicitly:
+
+```bash
+npx codedecay ai --profile claude-code --base main --head HEAD --format markdown
+```
+
+Run configured proof through repository safety gates after the code changes:
+
+```bash
+npx codedecay ai --with-checks --base main --head HEAD --format markdown
 ```
 
 ## Analyze Current Working Tree
@@ -102,14 +121,14 @@ first.
 
 ## Hand Evidence To Your Agent
 
-Use `agent` when you want Codex, Claude Code, Cursor, a desktop agent, or
-another user-owned agent to act on CodeDecay's findings.
+Use `ai` for the recommended Codex-ready workflow. The lower-level `agent`
+command remains available when you want a generic bundle by default.
 
 ```bash
-npx codedecay agent --base main --head HEAD --format markdown --output codedecay-agent.md
+npx codedecay ai --base main --head HEAD --format markdown --output codedecay-ai.md
 ```
 
-Then give `codedecay-agent.md` to your agent and ask it to:
+Then give `codedecay-ai.md` to your agent and ask it to:
 
 - fix high-risk findings first,
 - add tests that exercise real API, UI, database, or downstream behavior,
@@ -126,7 +145,7 @@ it.
 ```bash
 npx codedecay analyze --base main --head HEAD --format markdown
 npx codedecay redteam --base main --head HEAD --format markdown --output codedecay-redteam.md
-npx codedecay agent --base main --head HEAD --format markdown --output codedecay-agent.md
+npx codedecay ai --base main --head HEAD --format markdown --output codedecay-ai.md
 ```
 
 Use the redteam report to understand the PR risk. Use the agent bundle to give

@@ -4,7 +4,7 @@ author: "SubmuxHQ"
 
 inputs:
   mode:
-    description: "Mode: analyze, redteam, agent, or product. Product mode runs only explicit codedecay product workflows."
+    description: "Mode: analyze, redteam, agent, ai, or product. Product mode runs only explicit codedecay product workflows."
     required: false
     default: "analyze"
   base:
@@ -35,16 +35,24 @@ inputs:
     description: "Fail the workflow on low, medium, or high risk"
     required: false
     default: ""
+  profile:
+    description: "Agent handoff profile for agent or ai mode: generic, codex, claude-code, cursor, pi, opencode, or desktop"
+    required: false
+    default: ""
+  with-checks:
+    description: "For redteam or ai mode, run configured commands and tool adapters through CodeDecay safety gates"
+    required: false
+    default: "false"
   task:
-    description: "Agent mode: explicit task or user story."
+    description: "Analyze, redteam, agent, or ai mode: explicit task or user story."
     required: false
     default: ""
   requirements:
-    description: "Analyze, redteam, or agent mode: optional repo-local JSON, YAML, or Markdown requirements artifact."
+    description: "Analyze, redteam, agent, or ai mode: optional repo-local JSON, YAML, or Markdown requirements artifact."
     required: false
     default: ""
   fail-on-requirements:
-    description: "Analyze or redteam mode: fail when any supplied acceptance criterion is not verified."
+    description: "Analyze, redteam, or ai mode: fail when any supplied acceptance criterion is not verified."
     required: false
     default: "false"
   target:
@@ -107,10 +115,10 @@ runs:
         fi
 
         case "$MODE" in
-          analyze|redteam|agent) ;;
+          analyze|redteam|agent|ai) ;;
           *)
             echo "Unsupported CodeDecay mode: $MODE" >&2
-            echo "Expected analyze, redteam, agent, or product." >&2
+            echo "Expected analyze, redteam, agent, ai, or product." >&2
             exit 2
             ;;
         esac
@@ -127,6 +135,11 @@ runs:
         fi
         if [[ -n "${{ inputs.requirements }}" ]]; then
           args+=(--requirements "${{ inputs.requirements }}")
+        fi
+        if [[ "$MODE" == "agent" || "$MODE" == "ai" ]]; then
+          if [[ -n "${{ inputs.profile }}" ]]; then
+            args+=(--profile "${{ inputs.profile }}")
+          fi
         fi
 
         cd "$GITHUB_WORKSPACE"
@@ -219,10 +232,10 @@ runs:
         SUMMARY_PATH="$RUNNER_TEMP/codedecay-product-summary.md"
 
         case "$MODE" in
-          analyze|redteam|agent|product) ;;
+          analyze|redteam|agent|ai|product) ;;
           *)
             echo "Unsupported CodeDecay mode: $MODE" >&2
-            echo "Expected analyze, redteam, agent, or product." >&2
+            echo "Expected analyze, redteam, agent, ai, or product." >&2
             exit 2
             ;;
         esac
@@ -284,6 +297,16 @@ runs:
           fi
           if [[ -n "${{ inputs.requirements }}" ]]; then
             args+=(--requirements "${{ inputs.requirements }}")
+          fi
+          if [[ "$MODE" == "agent" || "$MODE" == "ai" ]]; then
+            if [[ -n "${{ inputs.profile }}" ]]; then
+              args+=(--profile "${{ inputs.profile }}")
+            fi
+          fi
+          if [[ "$MODE" == "redteam" || "$MODE" == "ai" ]]; then
+            if [[ "${{ inputs.with-checks }}" == "true" ]]; then
+              args+=(--with-checks)
+            fi
           fi
           if [[ "$MODE" != "agent" && "${{ inputs.fail-on-requirements }}" == "true" ]]; then
             args+=(--fail-on-requirements)
