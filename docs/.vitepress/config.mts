@@ -35,6 +35,7 @@ export default defineConfig({
       { text: "GitHub Action", link: "/github-action" },
       { text: "Redteam", link: "/redteam" },
       { text: "MCP", link: "/mcp" },
+      { text: "Hackathon", link: "/hackathon/" },
       { text: "AI Bundle", link: `${base}llms.txt` }
     ],
     sidebar: [
@@ -49,6 +50,7 @@ export default defineConfig({
           { text: "Sample Reports", link: "/sample-reports/" },
           { text: "Scoring Model", link: "/scoring" },
           { text: "Benchmark Corpus", link: "/benchmark-corpus" },
+          { text: "Hackathon Submission", link: "/hackathon/" },
           { text: "Release Policy", link: "/release-policy" },
           { text: "Research Basis", link: "/research" }
         ]

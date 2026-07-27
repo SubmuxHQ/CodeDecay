@@ -22,19 +22,22 @@ test("one click runs live auth analysis and exposes exact evidence links", async
 test("switches between risky, repaired, weak-test, and clean-decoy states", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Run selected scenario/ }).click();
-  await expect(page.getByTestId("analysis-result")).toBeVisible();
+  const result = page.getByTestId("analysis-result");
+  await expect(result).toBeVisible();
 
-  await page.getByRole("button", { name: "Repaired" }).click();
-  await expect(page.getByText("No blocker invented.")).toBeVisible();
+  await page.getByRole("button", { name: "Repaired", exact: true }).click();
+  await expect(result.getByText("No blocker invented.", { exact: true })).toBeVisible();
 
   await page.getByRole("tab", { name: /The test that tests itself/ }).click();
-  await page.getByRole("button", { name: "Risky PR" }).click();
-  await expect(page.getByText("PRECOMPUTED EVIDENCE")).toBeVisible();
-  await expect(page.getByText("Changed test mocks changed source")).toBeVisible();
+  await page.getByRole("button", { name: "Risky PR", exact: true }).click();
+  await expect(result.getByText("PRECOMPUTED EVIDENCE", { exact: true })).toBeVisible();
+  await expect(
+    result.getByText("Changed test mocks changed source", { exact: true }),
+  ).toBeVisible();
 
   await page.getByRole("tab", { name: /Harmless docs cleanup/ }).click();
-  await expect(page.getByText("No blocker invented.")).toBeVisible();
-  await expect(page.getByText("No runtime route")).toBeVisible();
+  await expect(result.getByText("No blocker invented.", { exact: true })).toBeVisible();
+  await expect(result.getByText("No runtime route", { exact: true })).toBeVisible();
 });
 
 test("surfaces a recoverable analysis failure", async ({ page }) => {
