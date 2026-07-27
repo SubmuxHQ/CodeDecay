@@ -2,6 +2,7 @@ import { existsSync, readFileSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
+  cliPath,
   createHighRiskRepo,
   createLowRiskRepo,
   createMediumRiskRepo,
@@ -320,10 +321,15 @@ describe("built codedecay CLI redteam and agent workflows", () => {
   it("runs the Node API example redteam, agent, and execute workflow from the built CLI", () => {
     const repo = createNodeApiExampleRepo();
 
-    const redteam = runBuilt(["redteam", "--cwd", repo, "--format", "json"]);
+    const redteam = runBuilt(
+      ["redteam", "--cwd", repo, "--format", "json"],
+      cliPath,
+      10_000
+    );
     const redteamReport = JSON.parse(redteam.stdout);
 
     expect(redteam.status).toBe(0);
+    expect(redteam.timedOut).toBe(false);
     expect(redteamReport.summary.riskLevel).toBe("high");
     expect(redteamReport.toolAdapterPlans).toEqual(
       expect.arrayContaining([
@@ -340,10 +346,15 @@ describe("built codedecay CLI redteam and agent workflows", () => {
       ])
     );
 
-    const agent = runBuilt(["agent", "--cwd", repo, "--format", "json"]);
+    const agent = runBuilt(
+      ["agent", "--cwd", repo, "--format", "json"],
+      cliPath,
+      10_000
+    );
     const agentBundle = JSON.parse(agent.stdout);
 
     expect(agent.status).toBe(0);
+    expect(agent.timedOut).toBe(false);
     expect(agentBundle).toMatchObject({
       tool: "CodeDecay",
       mode: "agent-task-bundle",
@@ -362,10 +373,15 @@ describe("built codedecay CLI redteam and agent workflows", () => {
     );
     expect(agentBundle.tasks.length).toBeGreaterThan(0);
 
-    const execute = runBuilt(["execute", "--cwd", repo, "--format", "json"]);
+    const execute = runBuilt(
+      ["execute", "--cwd", repo, "--format", "json"],
+      cliPath,
+      10_000
+    );
     const executeReport = JSON.parse(execute.stdout);
 
     expect(execute.status).toBe(1);
+    expect(execute.timedOut).toBe(false);
     expect(executeReport.summary).toMatchObject({
       status: "failed",
       total: 3,
@@ -401,7 +417,7 @@ describe("built codedecay CLI redteam and agent workflows", () => {
         })
       ])
     );
-  });
+  }, 30_000);
 
   it("runs the Next.js example analyze and agent workflow from the built CLI", () => {
     const repo = createNextjsExampleRepo();
