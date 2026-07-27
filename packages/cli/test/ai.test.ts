@@ -153,7 +153,20 @@ describe("codedecay ai CLI contract", () => {
     });
     expect(bundle.safety.commandsExecuted).toBe(true);
     expect(bundle.prompt).toContain("executed explicitly configured local checks");
+    expect(bundle.limits).toContain(
+      "CodeDecay executed explicitly configured local checks through repository safety policy."
+    );
+    expect(bundle.limits).not.toContain("CodeDecay did not execute commands while creating this bundle.");
     expect(readFileSync(join(repo, "codedecay-ai-ran.txt"), "utf8")).toBe("yes");
+
+    const markdown = await run(["ai", "--with-checks", "--format", "markdown"], repo);
+
+    expect(markdown.exitCode).toBe(0);
+    expect(markdown.stdout).toContain("Commands executed by CodeDecay: yes");
+    expect(markdown.stdout).toContain(
+      "CodeDecay executed explicitly configured local checks through repository safety policy."
+    );
+    expect(markdown.stdout).not.toContain("CodeDecay did not execute commands while creating this bundle.");
   });
 
   it("keeps skipped checks unverified without pretending they ran", async () => {
@@ -173,6 +186,10 @@ describe("codedecay ai CLI contract", () => {
       status: "unverified",
       skipped: 1
     });
+    expect(bundle.limits).toContain("CodeDecay did not execute commands while creating this bundle.");
+    expect(bundle.limits).not.toContain(
+      "CodeDecay executed explicitly configured local checks through repository safety policy."
+    );
     expect(existsSync(join(repo, "codedecay-ai-ran.txt"))).toBe(false);
   });
 
