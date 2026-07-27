@@ -1,8 +1,30 @@
-# CodeDecay
+<p align="center">
+  <img src="docs/public/logo.png" alt="CodeDecay logo" width="180">
+</p>
 
-[![CI](https://github.com/SubmuxHQ/CodeDecay/actions/workflows/ci.yml/badge.svg)](https://github.com/SubmuxHQ/CodeDecay/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@submuxhq/codedecay?label=npm)](https://www.npmjs.com/package/@submuxhq/codedecay)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+<h1 align="center">CodeDecay</h1>
+
+<p align="center"><strong>Find what your coding agent missed before merge.</strong></p>
+
+<p align="center">
+  Open-source AI PR red-teaming with your own coding agents, explicit checks, and local-first evidence.
+</p>
+
+<p align="center">
+  <a href="https://github.com/SubmuxHQ/CodeDecay/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/SubmuxHQ/CodeDecay/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://www.npmjs.com/package/@submuxhq/codedecay"><img alt="npm" src="https://img.shields.io/npm/v/@submuxhq/codedecay?label=npm"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
+</p>
+
+<p align="center">
+  <a href="docs/getting-started.md">Docs</a> ·
+  <a href="docs/github-action.md">GitHub Action</a> ·
+  <a href="docs/sample-reports/sample-report.md">Sample Report</a> ·
+  <a href="docs/mcp.md">MCP</a> ·
+  <a href="docs/product-testing.md">Product Testing</a>
+</p>
+
+![CodeDecay hero](docs/public/hero.png)
 
 Catch what your AI coding agent missed — free, in CI, before merge.
 

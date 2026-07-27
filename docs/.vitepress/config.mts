@@ -14,7 +14,8 @@ export default defineConfig({
     hostname: process.env.DOCS_SITE_URL
   },
   head: [
-    ["link", { rel: "icon", href: `${base}mark.svg` }],
+    ["link", { rel: "icon", type: "image/png", href: `${base}logo.png` }],
+    ["link", { rel: "apple-touch-icon", href: `${base}logo.png` }],
     ["meta", { name: "theme-color", content: "#c95d12" }],
     [
       "meta",
@@ -23,11 +24,24 @@ export default defineConfig({
         content:
           "Open-source docs for CodeDecay: regression-risk analysis, redteam workflow, MCP integration, GitHub Action setup, and agent-ready llms.txt bundles."
       }
-    ]
+    ],
+    ["meta", { property: "og:type", content: "website" }],
+    ["meta", { property: "og:title", content: "CodeDecay" }],
+    [
+      "meta",
+      {
+        property: "og:description",
+        content:
+          "Find what your coding agent missed before merge with local-first PR red-teaming, product checks, and agent-ready handoff docs."
+      }
+    ],
+    ["meta", { property: "og:image", content: `${base}hero.png` }],
+    ["meta", { name: "twitter:card", content: "summary_large_image" }],
+    ["meta", { name: "twitter:image", content: `${base}hero.png` }]
   ],
   themeConfig: {
     logo: {
-      src: "/mark.svg",
+      src: "/logo.png",
       alt: "CodeDecay"
     },
     nav: [
@@ -89,6 +103,10 @@ export default defineConfig({
           {
             text: "RFC 0002: Unified Local-First Safety Harness",
             link: "/rfcs/0002-unified-harness"
+          },
+          {
+            text: "RFC 0003: Test-First UAT and Agentic QA",
+            link: "/rfcs/0003-test-first-uat-usability-agentic-qa"
           },
           { text: "Releasing", link: "/releasing" },
           { text: "Launch Post", link: "/launch-post" }

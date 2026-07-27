@@ -30,6 +30,20 @@
 - Edge cases/fix tasks addressed:
 - Not applicable reason:
 
+## Pre-Code Test Contract
+
+<!-- Link the issue section or test plan that existed before production implementation. See docs/rfcs/0003-test-first-uat-usability-agentic-qa.md. -->
+
+- Test contract:
+- Baseline/red evidence:
+- [ ] Contract/integration tests exercise real behavior
+- [ ] UAT passed against the built/public workflow
+- [ ] A fresh-context usability session completed the primary task
+- [ ] Independent agentic QA completed a fix -> final-tree revalidation loop
+- [ ] Clean decoys remained clean
+- [ ] AI suggestions and memory remained separate from trusted proof
+- Not applicable or deferred scenario, owner, and reason:
+
 ## Validation
 
 - [ ] `pnpm run lint`
