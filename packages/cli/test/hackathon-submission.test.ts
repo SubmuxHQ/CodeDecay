@@ -23,14 +23,21 @@ describe("hackathon submission artifacts", () => {
         "--eval",
         [
           "import { orderedPages, sectionTitles } from './scripts/lib/docs-pages.mjs';",
-          "const path = 'hackathon/README.md';",
-          "console.log(JSON.stringify({ included: orderedPages.includes(path), section: sectionTitles.get(path) }));"
+          "const paths = ['hackathon/README.md', 'hackathon/release-notes-v0.4.0.md'];",
+          "console.log(JSON.stringify(paths.map((path) => ({ path, included: orderedPages.includes(path), section: sectionTitles.get(path) }))));"
         ].join("")
       ],
       { cwd: repoRoot, encoding: "utf8" }
     );
 
-    expect(JSON.parse(output)).toEqual({ included: true, section: "Hackathon" });
+    expect(JSON.parse(output)).toEqual([
+      { path: "hackathon/README.md", included: true, section: "Hackathon" },
+      {
+        path: "hackathon/release-notes-v0.4.0.md",
+        included: true,
+        section: "Hackathon"
+      }
+    ]);
   });
 
   it("ships a valid Google Docs-ready DOCX with stable layout and list restarts", () => {

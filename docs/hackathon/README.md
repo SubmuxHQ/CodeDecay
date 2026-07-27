@@ -7,6 +7,8 @@ submission.
   Google Docs-ready project description.
 - [`originality-ledger.md`](./originality-ledger.md) separates the pre-existing
   open-source foundation from work completed with Codex during the hackathon.
+- [`release-notes-v0.4.0.md`](./release-notes-v0.4.0.md) records the frozen
+  hackathon release behavior, safety boundaries, and known limitations.
 - [`codedecay-submission.docx`](https://github.com/SubmuxHQ/CodeDecay/raw/main/docs/hackathon/codedecay-submission.docx)
   is the generated, visually verified import artifact for the final native
   Google Doc.
