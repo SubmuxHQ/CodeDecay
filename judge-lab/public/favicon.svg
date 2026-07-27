@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>CodeDecay</title>
+  <rect width="64" height="64" rx="12" fill="#0a0a09"/>
+  <path d="M18 14h27v8H26v20h19v8H18z" fill="#ff6b2c"/>
+  <path d="M35 27h11v10H35z" fill="#f3efe5"/>
+</svg>

@@ -45,6 +45,9 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Verify Judge Lab cached evidence
+        run: pnpm judge-lab:evidence:check
+
       - name: Package dry-run
         run: pnpm --filter @submuxhq/codedecay pack --dry-run
 
@@ -64,3 +67,57 @@ jobs:
             .codedecay/local/child-repo-e2e/ci/logs
             .codedecay/local/child-repo-e2e/ci/end-user-demo
             .codedecay/local/child-repo-e2e/ci/child-repo/.codedecay/local
+
+  judge-lab:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: judge-lab
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: judge-lab/package-lock.json
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.8.0 --activate
+
+      - name: Install monorepo dependencies
+        working-directory: .
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build Judge Lab workspace dependency
+        working-directory: .
+        run: pnpm --filter @submuxhq/codedecay-core build
+
+      - name: Install Judge Lab dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build and API-test
+        env:
+          CODEDECAY_SOURCE_COMMIT: ${{ github.sha }}
+        run: npm test
+
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser acceptance
+        run: npm run test:e2e
