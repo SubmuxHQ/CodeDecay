@@ -62,3 +62,21 @@ test("has no serious or critical automated accessibility violations", async ({ p
   );
   expect(severe).toEqual([]);
 });
+
+test("publishes the captioned genuine Codex repair demo and evidence links", async ({ page }) => {
+  await page.goto("/#demo");
+  const demo = page.locator("#demo");
+  await expect(
+    demo.getByRole("heading", { name: "From false green to real proof." }),
+  ).toBeVisible();
+  await expect(demo.locator("video")).toHaveAttribute(
+    "poster",
+    "/demo/codedecay-codex-repair-poster.png",
+  );
+  await expect(demo.locator("source")).toHaveAttribute("src", "/demo/codedecay-codex-repair.mp4");
+  await expect(demo.locator("track")).toHaveAttribute("src", "/demo/codedecay-codex-repair.vtt");
+  await expect(demo.getByRole("link", { name: "Evidence index ↗" })).toHaveAttribute(
+    "href",
+    /docs\/hackathon\/demo\/evidence\/run-v3\.md/,
+  );
+});

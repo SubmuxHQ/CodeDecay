@@ -84,6 +84,7 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
         </a>
         <nav aria-label="Primary navigation">
           <a href="#lab">Judge Lab</a>
+          <a href="#demo">Demo</a>
           <a href="#proof">Proof</a>
           <a href="https://github.com/SubmuxHQ/CodeDecay" target="_blank" rel="noreferrer">
             GitHub ↗
@@ -251,10 +252,68 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
         {result && status === "ready" ? <ResultPanel result={result} /> : null}
       </section>
 
+      <section className="demo-section" id="demo">
+        <div className="section-heading">
+          <div>
+            <span className="section-number">02 / GENUINE CODEX REPAIR</span>
+            <h2>From false green to real proof.</h2>
+          </div>
+          <p>
+            Watch one sandboxed Codex session reproduce an anonymous admin bypass, add a red
+            endpoint test, repair the real path, run approved checks, and self-review the remaining
+            risk.
+          </p>
+        </div>
+        <div className="demo-player">
+          <video
+            controls
+            playsInline
+            preload="metadata"
+            poster="/demo/codedecay-codex-repair-poster.png"
+          >
+            <source src="/demo/codedecay-codex-repair.mp4" type="video/mp4" />
+            <track
+              default
+              kind="captions"
+              label="English"
+              src="/demo/codedecay-codex-repair.vtt"
+              srcLang="en"
+            />
+            Your browser does not support HTML video.
+          </video>
+          <div className="demo-evidence">
+            <div>
+              <span>REPRODUCIBLE IDENTITY</span>
+              <strong>v0.4.0 · fixture 36a38500031f</strong>
+            </div>
+            <p>
+              Edited for time from one genuine session. Waiting and repeated report output are cut;
+              command order and results are preserved.
+            </p>
+            <div className="demo-links">
+              <a
+                href={`https://github.com/SubmuxHQ/CodeDecay/blob/${sourceCommit}/docs/hackathon/demo/evidence/run-v3.md`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Evidence index ↗
+              </a>
+              <a
+                href={`https://github.com/SubmuxHQ/CodeDecay/blob/${sourceCommit}/docs/hackathon/demo/cuts.md`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Timing cuts ↗
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="proof-section" id="proof">
         <div className="section-heading">
           <div>
-            <span className="section-number">02 / PROOF, NOT PROMISES</span>
+            <span className="section-number">03 / PROOF, NOT PROMISES</span>
             <h2>Grounded claims. Visible limits.</h2>
           </div>
           <p>
@@ -304,6 +363,7 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
           <p>Find what your coding agent missed before merge.</p>
         </div>
         <div className="footer-links">
+          <a href="#demo">Demo</a>
           <a href="/api/health">Health</a>
           <a href="https://github.com/SubmuxHQ/CodeDecay/issues/695">Issue #695</a>
           <a href="https://github.com/SubmuxHQ/CodeDecay/blob/main/LICENSE">MIT License</a>
