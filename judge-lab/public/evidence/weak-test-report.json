@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "generator": "scripts/generate-judge-lab-evidence.mjs",
+  "engineVersion": "0.3.5",
+  "generatedAt": "2026-07-27T00:00:00.000Z",
+  "scenarioId": "weak-test",
+  "findings": [
+    {
+      "ruleId": "copied-implementation-in-test",
+      "title": "Test appears to copy implementation logic",
+      "detail": "src/imu/normalize.test.ts includes logic copied from src/imu/normalize.ts; this can make tests pass without protecting real behavior.",
+      "severity": "high",
+      "evidenceKind": "deterministic",
+      "file": "src/imu/normalize.test.ts",
+      "line": 4
+    },
+    {
+      "ruleId": "mocked-changed-source",
+      "title": "Changed test mocks changed source",
+      "detail": "src/imu/normalize.test.ts mocks changed source code instead of exercising the real behavior path.",
+      "severity": "high",
+      "evidenceKind": "deterministic",
+      "file": "src/imu/normalize.test.ts",
+      "line": 2
+    }
+  ]
+}
