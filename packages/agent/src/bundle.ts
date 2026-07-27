@@ -1,6 +1,6 @@
 import type { RedteamReport } from "@submuxhq/codedecay-redteam";
 import { collectSuggestedChecks } from "./bundle/checks";
-import { DEFAULT_INSTRUCTIONS, DEFAULT_LIMITS } from "./bundle/defaults";
+import { createDefaultLimits, DEFAULT_INSTRUCTIONS } from "./bundle/defaults";
 import { createAgentEvidence } from "./bundle/evidence";
 import { createPortableAgentPrompt } from "./bundle/prompt";
 import { getAgentProfile } from "./profiles";
@@ -66,7 +66,7 @@ export function createAgentTaskBundle(report: RedteamReport, options: CreateAgen
     suggestedChecks: collectSuggestedChecks(report.configuredChecks, report.toolAdapterPlans),
     skills: [...report.skills],
     safety,
-    limits: [...DEFAULT_LIMITS]
+    limits: createDefaultLimits(safety)
   };
 }
 

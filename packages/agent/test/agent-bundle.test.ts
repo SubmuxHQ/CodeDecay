@@ -79,6 +79,8 @@ describe("agent task bundle creation", () => {
       "Start from impacted routes/APIs when present, then broad impacted areas and weak-test findings."
     );
     expect(bundle.prompt).toContain("did not call an LLM");
+    expect(bundle.limits).toContain("CodeDecay did not call an LLM/model to create this bundle.");
+    expect(bundle.limits).toContain("CodeDecay did not execute commands while creating this bundle.");
     expect(bundle.evidence.changedFiles).toEqual([{ path: "src/api/imu.ts", status: "modified" }]);
     expect(bundle.evidence.impactedRoutes).toEqual([
       {
@@ -158,11 +160,24 @@ describe("agent task bundle creation", () => {
     expect(bundle.prompt).toContain("executed explicitly configured local checks");
     expect(bundle.prompt).not.toContain("did not call an LLM or model");
     expect(bundle.prompt).not.toContain("did not execute configured project commands");
+    expect(bundle.limits).toContain(
+      "CodeDecay explicitly called the configured user-owned provider; its suggestions remain untrusted."
+    );
+    expect(bundle.limits).toContain(
+      "CodeDecay executed explicitly configured local checks through repository safety policy."
+    );
+    expect(bundle.limits).not.toContain("CodeDecay did not call an LLM/model to create this bundle.");
+    expect(bundle.limits).not.toContain("CodeDecay did not execute commands while creating this bundle.");
     expect(markdown).toContain("| Verification status | failed |");
     expect(markdown).toContain("### Verification Evidence");
     expect(markdown).toContain("**API integration test** (test, failed, tool evidence)");
     expect(markdown).toContain("The real API route returned 500.");
     expect(markdown).toContain("The database migration path was not exercised.");
+    expect(markdown).toContain("Commands executed by CodeDecay: yes");
+    expect(markdown).toContain(
+      "CodeDecay executed explicitly configured local checks through repository safety policy."
+    );
+    expect(markdown).not.toContain("CodeDecay did not execute commands while creating this bundle.");
   });
 
   it("creates profile-specific handoff guidance without changing safety guarantees", () => {
