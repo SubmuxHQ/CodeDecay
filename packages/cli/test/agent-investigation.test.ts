@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import type { RedteamVerificationSummary } from "@submuxhq/codedecay-redteam";
+import { investigationVerificationContext } from "../src/commands/redteam-investigation";
 import { createMediumRiskRepo, createRepo, run, writeFile } from "./helpers";
 
 describe("codedecay agent investigation closed-loop UAT", () => {
@@ -11,7 +13,10 @@ describe("codedecay agent investigation closed-loop UAT", () => {
     }));
     const baseline = JSON.parse((await run(["agent", "--format", "json"], repo)).stdout);
     let prompt = "";
-    const restore = fakeProvider((body) => { prompt = body; });
+    const restore = fakeProvider((body) => {
+      const request = JSON.parse(body) as { messages: Array<{ role: string; content: string }> };
+      prompt = request.messages.find((message) => message.role === "user")?.content ?? "";
+    });
 
     try {
       const result = await run([
@@ -37,6 +42,8 @@ describe("codedecay agent investigation closed-loop UAT", () => {
       expect(prompt).toContain("AC-1");
       expect(prompt).toContain("changedPathProof");
       expect(prompt).toContain("verification");
+      expect(prompt).toContain('"status": "not-run"');
+      expect(prompt).toContain("No configured checks were executed before this investigation.");
       expect(prompt).toContain("limitations");
 
       const markdown = await run([
@@ -49,6 +56,38 @@ describe("codedecay agent investigation closed-loop UAT", () => {
     } finally {
       restore();
     }
+  });
+
+  it("uses an explicit not-run verification summary and preserves real evidence", () => {
+    const notRun = investigationVerificationContext(undefined);
+    expect(notRun.status).toBe("not-run");
+    expect(notRun.commandsExecuted).toBe(false);
+    expect(notRun.total).toBe(0);
+    expect(notRun.checks).toEqual([]);
+    expect(notRun.notes.join(" ")).toMatch(/no configured checks.*executed/i);
+    expect(notRun.passed + notRun.failed + notRun.skipped + notRun.blocked + notRun.timedOut + notRun.errors).toBe(0);
+    const verified: RedteamVerificationSummary = {
+      ...notRun,
+      status: "verified",
+      commandsExecuted: true,
+      total: 1,
+      passed: 1,
+      durationMs: 42,
+      checks: [
+        {
+          kind: "test",
+          name: "unit tests",
+          command: "pnpm test",
+          status: "passed",
+          proof: "tool-evidence",
+          summary: "Tests passed.",
+          durationMs: 42
+        }
+      ],
+      notes: ["All configured checks passed."]
+    };
+
+    expect(investigationVerificationContext(verified)).toBe(verified);
   });
 
   it("supports explicit pre-change investigation and never calls a provider by default", async () => {

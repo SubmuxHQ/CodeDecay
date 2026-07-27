@@ -91,7 +91,7 @@ export async function createRedteamInvestigation(
           symbolImpacts: input.analysisReport.symbolImpacts ?? []
         } : undefined,
         changedPathProof: input.analysisReport?.testProofMap,
-        verification: input.verification,
+        verification: investigationVerificationContext(input.verification),
         limitations: input.limitations ?? [],
         knowledgePacks: matchKnowledgePacks({
           impactedAreas: input.analysisReport?.impactedAreas.map((area) => area.kind) ?? [],
@@ -152,6 +152,25 @@ export async function createRedteamInvestigation(
       llmCalled: true
     };
   }
+}
+
+export function investigationVerificationContext(
+  verification: RedteamVerificationSummary | undefined
+): RedteamVerificationSummary {
+  return verification ?? {
+    status: "not-run",
+    commandsExecuted: false,
+    total: 0,
+    passed: 0,
+    failed: 0,
+    skipped: 0,
+    blocked: 0,
+    timedOut: 0,
+    errors: 0,
+    durationMs: 0,
+    checks: [],
+    notes: ["No configured checks were executed before this investigation."]
+  };
 }
 
 function formatInvestigationFailure(error: unknown): string {
