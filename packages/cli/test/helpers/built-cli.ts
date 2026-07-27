@@ -7,11 +7,19 @@ import { afterEach } from "vitest";
 
 export const repoRoot = process.cwd();
 export const cliPath = join(repoRoot, "packages/cli/dist/index.js");
+const BUILT_CLI_PROCESS_TIMEOUT_MS = 20_000;
 
 interface BuildCommand {
   command: string;
   args: string[];
   cwd: string;
+}
+
+interface BuiltCliResult {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+  timedOut: boolean;
 }
 
 const tempRoots: string[] = [];
@@ -134,16 +142,22 @@ function isAlreadyExistsError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "EEXIST";
 }
 
-export function runBuilt(args: string[], path = cliPath): { status: number | null; stdout: string; stderr: string } {
+export function runBuilt(
+  args: string[],
+  path = cliPath,
+  timeoutMs = BUILT_CLI_PROCESS_TIMEOUT_MS
+): BuiltCliResult {
   const result = spawnSync("node", [path, ...args], {
     cwd: repoRoot,
-    encoding: "utf8"
+    encoding: "utf8",
+    timeout: timeoutMs
   });
 
   return {
     status: result.status,
     stdout: result.stdout,
-    stderr: result.stderr
+    stderr: result.stderr,
+    timedOut: (result.error as NodeJS.ErrnoException | undefined)?.code === "ETIMEDOUT"
   };
 }
 
@@ -239,16 +253,23 @@ export function createNextjsExampleRepo(): string {
 
 export function createRepo(files: Record<string, string>): string {
   const repo = createTempDir();
-  git(repo, ["init", "-b", "main"]);
-  git(repo, ["config", "user.email", "codedecay@example.com"]);
-  git(repo, ["config", "user.name", "CodeDecay Test"]);
+  git(repo, ["init", "--quiet", "-b", "main"]);
 
   for (const [path, contents] of Object.entries(files)) {
     writeFile(repo, path, contents);
   }
 
   git(repo, ["add", "."]);
-  git(repo, ["commit", "-m", "initial"]);
+  git(repo, [
+    "-c",
+    "user.email=codedecay@example.com",
+    "-c",
+    "user.name=CodeDecay Test",
+    "commit",
+    "--quiet",
+    "-m",
+    "initial"
+  ]);
   return repo;
 }
 

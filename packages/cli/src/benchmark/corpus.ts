@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -552,23 +552,28 @@ function createBranchingFunction(name: string, ifCount: number): string {
 
 function createRepo(files: Record<string, string>): string {
   const repo = createTempDir();
-  git(repo, ["init", "-b", "main"]);
-  git(repo, ["config", "user.email", "codedecay@example.com"]);
-  git(repo, ["config", "user.name", "CodeDecay Test"]);
+  git(repo, ["init", "--quiet", "-b", "main"]);
 
   for (const [path, contents] of Object.entries(files)) {
     writeFile(repo, path, contents);
   }
 
   git(repo, ["add", "."]);
-  git(repo, ["commit", "-m", "initial"]);
+  git(repo, [
+    "-c",
+    "user.email=codedecay@example.com",
+    "-c",
+    "user.name=CodeDecay Test",
+    "commit",
+    "--quiet",
+    "-m",
+    "initial"
+  ]);
   return repo;
 }
 
 function createTempDir(): string {
-  const root = execFileSync("mktemp", ["-d", join(tmpdir(), "codedecay-benchmark-XXXXXX")], {
-    encoding: "utf8"
-  }).trim();
+  const root = mkdtempSync(join(tmpdir(), "codedecay-benchmark-"));
   tempRoots.push(root);
   return root;
 }
