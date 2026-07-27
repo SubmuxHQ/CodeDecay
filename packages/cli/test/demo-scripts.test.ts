@@ -53,4 +53,14 @@ describe("demo scripts", () => {
     expect(output).toContain("Schemathesis");
     expect(output).toContain("This is opt-in");
   });
+
+  it("documents the isolated hackathon auth fixture", () => {
+    const output = execFileSync("node", ["scripts/hackathon-demo/setup.mjs", "--", "--help"], {
+      cwd: repoRoot,
+      encoding: "utf8"
+    });
+
+    expect(output).toContain("Usage: node scripts/hackathon-demo/setup.mjs");
+    expect(output).toContain("isolated git repository");
+  });
 });
