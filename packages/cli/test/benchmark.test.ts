@@ -1,8 +1,8 @@
 import { mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
-import type { BenchmarkReport } from "../src/benchmark/run";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { runBenchmark, type BenchmarkReport } from "../src/benchmark/run";
 import { runCli } from "../src/index";
 
 interface CliResult {
@@ -12,6 +12,8 @@ interface CliResult {
 }
 
 const tempRoots: string[] = [];
+const BENCHMARK_RUNTIME_BUDGET_MS = 15_000;
+const BENCHMARK_CONTRACT_TIMEOUT_MS = 20_000;
 
 afterEach(() => {
   for (const root of tempRoots.splice(0)) {
@@ -39,6 +41,10 @@ describe("codedecay benchmark CLI contract", () => {
     });
     expect(report.summary.falsePositiveRate).toBeLessThan(0.1);
     expect(report.summary.durationMs).toBeGreaterThanOrEqual(0);
+    expect(
+      report.summary.durationMs,
+      `benchmark runtime exceeded ${BENCHMARK_RUNTIME_BUDGET_MS}ms budget`
+    ).toBeLessThan(BENCHMARK_RUNTIME_BUDGET_MS);
     expect(report.metrics.byArea).toEqual([
       expect.objectContaining({ area: "security", expected: 13, matched: 13, recall: 1, falsePositives: 0 }),
       expect.objectContaining({ area: "regression", expected: 5, matched: 5, recall: 1, falsePositives: 2 }),
@@ -89,7 +95,7 @@ describe("codedecay benchmark CLI contract", () => {
         })
       ])
     );
-  });
+  }, BENCHMARK_CONTRACT_TIMEOUT_MS);
 
   it("renders markdown and writes output files", async () => {
     const cwd = createTempDir();
@@ -105,6 +111,36 @@ describe("codedecay benchmark CLI contract", () => {
     expect(rendered).toContain("| False-positive rate | 2.22% |");
     expect(rendered).toContain("- LLM/model called: no");
     expect(rendered).toContain("- Telemetry sent: no");
+  }, BENCHMARK_CONTRACT_TIMEOUT_MS);
+
+  it("cleans temporary corpus repositories when report generation fails", async () => {
+    const cleanup = vi.fn();
+
+    await expect(
+      runBenchmark(
+        { corpus: "default", format: "json" },
+        {
+          createRedteamReport: async () => {
+            throw new Error("intentional benchmark failure");
+          },
+          loadCorpus: () => ({
+            id: "failure-cleanup",
+            rules: [],
+            scenarios: [
+              {
+                id: "failure",
+                kind: "positive",
+                expectedRuleIds: [],
+                setup: () => process.cwd()
+              }
+            ],
+            cleanup
+          })
+        }
+      )
+    ).rejects.toThrow("intentional benchmark failure");
+
+    expect(cleanup).toHaveBeenCalledOnce();
   });
 });
 

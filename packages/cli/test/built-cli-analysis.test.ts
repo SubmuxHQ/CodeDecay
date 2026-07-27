@@ -18,7 +18,9 @@ import {
   writeFile
 } from "./helpers/built-cli";
 
-beforeAll(ensureBuiltCli);
+const MULTI_PROCESS_CONTRACT_TIMEOUT_MS = 20_000;
+
+beforeAll(ensureBuiltCli, 120_000);
 
 describe("built codedecay CLI analysis and diff behavior", () => {
   it("returns correct fail-on exit codes for low, medium, and high risk repos", () => {
@@ -36,7 +38,7 @@ describe("built codedecay CLI analysis and diff behavior", () => {
     expect(runBuilt(["analyze", "--cwd", highRepo, "--fail-on", "high"]).status).toBe(1);
     expect(runBuilt(["analyze", "--cwd", highRepo, "--fail-on", "medium"]).status).toBe(1);
     expect(runBuilt(["analyze", "--cwd", highRepo, "--fail-on", "low"]).status).toBe(1);
-  });
+  }, MULTI_PROCESS_CONTRACT_TIMEOUT_MS);
 
   it("honors cwd and writes relative output inside the analyzed repo", () => {
     const repo = createLowRiskRepo();

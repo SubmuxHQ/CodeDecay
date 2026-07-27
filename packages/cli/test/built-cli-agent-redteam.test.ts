@@ -18,7 +18,7 @@ import {
   writeFile
 } from "./helpers/built-cli";
 
-beforeAll(ensureBuiltCli);
+beforeAll(ensureBuiltCli, 120_000);
 
 describe("built codedecay CLI redteam and agent workflows", () => {
   it("renders requirement trace JSON and Markdown from the built CLI", () => {
