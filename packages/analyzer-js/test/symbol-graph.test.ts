@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import type { FileChange } from "@submuxhq/codedecay-core";
+import { createAnalysisReport, type FileChange } from "@submuxhq/codedecay-core";
 import { analyzeJsProject } from "../src";
 import { analyzeSymbolImpacts, SYMBOL_IMPACT_GRAPH_PATH } from "../src/symbols/graph";
 
@@ -54,6 +54,27 @@ describe("symbol impact graph", () => {
     expect(result.recommendedTests).toContain(
       "Add or run tests covering app/api/session/route.ts because it imports packages/auth/src/session.ts#validateSession"
     );
+    expect(result.impactGraphSummary).toMatchObject({
+      schemaVersion: 1,
+      artifactPath: ".codedecay/local/impact-graph.json",
+      adapterCount: 1,
+      confidenceCounts: {
+        direct: expect.any(Number),
+        inferred: 0,
+        heuristic: 0
+      },
+      adapters: [
+        expect.objectContaining({
+          id: "codedecay-js-babel-symbols",
+          sourceTool: "@babel/parser",
+          status: "available"
+        })
+      ]
+    });
+    expect(result.impactGraphSummary.confidenceCounts.direct).toBeGreaterThan(0);
+    expect(result.impactGraphSummary.limitations).toContain(
+      "A static test import does not prove the symbol executed or that assertions cover its behavior."
+    );
 
     const artifactPath = join(rootDir, SYMBOL_IMPACT_GRAPH_PATH);
     expect(existsSync(artifactPath)).toBe(true);
@@ -75,6 +96,68 @@ describe("symbol impact graph", () => {
     );
     expect(artifact.files.find((file) => file.path === "app/api/session/route.ts")?.calls).toEqual(
       expect.arrayContaining([expect.objectContaining({ callee: "validateSession" })])
+    );
+
+    const normalizedArtifactPath = join(rootDir, ".codedecay/local/impact-graph.json");
+    expect(existsSync(normalizedArtifactPath)).toBe(true);
+    const normalizedArtifact = JSON.parse(readFileSync(normalizedArtifactPath, "utf8")) as {
+      adapters: Array<{ id: string; sourceTool: string }>;
+      nodes: Array<{ id: string; kind: string; location?: { file: string; line?: number } }>;
+      edges: Array<{
+        id: string;
+        from: string;
+        to: string;
+        kind: string;
+        confidence: string;
+        evidence: string;
+        sourceTool: string;
+        limitations: string[];
+        location?: { file: string; line?: number };
+      }>;
+    };
+    expect(normalizedArtifact.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "codedecay-js-babel-symbols::file:app/api/session/route.ts",
+          kind: "route",
+          location: { file: "app/api/session/route.ts" }
+        }),
+        expect.objectContaining({
+          id: "codedecay-js-babel-symbols::file:app/api/session/route.test.ts",
+          kind: "test"
+        }),
+        expect.objectContaining({
+          id: "codedecay-js-babel-symbols::symbol:packages/auth/src/session.ts#validateSession",
+          kind: "symbol",
+          location: {
+            file: "packages/auth/src/session.ts",
+            line: 1
+          }
+        })
+      ])
+    );
+    expect(normalizedArtifact.edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          from: "codedecay-js-babel-symbols::file:app/api/session/route.ts",
+          to: "codedecay-js-babel-symbols::symbol:packages/auth/src/index.ts#validateSession",
+          kind: "imports",
+          confidence: "direct",
+          sourceTool: "@babel/parser",
+          location: {
+            file: "app/api/session/route.ts",
+            line: 1
+          }
+        }),
+        expect.objectContaining({
+          from: "codedecay-js-babel-symbols::file:app/api/session/route.test.ts",
+          kind: "tests",
+          confidence: "direct",
+          limitations: [
+            "A static test import does not prove the symbol executed or that assertions cover its behavior."
+          ]
+        })
+      ])
     );
   });
 
@@ -109,12 +192,22 @@ describe("symbol impact graph", () => {
       "src/math.test.ts": "import { isPositive } from './math';\nisPositive(1);\n"
     });
 
+    const changedFiles = [change("src/math.ts", 2, "  return value > 0;")];
     const result = analyzeJsProject({
       rootDir,
-      changedFiles: [change("src/math.ts", 2, "  return value > 0;")]
+      changedFiles
     });
 
     expect(result.symbolImpactGraph?.artifactPath).toBe(SYMBOL_IMPACT_GRAPH_PATH);
+    expect(result.impactGraph).toMatchObject({
+      artifactPath: ".codedecay/local/impact-graph.json",
+      adapterCount: 1,
+      confidenceCounts: {
+        direct: expect.any(Number),
+        inferred: 0,
+        heuristic: 0
+      }
+    });
     expect(result.symbolImpacts).toEqual([
       expect.objectContaining({
         file: "src/math.ts",
@@ -122,6 +215,22 @@ describe("symbol impact graph", () => {
         likelyTests: ["src/math.test.ts"]
       })
     ]);
+
+    const generatedAt = "2026-07-28T00:00:00.000Z";
+    const withGraph = createAnalysisReport({
+      changedFiles,
+      analyzerResult: result,
+      generatedAt
+    });
+    const withoutGraph = createAnalysisReport({
+      changedFiles,
+      analyzerResult: {
+        ...result,
+        impactGraph: undefined
+      },
+      generatedAt
+    });
+    expect(withGraph.summary).toEqual(withoutGraph.summary);
   });
 });
 

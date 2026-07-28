@@ -1,6 +1,7 @@
 export { appendFindings } from "./findings";
 export {
   appendChangedFiles,
+  appendImpactGraph,
   appendImpactedAreas,
   appendImpactedRoutes,
   appendRecommendedChecks,

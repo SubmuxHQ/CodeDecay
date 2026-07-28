@@ -42,6 +42,25 @@ export type {
 } from "./types/design-contract";
 export type { Finding, FindingCategory } from "./types/findings";
 export type {
+  ImpactGraph,
+  ImpactGraphAdapterDescriptor,
+  ImpactGraphAdapterStatus,
+  ImpactGraphAdapterSummary,
+  ImpactGraphCapabilities,
+  ImpactGraphConfidence,
+  ImpactGraphConfidenceCounts,
+  ImpactGraphEdge,
+  ImpactGraphEdgeKind,
+  ImpactGraphFragment,
+  ImpactGraphFragmentEdge,
+  ImpactGraphFragmentNode,
+  ImpactGraphLocation,
+  ImpactGraphNode,
+  ImpactGraphNodeKind,
+  ImpactGraphSummary,
+  UnavailableImpactGraphAdapterInput
+} from "./impact-graph";
+export type {
   ImpactedArea,
   ImpactedRoute,
   SymbolCall,

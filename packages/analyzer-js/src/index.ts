@@ -125,6 +125,7 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
     findings: dedupeFindings(findings),
     impactedAreas,
     impactedRoutes: mergeImpactedRoutes(impactedRoutes),
+    impactGraph: symbolImpactAnalysis.impactGraphSummary,
     symbolImpactGraph: symbolImpactAnalysis.graphSummary,
     symbolImpacts: symbolImpactAnalysis.impacts,
     languageAnalysis,

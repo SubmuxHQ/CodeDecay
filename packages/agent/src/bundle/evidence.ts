@@ -23,6 +23,21 @@ export function createAgentEvidence(report: RedteamReport): AgentEvidence {
       reasons: [...route.reasons],
       recommendedTests: [...route.recommendedTests]
     })),
+    impactGraph: report.analysis.impactGraph
+      ? {
+          ...report.analysis.impactGraph,
+          confidenceCounts: { ...report.analysis.impactGraph.confidenceCounts },
+          adapters: report.analysis.impactGraph.adapters.map((adapter) => ({
+            ...adapter,
+            capabilities: {
+              nodeKinds: [...adapter.capabilities.nodeKinds],
+              edgeKinds: [...adapter.capabilities.edgeKinds]
+            },
+            limitations: [...adapter.limitations]
+          })),
+          limitations: [...report.analysis.impactGraph.limitations]
+        }
+      : undefined,
     symbolImpacts: (report.analysis.symbolImpacts ?? []).map((impact) => ({
       file: impact.file,
       symbol: impact.symbol,

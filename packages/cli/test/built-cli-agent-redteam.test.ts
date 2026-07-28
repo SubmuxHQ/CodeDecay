@@ -444,6 +444,24 @@ describe("built codedecay CLI redteam and agent workflows", () => {
         })
       ])
     );
+    expect(analysisReport.impactGraph).toMatchObject({
+      schemaVersion: 1,
+      artifactPath: ".codedecay/local/impact-graph.json",
+      adapterCount: 1,
+      adapters: [
+        expect.objectContaining({
+          id: "codedecay-js-babel-symbols",
+          sourceTool: "@babel/parser",
+          status: "available"
+        })
+      ]
+    });
+
+    const redteam = runBuilt(["redteam", "--cwd", repo, "--format", "json"]);
+    const redteamReport = JSON.parse(redteam.stdout);
+
+    expect(redteam.status).toBe(0);
+    expect(redteamReport.analysis.impactGraph).toEqual(analysisReport.impactGraph);
 
     const agent = runBuilt(["agent", "--cwd", repo, "--format", "json"]);
     const agentBundle = JSON.parse(agent.stdout);
@@ -476,6 +494,7 @@ describe("built codedecay CLI redteam and agent workflows", () => {
         })
       ])
     );
+    expect(agentBundle.evidence.impactGraph).toEqual(analysisReport.impactGraph);
     expect(agentBundle.summary.missingTestFindings).toBeGreaterThan(0);
     expect(agentBundle.prompt).toContain("2 route/API impacts");
     expect(agentBundle.prompt).toContain("missing-test findings");

@@ -1,4 +1,9 @@
-import type { ImpactedArea, ImpactedRoute, SymbolImpact } from "@submuxhq/codedecay-core";
+import type {
+  ImpactGraphSummary,
+  ImpactedArea,
+  ImpactedRoute,
+  SymbolImpact
+} from "@submuxhq/codedecay-core";
 import { formatRisk, formatRoute, routeKindLabel } from "../helpers";
 
 export function appendImpactedAreas(lines: string[], areas: ImpactedArea[]): void {
@@ -32,6 +37,32 @@ export function appendImpactedRoutes(lines: string[], routes: ImpactedRoute[]): 
     if (route.recommendedTests.length > 0) {
       lines.push(`  - Suggested evidence: ${route.recommendedTests[0]}`);
     }
+  }
+  lines.push("");
+}
+
+export function appendImpactGraph(lines: string[], graph: ImpactGraphSummary | undefined): void {
+  if (!graph) {
+    return;
+  }
+
+  lines.push("### Normalized Impact Graph", "");
+  if (graph.artifactPath) {
+    lines.push(`- Artifact: \`${graph.artifactPath}\``);
+  }
+  lines.push(
+    `- Coverage: ${graph.adapterCount} adapter(s), ${graph.nodeCount} node(s), ${graph.edgeCount} edge(s)`,
+    `- Confidence: Direct: ${graph.confidenceCounts.direct}, inferred: ${graph.confidenceCounts.inferred}, heuristic: ${graph.confidenceCounts.heuristic}`
+  );
+  for (const adapter of graph.adapters) {
+    lines.push(`- \`${adapter.id}\` via \`${adapter.sourceTool}\` (${adapter.status})`);
+    for (const limitation of adapter.limitations) {
+      lines.push(`  - Limitation: ${limitation}`);
+    }
+  }
+  const adapterLimitations = new Set(graph.adapters.flatMap((adapter) => adapter.limitations));
+  for (const limitation of graph.limitations.filter((item) => !adapterLimitations.has(item))) {
+    lines.push(`- Graph limitation: ${limitation}`);
   }
   lines.push("");
 }

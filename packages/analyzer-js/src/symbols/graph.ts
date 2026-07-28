@@ -19,6 +19,10 @@ import { listRepoFiles } from "../files/repo";
 import { extractLocalImportSpecifiers, resolveLocalImportSpecifier } from "../imports/graph";
 import { normalizePath } from "../imports/graph/path";
 import { detectRoutesForFile } from "../routes/impact";
+import {
+  createJsImpactGraphAdapterResult,
+  type JsImpactGraphAdapterResult
+} from "./impact-adapter";
 
 export const SYMBOL_IMPACT_GRAPH_PATH = ".codedecay/local/symbol-impact-graph.json";
 
@@ -28,6 +32,8 @@ const MAX_SYMBOL_PROPAGATION_DEPTH = 4;
 export interface SymbolImpactAnalysis {
   graph: SymbolImpactGraph;
   graphSummary: SymbolImpactGraphSummary;
+  impactGraph: JsImpactGraphAdapterResult["graph"];
+  impactGraphSummary: JsImpactGraphAdapterResult["summary"];
   impacts: SymbolImpact[];
   recommendedTests: string[];
 }
@@ -51,6 +57,11 @@ export function analyzeSymbolImpacts(rootDir: string, changedSourceFiles: FileCh
   const parsedFiles = parseRepoSymbols(rootDir);
   const graph = createSymbolImpactGraph(parsedFiles);
   const graphWithArtifact = persistSymbolImpactGraph(rootDir, graph);
+  const impactGraph = createJsImpactGraphAdapterResult({
+    rootDir,
+    symbolGraph: graphWithArtifact,
+    routeFiles: parsedFiles.filter((file) => file.isRouteFile).map((file) => file.path)
+  });
   const impacts = findSymbolImpacts({
     rootDir,
     changedSourceFiles,
@@ -61,6 +72,8 @@ export function analyzeSymbolImpacts(rootDir: string, changedSourceFiles: FileCh
   return {
     graph: graphWithArtifact,
     graphSummary: summarizeSymbolImpactGraph(graphWithArtifact),
+    impactGraph: impactGraph.graph,
+    impactGraphSummary: impactGraph.summary,
     impacts,
     recommendedTests: recommendedTestsForImpacts(impacts)
   };

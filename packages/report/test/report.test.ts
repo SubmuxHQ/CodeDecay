@@ -127,6 +127,35 @@ const report: CodeDecayReport = {
       recommendedTests: ["Add or run tests covering src/app/dashboard/page.tsx"]
     }
   ],
+  impactGraph: {
+    schemaVersion: 1,
+    artifactPath: ".codedecay/local/impact-graph.json",
+    adapterCount: 1,
+    nodeCount: 4,
+    edgeCount: 3,
+    confidenceCounts: {
+      direct: 3,
+      inferred: 0,
+      heuristic: 0
+    },
+    adapters: [
+      {
+        id: "codedecay-js-babel-symbols",
+        version: "1.0.0",
+        sourceTool: "@babel/parser",
+        status: "available",
+        capabilities: {
+          nodeKinds: ["file", "route", "symbol", "test"],
+          edgeKinds: ["contains", "imports", "tests"]
+        },
+        limitations: ["Dynamic imports are not resolved."]
+      }
+    ],
+    limitations: [
+      "A static test import does not prove execution or assertion coverage.",
+      "Dynamic imports are not resolved."
+    ]
+  },
   symbolImpactGraph: {
     schemaVersion: 1,
     artifactPath: ".codedecay/local/symbol-impact-graph.json",
@@ -351,6 +380,14 @@ describe("reports", () => {
     expect(markdown).toContain("Security risk");
     expect(markdown).toContain("src/auth/session.ts");
     expect(markdown).toContain("### Likely Impacted Routes And APIs");
+    expect(markdown).toContain("### Normalized Impact Graph");
+    expect(markdown).toContain("`.codedecay/local/impact-graph.json`");
+    expect(markdown).toContain("`codedecay-js-babel-symbols` via `@babel/parser`");
+    expect(markdown).toContain("Direct: 3, inferred: 0, heuristic: 0");
+    expect(markdown).toContain("Dynamic imports are not resolved.");
+    expect(markdown).toContain(
+      "Graph limitation: A static test import does not prove execution or assertion coverage."
+    );
     expect(markdown).toContain("### Symbol Impact Evidence");
     expect(markdown).toContain("Graph artifact: `.codedecay/local/symbol-impact-graph.json`");
     expect(markdown).toContain("`src/auth/session.ts#validateSession`");

@@ -82,6 +82,20 @@ describe("agent task bundle creation", () => {
     expect(bundle.limits).toContain("CodeDecay did not call an LLM/model to create this bundle.");
     expect(bundle.limits).toContain("CodeDecay did not execute commands while creating this bundle.");
     expect(bundle.evidence.changedFiles).toEqual([{ path: "src/api/imu.ts", status: "modified" }]);
+    expect(bundle.evidence.impactGraph).toMatchObject({
+      artifactPath: ".codedecay/local/impact-graph.json",
+      confidenceCounts: {
+        direct: 3,
+        inferred: 0,
+        heuristic: 0
+      },
+      adapters: [
+        expect.objectContaining({
+          id: "codedecay-js-babel-symbols",
+          sourceTool: "@babel/parser"
+        })
+      ]
+    });
     expect(bundle.evidence.impactedRoutes).toEqual([
       {
         framework: "express",

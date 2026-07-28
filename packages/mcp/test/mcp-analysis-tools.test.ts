@@ -48,6 +48,7 @@ describe("CodeDecay MCP analysis tools", () => {
     const repo = createRouteImpactRepo();
 
     const output = JSON.parse(runImpactMapTool({ cwd: repo }, {}));
+    const analysis = JSON.parse(runAnalyzePrTool({ cwd: repo }, { format: "json" }));
 
     expect(output.impactedAreas.map((area: { kind: string }) => area.kind)).toEqual(
       expect.arrayContaining(["api", "ui"])
@@ -73,6 +74,19 @@ describe("CodeDecay MCP analysis tools", () => {
         })
       ])
     );
+    expect(output.impactGraph).toMatchObject({
+      schemaVersion: 1,
+      artifactPath: ".codedecay/local/impact-graph.json",
+      adapterCount: 1,
+      adapters: [
+        expect.objectContaining({
+          id: "codedecay-js-babel-symbols",
+          sourceTool: "@babel/parser",
+          status: "available"
+        })
+      ]
+    });
+    expect(output.impactGraph).toEqual(analysis.impactGraph);
   });
 
   it("returns weak-test audit findings", () => {

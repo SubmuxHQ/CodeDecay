@@ -5,6 +5,7 @@ import {
 import {
   appendChangedFiles,
   appendFindings,
+  appendImpactGraph,
   appendImpactedAreas,
   appendImpactedRoutes,
   appendLanguageAnalysis,
@@ -37,6 +38,7 @@ export function renderMarkdownReport(report: CodeDecayReport): string {
   appendChangedFiles(lines, report);
   appendImpactedAreas(lines, report);
   appendImpactedRoutes(lines, report);
+  appendImpactGraph(lines, report);
   appendSymbolImpacts(lines, report);
   appendRequirementTrace(lines, report.requirementTrace);
   appendLanguageAnalysis(lines, report.languageAnalysis);
