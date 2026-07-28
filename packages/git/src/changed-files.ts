@@ -8,8 +8,10 @@ import type { GitDiffOptions } from "./types";
 import { getUntrackedFiles } from "./untracked";
 
 export function getGitChangedFiles(options: GitDiffOptions): FileChange[] {
+  const excludedPaths = new Set((options.excludePaths ?? []).map(normalizeRepoPath));
+
   if (!options.base && !options.head && !hasHeadCommit(options.cwd)) {
-    return getNoCommitChanges(options.cwd);
+    return getNoCommitChanges(options.cwd, excludedPaths);
   }
 
   const rangeArgs = getDiffRangeArgs(options);
@@ -42,7 +44,7 @@ export function getGitChangedFiles(options: GitDiffOptions): FileChange[] {
         }
 
         return change;
-      }).filter((change) => !isCodeDecayLocalPath(change.path))
+      }).filter((change) => !shouldExcludePath(change.path, excludedPaths))
     : [];
 
   if (options.base || options.head) {
@@ -52,7 +54,9 @@ export function getGitChangedFiles(options: GitDiffOptions): FileChange[] {
   const trackedPaths = new Set(trackedChanges.map((change) => change.path));
   return [
     ...trackedChanges,
-    ...getUntrackedFiles(options.cwd).filter((change) => !trackedPaths.has(change.path) && !isCodeDecayLocalPath(change.path))
+    ...getUntrackedFiles(options.cwd).filter(
+      (change) => !trackedPaths.has(change.path) && !shouldExcludePath(change.path, excludedPaths)
+    )
   ];
 }
 
@@ -81,7 +85,7 @@ function hasHeadCommit(cwd: string): boolean {
   }
 }
 
-function getNoCommitChanges(cwd: string): FileChange[] {
+function getNoCommitChanges(cwd: string, excludedPaths: Set<string>): FileChange[] {
   const output = runGit(cwd, ["ls-files", "--cached", "--others", "--exclude-standard", "--full-name"]);
   if (!output.trim()) {
     return [];
@@ -99,12 +103,20 @@ function getNoCommitChanges(cwd: string): FileChange[] {
       seen.add(path);
       return true;
     })
-    .filter((path) => !isCodeDecayLocalPath(path))
+    .filter((path) => !shouldExcludePath(path, excludedPaths))
     .map((path) => createAddedChange(repoRoot, path));
+}
+
+function shouldExcludePath(path: string, excludedPaths: Set<string>): boolean {
+  return isCodeDecayLocalPath(path) || excludedPaths.has(normalizeRepoPath(path));
 }
 
 function isCodeDecayLocalPath(path: string): boolean {
   return path === ".codedecay/local" || path.startsWith(".codedecay/local/") || path.includes("/.codedecay/local/");
+}
+
+function normalizeRepoPath(path: string): string {
+  return path.replaceAll("\\", "/").replace(/^\.\//, "");
 }
 
 function createAddedChange(repoRoot: string, path: string): FileChange {

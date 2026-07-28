@@ -4,6 +4,7 @@ export interface GitDiffOptions {
   cwd: string;
   base?: string | undefined;
   head?: string | undefined;
+  excludePaths?: string[] | undefined;
 }
 
 export interface GitWorktree {

@@ -227,6 +227,39 @@ describe("weak test audit", () => {
     );
   });
 
+  it("does not treat type shapes, type imports, or declarative fixtures as copied implementation", () => {
+    const sharedShape = [
+      "import type { Finding } from '@submuxhq/codedecay-core';",
+      "interface ReportShape {",
+      "  findings: Finding[];",
+      "  risk: 'low' | 'high';",
+      "}",
+      "const report: ReportShape = {",
+      "  findings: [],",
+      "  risk: 'low',",
+      "};"
+    ];
+    const rootDir = createTempProject({
+      "src/report.ts": [...sharedShape, "export function reportRisk() { return report.risk; }", ""].join("\n"),
+      "src/report.test.ts": [
+        ...sharedShape,
+        "import { reportRisk } from './report';",
+        "test('returns the report risk', () => {",
+        "  expect(reportRisk()).toBe('low');",
+        "});",
+        ""
+      ].join("\n")
+    });
+
+    const result = detectWeakTests(
+      rootDir,
+      [change("src/report.test.ts", sharedShape.map((content, index) => ({ line: index + 1, content })))],
+      [change("src/report.ts", sharedShape.map((content, index) => ({ line: index + 1, content })))]
+    );
+
+    expect(result.findings.map((finding) => finding.ruleId)).not.toContain("copied-implementation-in-test");
+  });
+
   it("flags changed tests that do not reference changed source", () => {
     const rootDir = createTempProject({
       "src/api/users.ts": "export function listUsers() { return []; }\n",

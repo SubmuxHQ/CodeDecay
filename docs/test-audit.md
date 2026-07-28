@@ -104,6 +104,27 @@ This is the core "fake confidence" rule: a changed test is not enough. The test
 must exercise the real user, API, database, or downstream path that the PR
 changed.
 
+## Copied-Implementation Precision
+
+The `copied-implementation-in-test` signal compares normalized three-line
+blocks, then requires parser-confirmed executable logic to start inside the
+matching source and test ranges. Type-only imports, interfaces, type aliases,
+output-shape declarations, and declarative object fixtures are not treated as
+copied behavior.
+
+The regression corpus keeps a real copied normalizer as a true-positive control
+and includes the three false-positive classes found while reviewing PR #715.
+Against that PR, the previous heuristic reported three copied-implementation
+findings; the parser-backed gate reports zero while the copied-normalizer
+control still fires.
+
+This remains a deterministic heuristic, not proof of test independence. It can
+miss copied logic expressed with unsupported syntax, fewer than three
+normalized lines, or a structurally different implementation. It can also
+report a match when a test intentionally duplicates executable logic. Review
+the finding in context and prefer mutation, integration, API, or browser
+evidence when the distinction matters.
+
 ## Future OSS Adapters
 
 Adapters such as coverage and StrykerJS can add stronger runtime or mutation

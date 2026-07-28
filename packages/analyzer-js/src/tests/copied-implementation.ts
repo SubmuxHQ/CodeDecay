@@ -1,5 +1,7 @@
 import type { FileChange } from "@submuxhq/codedecay-core";
 import { normalizeImplementationLine } from "../code/normalize";
+import { readChangedFile } from "./line-matches";
+import { executableImplementationLines } from "./copied-implementation-ast";
 
 interface SourceLogicBlock {
   sourcePath: string;
@@ -11,16 +13,33 @@ export interface CopiedImplementationBlock {
   testLine: number;
 }
 
-export function createSourceLogicBlocks(changedSourceFiles: FileChange[]): SourceLogicBlock[] {
+export function createSourceLogicBlocks(rootDir: string, changedSourceFiles: FileChange[]): SourceLogicBlock[] {
   const blocks: SourceLogicBlock[] = [];
 
   for (const change of changedSourceFiles) {
+    const sourceContent =
+      readChangedFile(rootDir, change.path) ?? change.addedLines.map((line) => line.content).join("\n");
+    const executableLines = executableImplementationLines(sourceContent);
     const normalizedLines = change.addedLines
-      .map((line) => normalizeImplementationLine(line.content))
-      .filter((line) => line.length >= 8);
+      .map((line) => ({
+        line: line.line,
+        content: normalizeImplementationLine(line.content)
+      }))
+      .filter((line) => line.content.length >= 8);
 
     for (let index = 0; index <= normalizedLines.length - 3; index += 1) {
-      const key = normalizedLines.slice(index, index + 3).join("\n");
+      const blockLines = normalizedLines.slice(index, index + 3);
+      const startLine = blockLines[0]?.line;
+      const endLine = blockLines.at(-1)?.line;
+      if (
+        startLine === undefined ||
+        endLine === undefined ||
+        !hasLineBetween(executableLines, startLine, endLine)
+      ) {
+        continue;
+      }
+
+      const key = blockLines.map((line) => line.content).join("\n");
       blocks.push({
         sourcePath: change.path,
         key
@@ -45,9 +64,20 @@ export function findCopiedImplementationBlock(
       content: normalizeImplementationLine(content)
     }))
     .filter((line) => line.content.length >= 8);
+  const executableLines = executableImplementationLines(testLines.join("\n"));
 
   for (let index = 0; index <= normalizedTestLines.length - 3; index += 1) {
     const blockLines = normalizedTestLines.slice(index, index + 3);
+    const startLine = blockLines[0]?.line;
+    const endLine = blockLines.at(-1)?.line;
+    if (
+      startLine === undefined ||
+      endLine === undefined ||
+      !hasLineBetween(executableLines, startLine, endLine)
+    ) {
+      continue;
+    }
+
     const key = blockLines.map((line) => line.content).join("\n");
     const match = sourceBlocks.find((sourceBlock) => sourceBlock.key === key);
     if (match) {
@@ -59,4 +89,13 @@ export function findCopiedImplementationBlock(
   }
 
   return undefined;
+}
+
+function hasLineBetween(lines: Set<number>, startLine: number, endLine: number): boolean {
+  for (const line of lines) {
+    if (line >= startLine && line <= endLine) {
+      return true;
+    }
+  }
+  return false;
 }

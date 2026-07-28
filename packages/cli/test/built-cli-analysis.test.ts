@@ -19,6 +19,7 @@ import {
 } from "./helpers/built-cli";
 
 const MULTI_PROCESS_CONTRACT_TIMEOUT_MS = 20_000;
+const ISO_TIMESTAMP_PATTERN = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g;
 
 beforeAll(ensureBuiltCli, 120_000);
 
@@ -56,6 +57,67 @@ describe("built codedecay CLI analysis and diff behavior", () => {
     expect(result.stdout).toBe("");
     expect(existsSync(join(repo, "codedecay.sarif"))).toBe(true);
   });
+
+  it("keeps consecutive report writes out of their own JSON, Markdown, and SARIF analysis", () => {
+    const formats = [
+      { format: "json", output: ".codedecay/report.json" },
+      { format: "markdown", output: ".codedecay/report.md" },
+      { format: "sarif", output: ".codedecay/report.sarif" }
+    ];
+
+    for (const { format, output } of formats) {
+      const repo = createRepo({
+        "src/app.ts": "export const value = 1;\n",
+        ".codedecay/memory.json": JSON.stringify({
+          version: 1,
+          flows: [],
+          commands: [],
+          invariants: [],
+          architecture: [],
+          regressions: []
+        })
+      });
+      writeFile(repo, "src/app.ts", "export const value = 2;\n");
+      writeFile(
+        repo,
+        ".codedecay/memory.json",
+        JSON.stringify({
+          version: 1,
+          flows: [],
+          commands: [],
+          invariants: [
+            {
+              name: "Preserve user context",
+              description: "The report output must not hide intentional memory.",
+              files: ["src/**"]
+            }
+          ],
+          architecture: [],
+          regressions: []
+        })
+      );
+      writeFile(repo, "custom-report.json", '{"tool":"CodeDecay"}\n');
+
+      const first = runBuilt(["analyze", "--cwd", repo, "--format", format, "--output", output]);
+      expect(first.status, first.stderr).toBe(0);
+      const firstOutput = readFileSync(join(repo, output), "utf8");
+      const second = runBuilt(["analyze", "--cwd", repo, "--format", format, "--output", output]);
+      expect(second.status, second.stderr).toBe(0);
+      const secondOutput = readFileSync(join(repo, output), "utf8");
+
+      expect(secondOutput.replace(ISO_TIMESTAMP_PATTERN, "<timestamp>")).toBe(
+        firstOutput.replace(ISO_TIMESTAMP_PATTERN, "<timestamp>")
+      );
+
+      if (format === "json") {
+        const paths = JSON.parse(secondOutput).changedFiles.map((change: { path: string }) => change.path);
+        expect(paths).toEqual(
+          expect.arrayContaining(["src/app.ts", ".codedecay/memory.json", "custom-report.json"])
+        );
+        expect(paths).not.toContain(output);
+      }
+    }
+  }, MULTI_PROCESS_CONTRACT_TIMEOUT_MS);
 
   it("prints user-friendly git errors from the built CLI", () => {
     const nonGitDir = createTempDir();
