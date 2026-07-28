@@ -140,6 +140,45 @@ describe("GitHub repository metadata", () => {
     );
   });
 
+  it("uploads child-repository evidence with the maintained Node 24 artifact action", () => {
+    const workflow = parse(readFileSync(".github/workflows/ci.yml", "utf8")) as {
+      jobs: {
+        validate: {
+          "runs-on": string;
+          steps: Array<{
+            name?: string | undefined;
+            uses?: string | undefined;
+            if?: string | undefined;
+            with?: Record<string, unknown> | undefined;
+          }>;
+        };
+      };
+    };
+    const validateJob = workflow.jobs.validate;
+    const uploadStep = validateJob.steps.find(
+      (step) => step.name === "Upload child repository end-to-end evidence"
+    );
+
+    expect(validateJob["runs-on"]).toBe("ubuntu-latest");
+    expect(uploadStep).toMatchObject({
+      if: "always()",
+      uses: "actions/upload-artifact@v7",
+      with: {
+        name: "codedecay-child-repo-e2e",
+        "if-no-files-found": "ignore",
+        "retention-days": 7,
+        archive: true
+      }
+    });
+    expect(String(uploadStep?.with?.path).trim().split(/\r?\n/)).toEqual([
+      ".codedecay/local/child-repo-e2e/ci/run.json",
+      ".codedecay/local/child-repo-e2e/ci/summary.md",
+      ".codedecay/local/child-repo-e2e/ci/logs",
+      ".codedecay/local/child-repo-e2e/ci/end-user-demo",
+      ".codedecay/local/child-repo-e2e/ci/child-repo/.codedecay/local"
+    ]);
+  });
+
   it("dogfoods the local action in report-only redteam mode", () => {
     const workflow = parse(readFileSync(".github/workflows/codedecay-dogfood.yml", "utf8")) as {
       permissions: Record<string, string>;
