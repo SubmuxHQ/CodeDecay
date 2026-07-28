@@ -69,6 +69,35 @@ describe("createTestProofAudit", () => {
     );
   });
 
+  it("turns test-bloat evidence into a concrete scaffolding repair check", () => {
+    const audit = createTestProofAudit(
+      createReport({
+        changedFiles: [sourceChange("src/auth/session.ts"), testChange("src/auth/session.test.ts")],
+        analyzerResult: {
+          impactedAreas: [],
+          findings: [
+            {
+              ruleId: "test-bloat",
+              title: "Disproportionate low-value test growth",
+              description:
+                "src/auth/session.test.ts adds 200 test lines for 20 source additions and includes 20 mock lines.",
+              severity: "high",
+              category: "decay",
+              file: "src/auth/session.test.ts",
+              line: 1
+            }
+          ],
+          recommendedTests: []
+        }
+      })
+    );
+
+    expect(audit.status).toBe("weak");
+    expect(audit.recommendedChecks).toContain(
+      "Reduce repeated mock or snapshot scaffolding in src/auth/session.test.ts, then keep the smallest behavior-focused proof that exercises the real boundary."
+    );
+  });
+
   it("marks changed tests without weak signals as present evidence", () => {
     const audit = createTestProofAudit(
       createReport({

@@ -59,6 +59,25 @@ The audit consumes existing analyzer findings, including:
 - `heavy-mocking`
 - `test-bloat`
 
+`test-bloat` is deliberately conservative. For each changed test file, the
+denominator is the total number of added lines across changed, non-test source
+files recognized by the analyzer in the diff. The rule requires all of the
+following:
+
+- at least 60 added lines in the test file
+- more than 2.0 test additions per source addition
+- at least 12 added mock or snapshot lines
+
+Absolute test-file size does not trigger the rule. Test-only changes also do
+not have a source-growth denominator, so they are left to the specific
+assertion, mocking, snapshot, copied-logic, and real-path proof signals. High
+severity requires at least 180 test additions, a ratio above 4.0x, and at least
+20 mock or snapshot lines. This keeps table-driven boundary cases, integration
+coverage, mutation tests, and E2E proof from being penalized merely for adding
+substantial coverage. When the combined `test-bloat` rule fires, it subsumes
+the standalone `heavy-mocking` finding for the same lines so scoring does not
+count one signal twice.
+
 ## Weak-Test Regression Walkthrough
 
 This walkthrough shows the intended review loop for a PR that looks tested but

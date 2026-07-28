@@ -293,6 +293,63 @@ describe("built codedecay CLI analysis and diff behavior", () => {
     );
   });
 
+  it("does not report test growth below the changed production surface as bloat", () => {
+    const sourcePath = "src/impact/normalize.ts";
+    const testPath = "test/impact-graph.test.ts";
+    const repo = createRepo({
+      [sourcePath]: "export const sourceValues: number[] = [];\n",
+      [testPath]: [
+        "import assert from 'node:assert/strict';",
+        "import { sourceValues } from '../src/impact/normalize';",
+        ""
+      ].join("\n")
+    });
+    const sourceAdditions = Array.from(
+      { length: 1018 },
+      (_, index) => `sourceValues.push(${index});`
+    );
+    const testAdditions = Array.from({ length: 319 }, (_, index) =>
+      index < 15
+        ? `assert.equal(sourceValues[${index}], ${index});`
+        : `const fixtureValue${index} = ${index};`
+    );
+
+    writeFile(
+      repo,
+      sourcePath,
+      ["export const sourceValues: number[] = [];", ...sourceAdditions, ""].join("\n")
+    );
+    writeFile(
+      repo,
+      testPath,
+      [
+        "import assert from 'node:assert/strict';",
+        "import { sourceValues } from '../src/impact/normalize';",
+        ...testAdditions,
+        ""
+      ].join("\n")
+    );
+
+    const result = runBuilt(["analyze", "--cwd", repo, "--format", "json"]);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(report.changedFiles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ path: sourcePath, additions: 1018 }),
+        expect.objectContaining({ path: testPath, additions: 319 })
+      ])
+    );
+    expect(report.findings).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "test-bloat",
+          file: testPath
+        })
+      ])
+    );
+  });
+
   it("reports the executable source and test ranges for copied logic", () => {
     const sourcePath = "src/normalize.ts";
     const testPath = "src/normalize.test.ts";

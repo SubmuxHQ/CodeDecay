@@ -1,0 +1,10 @@
+{
+  "issue": 724,
+  "baseCommit": "aec0a651d0de3a2ddf3cf5991d7483ed77796d65",
+  "headCommit": "b465dfda6ac890496c5e23e711763f8fbd49730d",
+  "testPath": "packages/core/test/impact-graph.test.ts",
+  "testAdditions": 319,
+  "sourceAdditions": 1018,
+  "assertionLines": 15,
+  "mockOrSnapshotLines": 0
+}
