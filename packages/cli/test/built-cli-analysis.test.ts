@@ -266,4 +266,82 @@ describe("built codedecay CLI analysis and diff behavior", () => {
       ])
     );
   });
+
+  it("does not report a typed contract fixture as copied implementation", () => {
+    const sourcePath = "src/symbols/impact-adapter.ts";
+    const testPath = "src/impact-graph.test.ts";
+    const fixtureRoot = join(repoRoot, "packages/analyzer-js/fixtures/copied-implementation");
+    const repo = createRepo({
+      [sourcePath]: "export function createImpactGraph() { return {}; }\n",
+      [testPath]: "import { createImpactGraph } from './symbols/impact-adapter';\n"
+    });
+
+    writeFile(repo, sourcePath, readFileSync(join(fixtureRoot, "issue-724-impact-adapter.ts.txt"), "utf8"));
+    writeFile(repo, testPath, readFileSync(join(fixtureRoot, "issue-724-impact-graph.test.ts.txt"), "utf8"));
+
+    const result = runBuilt(["analyze", "--cwd", repo, "--format", "json"]);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(report.findings).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "copied-implementation-in-test",
+          file: testPath
+        })
+      ])
+    );
+  });
+
+  it("reports the executable source and test ranges for copied logic", () => {
+    const sourcePath = "src/normalize.ts";
+    const testPath = "src/normalize.test.ts";
+    const repo = createRepo({
+      [sourcePath]: "export function normalize(value: string) { return value; }\n",
+      [testPath]: "import { normalize } from './normalize';\n"
+    });
+
+    writeFile(
+      repo,
+      sourcePath,
+      [
+        "export function normalize(value: string) {",
+        "  const normalized = value.trim().toLowerCase();",
+        "  const bounded = normalized.slice(0, 8);",
+        "  return bounded.replace(/[^a-z]/g, '');",
+        "}",
+        ""
+      ].join("\n")
+    );
+    writeFile(
+      repo,
+      testPath,
+      [
+        "import { normalize } from './normalize';",
+        "function copiedNormalize(value: string) {",
+        "  const normalized = value.trim().toLowerCase();",
+        "  const bounded = normalized.slice(0, 8);",
+        "  return bounded.replace(/[^a-z]/g, '');",
+        "}",
+        "expect(normalize(' SENSOR-123 ')).toBe(copiedNormalize(' SENSOR-123 '));",
+        ""
+      ].join("\n")
+    );
+
+    const result = runBuilt(["analyze", "--cwd", repo, "--format", "json"]);
+    const report = JSON.parse(result.stdout);
+    const finding = report.findings.find(
+      (candidate: { ruleId: string }) => candidate.ruleId === "copied-implementation-in-test"
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(finding).toMatchObject({
+      file: testPath,
+      line: 3,
+      description: expect.stringContaining(
+        `${testPath}:3-5 matches executable logic from ${sourcePath}:2-4`
+      )
+    });
+    expect(finding.description).toContain("const normalized = value.trim().toLowerCase()");
+  });
 });

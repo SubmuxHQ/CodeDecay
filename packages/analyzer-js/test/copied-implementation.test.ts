@@ -30,6 +30,51 @@ describe("copied implementation block classification", () => {
     expect(hasExecutableImplementationBetween(content, 1, 5)).toBe(false);
   });
 
+  it("rejects typed contract builders that return declarative object fixtures", () => {
+    const content = [
+      "function fragment(input: FragmentInput): ImpactGraphFragment {",
+      "  return {",
+      "    schemaVersion: 1,",
+      "    adapter: {",
+      "      id: input.adapterId,",
+      "      sourceTool: input.sourceTool,",
+      "    },",
+      "  };",
+      "}",
+      ""
+    ].join("\n");
+
+    expect(hasExecutableImplementationBetween(content, 2, 4)).toBe(false);
+  });
+
+  it("keeps calculations and calls nested inside returned objects", () => {
+    const content = [
+      "function summarize(values: number[]) {",
+      "  return {",
+      "    total: values.reduce((sum, value) => sum + value, 0),",
+      "    count: values.length,",
+      "  };",
+      "}",
+      ""
+    ].join("\n");
+
+    expect(hasExecutableImplementationBetween(content, 2, 4)).toBe(true);
+  });
+
+  it("keeps copied branch behavior even when the branch returns fixture data", () => {
+    const content = [
+      "function classify(value?: string) {",
+      "  if (!value) {",
+      "    return { status: 'missing' };",
+      "  }",
+      "  return { status: 'present' };",
+      "}",
+      ""
+    ].join("\n");
+
+    expect(hasExecutableImplementationBetween(content, 2, 4)).toBe(true);
+  });
+
   it("keeps executable copied normalizer logic", () => {
     const content = [
       "function copiedNormalize(value: string) {",

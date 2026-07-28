@@ -110,7 +110,10 @@ The `copied-implementation-in-test` signal compares normalized three-line
 blocks, then requires parser-confirmed executable logic to start inside the
 matching source and test ranges. Type-only imports, interfaces, type aliases,
 output-shape declarations, and declarative object fixtures are not treated as
-copied behavior.
+copied behavior. A `return` keyword alone is not executable-copy evidence;
+branches, calculations, calls, and transformations inside the returned value
+still are. Findings include both matched line ranges and the normalized block
+so the claimed duplication can be reviewed directly.
 
 The regression corpus keeps a real copied normalizer as a true-positive control
 and includes the three false-positive classes found while reviewing PR #715.

@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -225,6 +225,20 @@ describe("weak test audit", () => {
         "Exercise src/imu/normalize.ts through its public API instead of copying its logic"
       ])
     );
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "copied-implementation-in-test",
+          description: expect.stringContaining(
+            "src/imu/normalize.test.ts:4-6 matches executable logic from src/imu/normalize.ts:2-4"
+          ),
+          title: "Test appears to copy implementation logic"
+        })
+      ])
+    );
+    expect(
+      result.findings.find((finding) => finding.ruleId === "copied-implementation-in-test")?.description
+    ).toContain("const normalized = value.trim().toLowerCase()");
   });
 
   it("does not treat type shapes, type imports, or declarative fixtures as copied implementation", () => {
@@ -255,6 +269,23 @@ describe("weak test audit", () => {
       rootDir,
       [change("src/report.test.ts", sharedShape.map((content, index) => ({ line: index + 1, content })))],
       [change("src/report.ts", sharedShape.map((content, index) => ({ line: index + 1, content })))]
+    );
+
+    expect(result.findings.map((finding) => finding.ruleId)).not.toContain("copied-implementation-in-test");
+  });
+
+  it("does not flag the PR 724 typed impact graph contract fixture", () => {
+    const sourceContent = readFixture("issue-724-impact-adapter.ts.txt");
+    const testContent = readFixture("issue-724-impact-graph.test.ts.txt");
+    const rootDir = createTempProject({
+      "src/symbols/impact-adapter.ts": sourceContent,
+      "src/impact-graph.test.ts": testContent
+    });
+
+    const result = detectWeakTests(
+      rootDir,
+      [change("src/impact-graph.test.ts", addedLines(testContent))],
+      [change("src/symbols/impact-adapter.ts", addedLines(sourceContent))]
     );
 
     expect(result.findings.map((finding) => finding.ruleId)).not.toContain("copied-implementation-in-test");
@@ -296,6 +327,17 @@ function change(path: string, addedLines: Array<{ line: number; content: string 
     deletions: 0,
     addedLines
   };
+}
+
+function readFixture(name: string): string {
+  return readFileSync(new URL(`../fixtures/copied-implementation/${name}`, import.meta.url), "utf8");
+}
+
+function addedLines(content: string): Array<{ line: number; content: string }> {
+  return content
+    .trimEnd()
+    .split("\n")
+    .map((line, index) => ({ line: index + 1, content: line }));
 }
 
 function createTempProject(files: Record<string, string>): string {
