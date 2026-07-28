@@ -284,7 +284,7 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
           <div className="demo-evidence">
             <div>
               <span>REPRODUCIBLE IDENTITY</span>
-              <strong>v0.4.0 · fixture 36a38500031f</strong>
+              <strong>v{engineVersion} · fixture 36a38500031f</strong>
             </div>
             <p>
               Edited for time from one genuine session. Waiting and repeated report output are cut;

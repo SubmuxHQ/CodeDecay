@@ -23,7 +23,7 @@ describe("hackathon submission artifacts", () => {
         "--eval",
         [
           "import { orderedPages, sectionTitles } from './scripts/lib/docs-pages.mjs';",
-          "const paths = ['hackathon/README.md', 'hackathon/release-notes-v0.4.0.md'];",
+          "const paths = ['hackathon/README.md', 'hackathon/release-notes-v0.4.1.md', 'hackathon/release-notes-v0.4.0.md'];",
           "console.log(JSON.stringify(paths.map((path) => ({ path, included: orderedPages.includes(path), section: sectionTitles.get(path) }))));"
         ].join("")
       ],
@@ -32,6 +32,11 @@ describe("hackathon submission artifacts", () => {
 
     expect(JSON.parse(output)).toEqual([
       { path: "hackathon/README.md", included: true, section: "Hackathon" },
+      {
+        path: "hackathon/release-notes-v0.4.1.md",
+        included: true,
+        section: "Hackathon"
+      },
       {
         path: "hackathon/release-notes-v0.4.0.md",
         included: true,

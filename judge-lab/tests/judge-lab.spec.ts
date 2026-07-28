@@ -75,6 +75,7 @@ test("publishes the captioned genuine Codex repair demo and evidence links", asy
   );
   await expect(demo.locator("source")).toHaveAttribute("src", "/demo/codedecay-codex-repair.mp4");
   await expect(demo.locator("track")).toHaveAttribute("src", "/demo/codedecay-codex-repair.vtt");
+  await expect(demo.getByText("v0.4.1 · fixture 36a38500031f", { exact: true })).toBeVisible();
   await expect(demo.getByRole("link", { name: "Evidence index ↗" })).toHaveAttribute(
     "href",
     /docs\/hackathon\/demo\/evidence\/run-v3\.md/,

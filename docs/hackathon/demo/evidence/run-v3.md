@@ -11,7 +11,7 @@ animation.
 - Fixture base: `f042684b1d7c306adf5b85c6ca43c6f9e14ab5cc`
 - Risky fixture head: `36a38500031f8330654c5e04c0d49062f09314ec`
 - Codex session: `019fa3f0-e029-7582-8a6d-64bdfb4ee67f`
-- Target release shown in the video: `v0.4.0`
+- Target release shown in the video: `v0.4.1`
 
 The fixture commits are created deterministically by
 `scripts/hackathon-demo/setup.mjs`. Commit timestamps can vary, so the content

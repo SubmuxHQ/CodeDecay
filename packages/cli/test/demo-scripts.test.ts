@@ -146,12 +146,13 @@ describe("demo scripts", () => {
       "utf8"
     );
 
-    expect(metadata.release).toBe("v0.4.0");
+    expect(metadata.release).toBe("v0.4.1");
     expect(metadata.durationSeconds).toBeLessThanOrEqual(180);
     expect(metadata.dimensions).toBe("1920x1080");
     expect(metadata.audioCodec).toBe("aac");
     expect(captions).toContain("WEBVTT");
     expect(captions).toContain("00:00:00.000");
+    expect(captions).toContain("version zero point four point one");
     expect(statSync("judge-lab/public/demo/codedecay-codex-repair.mp4").size).toBeGreaterThan(
       1_000_000
     );
