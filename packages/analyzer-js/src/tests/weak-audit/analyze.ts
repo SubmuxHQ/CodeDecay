@@ -20,7 +20,7 @@ export function detectWeakTests(rootDir: string, changedTestFiles: FileChange[],
   }
 
   const sourceProfiles = changedSourceFiles.map((change) => createSourceProfile(change));
-  const sourceBlocks = createSourceLogicBlocks(changedSourceFiles);
+  const sourceBlocks = createSourceLogicBlocks(rootDir, changedSourceFiles);
 
   for (const testChange of changedTestFiles) {
     const context = createWeakTestContext(rootDir, testChange);

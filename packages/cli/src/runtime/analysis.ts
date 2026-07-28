@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { analyzeJsProject } from "@submuxhq/codedecay-analyzer-js";
 import { loadCodeDecayConfig } from "@submuxhq/codedecay-config";
 import {
@@ -61,16 +61,38 @@ export function getRepoRootForCli(cwd: string, options: { base?: string | undefi
   }
 }
 
-export function getChangedFilesForCli(rootDir: string, options: { base?: string | undefined; head?: string | undefined; format: string }) {
+export function getChangedFilesForCli(
+  rootDir: string,
+  options: {
+    base?: string | undefined;
+    head?: string | undefined;
+    format: string;
+    output?: string | undefined;
+  }
+) {
   try {
     return getGitChangedFiles({
       cwd: rootDir,
       base: options.base,
-      head: options.head
+      head: options.head,
+      excludePaths: outputPathInsideRepo(rootDir, options.output)
     });
   } catch (error: unknown) {
     throw formatGitErrorForCli(error, rootDir, options);
   }
+}
+
+function outputPathInsideRepo(rootDir: string, output: string | undefined): string[] {
+  if (!output) {
+    return [];
+  }
+
+  const relativePath = relative(rootDir, resolve(rootDir, output));
+  if (!relativePath || relativePath.startsWith(`..${sep}`) || relativePath === ".." || isAbsolute(relativePath)) {
+    return [];
+  }
+
+  return [relativePath.split(sep).join("/")];
 }
 
 export function formatGitErrorForCli(

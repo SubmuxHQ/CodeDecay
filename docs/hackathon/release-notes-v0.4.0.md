@@ -23,6 +23,14 @@ easier to reproduce, inspect, and hand back to a user-owned coding agent.
 - A genuine Codex repair record with a sanitized transcript, exact fixture
   commits and commands, red-before-green endpoint proof, and current-tree
   CodeDecay revalidation.
+- Parser-grounded JavaScript security matchers that require real command sinks
+  and data flow for path traversal and hardcoded-secret evidence.
+- Output-aware analysis that prevents a generated JSON, Markdown, or SARIF
+  report from becoming evidence in the next run while preserving intentional
+  CodeDecay config, memory, and arbitrary user files.
+- A parser-backed copied-implementation gate that suppresses type shapes,
+  type-only imports, and declarative fixtures while preserving executable
+  copied-oracle detection.
 
 ## Reproducible evaluation
 
@@ -55,6 +63,9 @@ server/browser checks.
   produce false positives.
 - Framework/language coverage is incomplete; runtime confidence depends on the
   repository's configured checks and available tools.
+- Copied-implementation detection remains a conservative three-line heuristic;
+  unsupported syntax, shorter copies, or structurally rewritten logic may not
+  be detected.
 - The demo fixture deliberately does not model token expiry, malformed JWTs,
   or authorization scope, and its repaired report remains High without runtime
   coverage evidence.

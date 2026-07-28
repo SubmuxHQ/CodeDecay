@@ -12,6 +12,7 @@ import {
   parseNumStat,
   removeGitWorktree
 } from "../src/index";
+import { getGitChangedFiles as getGitChangedFilesDirect } from "../src/changed-files";
 
 const tempRoots: string[] = [];
 
@@ -131,6 +132,27 @@ describe("live git integration", () => {
     writeFile(repo, "fixtures/app/.codedecay/local/symbol-impact-graph.json", "{}\n");
 
     expect(getGitChangedFiles({ cwd: repo }).map((change) => change.path)).toEqual(["src/app.ts"]);
+  });
+
+  it("excludes only explicit generated report paths while preserving user context and arbitrary JSON", () => {
+    const repo = createRepo({
+      "src/app.ts": "export const value = 1;\n"
+    });
+
+    writeFile(repo, "src/app.ts", "export const value = 2;\n");
+    writeFile(repo, ".codedecay/report.json", '{"tool":"CodeDecay"}\n');
+    writeFile(repo, ".codedecay/memory.json", '{"entries":[]}\n');
+    writeFile(repo, "custom-report.json", '{"tool":"CodeDecay"}\n');
+
+    const paths = getGitChangedFilesDirect({
+      cwd: repo,
+      excludePaths: [".codedecay/report.json"]
+    }).map((change) => change.path);
+
+    expect(paths).toEqual(
+      expect.arrayContaining(["src/app.ts", ".codedecay/memory.json", "custom-report.json"])
+    );
+    expect(paths).not.toContain(".codedecay/report.json");
   });
 
   it("handles repositories with no commits without leaking raw HEAD errors", () => {
