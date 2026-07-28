@@ -10,6 +10,7 @@ import type { TestEvidenceSummary } from "./test-evidence";
 import type { ChangedPathTestProofMap } from "./test-proof";
 import type { RequirementContext } from "../requirements";
 import type { RequirementTraceGraph } from "./requirement-trace";
+import type { ImpactGraphSummary } from "../impact-graph";
 
 export interface ReportSummary {
   mergeRiskScore: number;
@@ -32,6 +33,7 @@ export interface CodeDecayReport {
   changedFiles: FileChange[];
   impactedAreas: ImpactedArea[];
   impactedRoutes?: ImpactedRoute[] | undefined;
+  impactGraph?: ImpactGraphSummary | undefined;
   symbolImpactGraph?: SymbolImpactGraphSummary | undefined;
   symbolImpacts?: SymbolImpact[] | undefined;
   languageAnalysis?: LanguageAnalysisSummary | undefined;

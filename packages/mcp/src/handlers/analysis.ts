@@ -57,6 +57,7 @@ export function runImpactMapTool(serverOptions: StartMcpServerOptions, input: Mc
       changedFiles: report.changedFiles,
       impactedAreas: report.impactedAreas,
       impactedRoutes: report.impactedRoutes ?? [],
+      impactGraph: report.impactGraph,
       symbolImpacts: report.symbolImpacts ?? [],
       testProofMap: report.testProofMap
     },

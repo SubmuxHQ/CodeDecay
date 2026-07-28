@@ -106,6 +106,35 @@ export function createFixtureAnalyzerResult(): AnalyzerResult {
         recommendedTests: ["Add an API-level session regression test"]
       }
     ],
+    impactGraph: {
+      schemaVersion: 1,
+      artifactPath: ".codedecay/local/impact-graph.json",
+      adapterCount: 1,
+      nodeCount: 4,
+      edgeCount: 3,
+      confidenceCounts: {
+        direct: 3,
+        inferred: 0,
+        heuristic: 0
+      },
+      adapters: [
+        {
+          id: "codedecay-js-babel-symbols",
+          version: "1.0.0",
+          sourceTool: "@babel/parser",
+          status: "available",
+          capabilities: {
+            nodeKinds: ["file", "route", "symbol", "test"],
+            edgeKinds: ["contains", "imports", "tests"]
+          },
+          limitations: ["Dynamic imports are not resolved."]
+        }
+      ],
+      limitations: [
+        "A static test import does not prove execution or assertion coverage.",
+        "Dynamic imports are not resolved."
+      ]
+    },
     findings: [
       {
         ruleId: "auth-session-risk",

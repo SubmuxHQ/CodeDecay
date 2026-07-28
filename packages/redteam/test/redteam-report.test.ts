@@ -178,6 +178,15 @@ describe("redteam report assembly and rendering", () => {
       kind: "api-route",
       route: "/api/session"
     });
+    expect(json.analysis.impactGraph).toMatchObject({
+      artifactPath: ".codedecay/local/impact-graph.json",
+      adapterCount: 1,
+      adapters: [
+        expect.objectContaining({
+          sourceTool: "@babel/parser"
+        })
+      ]
+    });
 
     const markdown = renderRedteamReport(report, "markdown");
     expect(markdown).toContain("## CodeDecay Redteam Report");
@@ -192,6 +201,12 @@ describe("redteam report assembly and rendering", () => {
     expect(markdown).toContain("**Status:** Weak");
     expect(markdown).toContain("### Agent Skills");
     expect(markdown).toContain("### Likely Impacted Routes And APIs");
+    expect(markdown).toContain("### Normalized Impact Graph");
+    expect(markdown).toContain("`codedecay-js-babel-symbols` via `@babel/parser`");
+    expect(markdown).toContain("Dynamic imports are not resolved.");
+    expect(markdown).toContain(
+      "Graph limitation: A static test import does not prove execution or assertion coverage."
+    );
     expect(markdown).toContain("High `GET /api/session` (Next.js API route)");
     expect(markdown).toContain("Add an API-level session regression test");
     expect(markdown).toContain("Downstream consumers: `src/dashboard/session.ts`");

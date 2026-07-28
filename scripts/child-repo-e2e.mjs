@@ -320,6 +320,14 @@ function renderChildServer(port) {
 function assertInitialRedteam(command) {
   const report = command.parsedStdout?.ok ? command.parsedStdout.value : undefined;
   const productionSourcePath = "src/tests/checkout.js";
+  const impactGraphSummary = report?.analysis?.impactGraph;
+  const impactGraphPath = join(
+    childRepo,
+    impactGraphSummary?.artifactPath ?? ".codedecay/local/impact-graph.json"
+  );
+  const impactGraph = existsSync(impactGraphPath)
+    ? JSON.parse(readFileSync(impactGraphPath, "utf8"))
+    : undefined;
   const topLevelSmokeFinding = report?.weakTestFindings?.find(
     (finding) => finding.ruleId === "test-without-assertions" && finding.file === "test/checkout.test.js"
   );
@@ -335,6 +343,43 @@ function assertInitialRedteam(command) {
   assert(topLevelSmokeFinding?.description?.includes("may only prove the file runs"), "top-level-smoke-actionable", "Top-level smoke finding did not explain that execution without assertions is insufficient proof.");
   assert(report?.summary?.verificationStatus === "verified", "real-check-executed", "Child repository test command did not pass through CodeDecay execution.");
   assert(report?.safety?.commandsExecuted === true, "execution-recorded", "Redteam report did not record configured command execution.");
+  assert(
+    impactGraphSummary?.adapters?.some(
+      (adapter) =>
+        adapter.id === "codedecay-js-babel-symbols" &&
+        adapter.sourceTool === "@babel/parser" &&
+        adapter.status === "available"
+    ),
+    "impact-adapter-provenance",
+    "Installed CLI did not expose the normalized Babel impact adapter provenance."
+  );
+  assert(existsSync(impactGraphPath), "impact-graph-artifact", `Normalized impact graph is missing: ${impactGraphPath}`);
+  assert(
+    impactGraph?.nodes?.some(
+      (node) =>
+        node.id ===
+          "codedecay-js-babel-symbols::symbol:src/tests/checkout.js#calculateTotal" &&
+        node.kind === "symbol"
+    ),
+    "impact-graph-symbol",
+    "Packed CLI did not persist the changed production symbol in the normalized impact graph."
+  );
+  assert(
+    impactGraph?.edges?.some(
+      (edge) =>
+        edge.from === "codedecay-js-babel-symbols::file:test/checkout.test.js" &&
+        edge.to ===
+          "codedecay-js-babel-symbols::symbol:src/tests/checkout.js#calculateTotal" &&
+        edge.kind === "tests" &&
+        edge.confidence === "direct" &&
+        edge.sourceTool === "@babel/parser" &&
+        edge.limitations?.includes(
+          "A static test import does not prove the symbol executed or that assertions cover its behavior."
+        )
+    ),
+    "impact-graph-test-edge",
+    "Packed CLI did not preserve direct test-to-production symbol provenance."
+  );
 }
 
 function assertRealBrowserProductRun(command) {
@@ -491,6 +536,7 @@ function writeSummary() {
     "- Real assertion-free top-level smoke command passed but was classified as weak proof",
     "- Real Chromium crawl, screenshots, and generated Playwright regression tests",
     "- Analyze, redteam, agent, execute, differential, MCP, and Action simulation",
+    "- Normalized impact graph provenance and full artifact from the packed CLI",
     "- Deterministic agent edit loop converged and final real test passed",
     "",
     "## Commands",

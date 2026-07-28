@@ -1,6 +1,7 @@
 import type {
   ChangedPathTestProofEntry,
   ImpactedRoute,
+  ImpactGraphSummary,
   ProductFailureBundle,
   RequirementContext,
   RequirementTraceGraph,
@@ -81,6 +82,7 @@ export interface AgentEvidence {
   changedFiles: AgentChangedFile[];
   impactedAreas: AgentImpactedArea[];
   impactedRoutes: AgentImpactedRoute[];
+  impactGraph?: ImpactGraphSummary | undefined;
   symbolImpacts: AgentSymbolImpact[];
   testProofEntries: AgentTestProofEntry[];
   weakTestFindings: AgentFindingEvidence[];

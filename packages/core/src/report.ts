@@ -50,6 +50,10 @@ export function createAnalysisReport(input: {
     report.impactedRoutes = impactedRoutes;
   }
 
+  if (input.analyzerResult.impactGraph) {
+    report.impactGraph = input.analyzerResult.impactGraph;
+  }
+
   if (input.analyzerResult.symbolImpactGraph) {
     report.symbolImpactGraph = input.analyzerResult.symbolImpactGraph;
   }

@@ -13,6 +13,16 @@ export {
 } from "./audit";
 export { findingCounts, sortFindings } from "./findings";
 export { isMemoryContextFinding } from "./finding-evidence";
+export {
+  IMPACT_GRAPH_CONFIDENCE_LEVELS,
+  IMPACT_GRAPH_EDGE_KINDS,
+  IMPACT_GRAPH_NODE_KINDS,
+  IMPACT_GRAPH_SCHEMA_VERSION,
+  ImpactGraphContractError,
+  createUnavailableImpactGraphFragment,
+  normalizeImpactGraphFragments,
+  summarizeImpactGraph
+} from "./impact-graph";
 export { isTestFilePath } from "./paths/test-files";
 export { productFailureBundlesFromProductTargetReport } from "./product-failures";
 export { normalizeRequirementContext } from "./requirements";
@@ -72,6 +82,22 @@ export type {
   FileStatus,
   Finding,
   FindingCategory,
+  ImpactGraph,
+  ImpactGraphAdapterDescriptor,
+  ImpactGraphAdapterStatus,
+  ImpactGraphAdapterSummary,
+  ImpactGraphCapabilities,
+  ImpactGraphConfidence,
+  ImpactGraphConfidenceCounts,
+  ImpactGraphEdge,
+  ImpactGraphEdgeKind,
+  ImpactGraphFragment,
+  ImpactGraphFragmentEdge,
+  ImpactGraphFragmentNode,
+  ImpactGraphLocation,
+  ImpactGraphNode,
+  ImpactGraphNodeKind,
+  ImpactGraphSummary,
   ImpactedArea,
   ImpactedRoute,
   SymbolCall,
@@ -102,6 +128,7 @@ export type {
   TestEvidenceMode,
   TestEvidenceSource,
   TestEvidenceSummary,
+  UnavailableImpactGraphAdapterInput,
   ChangedPathTestProofEntry,
   ChangedPathTestProofEvidence,
   ChangedPathTestProofMap,

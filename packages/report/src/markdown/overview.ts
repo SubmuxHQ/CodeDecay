@@ -66,6 +66,37 @@ export function appendImpactedRoutes(lines: string[], report: CodeDecayReport): 
   lines.push("");
 }
 
+export function appendImpactGraph(lines: string[], report: CodeDecayReport): void {
+  const graph = report.impactGraph;
+  if (!graph) {
+    return;
+  }
+
+  lines.push("### Normalized Impact Graph", "");
+  if (graph.artifactPath) {
+    lines.push(
+      `Graph artifact: \`${graph.artifactPath}\` (${graph.nodeCount} node(s), ${graph.edgeCount} edge(s))`,
+      ""
+    );
+  }
+  lines.push(
+    `- Confidence: Direct: ${graph.confidenceCounts.direct}, inferred: ${graph.confidenceCounts.inferred}, heuristic: ${graph.confidenceCounts.heuristic}`
+  );
+  for (const adapter of graph.adapters) {
+    lines.push(
+      `- \`${adapter.id}\` via \`${adapter.sourceTool}\` (${adapter.status}, adapter ${adapter.version})`
+    );
+    for (const limitation of adapter.limitations) {
+      lines.push(`  - Limitation: ${limitation}`);
+    }
+  }
+  const adapterLimitations = new Set(graph.adapters.flatMap((adapter) => adapter.limitations));
+  for (const limitation of graph.limitations.filter((item) => !adapterLimitations.has(item))) {
+    lines.push(`- Graph limitation: ${limitation}`);
+  }
+  lines.push("");
+}
+
 export function appendSymbolImpacts(lines: string[], report: CodeDecayReport): void {
   if (!report.symbolImpacts || report.symbolImpacts.length === 0) {
     return;

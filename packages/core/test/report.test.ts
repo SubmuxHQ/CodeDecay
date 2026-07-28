@@ -96,6 +96,32 @@ describe("createAnalysisReport", () => {
         limitedFiles: [],
         unsupportedFiles: []
       },
+      impactGraph: {
+        schemaVersion: 1,
+        artifactPath: ".codedecay/local/impact-graph.json",
+        adapterCount: 1,
+        nodeCount: 3,
+        edgeCount: 2,
+        confidenceCounts: {
+          direct: 2,
+          inferred: 0,
+          heuristic: 0
+        },
+        adapters: [
+          {
+            id: "codedecay-js-babel-symbols",
+            version: "1.0.0",
+            sourceTool: "@babel/parser",
+            status: "available",
+            capabilities: {
+              nodeKinds: ["file", "route", "symbol", "test"],
+              edgeKinds: ["contains", "imports", "tests"]
+            },
+            limitations: ["Dynamic imports are not resolved."]
+          }
+        ],
+        limitations: ["Dynamic imports are not resolved."]
+      },
       symbolImpactGraph: {
         schemaVersion: 1,
         artifactPath: ".codedecay/local/symbol-impact-graph.json",
@@ -160,6 +186,21 @@ describe("createAnalysisReport", () => {
     expect(report.languageAnalysis?.supportedFiles).toEqual(["src/auth/session.ts"]);
     expect(report.securityCandidates?.[0]?.cwe).toBe("CWE-89");
     expect(report.securityAnalysis?.scannedFiles).toEqual(["src/auth/session.ts"]);
+    expect(report.impactGraph).toMatchObject({
+      artifactPath: ".codedecay/local/impact-graph.json",
+      adapterCount: 1,
+      confidenceCounts: {
+        direct: 2,
+        inferred: 0,
+        heuristic: 0
+      },
+      adapters: [
+        expect.objectContaining({
+          id: "codedecay-js-babel-symbols",
+          sourceTool: "@babel/parser"
+        })
+      ]
+    });
     expect(report.symbolImpactGraph?.artifactPath).toBe(".codedecay/local/symbol-impact-graph.json");
     expect(report.symbolImpacts?.[0]).toMatchObject({
       file: "src/auth/session.ts",

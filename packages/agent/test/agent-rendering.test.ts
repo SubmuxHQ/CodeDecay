@@ -17,6 +17,12 @@ describe("agent task bundle rendering", () => {
     expect(markdown).toContain("### Copy-Paste Prompt");
     expect(markdown).toContain("You are helping fix a pull request using a CodeDecay agent task bundle.");
     expect(markdown).toContain("### Tool Evidence");
+    expect(markdown).toContain("Normalized impact graph:");
+    expect(markdown).toContain("`codedecay-js-babel-symbols` via `@babel/parser`");
+    expect(markdown).toContain("Dynamic imports are not resolved.");
+    expect(markdown).toContain(
+      "Graph limitation: A static test import does not prove execution or assertion coverage."
+    );
     expect(markdown).toContain("Impacted routes and APIs:");
     expect(markdown).toContain("Changed path test proof:");
     expect(markdown).toContain("Add an integration test that reaches src/api/imu.ts#submitImu without mocking submitImu.");
@@ -44,6 +50,10 @@ describe("agent task bundle rendering", () => {
       framework: "express",
       route: "/api/imu",
       methods: ["POST"]
+    });
+    expect(parsed.evidence.impactGraph.adapters[0]).toMatchObject({
+      id: "codedecay-js-babel-symbols",
+      sourceTool: "@babel/parser"
     });
     expect(parsed.evidence.testProofEntries[0]).toMatchObject({
       status: "weakened_by_mocking",

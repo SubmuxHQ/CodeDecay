@@ -26,6 +26,7 @@ export function appendEvidence(lines: string[], evidence: AgentEvidence): void {
   appendChangedFileEvidence(lines, evidence);
   appendAreaEvidence(lines, evidence);
   appendRouteEvidence(lines, evidence);
+  appendImpactGraphEvidence(lines, evidence);
   appendSymbolImpactEvidence(lines, evidence.symbolImpacts);
   appendTestProofEvidence(lines, evidence.testProofEntries);
   appendFindingEvidence(lines, "Weak or missing test proof:", [
@@ -56,6 +57,31 @@ export function appendEvidence(lines: string[], evidence: AgentEvidence): void {
   }
 
   appendProductFailureEvidence(lines, evidence);
+}
+
+function appendImpactGraphEvidence(lines: string[], evidence: AgentEvidence): void {
+  const graph = evidence.impactGraph;
+  if (!graph) {
+    return;
+  }
+
+  lines.push("", "Normalized impact graph:");
+  if (graph.artifactPath) {
+    lines.push(`- Artifact: \`${graph.artifactPath}\``);
+  }
+  lines.push(
+    `- Evidence: ${graph.nodeCount} node(s), ${graph.edgeCount} edge(s); direct ${graph.confidenceCounts.direct}, inferred ${graph.confidenceCounts.inferred}, heuristic ${graph.confidenceCounts.heuristic}`
+  );
+  for (const adapter of graph.adapters) {
+    lines.push(`- \`${adapter.id}\` via \`${adapter.sourceTool}\` (${adapter.status})`);
+    for (const limitation of adapter.limitations) {
+      lines.push(`  - Limitation: ${limitation}`);
+    }
+  }
+  const adapterLimitations = new Set(graph.adapters.flatMap((adapter) => adapter.limitations));
+  for (const limitation of graph.limitations.filter((item) => !adapterLimitations.has(item))) {
+    lines.push(`- Graph limitation: ${limitation}`);
+  }
 }
 
 function appendChangedFileEvidence(lines: string[], evidence: AgentEvidence): void {

@@ -7,6 +7,7 @@ import {
   appendConfiguredChecks,
   appendEdgeCases,
   appendFixTasks,
+  appendImpactGraph,
   appendImpactedAreas,
   appendImpactedRoutes,
   appendSymbolImpacts,
@@ -69,6 +70,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
   appendRequirementTrace(lines, report);
   appendImpactedAreas(lines, report.analysis.impactedAreas);
   appendImpactedRoutes(lines, report.analysis.impactedRoutes ?? []);
+  appendImpactGraph(lines, report.analysis.impactGraph);
   appendSymbolImpacts(lines, report.analysis.symbolImpacts ?? []);
   appendTestAudit(lines, report.testAudit);
   appendVerification(lines, report.verification);

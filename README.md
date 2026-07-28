@@ -544,6 +544,7 @@ keeps the wiki `Home` and sidebar aligned with the docs site.
 - [Agent skills](docs/skills.md)
 - [Test evidence audit](docs/test-audit.md)
 - [Tool adapters](docs/tool-adapters.md)
+- [Impact graph adapter contract](docs/impact-graph-adapters.md)
 - [Execution probes](docs/execution.md)
 - [Differential behavior checks](docs/differential.md)
 - [Redteam reports](docs/redteam.md)
