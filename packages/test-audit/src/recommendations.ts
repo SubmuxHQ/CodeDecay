@@ -63,7 +63,7 @@ function strongerCheckForFinding(finding: Finding): string {
   }
 
   if (finding.ruleId === "test-bloat") {
-    return `Confirm large test changes in ${finding.file ?? "the changed test"} prove behavior and are not only fixture or mock expansion.`;
+    return `Reduce repeated mock or snapshot scaffolding in ${finding.file ?? "the changed test"}, then keep the smallest behavior-focused proof that exercises the real boundary.`;
   }
 
   return finding.description;

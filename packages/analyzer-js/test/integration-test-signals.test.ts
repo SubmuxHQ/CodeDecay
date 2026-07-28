@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { FileChange } from "@submuxhq/codedecay-core";
 import { analyzeJsProject } from "../src/index";
 import { change, createTempProject, fixtureRoot } from "./helpers/integration";
+import { issue724TestBloatChanges } from "./helpers/test-bloat";
 
 describe("analyzeJsProject test signal integration", () => {
   it("recommends nearby matching tests for changed source files", () => {
@@ -32,7 +33,7 @@ describe("analyzeJsProject test signal integration", () => {
     expect(result.recommendedTests).toContain("Add or run tests covering src/lib/formatter.ts");
   });
 
-  it("flags test bloat and heavy mocking", () => {
+  it("reports one combined finding for disproportionate mock-heavy test growth", () => {
     const changedFiles: FileChange[] = [
       {
         path: "src/api/users.ts",
@@ -58,8 +59,25 @@ describe("analyzeJsProject test signal integration", () => {
       changedFiles
     });
 
-    expect(result.findings.map((finding) => finding.ruleId)).toEqual(
-      expect.arrayContaining(["test-bloat", "heavy-mocking"])
+    expect(result.findings.map((finding) => finding.ruleId)).toContain("test-bloat");
+    expect(result.findings.map((finding) => finding.ruleId)).not.toContain("heavy-mocking");
+  });
+
+  it("does not report PR #724 test-heavy safety work as test bloat", () => {
+    const { changedFiles, fixture } = issue724TestBloatChanges();
+    const result = analyzeJsProject({
+      rootDir: fixtureRoot,
+      changedFiles
+    });
+
+    expect(fixture.testAdditions / fixture.sourceAdditions).toBeCloseTo(0.313, 3);
+    expect(result.findings).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: "test-bloat",
+          file: fixture.testPath
+        })
+      ])
     );
   });
 
