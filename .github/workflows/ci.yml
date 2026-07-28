@@ -69,11 +69,13 @@ jobs:
 
       - name: Upload child repository end-to-end evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        # Node 24 actions require self-hosted runner 2.327.1 or newer.
+        uses: actions/upload-artifact@v7
         with:
           name: codedecay-child-repo-e2e
           if-no-files-found: ignore
           retention-days: 7
+          archive: true
           path: |
             .codedecay/local/child-repo-e2e/ci/run.json
             .codedecay/local/child-repo-e2e/ci/summary.md
