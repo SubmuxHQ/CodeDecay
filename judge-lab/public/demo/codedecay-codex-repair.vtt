@@ -27,5 +27,5 @@ Revalidation marks the missing-nearby-test finding fixed, and missing-test findi
 00:02:01.445 --> 00:02:19.551
 Codex self-reviews the result. The HTTP behavior and checks are tool evidence. JWT hardening, fuzzing, and mutation testing are suggestions, not executed proof. The fixture still accepts any non-empty token as admin, so neither Codex nor CodeDecay claims zero risk.
 
-00:02:19.551 --> 00:02:39.378
-Try the public Judge Lab with no login, inspect the open-source repository and the twenty-three of twenty-three planted-issue benchmark, or install at submux h q slash codedecay. The tagged release is version zero point four point zero. The exact fixture, transcript, commands, captions, and timing-cut disclosure are public.
+00:02:19.551 --> 00:02:39.320
+Try the public Judge Lab with no login, inspect the open-source repository and the twenty-three of twenty-three planted-issue benchmark, or install at submux h q slash codedecay. The tagged release is version zero point four point one. The exact fixture, transcript, commands, captions, and timing-cut disclosure are public.

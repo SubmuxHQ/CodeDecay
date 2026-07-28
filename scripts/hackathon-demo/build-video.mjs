@@ -14,7 +14,7 @@ const captionsPath = join(publicDir, "codedecay-codex-repair.vtt");
 const posterPath = join(publicDir, "codedecay-codex-repair-poster.png");
 const metadataPath = join(metadataDir, "video-metadata.json");
 const screenshotPath = resolve(process.argv[2] ?? "/tmp/codedecay-demo-assets/judge-lab.png");
-const release = "v0.4.0";
+const release = "v0.4.1";
 const riskyFixture = "36a38500031f8330654c5e04c0d49062f09314ec";
 const baseFixture = "f042684b1d7c306adf5b85c6ca43c6f9e14ab5cc";
 
@@ -165,7 +165,7 @@ const scenes = [
       ["muted", `fixture ${riskyFixture.slice(0, 12)} · transcript + cuts public`],
     ],
     narration:
-      "Try the public Judge Lab with no login, inspect the open-source repository and the twenty-three of twenty-three planted-issue benchmark, or install at submux h q slash codedecay. The tagged release is version zero point four point zero. The exact fixture, transcript, commands, captions, and timing-cut disclosure are public.",
+      "Try the public Judge Lab with no login, inspect the open-source repository and the twenty-three of twenty-three planted-issue benchmark, or install at submux h q slash codedecay. The tagged release is version zero point four point one. The exact fixture, transcript, commands, captions, and timing-cut disclosure are public.",
   },
 ];
 

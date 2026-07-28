@@ -16,8 +16,8 @@ the agent.
 - **Three-minute demo:** [Watch the captioned Codex repair](https://codedecay-judge-lab.kunal277075.chatgpt.site/#demo)
 - **Source:** [View the public repository](https://github.com/SubmuxHQ/CodeDecay)
 - **Current public package:** [View the npm package](https://www.npmjs.com/package/@submuxhq/codedecay)
-- **Hackathon release:** [View v0.4.0](https://github.com/SubmuxHQ/CodeDecay/releases/tag/v0.4.0)
-- **Release notes:** [Read the shipped behavior and limitations](./release-notes-v0.4.0.md)
+- **Hackathon release:** [View v0.4.1](https://github.com/SubmuxHQ/CodeDecay/releases/tag/v0.4.1)
+- **Release notes:** [Read the shipped behavior and limitations](./release-notes-v0.4.1.md)
 - **Benchmark method and limitations:** [Read the benchmark corpus documentation](https://github.com/SubmuxHQ/CodeDecay/blob/main/docs/benchmark-corpus.md)
 - **Hackathon workstream:** [Review milestone epic #694](https://github.com/SubmuxHQ/CodeDecay/issues/694)
 

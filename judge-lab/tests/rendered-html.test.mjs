@@ -41,6 +41,7 @@ test("server-renders the Judge Lab landing experience", async () => {
   assert.match(html, /\/demo\/codedecay-codex-repair\.mp4/);
   assert.match(html, /\/demo\/codedecay-codex-repair\.vtt/);
   assert.match(html, /Edited for time from one genuine session/);
+  assert.match(html.replaceAll("<!-- -->", ""), /v0\.4\.1 · fixture 36a38500031f/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton/);
 });
 
@@ -76,7 +77,7 @@ test("live endpoint finds the curated anonymous admin route", async () => {
   assert.equal(response.status, 200);
   const payload = await response.json();
   assert.equal(payload.execution.mode, "live");
-  assert.equal(payload.links.release, "https://github.com/SubmuxHQ/CodeDecay/releases/tag/v0.4.0");
+  assert.equal(payload.links.release, "https://github.com/SubmuxHQ/CodeDecay/releases/tag/v0.4.1");
   assert.equal(payload.summary.riskLevel, "high");
   assert.equal(payload.impactedRoute.route, "/api/users");
   assert.ok(
