@@ -8,7 +8,7 @@
     {
       "ruleId": "copied-implementation-in-test",
       "title": "Test appears to copy implementation logic",
-      "detail": "src/imu/normalize.test.ts includes logic copied from src/imu/normalize.ts; this can make tests pass without protecting real behavior.",
+      "detail": "src/imu/normalize.test.ts:4-6 matches executable logic from src/imu/normalize.ts:2-4: const normalized = value.trim().toLowerCase(); | const bounded = normalized.slice(0, 8); | return bounded.replace(/[^a-z]/g, \"\");. This can make tests pass without protecting real behavior.",
       "severity": "high",
       "evidenceKind": "deterministic",
       "file": "src/imu/normalize.test.ts",

@@ -107,7 +107,7 @@ export function addCopiedImplementationFinding(
   findings.push({
     ruleId: "copied-implementation-in-test",
     title: "Test appears to copy implementation logic",
-    description: `${testChange.path} includes logic copied from ${copiedBlock.sourcePath}; this can make tests pass without protecting real behavior.`,
+    description: `${testChange.path}:${copiedBlock.testLine}-${copiedBlock.testEndLine} matches executable logic from ${copiedBlock.sourcePath}:${copiedBlock.sourceStartLine}-${copiedBlock.sourceEndLine}: ${copiedBlock.excerpt}. This can make tests pass without protecting real behavior.`,
     severity: "high",
     category: "coverage",
     file: testChange.path,

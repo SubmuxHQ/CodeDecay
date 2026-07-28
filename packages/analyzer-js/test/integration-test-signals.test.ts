@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { FileChange } from "@submuxhq/codedecay-core";
 import { analyzeJsProject } from "../src/index";
@@ -264,4 +265,42 @@ describe("analyzeJsProject test signal integration", () => {
     expect(result.findings.map((finding) => finding.ruleId)).toContain("copied-implementation-in-test");
     expect(result.recommendedTests).toContain("Exercise src/imu/normalize.ts through its public API instead of copying its logic");
   });
+
+  it("does not flag the PR 724 typed impact graph contract fixture", () => {
+    const sourceContent = readCopiedImplementationFixture("issue-724-impact-adapter.ts.txt");
+    const testContent = readCopiedImplementationFixture("issue-724-impact-graph.test.ts.txt");
+    const rootDir = createTempProject({
+      "src/symbols/impact-adapter.ts": sourceContent,
+      "src/impact-graph.test.ts": testContent
+    });
+
+    const result = analyzeJsProject({
+      rootDir,
+      changedFiles: [
+        contentChange("src/symbols/impact-adapter.ts", sourceContent),
+        contentChange("src/impact-graph.test.ts", testContent)
+      ]
+    });
+
+    expect(result.findings.map((finding) => finding.ruleId)).not.toContain("copied-implementation-in-test");
+  });
 });
+
+function readCopiedImplementationFixture(name: string): string {
+  return readFileSync(new URL(`../fixtures/copied-implementation/${name}`, import.meta.url), "utf8");
+}
+
+function contentChange(path: string, content: string): FileChange {
+  const addedLines = content
+    .trimEnd()
+    .split("\n")
+    .map((line, index) => ({ line: index + 1, content: line }));
+
+  return {
+    path,
+    status: "modified",
+    additions: addedLines.length,
+    deletions: 0,
+    addedLines
+  };
+}

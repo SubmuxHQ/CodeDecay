@@ -1,0 +1,30 @@
+import type { ImpactGraphFragment } from "@submuxhq/codedecay-core";
+
+function fragment(input: {
+  adapterId: string;
+  sourceTool: string;
+}): ImpactGraphFragment {
+  return {
+    schemaVersion: 1,
+    adapter: {
+      id: input.adapterId,
+      version: "1.0.0",
+      sourceTool: input.sourceTool,
+      status: "available",
+      capabilities: {
+        nodeKinds: ["route", "symbol"],
+        edgeKinds: ["imports"]
+      },
+      limitations: ["Dynamic dependency injection is not resolved."]
+    },
+    nodes: [
+      {
+        id: "entry",
+        kind: "route",
+        label: "GET /users"
+      }
+    ],
+    edges: [],
+    limitations: []
+  };
+}

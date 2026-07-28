@@ -3,14 +3,23 @@ import { normalizeImplementationLine } from "../code/normalize";
 import { readChangedFile } from "./line-matches";
 import { executableImplementationLines } from "./copied-implementation-ast";
 
+const MAX_BLOCK_EXCERPT_LENGTH = 240;
+
 interface SourceLogicBlock {
   sourcePath: string;
+  sourceStartLine: number;
+  sourceEndLine: number;
   key: string;
+  excerpt: string;
 }
 
 export interface CopiedImplementationBlock {
   sourcePath: string;
+  sourceStartLine: number;
+  sourceEndLine: number;
   testLine: number;
+  testEndLine: number;
+  excerpt: string;
 }
 
 export function createSourceLogicBlocks(rootDir: string, changedSourceFiles: FileChange[]): SourceLogicBlock[] {
@@ -42,7 +51,10 @@ export function createSourceLogicBlocks(rootDir: string, changedSourceFiles: Fil
       const key = blockLines.map((line) => line.content).join("\n");
       blocks.push({
         sourcePath: change.path,
-        key
+        sourceStartLine: startLine,
+        sourceEndLine: endLine,
+        key,
+        excerpt: blockExcerpt(blockLines)
       });
     }
   }
@@ -83,7 +95,11 @@ export function findCopiedImplementationBlock(
     if (match) {
       return {
         sourcePath: match.sourcePath,
-        testLine: blockLines[0]?.line ?? 1
+        sourceStartLine: match.sourceStartLine,
+        sourceEndLine: match.sourceEndLine,
+        testLine: startLine,
+        testEndLine: endLine,
+        excerpt: match.excerpt
       };
     }
   }
@@ -98,4 +114,11 @@ function hasLineBetween(lines: Set<number>, startLine: number, endLine: number):
     }
   }
   return false;
+}
+
+function blockExcerpt(lines: Array<{ content: string }>): string {
+  const excerpt = lines.map((line) => line.content).join(" | ");
+  return excerpt.length <= MAX_BLOCK_EXCERPT_LENGTH
+    ? excerpt
+    : `${excerpt.slice(0, MAX_BLOCK_EXCERPT_LENGTH - 3)}...`;
 }

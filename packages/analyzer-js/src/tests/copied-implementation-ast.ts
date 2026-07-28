@@ -15,7 +15,6 @@ const EXECUTABLE_NODE_TYPES = new Set([
   "LogicalExpression",
   "NewExpression",
   "OptionalCallExpression",
-  "ReturnStatement",
   "SwitchStatement",
   "ThrowStatement",
   "UnaryExpression",
