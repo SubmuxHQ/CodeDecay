@@ -65,8 +65,9 @@ export function analyzeJsProject(options: AnalyzeJsOptions): AnalyzerResult {
   impactedAreas.push(...areaAnalysis.impactedAreas);
   findings.push(...areaAnalysis.findings);
 
-  const symbolImpactAnalysis = analyzeSymbolImpacts(options.rootDir, parserSupportedSourceFiles);
+  const symbolImpactAnalysis = analyzeSymbolImpacts(options.rootDir, changedSourceFiles);
   recommendedTests.push(...symbolImpactAnalysis.recommendedTests);
+  impactedRoutes.push(...symbolImpactAnalysis.impactedRoutes);
 
   const routeImpacts = analyzeRouteImpacts(options.rootDir, parserSupportedSourceFiles);
   impactedRoutes.push(...routeImpacts.impactedRoutes);

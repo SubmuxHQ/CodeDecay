@@ -14,7 +14,17 @@ export function riskBadge(level: RiskLevel): string {
 
 export function routeLabel(framework: string, kind: string): string {
   const frameworkLabel =
-    framework === "nextjs" ? "Next.js" : framework === "express" ? "Express" : framework === "fastify" ? "Fastify" : "Node";
+    framework === "nextjs"
+      ? "Next.js"
+      : framework === "express"
+        ? "Express"
+        : framework === "fastify"
+          ? "Fastify"
+          : framework === "remix"
+            ? "Remix"
+            : framework === "fastapi"
+              ? "FastAPI"
+              : "Node";
 
   if (kind === "api-route") {
     return `${frameworkLabel} API route`;

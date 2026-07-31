@@ -3,6 +3,7 @@ import { dirname, extname, isAbsolute, join, relative, resolve } from "node:path
 import { parse } from "@babel/parser";
 import type {
   FileChange,
+  ImpactedRoute,
   SymbolCall,
   SymbolExport,
   SymbolGraphFile,
@@ -18,11 +19,13 @@ import { isSourcePath, isTestPath } from "../classifiers/paths";
 import { listRepoFiles } from "../files/repo";
 import { extractLocalImportSpecifiers, resolveLocalImportSpecifier } from "../imports/graph";
 import { normalizePath } from "../imports/graph/path";
+import { analyzePythonImpactAdapter } from "../python/impact-adapter";
 import { detectRoutesForFile } from "../routes/impact";
 import {
   createJsImpactGraphAdapterResult,
   type JsImpactGraphAdapterResult
 } from "./impact-adapter";
+import { createRemixImpactGraphFragment } from "./remix-impact-adapter";
 
 export const SYMBOL_IMPACT_GRAPH_PATH = ".codedecay/local/symbol-impact-graph.json";
 
@@ -35,6 +38,7 @@ export interface SymbolImpactAnalysis {
   impactGraph: JsImpactGraphAdapterResult["graph"];
   impactGraphSummary: JsImpactGraphAdapterResult["summary"];
   impacts: SymbolImpact[];
+  impactedRoutes: ImpactedRoute[];
   recommendedTests: string[];
 }
 
@@ -57,10 +61,15 @@ export function analyzeSymbolImpacts(rootDir: string, changedSourceFiles: FileCh
   const parsedFiles = parseRepoSymbols(rootDir);
   const graph = createSymbolImpactGraph(parsedFiles);
   const graphWithArtifact = persistSymbolImpactGraph(rootDir, graph);
+  const pythonAnalysis = analyzePythonImpactAdapter(rootDir, changedSourceFiles);
+  const additionalFragments = [createRemixImpactGraphFragment(rootDir), pythonAnalysis.fragment].filter(
+    (fragment): fragment is NonNullable<typeof fragment> => fragment !== undefined
+  );
   const impactGraph = createJsImpactGraphAdapterResult({
     rootDir,
     symbolGraph: graphWithArtifact,
-    routeFiles: parsedFiles.filter((file) => file.isRouteFile).map((file) => file.path)
+    routeFiles: parsedFiles.filter((file) => file.isRouteFile).map((file) => file.path),
+    additionalFragments
   });
   const impacts = findSymbolImpacts({
     rootDir,
@@ -74,8 +83,9 @@ export function analyzeSymbolImpacts(rootDir: string, changedSourceFiles: FileCh
     graphSummary: summarizeSymbolImpactGraph(graphWithArtifact),
     impactGraph: impactGraph.graph,
     impactGraphSummary: impactGraph.summary,
-    impacts,
-    recommendedTests: recommendedTestsForImpacts(impacts)
+    impacts: [...impacts, ...pythonAnalysis.impacts],
+    impactedRoutes: pythonAnalysis.impactedRoutes,
+    recommendedTests: [...recommendedTestsForImpacts(impacts), ...pythonAnalysis.recommendedTests]
   };
 }
 
@@ -90,7 +100,7 @@ export function summarizeSymbolImpactGraph(graph: SymbolImpactGraph): SymbolImpa
 
 function parseRepoSymbols(rootDir: string): ParsedFile[] {
   const repoFiles = listRepoFiles(rootDir).map((file) => normalizePath(file));
-  const sourceFiles = repoFiles.filter(isSourcePath).sort((left, right) => left.localeCompare(right));
+  const sourceFiles = repoFiles.filter(isJsTsSourcePath).sort((left, right) => left.localeCompare(right));
   const repoSourceSet = new Set(sourceFiles);
   const packageEntryPoints = collectPackageEntryPoints(rootDir, repoFiles, repoSourceSet);
   const cached = readCachedAnalyzerArtifacts({
@@ -121,6 +131,10 @@ function parseRepoSymbols(rootDir: string): ParsedFile[] {
     })),
     calls: file.calls
   }));
+}
+
+function isJsTsSourcePath(path: string): boolean {
+  return isSourcePath(path) && SOURCE_EXTENSION_CANDIDATES.includes(extname(path).toLowerCase());
 }
 
 function createSymbolImpactGraph(parsedFiles: ParsedFile[]): SymbolImpactGraph {

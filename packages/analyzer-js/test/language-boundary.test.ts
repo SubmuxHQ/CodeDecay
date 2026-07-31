@@ -16,7 +16,8 @@ describe("analyzer-js language boundary", () => {
       expect.objectContaining({
         language: "python",
         status: "limited",
-        parser: "none"
+        parser: "@lezer/python",
+        capabilities: expect.arrayContaining(["route-impact"])
       })
     );
   });

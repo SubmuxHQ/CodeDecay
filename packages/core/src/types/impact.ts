@@ -8,7 +8,7 @@ export interface ImpactedArea {
 }
 
 export interface ImpactedRoute {
-  framework: "nextjs" | "express" | "fastify" | "node";
+  framework: "nextjs" | "express" | "fastify" | "node" | "remix" | "fastapi";
   kind: "ui-route" | "api-route" | "middleware" | "route-handler";
   route: string;
   methods: string[];

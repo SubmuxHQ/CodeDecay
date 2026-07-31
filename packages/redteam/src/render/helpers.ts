@@ -43,6 +43,14 @@ export function routeKindLabel(route: ImpactedRoute): string {
     return "Fastify route handler";
   }
 
+  if (route.framework === "remix") {
+    return "Remix route";
+  }
+
+  if (route.framework === "fastapi") {
+    return "FastAPI route";
+  }
+
   return "Node route handler";
 }
 

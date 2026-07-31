@@ -8,10 +8,10 @@ adapter supplied each relationship, and how certain that relationship is.
 This contract is orchestration infrastructure. It does not replace the existing
 JavaScript/TypeScript symbol graph or change risk scoring.
 
-## Current Adapter
+## Current Adapters
 
-The first adapter bridges CodeDecay's existing Babel-backed JavaScript and
-TypeScript symbol graph:
+The JavaScript/TypeScript adapter bridges CodeDecay's existing Babel-backed
+symbol graph:
 
 ```text
 adapter: codedecay-js-babel-symbols
@@ -31,10 +31,58 @@ Its limitations are reported with the graph:
 - dynamic imports and runtime dependency injection are not resolved,
 - call expressions are not connected to target symbols yet.
 
-Python and additional framework adapters remain follow-up work under
-[#668](https://github.com/SubmuxHQ/CodeDecay/issues/668). An unavailable
-optional adapter must report its capabilities and limitations without installing
-anything or running commands, network requests, telemetry, or model calls.
+The Remix file-route adapter maps Remix route modules into UI route evidence:
+
+```text
+adapter: codedecay-remix-file-routes
+source tool: remix-route-conventions
+artifact: .codedecay/local/impact-graph.json
+```
+
+It emits UI file nodes, route nodes, and `serves` edges for files under
+`app/routes` or `src/app/routes`. Loader exports map to `GET`, action exports
+map to `POST`, and dynamic `$param` route segments map to `:param` labels.
+The adapter does not execute Remix, read a generated manifest, or treat custom
+route configuration as proven behavior.
+
+The Python adapter uses the open-source Lezer Python grammar:
+
+```text
+adapter: codedecay-python-lezer
+source tool: @lezer/python
+source tool version: 1.1.19
+artifact: .codedecay/local/impact-graph.json
+```
+
+It emits Python file, API, route, test, and symbol nodes plus `contains`,
+`imports`, `tests`, and `serves` edges. It detects exported functions/classes,
+static imports, literal route decorators such as `@router.post("/path")`, and
+tests that statically import changed symbols. Static test imports remain
+limited evidence: they do not prove execution, assertions, database paths, or
+real API behavior.
+
+An unavailable optional adapter must report its capabilities and limitations
+without installing anything or running commands, network requests, telemetry,
+or model calls.
+
+## OSS-First Selection
+
+Adapter choices are intentionally replaceable:
+
+- `@lezer/python` was selected for the first Python adapter because it is an
+  in-process OSS grammar with no subprocess, hidden install, network, model
+  call, or Python runtime requirement.
+- Python `ast` was deferred because invoking it would require a Python
+  subprocess boundary and execution policy design.
+- Tree-sitter-based adapters remain a good future direction, but the first
+  implementation avoids native-install and packaging complexity.
+- Remix file-route conventions were selected before route-manifest execution
+  because they provide deterministic framework evidence without running a
+  build, server, or user project command.
+
+Adapters should continue to prefer existing OSS parsers, manifests, or tool
+outputs over weaker custom engines. Custom CodeDecay logic should normalize
+that evidence, preserve provenance, and explain limitations.
 
 ## Contract Shape
 
