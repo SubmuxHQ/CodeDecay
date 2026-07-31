@@ -1,8 +1,14 @@
 import {
   createAgentPreflightReport,
   createAgentTaskBundle,
+  finishAgentSession,
+  loadAgentSession,
+  recordAgentSessionCheckpoint,
+  refreshAgentSessionContext,
   renderAgentPreflightReport,
-  renderAgentTaskBundle
+  renderAgentSessionResult,
+  renderAgentTaskBundle,
+  startAgentSession
 } from "@submuxhq/codedecay-agent";
 import { listRepoFiles } from "@submuxhq/codedecay-analyzer-js";
 import { loadCodeDecayConfig } from "@submuxhq/codedecay-config";
@@ -24,6 +30,7 @@ import type { StartMcpServerOptions } from "../server/types";
 import type {
   AgentPreflightToolInput,
   AgentInvestigationToolInput,
+  AgentSessionToolInput,
   AgentTaskBundleToolInput,
   AnalyzePrToolInput,
   McpToolInput,
@@ -231,6 +238,106 @@ export function runAgentPreflightTool(serverOptions: StartMcpServerOptions, inpu
   return renderAgentPreflightReport(report, input.format ?? "markdown");
 }
 
+export function runAgentSessionTool(serverOptions: StartMcpServerOptions, input: AgentSessionToolInput): string {
+  const rootDir = getRepoRoot(input.cwd ?? serverOptions.cwd);
+  if (input.operation === "start") {
+    const task = input.task?.trim();
+    if (!task) {
+      throw new Error("agent_session start requires task.");
+    }
+
+    const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
+    const loadedMemory = loadCodeDecayMemory(rootDir);
+    const result = startAgentSession({
+      rootDir,
+      sessionId: input.sessionId,
+      task,
+      requirements: input.requirements,
+      requirementSource: {
+        id: "mcp-agent-session-input",
+        kind: "integration",
+        label: "MCP agent_session input"
+      },
+      repoFiles: listRepoFiles(rootDir),
+      config: loadedConfig.config,
+      configSource: loadedConfig.sourcePath,
+      memory: loadedMemory.memory,
+      memorySource: loadedMemory.sourcePath,
+      profile: input.profile ?? "generic",
+      maxContextNodes: input.maxNodes,
+      maxPromptChars: input.maxPromptChars
+    });
+    return renderAgentSessionResult(result, input.format ?? "markdown");
+  }
+
+  if (!input.sessionId?.trim()) {
+    throw new Error(`agent_session ${input.operation} requires sessionId.`);
+  }
+
+  if (input.operation === "context") {
+    const session = loadAgentSession(rootDir, input.sessionId);
+    const context = createAnalysisContext(serverOptions, input);
+    const report = {
+      ...context.report,
+      requirements: session.requirements,
+      requirementTrace: createRequirementTrace({ requirements: session.requirements, report: context.report })
+    };
+    const taskContext = createEngineeringTaskContext({
+      rootDir,
+      task: session.task,
+      report,
+      requirements: session.requirements,
+      impactGraph: loadImpactGraphArtifact(rootDir, report.impactGraph?.artifactPath),
+      memory: context.loadedMemory.memory,
+      config: context.loadedConfig.config,
+      repoFiles: listRepoFiles(rootDir),
+      maxNodes: input.maxNodes ?? session.budgets.maxContextNodes
+    });
+    persistEngineeringTaskContext(rootDir, taskContext);
+    const result = refreshAgentSessionContext({
+      rootDir,
+      sessionId: session.id,
+      evidence: {
+        kind: "task-context",
+        label: "Bounded task context refresh",
+        summary: [
+          `${taskContext.summary.selectedNodes} selected node(s)`,
+          `${taskContext.summary.currentRevisionFacts} current fact(s)`,
+          `${taskContext.summary.staleContext} stale context node(s)`
+        ].join(", "),
+        artifactPath: taskContext.artifactPath ?? ".codedecay/local/task-context.json"
+      }
+    });
+    return renderAgentSessionResult(result, input.format ?? "markdown");
+  }
+
+  if (input.operation === "checkpoint") {
+    const evidence = input.checkpointKind === "diff"
+      ? [createAgentSessionReportEvidence(serverOptions, input)]
+      : [];
+    const result = recordAgentSessionCheckpoint({
+      rootDir,
+      sessionId: input.sessionId,
+      kind: input.checkpointKind ?? "plan",
+      summary: input.summary,
+      agentText: input.agentOutput,
+      evidence
+    });
+    return renderAgentSessionResult(result, input.format ?? "markdown");
+  }
+
+  const loadedConfig = loadCodeDecayConfig({ cwd: rootDir });
+  const result = finishAgentSession({
+    rootDir,
+    sessionId: input.sessionId,
+    config: loadedConfig.config,
+    summary: input.summary,
+    agentText: input.agentOutput,
+    evidence: [createAgentSessionReportEvidence(serverOptions, input)]
+  });
+  return renderAgentSessionResult(result, input.format ?? "markdown");
+}
+
 export function runTaskContextTool(serverOptions: StartMcpServerOptions, input: TaskContextToolInput): string {
   const task = input.task.trim();
   if (!task) {
@@ -274,4 +381,18 @@ export function runTaskContextTool(serverOptions: StartMcpServerOptions, input: 
 
 function createReport(serverOptions: StartMcpServerOptions, input: McpToolInput): CodeDecayReport {
   return createAnalysisContext(serverOptions, input).report;
+}
+
+function createAgentSessionReportEvidence(serverOptions: StartMcpServerOptions, input: AgentSessionToolInput) {
+  const report = createReport(serverOptions, input);
+  return {
+    kind: "redteam-report" as const,
+    label: "Current-tree deterministic analysis",
+    summary: [
+      `risk ${report.summary.riskLevel}`,
+      `${report.changedFiles.length} changed file(s)`,
+      `${report.findings.length} finding(s)`,
+      `${report.recommendedTests.length} recommended check(s)`
+    ].join(", ")
+  };
 }

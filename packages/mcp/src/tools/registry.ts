@@ -5,6 +5,7 @@ import { registerProductMcpTools } from "./register-product";
 import type {
   AgentPreflightToolInput,
   AgentInvestigationToolInput,
+  AgentSessionToolInput,
   AgentTaskBundleToolInput,
   AnalyzePrToolInput,
   DesignContractCheckToolInput,
@@ -30,6 +31,7 @@ export interface CodeDecayMcpToolHandlers {
   redteamReport(input: AnalyzePrToolInput): string | Promise<string>;
   agentTaskBundle(input: AgentTaskBundleToolInput): string | Promise<string>;
   agentPreflight(input: AgentPreflightToolInput): string | Promise<string>;
+  agentSession(input: AgentSessionToolInput): string | Promise<string>;
   taskContext(input: TaskContextToolInput): string | Promise<string>;
   agentInvestigation(input: AgentInvestigationToolInput): string | Promise<string>;
   scopeCheck(input: ScopeCheckToolInput): string | Promise<string>;

@@ -1,8 +1,14 @@
 # Agent Task Bundles
 
-`codedecay ai` is the recommended workflow for turning CodeDecay evidence into
-a Codex-ready task bundle. `codedecay agent` remains the lower-level equivalent
-with a generic profile default.
+`codedecay session` is the recommended AI-native workflow when a coding agent
+needs guidance before editing, during partial work, and at final verification.
+It creates a durable `.codedecay/local/agent-sessions/<id>.json` artifact that
+keeps the task, requirements, base revision, context evidence, checkpoints, and
+proof obligations together.
+
+`codedecay ai` is still the recommended one-shot workflow for turning CodeDecay
+evidence into a Codex-ready task bundle. `codedecay agent` remains the
+lower-level equivalent with a generic profile default.
 
 Use it when you want Codex, Claude Code, Cursor, Pi, OpenCode, a desktop agent,
 or another local agent to fix what CodeDecay found without CodeDecay making a
@@ -14,6 +20,10 @@ during implementation. Use `codedecay agent` or `codedecay ai` when you want the
 full handoff bundle with fix tasks after analysis.
 
 ```bash
+npx codedecay session start --session users-export --task "Add a GET /api/users export endpoint"
+npx codedecay session context --session users-export --format markdown
+npx codedecay session checkpoint --session users-export --kind diff --summary "Export route implemented"
+npx codedecay session finish --session users-export --format markdown
 npx codedecay ai preflight --task "Add a GET /api/users export endpoint" --format markdown
 npx codedecay context --task "Add a GET /api/users export endpoint" --format markdown
 npx codedecay ai --base main --head HEAD --format markdown
@@ -29,6 +39,43 @@ npx codedecay agent --cwd ../my-repo --format json --output codedecay-agent.json
 only the configured local/BYOK provider, while `--with-checks` explicitly runs
 configured commands and adapters through CodeDecay safety policy. The bundle
 records whether either action occurred and includes verification evidence.
+
+## Continuous Agent Sessions
+
+Use `codedecay session` when an agent is going to work across multiple prompts
+or tool calls. The lifecycle is:
+
+1. `session start`: create the stable session with task requirements, base
+   revision, preflight guidance, local memory, design constraints, and proof
+   expectations. It does not require a git diff.
+2. `session context`: refresh bounded task context from current repository
+   evidence and write `.codedecay/local/task-context.json`. If files changed
+   since the last session observation, CodeDecay marks the session stale and
+   asks for a checkpoint.
+3. `session checkpoint`: record a plan or diff checkpoint. Agent-authored
+   summaries are redacted and stored as untrusted data.
+4. `session finish`: record the current tree and return a verification boundary
+   with allowed configured checks and acceptance criteria that still need proof.
+
+Example:
+
+```bash
+npx codedecay session start \
+  --session billing-retry \
+  --task "Allow finance admins to retry failed payouts" \
+  --requirements .codedecay/requirements.yml
+
+npx codedecay session context --session billing-retry --format json --max-nodes 16
+npx codedecay session checkpoint --session billing-retry --kind plan --summary "Plan is ready"
+npx codedecay session checkpoint --session billing-retry --kind diff --summary "Retry route implemented"
+npx codedecay session finish --session billing-retry --format markdown
+```
+
+Session operations do not call models, run configured commands, use network
+access, send telemetry, install tools, commit, push, or silently overwrite an
+existing session id. Run verification explicitly with `codedecay execute`,
+`codedecay differential`, `codedecay ai --with-checks`, or your project test
+commands after reviewing the finish boundary.
 
 ## Preflight Before Code Generation
 

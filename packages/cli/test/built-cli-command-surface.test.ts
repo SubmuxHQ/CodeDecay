@@ -81,6 +81,11 @@ describe("built codedecay CLI command surface", () => {
     expect(contextHelp.stdout).toContain("CodeDecay context");
     expect(contextHelp.stdout).toContain("--max-nodes <n>");
 
+    const sessionHelp = runBuilt(["session", "--help"]);
+    expect(sessionHelp.status).toBe(0);
+    expect(sessionHelp.stdout).toContain("CodeDecay session");
+    expect(sessionHelp.stdout).toContain("checkpoint");
+
     const productHelp = runBuilt(["product", "--help"]);
     expect(productHelp.status).toBe(0);
     expect(productHelp.stdout).toContain("CodeDecay product");

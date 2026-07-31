@@ -17,4 +17,5 @@ export * from "./memory";
 export * from "./product";
 export * from "./redteam";
 export * from "./revalidate";
+export * from "./session";
 export * from "./snapshot";

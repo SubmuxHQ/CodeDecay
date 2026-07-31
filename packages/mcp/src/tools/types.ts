@@ -1,4 +1,4 @@
-import type { AgentProfileId } from "@submuxhq/codedecay-agent";
+import type { AgentProfileId, AgentSessionCheckpointKind } from "@submuxhq/codedecay-agent";
 import type {
   ImpactedArea,
   ProductCheckKind,
@@ -37,6 +37,21 @@ export interface TaskContextToolInput extends McpToolInput {
   requirements?: RequirementContextInput | undefined;
   format?: "markdown" | "json" | undefined;
   maxNodes?: number | undefined;
+}
+
+export interface AgentSessionToolInput {
+  cwd?: string | undefined;
+  operation: "start" | "context" | "checkpoint" | "finish";
+  sessionId?: string | undefined;
+  task?: string | undefined;
+  requirements?: RequirementContextInput | undefined;
+  format?: "markdown" | "json" | undefined;
+  profile?: AgentProfileId | undefined;
+  maxNodes?: number | undefined;
+  maxPromptChars?: number | undefined;
+  checkpointKind?: Exclude<AgentSessionCheckpointKind, "finish"> | undefined;
+  summary?: string | undefined;
+  agentOutput?: string | undefined;
 }
 
 export interface ScopeCheckToolInput extends McpToolInput {

@@ -4,6 +4,7 @@ import { CODEDECAY_VERSION } from "@submuxhq/codedecay-core";
 import {
   runAgentPreflightTool,
   runAgentInvestigationTool,
+  runAgentSessionTool,
   runAgentTaskBundleTool,
   runAnalyzePrTool,
   runAuditTestsTool,
@@ -33,6 +34,7 @@ export type { StartMcpServerOptions } from "./server/types";
 export {
   runAgentPreflightTool,
   runAgentInvestigationTool,
+  runAgentSessionTool,
   runAgentTaskBundleTool,
   runAnalyzePrTool,
   runAuditTestsTool,
@@ -78,6 +80,7 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
     redteamReport: (input) => runRedteamReportTool(options, input),
     agentTaskBundle: (input) => runAgentTaskBundleTool(options, input),
     agentPreflight: (input) => runAgentPreflightTool(options, input),
+    agentSession: (input) => runAgentSessionTool(options, input),
     taskContext: (input) => runTaskContextTool(options, input),
     agentInvestigation: (input) => runAgentInvestigationTool(options, input),
     scopeCheck: (input) => runScopeCheckTool(options, input),
