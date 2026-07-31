@@ -8,8 +8,14 @@ Use it when you want Codex, Claude Code, Cursor, Pi, OpenCode, a desktop agent,
 or another local agent to fix what CodeDecay found without CodeDecay making a
 hidden model call.
 
+Use `codedecay context` when the agent needs a bounded, task-scoped slice of
+routes, files, tests, ADRs, memory, ownership, and proof references before or
+during implementation. Use `codedecay agent` or `codedecay ai` when you want the
+full handoff bundle with fix tasks after analysis.
+
 ```bash
 npx codedecay ai preflight --task "Add a GET /api/users export endpoint" --format markdown
+npx codedecay context --task "Add a GET /api/users export endpoint" --format markdown
 npx codedecay ai --base main --head HEAD --format markdown
 npx codedecay ai --profile claude-code --format markdown
 npx codedecay ai --with-checks --base main --head HEAD --format markdown

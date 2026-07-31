@@ -3,6 +3,7 @@ export { parseAiArgs } from "./ai";
 export { parseAnalyzeArgs } from "./analyze";
 export { parseBenchmarkArgs } from "./benchmark";
 export { parseConfigArgs } from "./config";
+export { parseContextArgs } from "./context";
 export { parseDashboardArgs } from "./dashboard";
 export { parseDifferentialArgs } from "./differential";
 export { parseDoctorArgs } from "./doctor";

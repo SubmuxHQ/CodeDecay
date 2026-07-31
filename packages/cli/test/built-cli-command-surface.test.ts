@@ -76,6 +76,11 @@ describe("built codedecay CLI command surface", () => {
     expect(aiHelp.stdout).toContain("--profile <profile>");
     expect(aiHelp.stdout).toContain("--with-checks");
 
+    const contextHelp = runBuilt(["context", "--help"]);
+    expect(contextHelp.status).toBe(0);
+    expect(contextHelp.stdout).toContain("CodeDecay context");
+    expect(contextHelp.stdout).toContain("--max-nodes <n>");
+
     const productHelp = runBuilt(["product", "--help"]);
     expect(productHelp.status).toBe(0);
     expect(productHelp.stdout).toContain("CodeDecay product");
@@ -190,6 +195,139 @@ describe("built codedecay CLI command surface", () => {
     expect(mcpHelp.status).toBe(0);
     expect(mcpHelp.stdout).toContain("CodeDecay mcp");
     expect(mcpHelp.stdout).toContain("--cwd <path>");
+  });
+
+  it("retrieves task-scoped context from the built CLI without model or command execution", () => {
+    const repo = createRepo({
+      "src/app/api/billing/payouts/retry/route.ts": [
+        "import { settlePayoutRetry } from '../../../../../billing/payouts';",
+        "",
+        "export async function POST() {",
+        "  return Response.json(settlePayoutRetry('pay_1'));",
+        "}",
+        ""
+      ].join("\n"),
+      "src/billing/payouts.ts": [
+        "export function settlePayoutRetry(id: string): { id: string; status: string } {",
+        "  return { id, status: 'queued' };",
+        "}",
+        ""
+      ].join("\n"),
+      "tests/payout-retry.test.ts": [
+        "import { settlePayoutRetry } from '../src/billing/payouts';",
+        "",
+        "test('queues payout retry', () => {",
+        "  expect(settlePayoutRetry('pay_1').status).toBe('queued');",
+        "});",
+        ""
+      ].join("\n"),
+      "docs/adr/0004-payout-retry.md": [
+        "# ADR 0004: Finance payout retry",
+        "",
+        "Finance admin payout retries must be idempotent and use the retry route."
+      ].join("\n"),
+      "docs/api-tooling.md": "# API retry tooling\n\nGeneric API retry helper notes.",
+      ".github/CODEOWNERS": "/src/billing/ @submuxhq/finance-platform\n",
+      "package.json": JSON.stringify({ name: "billing-context-demo", private: true }, null, 2)
+    });
+    writeFile(
+      repo,
+      ".codedecay/memory.json",
+      JSON.stringify(
+        {
+          version: 1,
+          flows: [
+            {
+              name: "Finance admin payout retry",
+              description: "Finance admins retry failed payouts through the billing API.",
+              productPaths: ["/api/billing/payouts/retry"]
+            }
+          ],
+          commands: [],
+          invariants: [
+            {
+              name: "Payout retry idempotency",
+              description: "Repeated retry requests must not enqueue duplicate transfers.",
+              severity: "high",
+              productPaths: ["/api/billing/payouts/retry"]
+            }
+          ],
+          architecture: [
+            {
+              title: "Deprecated payout retry v1",
+              note: "Deprecated and superseded by ADR 0004; keep visible as stale context only.",
+              files: ["src/billing/legacy-retry.ts"]
+            }
+          ],
+          regressions: [
+            {
+              title: "Duplicate payout retry transfer",
+              description: "A previous retry route enqueued duplicate transfer jobs.",
+              severity: "high",
+              files: ["src/billing/payouts.ts"]
+            }
+          ]
+        },
+        null,
+        2
+      )
+    );
+    writeFile(
+      repo,
+      "src/billing/payouts.ts",
+      [
+        "export function settlePayoutRetry(id: string): { id: string; status: string; retriedAt: string } {",
+        "  return { id, status: 'queued', retriedAt: new Date().toISOString() };",
+        "}",
+        ""
+      ].join("\n")
+    );
+
+    const result = runBuilt([
+      "context",
+      "--cwd",
+      repo,
+      "--task",
+      "allow finance admins to retry failed payouts",
+      "--format",
+      "json",
+      "--max-nodes",
+      "18"
+    ]);
+
+    expect(result.status).toBe(0);
+    const output = JSON.parse(result.stdout) as {
+      safety: {
+        llmCalled: boolean;
+        commandsExecuted: boolean;
+        telemetrySent: boolean;
+        cloudDependency: boolean;
+        memoryTrustedAsFact: boolean;
+      };
+      graph: { nodes: Array<{ id: string; trustClass: string; limitations: string[] }> };
+    };
+    const nodeIds = output.graph.nodes.map((node) => node.id);
+    expect(output.safety).toEqual({
+      llmCalled: false,
+      commandsExecuted: false,
+      telemetrySent: false,
+      cloudDependency: false,
+      memoryTrustedAsFact: false
+    });
+    expect(nodeIds).toEqual(
+      expect.arrayContaining([
+        "route:post:/api/billing/payouts/retry",
+        "file:tests/payout-retry.test.ts",
+        "document:docs/adr/0004-payout-retry.md",
+        "memory:regression:duplicate-payout-retry-transfer"
+      ])
+    );
+    expect(nodeIds).not.toContain("document:docs/api-tooling.md");
+    expect(output.graph.nodes.find((node) => node.id === "memory:architecture:deprecated-payout-retry-v1")).toMatchObject({
+      trustClass: "stale-context",
+      limitations: expect.arrayContaining([expect.stringMatching(/cannot be trusted as current fact/i)])
+    });
+    expect(existsSync(join(repo, ".codedecay/local/task-context.json"))).toBe(true);
   });
 
   it("keeps doctor JSON stdout parseable when writing a config preview from the built CLI", () => {

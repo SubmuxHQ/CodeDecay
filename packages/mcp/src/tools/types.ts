@@ -32,6 +32,13 @@ export interface AgentPreflightToolInput {
   format?: "markdown" | "json" | undefined;
 }
 
+export interface TaskContextToolInput extends McpToolInput {
+  task: string;
+  requirements?: RequirementContextInput | undefined;
+  format?: "markdown" | "json" | undefined;
+  maxNodes?: number | undefined;
+}
+
 export interface ScopeCheckToolInput extends McpToolInput {
   task?: string | undefined;
   fence?: string | undefined;

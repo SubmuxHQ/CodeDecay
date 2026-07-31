@@ -4,6 +4,7 @@ export * from "./analyze";
 export * from "./benchmark";
 export * from "./common";
 export * from "./config";
+export * from "./context";
 export * from "./dashboard";
 export * from "./differential";
 export * from "./doctor";
