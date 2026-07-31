@@ -22,6 +22,7 @@ const JS_TS_CAPABILITIES: LanguageParserCapability[] = [
 const LIMITED_CAPABILITIES: LanguageParserCapability[] = [
   "path-classification",
   "diff-line-analysis",
+  "route-impact",
   "runtime-coverage",
   "test-audit"
 ];
@@ -58,9 +59,9 @@ export function classifyLanguageSupport(path: string): LanguageFileSupport {
       path,
       language: "python",
       status: "limited",
-      parser: "none",
+      parser: "@lezer/python",
       capabilities: LIMITED_CAPABILITIES,
-      limitation: "Python files use path, diff, coverage, and test-audit signals until a Python parser adapter is added."
+      limitation: "Python files use a conservative @lezer/python adapter for imports, symbols, route decorators, coverage, and test-audit signals."
     };
   }
 

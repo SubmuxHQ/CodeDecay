@@ -35,9 +35,10 @@ export function createJsImpactGraphAdapterResult(input: {
   rootDir: string;
   symbolGraph: SymbolImpactGraph;
   routeFiles: string[];
+  additionalFragments?: ImpactGraphFragment[] | undefined;
 }): JsImpactGraphAdapterResult {
   const fragment = createJsImpactGraphFragment(input.symbolGraph, new Set(input.routeFiles));
-  const normalized = normalizeImpactGraphFragments([fragment]);
+  const normalized = normalizeImpactGraphFragments([fragment, ...(input.additionalFragments ?? [])]);
   const graph = persistImpactGraph(input.rootDir, normalized);
 
   return {

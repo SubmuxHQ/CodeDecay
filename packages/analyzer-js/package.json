@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@babel/parser": "^7.27.5",
+    "@lezer/python": "1.1.19",
     "@submuxhq/codedecay-core": "workspace:*",
     "@submuxhq/codedecay-matchers": "workspace:*"
   },
