@@ -15,6 +15,7 @@ import {
   runRedteamReportTool,
   runScopeCheckTool,
   runSuggestEdgeCasesTool,
+  runTaskContextTool,
   runToolRecommendationsTool,
   runWhatDidIMissTool
 } from "./handlers/analysis";
@@ -43,6 +44,7 @@ export {
   runRedteamReportTool,
   runScopeCheckTool,
   runSuggestEdgeCasesTool,
+  runTaskContextTool,
   runToolRecommendationsTool,
   runWhatDidIMissTool
 } from "./handlers/analysis";
@@ -76,6 +78,7 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
     redteamReport: (input) => runRedteamReportTool(options, input),
     agentTaskBundle: (input) => runAgentTaskBundleTool(options, input),
     agentPreflight: (input) => runAgentPreflightTool(options, input),
+    taskContext: (input) => runTaskContextTool(options, input),
     agentInvestigation: (input) => runAgentInvestigationTool(options, input),
     scopeCheck: (input) => runScopeCheckTool(options, input),
     designContractCheck: (input) => runDesignContractCheckTool(options, input),

@@ -48,6 +48,7 @@ export default defineConfig({
       { text: "Start", link: "/getting-started" },
       { text: "GitHub Action", link: "/github-action" },
       { text: "Redteam", link: "/redteam" },
+      { text: "Context", link: "/context" },
       { text: "MCP", link: "/mcp" },
       { text: "Hackathon", link: "/hackathon/" },
       { text: "AI Bundle", link: `${base}llms.txt` }
@@ -74,6 +75,7 @@ export default defineConfig({
         items: [
           { text: "Configuration", link: "/configuration" },
           { text: "Redteam Reports", link: "/redteam" },
+          { text: "Task-Scoped Context", link: "/context" },
           { text: "Agent Task Bundles", link: "/agent" },
           { text: "Requirement Traceability", link: "/requirement-trace" },
           { text: "Closed-Loop Orchestration", link: "/loop" },

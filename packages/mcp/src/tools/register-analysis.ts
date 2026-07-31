@@ -9,7 +9,8 @@ import {
   designContractCheckToolSchema,
   fixTasksToolSchema,
   gitContextToolSchema,
-  scopeCheckToolSchema
+  scopeCheckToolSchema,
+  taskContextToolSchema
 } from "./schemas";
 import type {
   AgentPreflightToolInput,
@@ -21,6 +22,7 @@ import type {
   McpToolInput,
   RegressionSurfaceToolInput,
   ScopeCheckToolInput,
+  TaskContextToolInput,
   WhatDidIMissToolInput
 } from "./types";
 
@@ -93,6 +95,13 @@ export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayM
     "Return deterministic before-coding guidance for a user-owned coding agent from repo paths, local config, design contracts, and memory. Does not require a git diff, execute commands, or call models.",
     agentPreflightToolSchema,
     async (input) => textResult(handlers.agentPreflight(input as AgentPreflightToolInput))
+  );
+
+  server.tool(
+    "task_context",
+    "Return bounded task-scoped engineering context with stable evidence IDs, provenance, trust class, freshness, and relevance explanations. Does not execute commands, call models, or use network access.",
+    taskContextToolSchema,
+    async (input) => textResult(handlers.taskContext(input as TaskContextToolInput))
   );
 
   server.tool(

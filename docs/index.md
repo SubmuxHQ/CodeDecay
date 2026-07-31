@@ -42,6 +42,7 @@ features:
 - [Getting Started](/getting-started): install the CLI and run your first PR analysis
 - [GitHub Action](/github-action): add CodeDecay to pull request workflows
 - [Redteam Reports](/redteam): generate merge-safety reports for yourself or your coding agent
+- [Task-Scoped Context](/context): retrieve bounded route, file, test, memory, ADR, owner, and proof context for one task
 - [Closed-Loop Orchestration](/loop): drive a user-owned agent through fix and re-verify rounds
 - [Editor Workflows](/editor-workflows): surface JSON and SARIF findings in VS Code or other local tools before opening a PR
 - [Trend Snapshots](/trend-snapshots): persist repository health snapshots and compare them over time without a hosted dashboard

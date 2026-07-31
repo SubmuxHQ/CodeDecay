@@ -3,6 +3,7 @@ import { runAiCommand as runAiCommandWithDependencies } from "./ai";
 import { runAnalyzeCommand as runAnalyzeCommandWithDependencies } from "./analyze";
 import { runBenchmarkCommand as runBenchmarkCommandWithDependencies } from "./benchmark";
 import { runConfigCommand } from "./config";
+import { runContextCommand as runContextCommandWithDependencies } from "./context";
 import { runDashboardCommand as runDashboardCommandWithDependencies } from "./dashboard";
 import { runDifferentialCommand as runDifferentialCommandWithDependencies } from "./differential";
 import { runDoctorCommand as runDoctorCommandWithDependencies } from "./doctor";
@@ -57,6 +58,11 @@ export function createCommandHandlers(options: CommandRegistryOptions): Record<s
       writeOutput: writeCliOutput
     }),
     config: runConfigCommand,
+    context: (context) => runContextCommandWithDependencies(context, {
+      createAnalysisContext: createAnalysisContextForCli,
+      resolveRepoRoot: getRepoRootForCli,
+      writeOutput: writeCliOutput
+    }),
     dashboard: (context) => runDashboardCommandWithDependencies(context, {
       resolveRepoRoot: getRepoRootForCli
     }),

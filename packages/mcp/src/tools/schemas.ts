@@ -94,6 +94,16 @@ export const agentPreflightToolSchema = {
   format: formatSchema
 };
 
+export const taskContextToolSchema = {
+  cwd: cwdSchema,
+  base: baseSchema,
+  head: headSchema,
+  task: z.string().min(1).describe("Task/change description used for deterministic context retrieval."),
+  requirements: requirementContextSchema.optional().describe("Structured acceptance criteria and product-flow context."),
+  format: formatSchema,
+  maxNodes: z.number().int().positive().optional().describe("Maximum selected context nodes.")
+};
+
 export const scopeCheckToolSchema = {
   cwd: cwdSchema,
   base: baseSchema,

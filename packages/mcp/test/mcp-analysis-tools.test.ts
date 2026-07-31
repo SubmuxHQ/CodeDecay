@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   createCodeDecayMcpServer,
@@ -13,6 +15,7 @@ import {
   runProductRunTool,
   runRedteamReportTool,
   runSuggestEdgeCasesTool,
+  runTaskContextTool,
   runToolRecommendationsTool
 } from "../src/index";
 import {
@@ -87,6 +90,45 @@ describe("CodeDecay MCP analysis tools", () => {
       ]
     });
     expect(output.impactGraph).toEqual(analysis.impactGraph);
+  });
+
+  it("returns task-scoped context with provenance, trust, and persisted artifact", () => {
+    const repo = createRouteImpactRepo();
+
+    const output = JSON.parse(runTaskContextTool({ cwd: repo }, {
+      task: "update users API and dashboard context",
+      format: "json",
+      maxNodes: 12
+    }));
+
+    expect(output.safety).toMatchObject({
+      llmCalled: false,
+      commandsExecuted: false,
+      telemetrySent: false,
+      cloudDependency: false,
+      memoryTrustedAsFact: false
+    });
+    expect(output.graph.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "route:get|post:/api/users",
+          kind: "api",
+          trustClass: "current-revision-fact",
+          provenance: expect.arrayContaining([
+            expect.objectContaining({ kind: expect.stringMatching(/tool-evidence|impact-graph/) })
+          ])
+        }),
+        expect.objectContaining({
+          id: "file:src/app/dashboard/page.tsx",
+          kind: "file"
+        })
+      ])
+    );
+    expect(output.selected[0]).toMatchObject({
+      rank: 1,
+      reasons: expect.arrayContaining([expect.stringMatching(/Matched task term/i)])
+    });
+    expect(existsSync(join(repo, ".codedecay/local/task-context.json"))).toBe(true);
   });
 
   it("returns weak-test audit findings", () => {

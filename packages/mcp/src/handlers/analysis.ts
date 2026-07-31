@@ -6,8 +6,14 @@ import {
 } from "@submuxhq/codedecay-agent";
 import { listRepoFiles } from "@submuxhq/codedecay-analyzer-js";
 import { loadCodeDecayConfig } from "@submuxhq/codedecay-config";
-import type { CodeDecayReport } from "@submuxhq/codedecay-core";
+import { createRequirementTrace, normalizeRequirementContext, type CodeDecayReport } from "@submuxhq/codedecay-core";
 import { getRepoRoot } from "@submuxhq/codedecay-git";
+import {
+  createEngineeringTaskContext,
+  loadImpactGraphArtifact,
+  persistEngineeringTaskContext,
+  renderEngineeringTaskContextMarkdown
+} from "@submuxhq/codedecay-knowledge";
 import { loadCodeDecayMemory } from "@submuxhq/codedecay-memory";
 import { createLlmProvider } from "@submuxhq/codedecay-llm";
 import { matchPatternIntelligence, renderRedteamReport } from "@submuxhq/codedecay-redteam";
@@ -20,7 +26,8 @@ import type {
   AgentInvestigationToolInput,
   AgentTaskBundleToolInput,
   AnalyzePrToolInput,
-  McpToolInput
+  McpToolInput,
+  TaskContextToolInput
 } from "../tools/types";
 import { createAnalysisContext, createMcpRedteamReport } from "./analysis/context";
 import {
@@ -222,6 +229,47 @@ export function runAgentPreflightTool(serverOptions: StartMcpServerOptions, inpu
   });
 
   return renderAgentPreflightReport(report, input.format ?? "markdown");
+}
+
+export function runTaskContextTool(serverOptions: StartMcpServerOptions, input: TaskContextToolInput): string {
+  const task = input.task.trim();
+  if (!task) {
+    throw new Error("task_context requires task.");
+  }
+
+  const context = createAnalysisContext(serverOptions, input);
+  const requirements = normalizeRequirementContext({
+    task,
+    context: input.requirements,
+    source: {
+      id: "mcp-input",
+      kind: "integration",
+      label: "MCP task_context input"
+    }
+  });
+  const report = {
+    ...context.report,
+    requirements,
+    requirementTrace: createRequirementTrace({ requirements, report: context.report })
+  };
+  const taskContext = createEngineeringTaskContext({
+    rootDir: context.rootDir,
+    task,
+    report,
+    requirements,
+    impactGraph: loadImpactGraphArtifact(context.rootDir, report.impactGraph?.artifactPath),
+    memory: context.loadedMemory.memory,
+    config: context.loadedConfig.config,
+    repoFiles: listRepoFiles(context.rootDir),
+    maxNodes: input.maxNodes
+  });
+  persistEngineeringTaskContext(context.rootDir, taskContext);
+
+  if ((input.format ?? "markdown") === "json") {
+    return JSON.stringify(taskContext, null, 2);
+  }
+
+  return renderEngineeringTaskContextMarkdown(taskContext);
 }
 
 function createReport(serverOptions: StartMcpServerOptions, input: McpToolInput): CodeDecayReport {

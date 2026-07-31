@@ -67,6 +67,12 @@ runs CodeDecay locally and passes the repository path with `--cwd`.
   git diff, execute commands, or call models. Use it to give Codex, Claude Code,
   Cursor, or another agent likely files/routes, constraints, and expected proof
   before implementation starts.
+- `task_context`: returns a bounded task-scoped engineering context packet with
+  stable evidence IDs, ranked relevance explanations, provenance, trust class,
+  freshness, limitations, and selected graph edges. It reads existing
+  CodeDecay evidence, docs/ADRs, CODEOWNERS, memory, config, and package
+  manifests without executing commands, calling models, generating embeddings,
+  or using network access.
 - `agent_investigation`: explicitly calls the configured local/BYOK provider
   with grounded requirements and deterministic evidence only when
   `confirmInvestigation: true`; returned suggestions remain untrusted.
@@ -117,6 +123,25 @@ Example preflight input:
     ]
   },
   "format": "markdown"
+}
+```
+
+Example task-context input:
+
+```json
+{
+  "task": "Allow finance admins to retry failed payouts",
+  "requirements": {
+    "acceptanceCriteria": [
+      {
+        "id": "AC-1",
+        "text": "A retry request enqueues exactly one worker job.",
+        "requiredProof": ["API integration test"]
+      }
+    ]
+  },
+  "format": "json",
+  "maxNodes": 16
 }
 ```
 

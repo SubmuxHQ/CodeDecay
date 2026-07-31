@@ -40,6 +40,36 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       "Failed or blocked checks and configured risk/requirement gates exit non-zero after the bundle is written."
     ]
   },
+  context: {
+    name: "context",
+    summary: "Retrieve bounded task-scoped engineering context for user-owned agents.",
+    usage: ["codedecay context --task <description> [options]"],
+    description: [
+      "Build an inspectable task-scoped context packet from existing CodeDecay evidence: requirements, impact graph nodes, route/API evidence, symbols, tests, memory, docs/ADRs, CODEOWNERS, config, package manifests, and verification evidence.",
+      "Use this before or during implementation when an agent needs the smallest relevant set of repository facts and historical context instead of a whole-repo dump."
+    ],
+    options: [
+      { flag: "--task <text>", description: "Required task/change description used for deterministic retrieval" },
+      { flag: "--requirements <path>", description: "Optional repo-local JSON, YAML, or Markdown requirements artifact" },
+      { flag: "--base <ref>", description: "Base git ref to compare from when a diff should influence context" },
+      { flag: "--head <ref>", description: "Head git ref to compare to when a diff should influence context" },
+      { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
+      { flag: "--format <format>", description: "json or markdown (default: markdown)" },
+      { flag: "--max-nodes <n>", description: "Maximum selected context nodes (default: 24)" },
+      { flag: "--output <path>", description: "Write the task context packet to a file instead of stdout" }
+    ],
+    examples: [
+      "codedecay context --task \"Allow finance admins to retry failed payouts\" --format markdown",
+      "codedecay context --task \"Change payout retry formatting\" --base main --head HEAD --format json",
+      "codedecay context --task \"Add billing export\" --requirements .codedecay/requirements.yml --max-nodes 16"
+    ],
+    notes: [
+      "Context retrieval is deterministic lexical plus graph-neighbor ranking. It does not call models, embeddings, hosted services, network APIs, or telemetry.",
+      "The command refreshes local analysis artifacts but does not execute configured project commands or tool adapters.",
+      "Memory and documents are shown with trust class and limitations; they cannot become trusted proof without current-revision evidence.",
+      "The inspectable artifact is written to `.codedecay/local/task-context.json`."
+    ]
+  },
   redteam: {
     name: "redteam",
     summary: "Merge-safety report with impact, weak-test evidence, edge cases, and fix tasks.",

@@ -137,7 +137,14 @@ importers:
         specifier: workspace:*
         version: link:../git
 
-  packages/knowledge: {}
+  packages/knowledge:
+    dependencies:
+      '@submuxhq/codedecay-core':
+        specifier: workspace:*
+        version: link:../core
+      '@submuxhq/codedecay-memory':
+        specifier: workspace:*
+        version: link:../memory
 
   packages/llm:
     dependencies:

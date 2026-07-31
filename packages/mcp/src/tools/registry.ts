@@ -16,6 +16,7 @@ import type {
   ProductToolInput,
   RegressionSurfaceToolInput,
   ScopeCheckToolInput,
+  TaskContextToolInput,
   WhatDidIMissToolInput
 } from "./types";
 
@@ -29,6 +30,7 @@ export interface CodeDecayMcpToolHandlers {
   redteamReport(input: AnalyzePrToolInput): string | Promise<string>;
   agentTaskBundle(input: AgentTaskBundleToolInput): string | Promise<string>;
   agentPreflight(input: AgentPreflightToolInput): string | Promise<string>;
+  taskContext(input: TaskContextToolInput): string | Promise<string>;
   agentInvestigation(input: AgentInvestigationToolInput): string | Promise<string>;
   scopeCheck(input: ScopeCheckToolInput): string | Promise<string>;
   designContractCheck(input: DesignContractCheckToolInput): string | Promise<string>;
