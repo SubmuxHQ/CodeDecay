@@ -132,10 +132,14 @@ npx codedecay agent --investigate \
 
 CodeDecay sends structured requirements, deterministic impact and changed-path
 proof, memory, skills, verification results, and limitations. Returned
-candidate risks, affected flows, edge cases, proof proposals, and unresolved
-questions remain untrusted suggestions. They never raise deterministic risk or
-prove merge safety without corroborating tool/runtime evidence. Without
-`--investigate`, no provider is selected or called.
+candidate risks, affected flows, edge cases, proof proposals, unresolved
+questions, and consequence hypotheses remain untrusted. Hypotheses must cite
+stable evidence ids, name a user-visible consequence, include a disconfirming
+result, and map to a verifier such as a configured check, OSS adapter,
+product probe, differential check, static analyzer, or human decision. They
+never raise deterministic risk or prove merge safety without corroborating
+tool/runtime evidence. Without `--investigate`, no provider is selected or
+called.
 
 The bundle includes:
 

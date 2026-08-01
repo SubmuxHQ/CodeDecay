@@ -5,6 +5,7 @@ import type {
   AgentPreflightMemoryEvidence,
   AgentPreflightReport
 } from "./types";
+import { appendInvestigationHypotheses } from "../renderers/investigation";
 
 export function renderAgentPreflightReport(report: AgentPreflightReport, format: AgentPreflightFormat): string {
   if (format === "json") {
@@ -163,6 +164,7 @@ function appendInvestigation(lines: string[], report: AgentPreflightReport): voi
     lines,
     report.investigation.suggestions.map((suggestion) => `${suggestion.title}: ${suggestion.detail}`)
   );
+  appendInvestigationHypotheses(lines, report.investigation);
 }
 
 function appendMemory(lines: string[], memory: AgentPreflightMemoryEvidence): void {
