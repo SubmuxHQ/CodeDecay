@@ -64,22 +64,17 @@ a:focus-visible {
   display: inline-flex;
   font-size: 19px;
   font-weight: 800;
-  gap: 11px;
+  gap: 12px;
   letter-spacing: -0.03em;
   width: fit-content;
 }
 
 .brand-mark {
-  align-items: center;
-  background: var(--orange);
-  color: #130b07;
-  display: inline-flex;
-  font-family: var(--mono);
-  font-size: 11px;
-  height: 30px;
-  justify-content: center;
-  letter-spacing: -0.08em;
-  width: 30px;
+  display: block;
+  height: 38px;
+  object-fit: contain;
+  object-position: center;
+  width: 52px;
 }
 
 .topbar nav {
@@ -1175,6 +1170,15 @@ a:focus-visible {
 @media (max-width: 680px) {
   .topbar {
     min-height: 60px;
+  }
+
+  .brand {
+    font-size: 17px;
+  }
+
+  .brand-mark {
+    height: 32px;
+    width: 44px;
   }
 
   .release-chip {

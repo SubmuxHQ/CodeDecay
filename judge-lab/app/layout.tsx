@@ -8,7 +8,8 @@ export const metadata: Metadata = {
     "Run a real CodeDecay PR red-team scenario in one click. Inspect evidence, weak tests, user impact, and merge-ready repair tasks.",
   metadataBase: new URL(siteOrigin()),
   icons: {
-    icon: "/favicon.svg",
+    icon: "/logo.png",
+    apple: "/logo.png",
   },
   openGraph: {
     title: "CodeDecay Judge Lab",
