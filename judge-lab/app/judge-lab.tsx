@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRef, useState, useSyncExternalStore } from "react";
 import type { JudgeLabResult, ReviewState, ScenarioId, ScenarioSummary } from "../lib/contracts";
 
@@ -77,13 +78,20 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
     <main>
       <header className="topbar">
         <a className="brand" href="#top" aria-label="CodeDecay Judge Lab home">
-          <span className="brand-mark" aria-hidden="true">
-            CD
-          </span>
+          <Image
+            className="brand-mark"
+            src="/logo.png"
+            alt=""
+            width={665}
+            height={493}
+            aria-hidden="true"
+            priority
+          />
           <span>CodeDecay</span>
         </a>
         <nav aria-label="Primary navigation">
           <a href="#lab">Judge Lab</a>
+          <a href="#use">Use it</a>
           <a href="#demo">Demo</a>
           <a href="#proof">Proof</a>
           <a href="https://github.com/SubmuxHQ/CodeDecay" target="_blank" rel="noreferrer">
@@ -103,8 +111,8 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
             Find what your coding agent <em>missed.</em>
           </h1>
           <p className="hero-lede">
-            A passing test is not proof. Run a real CodeDecay scenario and trace the evidence from
-            changed line to user-facing failure to repair task.
+            A passing test is not proof. Use this hosted sandbox to see the evidence loop, then run
+            the same local-first CLI against your own pull request.
           </p>
           <div className="hero-actions">
             <button
@@ -168,6 +176,56 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
         <span>YOUR AGENTS</span>
         <span>REAL TOOL EVIDENCE</span>
         <span>NO HOSTED LLM REQUIRED</span>
+      </section>
+
+      <section className="use-section" id="use">
+        <div className="section-heading">
+          <div>
+            <span className="section-number">00 / HOW PEOPLE USE IT</span>
+            <h2>The web lab is the proof sandbox. Your repo stays local.</h2>
+          </div>
+          <p>
+            Judge Lab only runs fixed, inspectable fixtures so anyone can test the engine without
+            uploading code. Real project review happens from npm, CI, or your own coding agent.
+          </p>
+        </div>
+        <div className="use-grid">
+          <article>
+            <span className="card-label">TRY IN BROWSER</span>
+            <h3>Click the hosted fixture lab.</h3>
+            <p>
+              Switch a pull request between base, risky, and repaired states. CodeDecay shows the
+              changed path, weak proof, edge cases, and repair tasks.
+            </p>
+            <a href="#lab">Open Judge Lab ↓</a>
+          </article>
+          <article>
+            <span className="card-label">TRY ON YOUR REPO</span>
+            <h3>Run the CLI where your code lives.</h3>
+            <pre>
+              <code>{`npx @submuxhq/codedecay@0.4.1 redteam --base main --head HEAD --format markdown
+npx @submuxhq/codedecay@0.4.1 agent --base main --head HEAD`}</code>
+            </pre>
+            <p>
+              This is the real product path: local diff, local checks, no hidden upload, and
+              agent-readable tasks for Codex, Claude Code, Cursor, or MCP clients.
+            </p>
+          </article>
+          <article>
+            <span className="card-label">AUTOMATE IN CI</span>
+            <h3>Add it before merge.</h3>
+            <pre>
+              <code>{`- uses: SubmuxHQ/CodeDecay/.github/actions/codedecay@v0.4.1
+  with:
+    base: main
+    head: HEAD`}</code>
+            </pre>
+            <p>
+              The GitHub Action turns the same merge-safety checks into review evidence before a
+              risky AI-generated change lands.
+            </p>
+          </article>
+        </div>
       </section>
 
       <section className="lab-section" id="lab">
@@ -357,7 +415,14 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
       <footer className="site-footer">
         <div>
           <a className="brand" href="#top">
-            <span className="brand-mark">CD</span>
+            <Image
+              className="brand-mark"
+              src="/logo.png"
+              alt=""
+              width={665}
+              height={493}
+              aria-hidden="true"
+            />
             <span>CodeDecay</span>
           </a>
           <p>Find what your coding agent missed before merge.</p>

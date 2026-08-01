@@ -64,22 +64,17 @@ a:focus-visible {
   display: inline-flex;
   font-size: 19px;
   font-weight: 800;
-  gap: 11px;
+  gap: 12px;
   letter-spacing: -0.03em;
   width: fit-content;
 }
 
 .brand-mark {
-  align-items: center;
-  background: var(--orange);
-  color: #130b07;
-  display: inline-flex;
-  font-family: var(--mono);
-  font-size: 11px;
-  height: 30px;
-  justify-content: center;
-  letter-spacing: -0.08em;
-  width: 30px;
+  display: block;
+  height: 38px;
+  object-fit: contain;
+  object-position: center;
+  width: 52px;
 }
 
 .topbar nav {
@@ -351,6 +346,7 @@ a:focus-visible {
 }
 
 .lab-section,
+.use-section,
 .demo-section,
 .proof-section {
   margin: 0 auto;
@@ -388,6 +384,63 @@ a:focus-visible {
   font-size: 17px;
   line-height: 1.55;
   margin: 0;
+}
+
+.use-section {
+  border-bottom: 1px solid var(--line);
+}
+
+.use-grid {
+  border: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: 0.9fr 1.15fr 1.15fr;
+}
+
+.use-grid article {
+  min-width: 0;
+  padding: 30px;
+}
+
+.use-grid article + article {
+  border-left: 1px solid var(--line);
+}
+
+.use-grid h3 {
+  font-size: 25px;
+  letter-spacing: -0.035em;
+  margin: 20px 0 14px;
+}
+
+.use-grid p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.use-grid a {
+  border-bottom: 1px solid var(--line-bright);
+  color: var(--orange-soft);
+  display: inline-flex;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  margin-top: 24px;
+  padding-bottom: 7px;
+  text-transform: uppercase;
+}
+
+.use-grid pre {
+  background: #0b0b0a;
+  border: 1px solid var(--line);
+  color: #c8c4b9;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.7;
+  margin: 20px 0;
+  overflow-x: auto;
+  padding: 18px;
+  white-space: pre;
 }
 
 .scenario-picker {
@@ -1132,8 +1185,14 @@ a:focus-visible {
   }
 
   .scenario-picker,
+  .use-grid,
   .action-grid {
     grid-template-columns: 1fr;
+  }
+
+  .use-grid article + article {
+    border-left: 0;
+    border-top: 1px solid var(--line);
   }
 
   .scenario {
@@ -1177,11 +1236,21 @@ a:focus-visible {
     min-height: 60px;
   }
 
+  .brand {
+    font-size: 17px;
+  }
+
+  .brand-mark {
+    height: 32px;
+    width: 44px;
+  }
+
   .release-chip {
     display: none;
   }
 
   .hero,
+  .use-section,
   .lab-section,
   .demo-section,
   .proof-section {
