@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRef, useState, useSyncExternalStore } from "react";
 import type { JudgeLabResult, ReviewState, ScenarioId, ScenarioSummary } from "../lib/contracts";
 
@@ -77,9 +78,15 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
     <main>
       <header className="topbar">
         <a className="brand" href="#top" aria-label="CodeDecay Judge Lab home">
-          <span className="brand-mark" aria-hidden="true">
-            CD
-          </span>
+          <Image
+            className="brand-mark"
+            src="/logo.png"
+            alt=""
+            width={665}
+            height={493}
+            aria-hidden="true"
+            priority
+          />
           <span>CodeDecay</span>
         </a>
         <nav aria-label="Primary navigation">
@@ -357,7 +364,14 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
       <footer className="site-footer">
         <div>
           <a className="brand" href="#top">
-            <span className="brand-mark">CD</span>
+            <Image
+              className="brand-mark"
+              src="/logo.png"
+              alt=""
+              width={665}
+              height={493}
+              aria-hidden="true"
+            />
             <span>CodeDecay</span>
           </a>
           <p>Find what your coding agent missed before merge.</p>
