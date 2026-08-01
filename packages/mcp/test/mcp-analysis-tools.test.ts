@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   createCodeDecayMcpServer,
   runAnalyzePrTool,
+  runAgentSessionTool,
   runAgentTaskBundleTool,
   runAuditTestsTool,
   runExecuteConfiguredChecksTool,
@@ -22,6 +23,7 @@ import {
   createExecutionRepo,
   createMissingTestRepo,
   createProductRepo,
+  createRepo,
   createRouteImpactRepo,
   createTempDir,
   createWeakTestRepo,
@@ -129,6 +131,103 @@ describe("CodeDecay MCP analysis tools", () => {
       reasons: expect.arrayContaining([expect.stringMatching(/Matched task term/i)])
     });
     expect(existsSync(join(repo, ".codedecay/local/task-context.json"))).toBe(true);
+  });
+
+  it("runs agent session lifecycle operations without model or command execution", () => {
+    const repo = createRepo({
+      "src/app/api/billing/payouts/retry/route.ts": [
+        "export async function POST() {",
+        "  return Response.json({ status: 'queued' });",
+        "}",
+        ""
+      ].join("\n"),
+      "src/billing/payouts.ts": "export function retryPayout(id: string) { return { id, status: 'queued' }; }\n",
+      ".codedecay/config.yml": [
+        "version: 1",
+        "commands:",
+        "  test: pnpm test",
+        "safety:",
+        "  allowCommands: false",
+        ""
+      ].join("\n")
+    });
+
+    const started = JSON.parse(runAgentSessionTool({ cwd: repo }, {
+      operation: "start",
+      sessionId: "mcp-session",
+      task: "Allow payout retries with api_key=sk-mcp-secret",
+      format: "json",
+      requirements: {
+        acceptanceCriteria: [
+          {
+            id: "AC-1",
+            text: "Retry payouts are idempotent",
+            requiredProof: ["integration test"]
+          }
+        ]
+      }
+    }));
+
+    expect(started.session).toMatchObject({
+      id: "mcp-session",
+      status: "active",
+      safety: {
+        llmCalled: false,
+        commandsExecuted: false,
+        telemetrySent: false,
+        cloudDependency: false,
+        agentOutputTrusted: false
+      }
+    });
+    expect(JSON.stringify(started)).not.toContain("sk-mcp-secret");
+
+    writeFile(
+      repo,
+      "src/billing/payouts.ts",
+      "export function retryPayout(id: string) { return { id, status: 'queued', retryCount: 1 }; }\n"
+    );
+
+    const refreshed = JSON.parse(runAgentSessionTool({ cwd: repo }, {
+      operation: "context",
+      sessionId: "mcp-session",
+      format: "json",
+      maxNodes: 8
+    }));
+
+    expect(refreshed.stale).toBe(true);
+    expect(refreshed.session.status).toBe("stale");
+    expect(refreshed.session.evidenceRefs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "task-context", artifactPath: ".codedecay/local/task-context.json" })
+      ])
+    );
+    expect(existsSync(join(repo, ".codedecay/local/task-context.json"))).toBe(true);
+
+    const checkpointed = JSON.parse(runAgentSessionTool({ cwd: repo }, {
+      operation: "checkpoint",
+      sessionId: "mcp-session",
+      checkpointKind: "diff",
+      summary: "Retry count added",
+      agentOutput: "agent saw token=must-redact",
+      format: "json"
+    }));
+
+    expect(checkpointed.session.status).toBe("active");
+    expect(checkpointed.session.checkpoints[0]).toMatchObject({
+      kind: "diff",
+      agentOutputTrusted: false
+    });
+    expect(JSON.stringify(checkpointed)).not.toContain("must-redact");
+
+    const finished = JSON.parse(runAgentSessionTool({ cwd: repo }, {
+      operation: "finish",
+      sessionId: "mcp-session",
+      format: "json"
+    }));
+
+    expect(finished.session.status).toBe("needs-verification");
+    expect(finished.verification.allowedChecks).toContain("test: pnpm test");
+    expect(finished.verification.commandsExecuted).toBe(false);
   });
 
   it("returns weak-test audit findings", () => {

@@ -70,6 +70,46 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       "The inspectable artifact is written to `.codedecay/local/task-context.json`."
     ]
   },
+  session: {
+    name: "session",
+    summary: "Continuous before-during-after guidance sessions for user-owned agents.",
+    usage: [
+      "codedecay session start --task <description> [options]",
+      "codedecay session context --session <id> [options]",
+      "codedecay session checkpoint --session <id> [options]",
+      "codedecay session finish --session <id> [options]"
+    ],
+    description: [
+      "Create a durable agent-session artifact that carries task requirements, base revision, context evidence, checkpoints, and proof obligations across planning, edits, and final verification.",
+      "Use this as the primary AI-native path when a coding agent needs grounded guidance before editing, during partial work, and at finish time."
+    ],
+    options: [
+      { flag: "--session <id>", description: "Stable session id. Optional for start, required for context/checkpoint/finish" },
+      { flag: "--task <text>", description: "Required for start; intended task/change description before code generation" },
+      { flag: "--requirements <path>", description: "Optional repo-local JSON, YAML, or Markdown requirements artifact for start" },
+      { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
+      { flag: "--format <format>", description: "json or markdown (default: markdown)" },
+      { flag: "--profile <profile>", description: `${AGENT_PROFILE_IDS.join(", ")} (default: generic)` },
+      { flag: "--max-nodes <n>", description: "Context node budget for start/context (default: 24)" },
+      { flag: "--max-chars <n>", description: "Prompt character budget stored in the session (default: 24000)" },
+      { flag: "--kind <kind>", description: "Checkpoint kind: plan or diff (default: plan)" },
+      { flag: "--summary <text>", description: "Agent-authored checkpoint or finish summary stored as untrusted data" },
+      { flag: "--agent-output <text>", description: "Optional agent-authored details stored as untrusted, redacted data" },
+      { flag: "--output <path>", description: "Write session result to a file instead of stdout" }
+    ],
+    examples: [
+      "codedecay session start --session billing-retry --task \"Allow finance admins to retry failed payouts\"",
+      "codedecay session context --session billing-retry --format json",
+      "codedecay session checkpoint --session billing-retry --kind diff --summary \"Retry route implemented\"",
+      "codedecay session finish --session billing-retry --format markdown"
+    ],
+    notes: [
+      "Session lifecycle operations do not call models, execute configured commands, use network access, send telemetry, commit, push, install tools, or silently overwrite an existing session id.",
+      "Context refresh writes `.codedecay/local/task-context.json` and records an evidence ref in `.codedecay/local/agent-sessions/<id>.json`.",
+      "CodeDecay detects when the working tree changed since the last session observation and asks for a checkpoint before prior guidance is trusted.",
+      "Agent-authored summaries are redacted and treated as untrusted data; they cannot resolve business decisions or prove requirements."
+    ]
+  },
   redteam: {
     name: "redteam",
     summary: "Merge-safety report with impact, weak-test evidence, edge cases, and fix tasks.",

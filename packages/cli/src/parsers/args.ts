@@ -15,6 +15,7 @@ export { parseMemoryArgs, parseMemoryImportArgs, parseMemoryLearnArgs, parseMemo
 export { parseRevalidateArgs } from "./revalidate";
 export { parseProductArgs } from "./product";
 export { parseRedteamArgs } from "./redteam";
+export { parseSessionArgs } from "./session";
 export { parseSnapshotArgs } from "./snapshot";
 export { parseUninstallArgs, parseUpdateArgs } from "./maintenance";
 export { HelpRequested } from "./shared";

@@ -104,6 +104,21 @@ export const taskContextToolSchema = {
   maxNodes: z.number().int().positive().optional().describe("Maximum selected context nodes.")
 };
 
+export const agentSessionToolSchema = {
+  cwd: cwdSchema,
+  operation: z.enum(["start", "context", "checkpoint", "finish"]).describe("Session lifecycle operation."),
+  sessionId: z.string().optional().describe("Stable session id. Optional for start, required afterward."),
+  task: z.string().optional().describe("Required for start; intended task/change description before code generation."),
+  requirements: requirementContextSchema.optional().describe("Structured acceptance criteria and product-flow context for start."),
+  format: formatSchema,
+  profile: z.enum(AGENT_PROFILE_IDS).optional().describe("User-owned agent handoff profile."),
+  maxNodes: z.number().int().positive().optional().describe("Context node budget."),
+  maxPromptChars: z.number().int().positive().optional().describe("Prompt character budget stored in the session."),
+  checkpointKind: z.enum(["plan", "diff"]).optional().describe("Checkpoint kind. Defaults to plan."),
+  summary: z.string().optional().describe("Agent-authored checkpoint or finish summary stored as untrusted data."),
+  agentOutput: z.string().optional().describe("Optional agent-authored details stored as untrusted, redacted data.")
+};
+
 export const scopeCheckToolSchema = {
   cwd: cwdSchema,
   base: baseSchema,

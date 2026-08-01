@@ -4,6 +4,7 @@ import { textResult } from "./result";
 import {
   agentPreflightToolSchema,
   agentInvestigationToolSchema,
+  agentSessionToolSchema,
   agentTaskBundleToolSchema,
   analyzePrToolSchema,
   designContractCheckToolSchema,
@@ -15,6 +16,7 @@ import {
 import type {
   AgentPreflightToolInput,
   AgentInvestigationToolInput,
+  AgentSessionToolInput,
   AgentTaskBundleToolInput,
   AnalyzePrToolInput,
   DesignContractCheckToolInput,
@@ -95,6 +97,13 @@ export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayM
     "Return deterministic before-coding guidance for a user-owned coding agent from repo paths, local config, design contracts, and memory. Does not require a git diff, execute commands, or call models.",
     agentPreflightToolSchema,
     async (input) => textResult(handlers.agentPreflight(input as AgentPreflightToolInput))
+  );
+
+  server.tool(
+    "agent_session",
+    "Run a durable CodeDecay before-during-after guidance session operation: start, context, checkpoint, or finish. Does not execute commands, call models, send telemetry, commit, or push.",
+    agentSessionToolSchema,
+    async (input) => textResult(handlers.agentSession(input as AgentSessionToolInput))
   );
 
   server.tool(

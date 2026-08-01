@@ -67,6 +67,12 @@ runs CodeDecay locally and passes the repository path with `--cwd`.
   git diff, execute commands, or call models. Use it to give Codex, Claude Code,
   Cursor, or another agent likely files/routes, constraints, and expected proof
   before implementation starts.
+- `agent_session`: runs durable before-during-after guidance operations for a
+  user-owned agent: `start`, `context`, `checkpoint`, and `finish`. It stores
+  session state under `.codedecay/local/agent-sessions/`, refreshes bounded
+  task context, detects stale working-tree state, records untrusted agent
+  checkpoints, and returns a finish-time verification boundary without
+  executing commands or calling models.
 - `task_context`: returns a bounded task-scoped engineering context packet with
   stable evidence IDs, ranked relevance explanations, provenance, trust class,
   freshness, limitations, and selected graph edges. It reads existing
@@ -145,6 +151,36 @@ Example task-context input:
 }
 ```
 
+Example agent-session inputs:
+
+```json
+{
+  "operation": "start",
+  "sessionId": "billing-retry",
+  "task": "Allow finance admins to retry failed payouts",
+  "requirements": {
+    "acceptanceCriteria": [
+      {
+        "id": "AC-1",
+        "text": "A retry request enqueues exactly one worker job.",
+        "requiredProof": ["API integration test"]
+      }
+    ]
+  },
+  "format": "json"
+}
+```
+
+```json
+{
+  "operation": "checkpoint",
+  "sessionId": "billing-retry",
+  "checkpointKind": "diff",
+  "summary": "Retry route implemented",
+  "format": "json"
+}
+```
+
 Example product verification input:
 
 ```json
@@ -180,14 +216,15 @@ Ollama or cloud models, send telemetry, or require CodeDecayCloud. It may includ
 local skill summaries from `.agents/skills/*/SKILL.md`, but it does not execute
 skill content.
 
-`agent_task_bundle` is also report-only. It uses the same deterministic
-CodeDecay evidence as `codedecay agent`, and it does not call the MCP client,
-Codex, Claude, Cursor, Ollama, cloud models, or CodeDecayCloud. The receiving
-agent should treat the bundle as tool evidence plus instructions. The included
-prompt is portable across Codex, Claude Code, Cursor, Pi, OpenCode, desktop
-agents, and other MCP clients. The optional `profile` only changes handoff
-wording; it does not call or authenticate with that agent. Any proposed fix
-still needs verification with tests or configured checks.
+`agent_task_bundle` and `agent_session` are also report-only. They use the same
+deterministic CodeDecay evidence as `codedecay agent`, and they do not call the
+MCP client, Codex, Claude, Cursor, Ollama, cloud models, or CodeDecayCloud. The
+receiving agent should treat the output as tool evidence plus instructions. The
+included prompt and session guidance are portable across Codex, Claude Code,
+Cursor, Pi, OpenCode, desktop agents, and other MCP clients. The optional
+`profile` only changes handoff wording; it does not call or authenticate with
+that agent. Any proposed fix still needs verification with tests or configured
+checks.
 
 `execute_configured_checks`, `codedecay_product_run`, and
 `codedecay_product_rerun` are the only MCP tools that can execute local

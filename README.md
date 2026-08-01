@@ -134,6 +134,16 @@ Guide the agent before it edits:
 npx codedecay ai preflight --task "Add an authorized billing export API" --format markdown
 ```
 
+Keep one agent guidance session across planning, edits, checkpoints, and final
+verification:
+
+```bash
+npx codedecay session start --session billing-export --task "Add an authorized billing export API"
+npx codedecay session context --session billing-export
+npx codedecay session checkpoint --session billing-export --kind diff --summary "Export route implemented"
+npx codedecay session finish --session billing-export
+```
+
 Run the AI workflow on a pull request range:
 
 ```bash
@@ -191,6 +201,7 @@ npx codedecay product --target web --generate-tests --run-generated-tests --form
 | Command | Purpose |
 | --- | --- |
 | `codedecay ai` | Recommended AI-first workflow: preflight guidance, post-diff evidence, optional explicit investigation, configured proof, and a Codex-ready task bundle. |
+| `codedecay session` | Durable before-during-after guidance sessions for user-owned agents, with context refreshes, checkpoints, stale edit detection, and finish-time proof boundaries. |
 | `codedecay analyze` | Deterministic PR risk, impact, and decay analysis. |
 | `codedecay snapshot` | Emit a stable repository health snapshot and compare it with a previous snapshot artifact. |
 | `codedecay redteam` | Merge-safety report with impact, weak-test evidence, verification status, edge cases, memory, skills, and fix tasks. |
