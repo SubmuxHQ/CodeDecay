@@ -289,6 +289,82 @@ export interface RedteamInvestigationSuggestion {
   unresolvedQuestions?: string[] | undefined;
 }
 
+export type RedteamHypothesisStatus =
+  | "candidate"
+  | "planned"
+  | "confirmed"
+  | "refuted"
+  | "inconclusive"
+  | "needs-human";
+
+export type RedteamHypothesisVerifierKind =
+  | "configured-check"
+  | "oss-tool-adapter"
+  | "product-probe"
+  | "differential"
+  | "static-analyzer"
+  | "human-decision";
+
+export interface RedteamHypothesisVerifier {
+  kind: RedteamHypothesisVerifierKind;
+  name: string;
+  command?: string | undefined;
+  expectedEvidence?: string | undefined;
+}
+
+export interface RedteamHypothesisObservation {
+  providerId?: string | undefined;
+  model?: string | undefined;
+  inputEvidenceIds: string[];
+  latencyMs?: number | undefined;
+  tokenUsage?: {
+    prompt?: number | undefined;
+    completion?: number | undefined;
+    total?: number | undefined;
+  } | undefined;
+  costBudgetUsd?: number | undefined;
+}
+
+export interface RedteamConsequenceHypothesis {
+  id: string;
+  claim: string;
+  affectedRequirementOrFlow: string;
+  causalChain: string[];
+  evidenceIds: string[];
+  assumptions: string[];
+  uncertainty: string;
+  userVisibleConsequence: string;
+  severitySuggestion: RiskLevel;
+  disconfirmingResult: string;
+  proposedVerifier: RedteamHypothesisVerifier;
+  status: RedteamHypothesisStatus;
+  rank: number;
+  score: number;
+  limitations: string[];
+}
+
+export interface RedteamHypothesisReport {
+  schemaVersion: 1;
+  hypotheses: RedteamConsequenceHypothesis[];
+  overflow: RedteamConsequenceHypothesis[];
+  rejected: Array<{
+    index: number;
+    reason: string;
+  }>;
+  evidenceIds: string[];
+  observation?: RedteamHypothesisObservation | undefined;
+  untrusted: true;
+  deterministicRiskChanged: false;
+}
+
+export interface RedteamHypothesisVerifierResult {
+  hypothesisId: string;
+  status: Extract<RedteamHypothesisStatus, "confirmed" | "refuted" | "inconclusive" | "needs-human">;
+  evidenceIds: string[];
+  trusted: boolean;
+  summary: string;
+}
+
 export interface RedteamInvestigationProvider {
   configuredProvider: "disabled" | "ollama" | "litellm";
   id?: string | undefined;
@@ -302,6 +378,7 @@ export interface RedteamInvestigation {
   status: RedteamInvestigationStatus;
   provider: RedteamInvestigationProvider;
   suggestions: RedteamInvestigationSuggestion[];
+  hypotheses?: RedteamHypothesisReport | undefined;
   limitations: string[];
   rawText?: string | undefined;
   untrusted: true;

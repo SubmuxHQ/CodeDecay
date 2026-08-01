@@ -1,5 +1,11 @@
 export { createRedteamReport } from "./report";
 export { createEdgeCasePlan, MAX_RANKED_EDGE_CASES } from "./edge-cases";
+export {
+  applyHypothesisVerifierResults,
+  collectHypothesisEvidenceIds,
+  createConsequenceHypothesisReport,
+  createObservedConsequenceHypothesisReport
+} from "./hypotheses";
 export { matchPatternIntelligence } from "./patterns";
 export { renderRedteamMarkdown, renderRedteamReport } from "./render";
 export { weakTestRuleIds } from "./weak-tests";
@@ -20,6 +26,13 @@ export type {
   RedteamEdgeCaseSourceTrust,
   RedteamFixTask,
   RedteamFormat,
+  RedteamConsequenceHypothesis,
+  RedteamHypothesisObservation,
+  RedteamHypothesisReport,
+  RedteamHypothesisStatus,
+  RedteamHypothesisVerifier,
+  RedteamHypothesisVerifierKind,
+  RedteamHypothesisVerifierResult,
   RedteamInvestigation,
   RedteamInvestigationProvider,
   RedteamInvestigationStatus,

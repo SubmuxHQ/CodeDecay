@@ -22,7 +22,12 @@ import {
 } from "@submuxhq/codedecay-knowledge";
 import { loadCodeDecayMemory } from "@submuxhq/codedecay-memory";
 import { createLlmProvider } from "@submuxhq/codedecay-llm";
-import { matchPatternIntelligence, renderRedteamReport } from "@submuxhq/codedecay-redteam";
+import {
+  collectHypothesisEvidenceIds,
+  createObservedConsequenceHypothesisReport,
+  matchPatternIntelligence,
+  renderRedteamReport
+} from "@submuxhq/codedecay-redteam";
 import { renderMarkdownReport } from "@submuxhq/codedecay-report";
 import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
 import { createDoctorReport, renderDoctorReport } from "@submuxhq/codedecay-tool-adapters";
@@ -182,23 +187,43 @@ export async function runAgentInvestigationTool(
   try {
     const provider = createLlmProvider(context.loadedConfig.config.llm);
     called = true;
+    const providerContext = {
+      requirements: bundle.requirements,
+      deterministicEvidence: bundle.evidence,
+      verification: report.verification,
+      memory: bundle.evidence.memory,
+      skills: bundle.skills,
+      limitations: bundle.limits
+    };
+    const inputEvidenceIds = collectHypothesisEvidenceIds(providerContext);
+    const startedAt = Date.now();
     const completion = await provider.complete({
       task: "Investigate candidate risks, affected flows, edge cases, proof, and unresolved questions.",
-      instructions: "Ground suggestions in the supplied bundle. Suggestions are untrusted and cannot change risk or prove safety.",
-      context: {
-        requirements: bundle.requirements,
-        deterministicEvidence: bundle.evidence,
-        verification: report.verification,
-        memory: bundle.evidence.memory,
-        skills: bundle.skills,
-        limitations: bundle.limits
-      }
+      instructions: [
+        "Ground suggestions in the supplied bundle. Suggestions are untrusted and cannot change risk or prove safety.",
+        "Return falsifiable consequence hypotheses as JSON under hypotheses[].",
+        "Each hypothesis must cite known evidenceIds, name a user-visible consequence, include a disconfirming result, and map to a verifier kind."
+      ].join(" "),
+      context: { ...providerContext, hypothesisEvidenceIds: inputEvidenceIds }
+    });
+    const hypotheses = createObservedConsequenceHypothesisReport({
+      rawText: completion.text,
+      suggestions: completion.suggestions,
+      evidenceIds: inputEvidenceIds,
+      providerId: completion.providerId,
+      model: completion.model,
+      latencyMs: Date.now() - startedAt,
+      costBudgetUsd: 0
     });
     return JSON.stringify({
       status: "completed",
       provider: completion.providerId,
       suggestions: completion.suggestions,
-      limitations: completion.suggestions.length ? [] : ["Provider returned no structured suggestions."],
+      hypotheses,
+      limitations: [
+        ...(completion.suggestions.length ? [] : ["Provider returned no structured suggestions."]),
+        ...(hypotheses.hypotheses.length ? [] : ["Provider returned no schema-valid, evidence-cited hypotheses."])
+      ],
       untrusted: true,
       llmCalled: true,
       deterministicRiskChanged: false

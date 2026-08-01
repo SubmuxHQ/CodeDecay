@@ -81,7 +81,8 @@ runs CodeDecay locally and passes the repository path with `--cwd`.
   or using network access.
 - `agent_investigation`: explicitly calls the configured local/BYOK provider
   with grounded requirements and deterministic evidence only when
-  `confirmInvestigation: true`; returned suggestions remain untrusted.
+  `confirmInvestigation: true`; returned suggestions and consequence
+  hypotheses remain untrusted until verified by tool evidence or human review.
 - `execute_configured_checks`: runs configured CodeDecay commands, probes, and
   enabled tool adapters. It requires `confirmExecution: true` and
   `safety.allowCommands: true`.

@@ -36,7 +36,19 @@ describe("codedecay agent investigation closed-loop UAT", () => {
           edgeCases: ["expired session"],
           proposedProof: ["Call the real route without a token."],
           unresolvedQuestions: ["Which roles may export?"]
-        }]
+        }],
+        hypotheses: {
+          schemaVersion: 1,
+          untrusted: true,
+          deterministicRiskChanged: false,
+          hypotheses: [{
+            id: "HYPOTHESIS-1",
+            claim: "Users API may skip authorization after the route change.",
+            affectedRequirementOrFlow: "Users API",
+            status: "candidate",
+            proposedVerifier: { kind: "product-probe" }
+          }]
+        }
       });
       expect(bundle.safety.llmCalled).toBe(true);
       expect(prompt).toContain("AC-1");
@@ -52,6 +64,8 @@ describe("codedecay agent investigation closed-loop UAT", () => {
       ], repo);
       expect(markdown.stdout).toContain("### Untrusted Agent Investigation");
       expect(markdown.stdout).toContain("Authorization regression");
+      expect(markdown.stdout).toContain("Falsifiable hypotheses:");
+      expect(markdown.stdout).toContain("Users API may skip authorization");
       expect(markdown.stdout).toContain("Proposed proof: Call the real route without a token.");
     } finally {
       restore();
@@ -139,26 +153,54 @@ function configureProvider(repo: string): void {
 function fakeProvider(onRequest: (body: string) => void): () => void {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (_url, init) => {
-    onRequest(String(init?.body ?? ""));
+    const body = String(init?.body ?? "");
+    onRequest(body);
+    const evidenceId = firstHypothesisEvidenceId(body) ?? "missing:evidence";
     return {
       ok: true,
       status: 200,
       async json() {
         return {
-          choices: [{ message: { content: JSON.stringify({ suggestions: [{
-            title: "Authorization regression",
-            detail: "The changed API may bypass the existing role check.",
-            severity: "high",
-            evidence: ["changed users API"],
-            affectedFlows: ["Users API"],
-            edgeCases: ["expired session"],
-            proposedProof: ["Call the real route without a token."],
-            unresolvedQuestions: ["Which roles may export?"]
-          }] }) } }]
+          choices: [{ message: { content: JSON.stringify({
+            suggestions: [{
+              title: "Authorization regression",
+              detail: "The changed API may bypass the existing role check.",
+              severity: "high",
+              evidence: ["changed users API"],
+              affectedFlows: ["Users API"],
+              edgeCases: ["expired session"],
+              proposedProof: ["Call the real route without a token."],
+              unresolvedQuestions: ["Which roles may export?"]
+            }],
+            hypotheses: [{
+              id: "HYPOTHESIS-1",
+              claim: "Users API may skip authorization after the route change.",
+              affectedRequirementOrFlow: "Users API",
+              causalChain: ["route changed", "role proof is missing"],
+              evidenceIds: [evidenceId],
+              assumptions: ["The route owns its own role check."],
+              uncertainty: "Need a real unauthorized request to confirm behavior.",
+              userVisibleConsequence: "A user without the required role may read protected user data.",
+              severitySuggestion: "high",
+              disconfirmingResult: "A real route probe without a token returns 401 or 403.",
+              proposedVerifier: {
+                kind: "product-probe",
+                name: "unauthorized Users API probe"
+              },
+              status: "candidate"
+            }]
+          }) } }]
         };
       },
       async text() { return ""; }
     };
   }) as typeof fetch;
   return () => { globalThis.fetch = originalFetch; };
+}
+
+function firstHypothesisEvidenceId(body: string): string | undefined {
+  const request = JSON.parse(body) as { messages: Array<{ role: string; content: string }> };
+  const prompt = request.messages.find((message) => message.role === "user")?.content ?? "";
+  const match = /"hypothesisEvidenceIds":\s*\[\s*"([^"]+)"/.exec(prompt);
+  return match?.[1];
 }

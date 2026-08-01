@@ -1,5 +1,6 @@
 import { formatRisk } from "../../formatting";
 import type { AgentTaskBundle } from "../../types";
+import { appendInvestigationHypotheses } from "../investigation";
 import { appendList } from "./list";
 import {
   appendChecks,
@@ -95,6 +96,7 @@ function appendInvestigation(lines: string[], bundle: AgentTaskBundle): void {
       return `${suggestion.title}: ${suggestion.detail}.${proof}`;
     })
   );
+  appendInvestigationHypotheses(lines, bundle.investigation);
 }
 
 function appendRequirements(lines: string[], bundle: AgentTaskBundle): void {
