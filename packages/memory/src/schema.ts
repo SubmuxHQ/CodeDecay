@@ -7,6 +7,7 @@ import {
   normalizeInvariant,
   normalizeRegression
 } from "./schema-sections";
+import { normalizeLearningEvent } from "./learning-events";
 
 export { cloneMemory, isEmptyMemory } from "./schema-clone";
 export { normalizeMatcher, normalizeProductPath } from "./schema-matcher";
@@ -58,6 +59,9 @@ export function normalizeMemory(value: unknown, sourcePath: string): CodeDecayMe
     ),
     regressions: normalizeArray(value.regressions, sourcePath, "regressions").map((item, index) =>
       normalizeRegression(item, index, sourcePath)
+    ),
+    learningEvents: normalizeArray(value.learningEvents, sourcePath, "learningEvents").map((item, index) =>
+      normalizeLearningEvent(item, index, sourcePath)
     )
   };
 }
