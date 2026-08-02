@@ -44,6 +44,18 @@ export {
   SERVICE_TOPOLOGY_SCHEMA_VERSION
 } from "./topology/types";
 export { ingestRuntimeEvidence } from "./runtime/ingest";
+export { analyzeMigrationSafety } from "./migration/analyze";
+export type { AnalyzeMigrationSafetyOptions } from "./migration/analyze";
+export { renderMigrationSafetyMarkdown } from "./migration/render";
+export { MIGRATION_EVIDENCE_SCHEMA_VERSION } from "./migration/types";
+export type {
+  MigrationMatrixState,
+  MigrationOperationEvidence,
+  MigrationOperationKind,
+  MigrationRisk,
+  MigrationSafetyReport,
+  MigrationTargetKind
+} from "./migration/types";
 export type { IngestRuntimeEvidenceOptions } from "./runtime/ingest";
 export { renderRuntimeEvidenceMarkdown } from "./runtime/render";
 export { RUNTIME_EVIDENCE_SCHEMA_VERSION } from "./runtime/types";
