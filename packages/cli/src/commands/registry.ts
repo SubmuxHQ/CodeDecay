@@ -19,6 +19,7 @@ import { runMcpCommand as runMcpCommandWithDependencies } from "./mcp";
 import { runProductCommand as runProductCommandWithDependencies } from "./product";
 import { runRedteamCommand as runRedteamCommandWithDependencies } from "./redteam";
 import { runRevalidateCommand as runRevalidateCommandWithDependencies } from "./revalidate";
+import { runRuntimeCommand as runRuntimeCommandWithDependencies } from "./runtime";
 import { runSessionCommand as runSessionCommandWithDependencies } from "./session";
 import { runSnapshotCommand as runSnapshotCommandWithDependencies } from "./snapshot";
 import { createProductTargetReport as createProductTargetReportWithRuntime } from "../product/runtime";
@@ -115,6 +116,10 @@ export function createCommandHandlers(options: CommandRegistryOptions): Record<s
     }),
     revalidate: (context) => runRevalidateCommandWithDependencies(context, {
       createAnalysisContext: createAnalysisContextForCli,
+      resolveRepoRoot: getRepoRootForCli,
+      writeOutput: writeCliOutput
+    }),
+    runtime: (context) => runRuntimeCommandWithDependencies(context, {
       resolveRepoRoot: getRepoRootForCli,
       writeOutput: writeCliOutput
     }),
