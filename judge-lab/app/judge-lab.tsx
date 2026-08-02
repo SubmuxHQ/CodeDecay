@@ -91,6 +91,7 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
         </a>
         <nav aria-label="Primary navigation">
           <a href="#lab">Judge Lab</a>
+          <a href="#use">Use it</a>
           <a href="#demo">Demo</a>
           <a href="#proof">Proof</a>
           <a href="https://github.com/SubmuxHQ/CodeDecay" target="_blank" rel="noreferrer">
@@ -110,8 +111,9 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
             Find what your coding agent <em>missed.</em>
           </h1>
           <p className="hero-lede">
-            A passing test is not proof. Run a real CodeDecay scenario and trace the evidence from
-            changed line to user-facing failure to repair task.
+            Your coding agent can ship fast. CodeDecay gives it a senior-review feedback loop: find
+            the hidden user break, hand back exact repair tasks, and re-run until the proof is
+            stronger than the original green check.
           </p>
           <div className="hero-actions">
             <button
@@ -120,11 +122,11 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
               onClick={() => void runScenario("auth-api", "risky")}
               disabled={!isHydrated || status === "running"}
             >
-              {status === "running" ? "Running engine…" : "Red-team the risky PR"}
+              {status === "running" ? "Running engine…" : "Watch CodeDecay catch it"}
               <span aria-hidden="true">→</span>
             </button>
-            <a className="secondary-action" href="#proof">
-              See benchmark proof
+            <a className="secondary-action" href="#loop">
+              See the AI quality loop
             </a>
           </div>
           <p className="safe-note">
@@ -156,10 +158,14 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
             <div className="terminal-finding">
               <span className="danger-dot" aria-hidden="true" />
               <div>
-                <strong>Anonymous admin path exposed</strong>
-                <p>Auth guard removed from a public route.</p>
+                <strong>Codex missed a real user-facing break</strong>
+                <p>Tests passed, but the public API route lost its auth guard.</p>
               </div>
               <b>HIGH</b>
+            </div>
+            <div className="handoff-row">
+              <span>agent task</span>
+              <strong>add red endpoint test → repair guard → revalidate</strong>
             </div>
             <div className="score-row">
               <span>merge risk</span>
@@ -175,6 +181,110 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
         <span>YOUR AGENTS</span>
         <span>REAL TOOL EVIDENCE</span>
         <span>NO HOSTED LLM REQUIRED</span>
+      </section>
+
+      <section className="loop-section" id="loop">
+        <div className="loop-intro">
+          <span className="section-number">WHY IT FEELS DIFFERENT</span>
+          <h2>CodeDecay turns Codex from a fast builder into a safer finisher.</h2>
+          <p>
+            The product is not another reviewer comment. It is a local evidence loop your coding
+            agent can act on immediately.
+          </p>
+        </div>
+        <ol className="loop-grid" aria-label="CodeDecay agent quality loop">
+          <li>
+            <span>01</span>
+            <h3>Codex ships a change</h3>
+            <p>
+              The PR looks done: tests pass, diff is clean, and the feature works on the happy path.
+            </p>
+          </li>
+          <li className="loop-alert">
+            <span>02</span>
+            <h3>CodeDecay red-teams it</h3>
+            <p>
+              It maps changed files to routes, spots weak proof, runs allowed checks, and explains
+              what a real user could hit.
+            </p>
+          </li>
+          <li>
+            <span>03</span>
+            <h3>Your agent gets repair tasks</h3>
+            <p>
+              Codex receives concrete work: add the missing red test, fix the path, and revalidate
+              with stronger evidence.
+            </p>
+          </li>
+          <li className="loop-win">
+            <span>04</span>
+            <h3>The merge becomes provable</h3>
+            <p>
+              The final report separates tool evidence from suggestions, so the developer can trust
+              the fix instead of trusting vibes.
+            </p>
+          </li>
+        </ol>
+        <div className="outcome-strip">
+          <div>
+            <strong>Before CodeDecay</strong>
+            <span>“The AI says it is done.”</span>
+          </div>
+          <div>
+            <strong>After CodeDecay</strong>
+            <span>“The risky path failed, got repaired, and now has proof.”</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="use-section" id="use">
+        <div className="section-heading">
+          <div>
+            <span className="section-number">00 / HOW PEOPLE USE IT</span>
+            <h2>The web lab is the proof sandbox. Your repo stays local.</h2>
+          </div>
+          <p>
+            Judge Lab only runs fixed, inspectable fixtures so anyone can test the engine without
+            uploading code. Real project review happens from npm, CI, or your own coding agent.
+          </p>
+        </div>
+        <div className="use-grid">
+          <article>
+            <span className="card-label">TRY IN BROWSER</span>
+            <h3>Click the hosted fixture lab.</h3>
+            <p>
+              Switch a pull request between base, risky, and repaired states. CodeDecay shows the
+              changed path, weak proof, edge cases, and repair tasks.
+            </p>
+            <a href="#lab">Open Judge Lab ↓</a>
+          </article>
+          <article>
+            <span className="card-label">TRY ON YOUR REPO</span>
+            <h3>Run the CLI where your code lives.</h3>
+            <pre>
+              <code>{`npx @submuxhq/codedecay@0.4.1 redteam --base main --head HEAD --format markdown
+npx @submuxhq/codedecay@0.4.1 agent --base main --head HEAD`}</code>
+            </pre>
+            <p>
+              This is the real product path: local diff, local checks, no hidden upload, and
+              agent-readable tasks for Codex, Claude Code, Cursor, or MCP clients.
+            </p>
+          </article>
+          <article>
+            <span className="card-label">AUTOMATE IN CI</span>
+            <h3>Add it before merge.</h3>
+            <pre>
+              <code>{`- uses: SubmuxHQ/CodeDecay/.github/actions/codedecay@v0.4.1
+  with:
+    base: main
+    head: HEAD`}</code>
+            </pre>
+            <p>
+              The GitHub Action turns the same merge-safety checks into review evidence before a
+              risky AI-generated change lands.
+            </p>
+          </article>
+        </div>
       </section>
 
       <section className="lab-section" id="lab">

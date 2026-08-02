@@ -34,7 +34,12 @@ test("server-renders the Judge Lab landing experience", async () => {
   assert.match(html, /<title>Judge Lab \| CodeDecay<\/title>/i);
   assert.match(html, /href="(?:https?:\/\/[^"]+)?\/logo\.png"/);
   assert.match(html, /Find what your coding agent/);
-  assert.match(html, /Red-team the risky PR/);
+  assert.match(html, /CodeDecay turns Codex from a fast builder into a safer finisher\./);
+  assert.match(html, /The risky path failed, got repaired, and now has proof\./);
+  assert.match(html, /The web lab is the proof sandbox\. Your repo stays local\./);
+  assert.match(html, /npx @submuxhq\/codedecay@0\.4\.1 redteam/);
+  assert.match(html, /SubmuxHQ\/CodeDecay\/\.github\/actions\/codedecay@v0\.4\.1/);
+  assert.match(html, /Watch CodeDecay catch it/);
   assert.match(html, /No login\. No repository upload\./);
   assert.match(html, /Don’t trust the green check\./);
   assert.match(html, /From false green to real proof\./);
