@@ -98,6 +98,50 @@ export function parseLoopArgs(args: string[]): LoopOptions {
       continue;
     }
 
+    if (arg.startsWith("--builder-cmd=")) {
+      options.builderCommand = arg.slice("--builder-cmd=".length);
+      continue;
+    }
+
+    if (arg === "--builder-cmd") {
+      options.builderCommand = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--verifier-cmd=")) {
+      options.verifierCommand = arg.slice("--verifier-cmd=".length);
+      continue;
+    }
+
+    if (arg === "--verifier-cmd") {
+      options.verifierCommand = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--builder-id=")) {
+      options.builderId = arg.slice("--builder-id=".length);
+      continue;
+    }
+
+    if (arg === "--builder-id") {
+      options.builderId = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--verifier-id=")) {
+      options.verifierId = arg.slice("--verifier-id=".length);
+      continue;
+    }
+
+    if (arg === "--verifier-id") {
+      options.verifierId = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
     if (arg.startsWith("--format=")) {
       options.format = parseLoopFormat(arg.slice("--format=".length));
       continue;

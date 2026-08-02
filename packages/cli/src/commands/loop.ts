@@ -60,6 +60,10 @@ export async function runLoopCommand(
     head: options.head,
     maxRounds: options.maxRounds,
     agentCommand: options.agentCommand,
+    builderCommand: options.builderCommand,
+    verifierCommand: options.verifierCommand,
+    builderIdentity: options.builderId,
+    verifierIdentity: options.verifierId,
     safeRiskLevel: options.safeRiskLevel,
     securityScoreThreshold: options.securityScoreThreshold,
     agentTimeoutMs: loadedConfig.config.safety.commandTimeoutMs,
@@ -76,6 +80,10 @@ export async function runLoopCommand(
       }, dependencies),
     renderAgentBundle: (redteamReport) =>
       renderAgentTaskBundle(createAgentTaskBundle(redteamReport as RedteamReport, { profile: "generic" }), "markdown"),
+    renderBuilderBundle: (redteamReport) =>
+      renderAgentTaskBundle(createAgentTaskBundle(redteamReport as RedteamReport, { profile: "generic" }), "markdown"),
+    renderVerifierBundle: (redteamReport) =>
+      renderVerifierBundle(redteamReport as RedteamReport, options.verifierId),
     runConfiguredChecks: async () => await createLoopCheckSnapshot(rootDir, loadedConfig, dependencies),
     getChangedFiles: () => getGitChangedFiles({ cwd: rootDir })
   });
@@ -90,6 +98,26 @@ export async function runLoopCommand(
   if (shouldFail(report)) {
     throw new CliExit(1);
   }
+}
+
+function renderVerifierBundle(redteamReport: RedteamReport, verifierId: string | undefined): string {
+  const bundle = renderAgentTaskBundle(createAgentTaskBundle(redteamReport, { profile: "generic" }), "markdown");
+  return [
+    "# CodeDecay Verifier Challenge Bundle",
+    "",
+    `Verifier identity: ${verifierId ?? "verifier"}`,
+    "",
+    "Role boundary:",
+    "- You are the independent verifier, not the builder.",
+    "- Do not edit files, commit, push, merge, deploy, or run production migrations.",
+    "- Do not mark acceptance criteria verified. Only trusted deterministic checks, OSS tools, or runtime evidence can do that.",
+    "- Challenge the current tree from observable evidence. Propose hypotheses, missing proof, and safe proof tasks.",
+    "- You are not given the builder's hidden reasoning or an expected answer.",
+    "",
+    "Current-tree evidence:",
+    "",
+    bundle.trim()
+  ].join("\n");
 }
 
 async function createLoopCheckSnapshot(
@@ -146,7 +174,11 @@ function hasConfiguredChecks(config: CodeDecayConfig): boolean {
 function shouldFail(report: LoopReport): boolean {
   return report.status === "unverified" ||
     report.status === "stuck" ||
+    report.status === "budget-exhausted" ||
+    report.status === "unsafe-change" ||
     report.status === "needs-human" ||
+    report.status === "builder-error" ||
+    report.status === "verifier-error" ||
     report.status === "agent-error";
 }
 

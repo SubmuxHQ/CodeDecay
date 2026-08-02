@@ -35,7 +35,7 @@ describe("closed-loop progress evidence", () => {
       }]
     });
 
-    expect(result.status).toBe("needs-human");
+    expect(result.status).toBe("budget-exhausted");
     expect(result.rounds.filter((round) => round.agent)).toHaveLength(3);
     expect(result.rounds[1]?.riskReducedFromPreviousRound).toBe(true);
     expect(result.rounds[2]?.riskReducedFromPreviousRound).toBe(true);

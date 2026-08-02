@@ -2,13 +2,31 @@ import type { CommandExecutionResult, SafeCommandPolicy } from "@submuxhq/codede
 import type { FileChange, RequirementTraceGraph, RequirementTraceStatus, RiskLevel } from "@submuxhq/codedecay-core";
 
 export type LoopStatus =
+  | "verified"
+  | "shallow-proof"
   | "merge-safe-verified"
   | "merge-safe-shallow"
   | "unverified"
   | "stuck"
+  | "budget-exhausted"
+  | "unsafe-change"
   | "needs-human"
   | "plan-only"
+  | "builder-error"
+  | "verifier-error"
   | "agent-error";
+
+export type LoopAgentRole = "builder" | "verifier";
+
+export type LoopStateMachinePhase =
+  | "plan"
+  | "build-edit"
+  | "analyze"
+  | "challenge"
+  | "verify"
+  | "repair"
+  | "current-tree-reverify"
+  | "terminal-verdict";
 
 export type LoopFormat = "json" | "markdown";
 
@@ -118,6 +136,8 @@ export interface LoopMutationSnapshot {
 }
 
 export interface LoopAgentResult {
+  role?: LoopAgentRole | undefined;
+  identity?: string | undefined;
   command: string;
   status: CommandExecutionResult["status"];
   durationMs: number;
@@ -127,6 +147,17 @@ export interface LoopAgentResult {
   error?: string | undefined;
   madeChanges: boolean;
   changedFiles: string[];
+  notes?: string[] | undefined;
+}
+
+export interface LoopRoleIdentity {
+  role: LoopAgentRole;
+  id: string;
+  commandConfigured: boolean;
+  canEdit: boolean;
+  canVerifyCriteria: false;
+  receivesHiddenReasoning: false;
+  proofAuthority: "none";
 }
 
 export interface LoopRoundSnapshot {
@@ -145,8 +176,39 @@ export interface LoopRoundSnapshot {
   postAgentVerification?: LoopVerificationSnapshot | undefined;
   planOnlyBundle?: string | undefined;
   agent?: LoopAgentResult | undefined;
+  builder?: LoopAgentResult | undefined;
+  verifier?: LoopAgentResult | undefined;
+  stateMachine?: LoopStateMachineSnapshot | undefined;
   requirementStatuses?: LoopRequirementStatusSnapshot[] | undefined;
   agentRequirementEdits?: LoopAgentRequirementEdit[] | undefined;
+}
+
+export interface LoopStateMachineSnapshot {
+  schemaVersion: 1;
+  phase: LoopStateMachinePhase;
+  changedTreeFingerprint: string;
+  requirementStatuses: LoopRequirementStatusSnapshot[];
+  hypothesisStatuses: LoopHypothesisStatusSnapshot[];
+  experimentStatuses: LoopExperimentStatusSnapshot[];
+  unresolvedHumanDecisions: string[];
+  decisions: LoopDecisionSnapshot[];
+}
+
+export interface LoopHypothesisStatusSnapshot {
+  hypothesisId: string;
+  status: "candidate" | "planned" | "confirmed" | "refuted" | "inconclusive" | "needs-human";
+}
+
+export interface LoopExperimentStatusSnapshot {
+  experimentId: string;
+  status: "not-run" | "passed" | "failed" | "blocked" | "needs-human";
+}
+
+export interface LoopDecisionSnapshot {
+  phase: LoopStateMachinePhase;
+  actor: "codedecay" | LoopAgentRole;
+  summary: string;
+  evidenceIds: string[];
 }
 
 export interface LoopRequirementStatusSnapshot {
@@ -193,6 +255,8 @@ export interface LoopReport {
   finalWeakTestFindings: number;
   finalProductFailureBundles: number;
   finalCheckStatus: LoopCheckStatus;
+  roles: LoopRoleIdentity[];
+  stateMachine: LoopStateMachineSnapshot;
   verdict: LoopVerdictEvidence;
   finalFixTasks: LoopFixTask[];
   requirementTrace?: RequirementTraceGraph | undefined;
@@ -201,6 +265,8 @@ export interface LoopReport {
   safety: {
     commandsExecuted: boolean;
     agentCommandConfigured: boolean;
+    builderCommandConfigured: boolean;
+    verifierCommandConfigured: boolean;
     llmCalled: boolean;
     telemetrySent: false;
     cloudDependency: false;
@@ -236,12 +302,18 @@ export interface CodeDecayLoopInput {
   head?: string | undefined;
   maxRounds?: number | undefined;
   agentCommand?: string | undefined;
+  builderCommand?: string | undefined;
+  verifierCommand?: string | undefined;
+  builderIdentity?: string | undefined;
+  verifierIdentity?: string | undefined;
   safeRiskLevel?: RiskLevel | undefined;
   securityScoreThreshold?: number | undefined;
   agentTimeoutMs: number;
   commandSafety: SafeCommandPolicy;
   createRedteamReport(): Promise<LoopRedteamReport>;
   renderAgentBundle(report: LoopRedteamReport): string;
+  renderBuilderBundle?: ((report: LoopRedteamReport) => string) | undefined;
+  renderVerifierBundle?: ((report: LoopRedteamReport) => string) | undefined;
   runConfiguredChecks(): Promise<LoopCheckSnapshot>;
   getChangedFiles(): FileChange[];
   now?: () => Date;

@@ -241,15 +241,19 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
     summary: "Closed-loop controller that drives a user-owned agent through fix and re-verify rounds.",
     usage: ["codedecay loop [options]"],
     description: [
-      "Run CodeDecay redteam analysis, configured checks, and optionally an explicit local agent command in a safe loop.",
-      "Without --agent-cmd, loop runs in plan-only mode and prints the bundle it would send."
+      "Run CodeDecay redteam analysis, configured checks, and optionally explicit user-owned builder and verifier commands in a safe loop.",
+      "Without --builder-cmd or legacy --agent-cmd, loop runs in plan-only mode and prints the bundle it would send."
     ],
     options: [
       { flag: "--base <ref>", description: "Base git ref to compare from" },
       { flag: "--head <ref>", description: "Head git ref to compare to" },
       { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
       { flag: "--max-rounds <n>", description: "Maximum fix/recheck rounds (default: 4)" },
-      { flag: "--agent-cmd <command>", description: "Explicit user-owned agent command that reads the task bundle on stdin and may edit the working tree" },
+      { flag: "--agent-cmd <command>", description: "Legacy alias for --builder-cmd" },
+      { flag: "--builder-cmd <command>", description: "Explicit user-owned builder command that reads the task bundle on stdin and may edit the working tree" },
+      { flag: "--verifier-cmd <command>", description: "Explicit user-owned verifier command that challenges the current tree but must not edit files" },
+      { flag: "--builder-id <id>", description: "Identity label recorded for the builder role" },
+      { flag: "--verifier-id <id>", description: "Identity label recorded for the verifier role" },
       { flag: "--safe-risk <level>", description: "Maximum acceptable risk level: low, medium, or high (default: low)" },
       { flag: "--max-security-score <score>", description: "Maximum acceptable security score from deterministic analysis, 0-100 (default: 0)" },
       { flag: "--task <text>", description: "Task description used with a structured requirements artifact" },
@@ -259,15 +263,17 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
     ],
     examples: [
       "codedecay loop --format markdown",
-      "codedecay loop --agent-cmd \"codex exec --apply\" --max-rounds 3 --format json",
+      "codedecay loop --builder-cmd \"codex exec --apply\" --verifier-cmd \"codex exec\" --max-rounds 3 --format json",
       "codedecay loop --cwd ../my-repo --output codedecay-loop.md"
     ],
     notes: [
-      "CodeDecay does not embed a model. The agent command is user-owned and explicit.",
+      "CodeDecay does not embed a model. Builder and verifier commands are user-owned and explicit.",
+      "The verifier receives current-tree evidence and limitations, not the builder's hidden reasoning or an expected answer.",
+      "Verifier output can propose hypotheses and proof tasks, but only trusted deterministic, OSS-tool, or runtime evidence can verify criteria.",
       "The loop never auto-commits or auto-pushes. It leaves edits in the working tree for human review.",
       "Agent output is untrusted. CodeDecay re-runs deterministic analysis and configured checks after each agent action.",
       "Terminal clean verdicts are always qualified: merge-safe-verified has configured checks plus security/coverage/mutation depth, while merge-safe-shallow passed gates but is missing deeper evidence.",
-      "Exit codes: 0 for merge-safe-verified, merge-safe-shallow, or plan-only report generation; 1 for unverified, needs-human, stuck, or agent-error; and 2 for CLI/internal errors."
+      "Exit codes: 0 for merge-safe-verified, merge-safe-shallow, or plan-only report generation; 1 for unverified, needs-human, budget-exhausted, unsafe-change, stuck, builder-error, verifier-error, or agent-error; and 2 for CLI/internal errors."
     ]
   },
   doctor: {

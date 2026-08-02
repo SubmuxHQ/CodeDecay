@@ -88,12 +88,47 @@ describe("codedecay loop CLI contract", () => {
     const report = JSON.parse(result.stdout);
 
     expect(result.exitCode).toBe(1);
-    expect(report.status).toBe("agent-error");
+    expect(report.status).toBe("builder-error");
     expect(report.rounds[0].agent.status).toBe("skipped");
     expect(existsSync(join(repo, "agent-ran.txt"))).toBe(false);
   });
 
-  it("returns needs-human after max rounds when risk does not drop", async () => {
+  it("runs explicit builder and read-only verifier commands with separate identities", async () => {
+    const repo = createHighRiskRepo();
+    writeExecutionConfig(repo, {
+      allowCommands: true,
+      testCommand: "node -e \"process.exit(0)\""
+    });
+
+    const result = await run([
+      "loop",
+      "--format",
+      "json",
+      "--max-rounds",
+      "1",
+      "--builder-id",
+      "codex-builder",
+      "--builder-cmd",
+      "node -e \"require('fs').writeFileSync('agent.txt','fixed')\"",
+      "--verifier-id",
+      "codex-verifier",
+      "--verifier-cmd",
+      "node -e \"console.log('challenge only')\""
+    ], repo);
+    const report = JSON.parse(result.stdout);
+
+    expect(result.exitCode).toBe(1);
+    expect(report.status).toBe("budget-exhausted");
+    expect(report.roles).toEqual([
+      expect.objectContaining({ role: "builder", id: "codex-builder", canEdit: true }),
+      expect.objectContaining({ role: "verifier", id: "codex-verifier", canEdit: false })
+    ]);
+    expect(report.rounds[0].builder).toMatchObject({ role: "builder", identity: "codex-builder" });
+    expect(report.rounds[0].verifier).toMatchObject({ role: "verifier", identity: "codex-verifier", madeChanges: false });
+    expect(report.stateMachine.schemaVersion).toBe(1);
+  });
+
+  it("returns budget-exhausted after max rounds when risk does not drop", async () => {
     const repo = createHighRiskRepo();
     writeExecutionConfig(repo, {
       allowCommands: true,
@@ -113,7 +148,7 @@ describe("codedecay loop CLI contract", () => {
     const report = JSON.parse(result.stdout);
 
     expect(result.exitCode).toBe(1);
-    expect(report.status).toBe("needs-human");
+    expect(report.status).toBe("budget-exhausted");
     expect(report.roundsRun).toBe(2);
     expect(report.rounds.filter((round: { agent?: unknown }) => round.agent).length).toBe(2);
     expect(readFileSync(join(repo, "agent.txt"), "utf8")).toBe("xx");
@@ -128,6 +163,8 @@ describe("codedecay loop CLI contract", () => {
     expect(result.stdout).toContain("## CodeDecay Loop Report");
     expect(result.stdout).toContain("**Status:** merge safe shallow");
     expect(result.stdout).toContain("### Verdict Evidence");
+    expect(result.stdout).toContain("### Roles");
+    expect(result.stdout).toContain("### Loop State");
   });
 });
 

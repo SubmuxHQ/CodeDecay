@@ -6,6 +6,7 @@ export { renderLoopMarkdown, renderLoopReport } from "./render";
 export type {
   CodeDecayLoopInput,
   DriveAgentInput,
+  LoopAgentRole,
   LoopAgentResult,
   LoopCheckSnapshot,
   LoopCheckStatus,
@@ -15,8 +16,11 @@ export type {
   LoopMutationSnapshot,
   LoopRedteamReport,
   LoopReport,
+  LoopRoleIdentity,
   LoopRoundSnapshot,
   LoopSecurityToolSnapshot,
+  LoopStateMachinePhase,
+  LoopStateMachineSnapshot,
   LoopStatus,
   LoopVerificationSnapshot,
   LoopVerdictEvidence
