@@ -9,7 +9,8 @@ describe("memory public types and defaults", () => {
       commands: [],
       invariants: [],
       architecture: [],
-      regressions: []
+      regressions: [],
+      learningEvents: []
     });
   });
 });

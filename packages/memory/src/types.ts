@@ -12,6 +12,7 @@ export interface CodeDecayMemory {
   invariants: MemoryInvariant[];
   architecture: MemoryArchitectureNote[];
   regressions: MemoryRegression[];
+  learningEvents?: MemoryLearningEvent[] | undefined;
 }
 
 export interface MemoryMatcher {
@@ -48,6 +49,113 @@ export interface MemoryRegression extends MemoryMatcher {
   description: string;
   check?: string | undefined;
   severity?: RiskLevel | undefined;
+}
+
+export type MemoryLearningEventKind =
+  | "confirmed-regression"
+  | "verified-repair"
+  | "refuted-hypothesis"
+  | "accepted-risk"
+  | "incident"
+  | "architecture-decision"
+  | "convention"
+  | "ownership-change"
+  | "proof-recipe";
+
+export type MemoryLearningTrustClass =
+  | "tool-evidence"
+  | "runtime-evidence"
+  | "human-approved"
+  | "agent-proposal-untrusted"
+  | "pr-text-untrusted"
+  | "external-memory-untrusted";
+
+export type MemoryLearningReviewStatus =
+  | "proposed"
+  | "approved"
+  | "rejected"
+  | "superseded"
+  | "expired"
+  | "revoked";
+
+export interface MemoryLearningScope extends MemoryMatcher {
+  repository?: string | undefined;
+  revision?: string | undefined;
+  symbols?: string[] | undefined;
+}
+
+export interface MemoryLearningAuditEntry {
+  action: "propose" | "approve" | "reject" | "supersede" | "expire" | "revoke";
+  actor: string;
+  timestamp: string;
+  reason: string;
+  evidenceIds?: string[] | undefined;
+}
+
+export interface MemoryLearningEvent {
+  id: string;
+  schemaVersion: 1;
+  kind: MemoryLearningEventKind;
+  title: string;
+  summary: string;
+  invariant?: string | undefined;
+  proofRecipe?: string | undefined;
+  sourceEvidenceIds: string[];
+  scope: MemoryLearningScope;
+  confidence: number;
+  trustClass: MemoryLearningTrustClass;
+  creator: string;
+  createdAt: string;
+  reviewStatus: MemoryLearningReviewStatus;
+  reviewDueAt?: string | undefined;
+  supersedes?: string[] | undefined;
+  expiresAt?: string | undefined;
+  auditTrail: MemoryLearningAuditEntry[];
+}
+
+export interface MemoryLearningEventInput {
+  kind: MemoryLearningEventKind;
+  title: string;
+  summary: string;
+  invariant?: string | undefined;
+  proofRecipe?: string | undefined;
+  sourceEvidenceIds: string[];
+  scope?: MemoryLearningScope | undefined;
+  confidence?: number | undefined;
+  trustClass: MemoryLearningTrustClass;
+  creator: string;
+  timestamp: string;
+  reviewDueAt?: string | undefined;
+  supersedes?: string[] | undefined;
+  expiresAt?: string | undefined;
+}
+
+export interface MemoryLearningOperationInput {
+  eventId: string;
+  action: "approve" | "reject" | "supersede" | "expire" | "revoke";
+  actor: string;
+  timestamp: string;
+  reason: string;
+  evidenceIds?: string[] | undefined;
+}
+
+export interface MemoryLearningRetrievalInput {
+  memory: CodeDecayMemory;
+  changedFiles: FileChange[];
+  impactedAreas: ImpactedArea[];
+  repository?: string | undefined;
+  revision?: string | undefined;
+  now?: string | undefined;
+}
+
+export interface MemoryLearningRetrievalEntry {
+  event: MemoryLearningEvent;
+  reason: string;
+}
+
+export interface MemoryLearningRetrievalResult {
+  included: MemoryLearningRetrievalEntry[];
+  suppressed: MemoryLearningRetrievalEntry[];
 }
 
 export interface LoadedCodeDecayMemory {
@@ -137,5 +245,6 @@ export const DEFAULT_CODEDECAY_MEMORY: CodeDecayMemory = {
   commands: [],
   invariants: [],
   architecture: [],
-  regressions: []
+  regressions: [],
+  learningEvents: []
 };

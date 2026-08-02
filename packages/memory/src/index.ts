@@ -1,6 +1,14 @@
 export { applyMemoryContext } from "./apply-context";
 export { firstLine, firstMatchingFile, matchesMemoryEntry } from "./context-matchers";
 export { importCodeDecayMemory } from "./import-memory";
+export { normalizeMemory, parseJsonMemory } from "./schema";
+export {
+  applyLearningEventOperation,
+  createLearningEventProposal,
+  normalizeLearningEvent,
+  redactLearningText,
+  retrieveApprovedLearningEvents
+} from "./learning-events";
 export { learnCodeDecayMemory } from "./learn-memory";
 export {
   createLocalMemoryProvider,
@@ -29,6 +37,17 @@ export type {
   MemoryLearningProposalSection,
   MemoryLearningProposalSource,
   MemoryLearningSourceType,
+  MemoryLearningAuditEntry,
+  MemoryLearningEvent,
+  MemoryLearningEventInput,
+  MemoryLearningEventKind,
+  MemoryLearningOperationInput,
+  MemoryLearningRetrievalEntry,
+  MemoryLearningRetrievalInput,
+  MemoryLearningRetrievalResult,
+  MemoryLearningReviewStatus,
+  MemoryLearningScope,
+  MemoryLearningTrustClass,
   MemoryLearnResult,
   MemoryMatcher,
   MemoryProvider,
