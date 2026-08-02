@@ -7,7 +7,9 @@ test("one click runs live auth analysis and exposes exact evidence links", async
     page.getByRole("heading", { name: /Find what your coding agent missed/i }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "Red-team the risky PR" }).click();
+  const runButton = page.getByRole("button", { name: "Watch CodeDecay catch it" });
+  await expect(runButton).toBeEnabled();
+  await runButton.click();
   const result = page.getByTestId("analysis-result");
   await expect(result).toBeVisible();
   await expect(result.getByText("LIVE EXECUTION")).toBeVisible();

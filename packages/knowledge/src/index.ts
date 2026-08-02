@@ -25,6 +25,47 @@ export {
   ENGINEERING_CONTEXT_SCHEMA_VERSION,
   ENGINEERING_CONTEXT_TRUST_CLASSES
 } from "./types";
+export {
+  CONTEXT_SERVICE_SCHEMA_VERSION,
+  CONTEXT_SERVICE_STATE_PATH,
+  LocalContextService
+} from "./service";
+export {
+  SERVICE_TOPOLOGY_ARTIFACT_PATH,
+  loadServiceTopologyManifest,
+  normalizeServiceTopologyGraph,
+  persistServiceTopologyArtifact,
+  topologyEvidenceId
+} from "./topology/manifest";
+export { analyzeServiceTopologyImpact, renderServiceTopologyImpactMarkdown } from "./topology/impact";
+export {
+  SERVICE_TOPOLOGY_EDGE_KINDS,
+  SERVICE_TOPOLOGY_NODE_KINDS,
+  SERVICE_TOPOLOGY_SCHEMA_VERSION
+} from "./topology/types";
+export type {
+  ServiceTopologyConfidence,
+  ServiceTopologyEdge,
+  ServiceTopologyEdgeKind,
+  ServiceTopologyFreshness,
+  ServiceTopologyGap,
+  ServiceTopologyGraph,
+  ServiceTopologyImpact,
+  ServiceTopologyImpactReport,
+  ServiceTopologyNode,
+  ServiceTopologyNodeKind,
+  ServiceTopologySource,
+  ServiceTopologyTrustClass
+} from "./topology/types";
+export type {
+  ContextInvalidationReason,
+  ContextServiceBuildInput,
+  ContextServiceFreshness,
+  ContextServiceHealth,
+  ContextServiceMetadata,
+  ContextServiceQueryResult,
+  LocalContextServiceOptions
+} from "./service";
 export type {
   EngineeringContextConfidence,
   EngineeringContextDocumentInput,
