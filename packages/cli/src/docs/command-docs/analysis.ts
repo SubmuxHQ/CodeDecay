@@ -1,6 +1,27 @@
 import type { CommandDoc } from "../../renderers/discovery";
 
 export const ANALYSIS_COMMAND_DOCS: Record<string, CommandDoc> = {
+  runtime: {
+    name: "runtime",
+    summary: "Ingest local runtime exports as redacted engineering evidence.",
+    usage: ["codedecay runtime [options]"],
+    description: ["Read local OTLP JSON traces and structured error exports, correlate them with an optional service topology, and emit revision-aware investigation evidence."],
+    options: [
+      { flag: "--telemetry <path>", description: "Repo-local OTLP JSON trace export" },
+      { flag: "--errors <path>", description: "Repo-local structured error export" },
+      { flag: "--topology <path>", description: "Optional repo-local service topology manifest" },
+      { flag: "--head-revision <revision>", description: "Current source revision used to classify evidence trust" },
+      { flag: "--environment <name>", description: "Environment label when an export omits one" },
+      { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
+      { flag: "--format <format>", description: "json or markdown (default: markdown)" },
+      { flag: "--output <path>", description: "Write evidence report to a file instead of stdout" }
+    ],
+    examples: [
+      "codedecay runtime --telemetry .codedecay/runtime/traces.json --head-revision $(git rev-parse HEAD)",
+      "codedecay runtime --errors .codedecay/runtime/errors.json --format json"
+    ],
+    notes: ["Inputs must resolve inside the repository. The command performs no network calls or project command execution."]
+  },
   analyze: {
     name: "analyze",
     summary: "Deterministic PR risk, impact, and decay report.",

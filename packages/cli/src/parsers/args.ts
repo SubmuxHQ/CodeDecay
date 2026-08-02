@@ -13,6 +13,7 @@ export { parseLoopArgs } from "./loop";
 export { parseMcpArgs } from "./mcp";
 export { parseMemoryArgs, parseMemoryImportArgs, parseMemoryLearnArgs, parseMemorySetupArgs } from "./memory";
 export { parseRevalidateArgs } from "./revalidate";
+export { parseRuntimeArgs } from "./runtime";
 export { parseProductArgs } from "./product";
 export { parseRedteamArgs } from "./redteam";
 export { parseSessionArgs } from "./session";

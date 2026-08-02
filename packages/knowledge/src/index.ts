@@ -43,6 +43,17 @@ export {
   SERVICE_TOPOLOGY_NODE_KINDS,
   SERVICE_TOPOLOGY_SCHEMA_VERSION
 } from "./topology/types";
+export { ingestRuntimeEvidence } from "./runtime/ingest";
+export type { IngestRuntimeEvidenceOptions } from "./runtime/ingest";
+export { renderRuntimeEvidenceMarkdown } from "./runtime/render";
+export { RUNTIME_EVIDENCE_SCHEMA_VERSION } from "./runtime/types";
+export type {
+  RuntimeErrorEvidence,
+  RuntimeEvidenceReport,
+  RuntimeEvidenceSource,
+  RuntimeEvidenceTrust,
+  RuntimeOperationEvidence
+} from "./runtime/types";
 export type {
   ServiceTopologyConfidence,
   ServiceTopologyEdge,
