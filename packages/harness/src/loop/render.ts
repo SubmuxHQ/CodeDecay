@@ -52,6 +52,8 @@ export function renderLoopMarkdown(report: LoopReport): string {
   ];
 
   appendRoundTable(lines, report);
+  appendRoles(lines, report);
+  appendStateMachine(lines, report);
   appendRequirementTrace(lines, report);
   appendAgentActivity(lines, report);
   appendPlanOnlyBundle(lines, report);
@@ -62,7 +64,9 @@ export function renderLoopMarkdown(report: LoopReport): string {
     "",
     "### Safety",
     "",
-    `- Agent command configured: ${report.safety.agentCommandConfigured ? "yes" : "no"}`,
+    `- Builder command configured: ${report.safety.builderCommandConfigured ? "yes" : "no"}`,
+    `- Verifier command configured: ${report.safety.verifierCommandConfigured ? "yes" : "no"}`,
+    `- Legacy agent command configured: ${report.safety.agentCommandConfigured ? "yes" : "no"}`,
     `- Commands executed by CodeDecay: ${report.safety.commandsExecuted ? "yes" : "no"}`,
     `- LLM/model called by CodeDecay: ${report.safety.llmCalled ? "yes" : "no"}`,
     `- Telemetry sent: ${report.safety.telemetrySent ? "yes" : "no"}`,
@@ -74,6 +78,36 @@ export function renderLoopMarkdown(report: LoopReport): string {
   );
 
   return `${lines.join("\n")}\n`;
+}
+
+function appendRoles(lines: string[], report: LoopReport): void {
+  lines.push(
+    "",
+    "### Roles",
+    "",
+    "| Role | Identity | Command | Can edit | Can verify criteria |",
+    "| --- | --- | --- | --- | --- |"
+  );
+  for (const role of report.roles) {
+    lines.push(
+      `| ${role.role} | ${role.id} | ${role.commandConfigured ? "configured" : "not configured"} | ${role.canEdit ? "yes" : "no"} | ${role.canVerifyCriteria ? "yes" : "no"} |`
+    );
+  }
+}
+
+function appendStateMachine(lines: string[], report: LoopReport): void {
+  lines.push(
+    "",
+    "### Loop State",
+    "",
+    `- Schema: ${report.stateMachine.schemaVersion}`,
+    `- Phase: ${report.stateMachine.phase}`,
+    `- Changed-tree fingerprint: \`${report.stateMachine.changedTreeFingerprint}\``
+  );
+  if (report.stateMachine.unresolvedHumanDecisions.length > 0) {
+    lines.push("- Unresolved human decisions:");
+    lines.push(...report.stateMachine.unresolvedHumanDecisions.map((decision) => `  - ${decision}`));
+  }
 }
 
 function appendRequirementTrace(lines: string[], report: LoopReport): void {

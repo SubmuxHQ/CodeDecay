@@ -130,7 +130,7 @@ describe("CodeDecay loop controller", () => {
     expect(existsSync(join(repo, "agent-ran.txt"))).toBe(false);
   });
 
-  it("stops as needs-human when max rounds are reached without safety", async () => {
+  it("stops as budget-exhausted when max rounds are reached without safety", async () => {
     const repo = createRepo();
     const report = await runCodeDecayLoop({
       ...baseInput(repo),
@@ -140,7 +140,7 @@ describe("CodeDecay loop controller", () => {
       runConfiguredChecks: async () => checkSnapshot("passed", true)
     });
 
-    expect(report.status).toBe("needs-human");
+    expect(report.status).toBe("budget-exhausted");
     expect(report.roundsRun).toBe(2);
     expect(report.rounds.filter((round) => round.agent).length).toBe(2);
   });
@@ -233,7 +233,7 @@ describe("CodeDecay loop controller", () => {
       createRedteamReport,
       runConfiguredChecks
     });
-    expect(report.status).toBe("needs-human");
+    expect(report.status).toBe("budget-exhausted");
     expect(report.rounds[0]?.agent).toMatchObject({ status: "passed", madeChanges: true });
     expect(report.rounds[0]?.postAgentVerification).toMatchObject({
       mergeRiskScore: 96,
@@ -254,7 +254,7 @@ describe("CodeDecay loop controller", () => {
     expect([createRedteamReport.mock.calls.length, runConfiguredChecks.mock.calls.length]).toEqual([2, 2]);
   });
 
-  it("keeps agent-error after revalidating files left by a failed agent", async () => {
+  it("keeps builder-error after revalidating files left by a failed builder", async () => {
     const repo = createRepo();
     const createRedteamReport = vi.fn()
       .mockResolvedValueOnce(redteamReport({ riskLevel: "high", mergeRiskScore: 90, weakTestFindings: 1 }))
@@ -267,7 +267,7 @@ describe("CodeDecay loop controller", () => {
       createRedteamReport,
       runConfiguredChecks
     });
-    expect(report.status).toBe("agent-error");
+    expect(report.status).toBe("builder-error");
     expect(report.rounds[0]?.agent).toMatchObject({ status: "failed", madeChanges: true });
     expect(report.rounds[0]?.postAgentVerification).toMatchObject({
       mergeRiskScore: 10,
@@ -287,12 +287,58 @@ describe("CodeDecay loop controller", () => {
       runConfiguredChecks: async () => checkSnapshot("passed", true)
     });
 
-    expect(report.status).toBe("agent-error");
+    expect(report.status).toBe("builder-error");
     expect(report.rounds[0]?.agent).toMatchObject({
       status: "skipped",
       madeChanges: false
     });
     expect(getGitChangedFiles({ cwd: repo }).map((change) => change.path)).not.toContain("agent-ran.txt");
+  });
+
+  it("records separate builder and verifier roles without letting verifier output prove criteria", async () => {
+    const repo = createRepo();
+    const report = await runCodeDecayLoop({
+      ...baseInput(repo),
+      maxRounds: 1,
+      builderCommand: "node -e \"require('fs').writeFileSync('agent.txt', 'fixed')\"",
+      verifierCommand: "node -e \"console.log('challenge: missing API proof')\"",
+      builderIdentity: "codex-builder",
+      verifierIdentity: "codex-verifier",
+      createRedteamReport: async () => redteamReport({ riskLevel: "high", mergeRiskScore: 90, weakTestFindings: 1 }),
+      runConfiguredChecks: async () => checkSnapshot("passed", true)
+    });
+
+    expect(report.roles).toEqual([
+      expect.objectContaining({ role: "builder", id: "codex-builder", canEdit: true, canVerifyCriteria: false }),
+      expect.objectContaining({ role: "verifier", id: "codex-verifier", canEdit: false, canVerifyCriteria: false })
+    ]);
+    expect(report.status).toBe("budget-exhausted");
+    expect(report.rounds[0]?.builder).toMatchObject({ role: "builder", identity: "codex-builder", madeChanges: true });
+    expect(report.rounds[0]?.verifier).toMatchObject({ role: "verifier", identity: "codex-verifier", madeChanges: false });
+    expect(report.stateMachine).toMatchObject({
+      schemaVersion: 1,
+      phase: "terminal-verdict"
+    });
+  });
+
+  it("stops as unsafe-change when the verifier edits files", async () => {
+    const repo = createRepo();
+    const report = await runCodeDecayLoop({
+      ...baseInput(repo),
+      maxRounds: 1,
+      builderCommand: "node -e \"require('fs').writeFileSync('agent.txt', 'fixed')\"",
+      verifierCommand: "node -e \"require('fs').writeFileSync('verifier-edit.txt', 'bad')\"",
+      createRedteamReport: async () => redteamReport({ riskLevel: "high", mergeRiskScore: 90, weakTestFindings: 1 }),
+      runConfiguredChecks: async () => checkSnapshot("passed", true)
+    });
+
+    expect(report.status).toBe("unsafe-change");
+    expect(report.rounds[0]?.verifier).toMatchObject({
+      role: "verifier",
+      madeChanges: true,
+      changedFiles: ["verifier-edit.txt"]
+    });
+    expect(report.nextSteps).toContain("A read-only verifier or protected role changed files.");
   });
 });
 

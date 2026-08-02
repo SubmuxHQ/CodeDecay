@@ -62,6 +62,17 @@ test("health endpoint reports engine and build provenance", async () => {
   assert.deepEqual(payload.evidenceModes, ["live", "precomputed"]);
 });
 
+test("image optimization endpoint does not crash without local worker bindings", async () => {
+  const worker = await createWorker();
+  const response = await worker.fetch(
+    new Request("http://localhost/_vinext/image?url=%2Flogo.png&w=128&q=75"),
+    {},
+    context,
+  );
+
+  assert.notEqual(response.status, 500);
+});
+
 test("live endpoint finds the curated anonymous admin route", async () => {
   const worker = await createWorker();
   const response = await worker.fetch(

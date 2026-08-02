@@ -7,6 +7,10 @@ export interface LoopOptions {
   cwd?: string | undefined;
   maxRounds: number;
   agentCommand?: string | undefined;
+  builderCommand?: string | undefined;
+  verifierCommand?: string | undefined;
+  builderId?: string | undefined;
+  verifierId?: string | undefined;
   format: LoopFormat;
   output?: string | undefined;
   safeRiskLevel: RiskLevel;
