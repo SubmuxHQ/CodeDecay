@@ -7,6 +7,7 @@ import { createTestProofAudit } from "@submuxhq/codedecay-test-audit";
 import { collectConfiguredChecks, collectToolAdapterPlans } from "./checks";
 import { summarizeMemory, summarizeSkills } from "./context";
 import { createEdgeCasePlan } from "./edge-cases";
+import { createExperimentPlans } from "./experiments";
 import { createFixTasks } from "./fix-tasks";
 import { matchPatternIntelligence } from "./patterns";
 import { createRedteamSafetySummary } from "./safety";
@@ -29,9 +30,18 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
   const edgeCases = edgeCasePlan.ranked;
   const configuredChecks = collectConfiguredChecks(input.config);
   const toolAdapterPlans = collectToolAdapterPlans(input.config);
+  const verification = input.verification ?? createNotRunVerificationSummary();
+  const experimentPlans = createExperimentPlans({
+    analysisReport: input.analysisReport,
+    config: input.config,
+    hypotheses: input.investigation?.hypotheses,
+    requirements: input.requirements,
+    configuredChecks,
+    toolAdapterPlans,
+    verification
+  });
   const memory = summarizeMemory(input.memory, input.memorySource, input.memoryProviderSources);
   const skills = summarizeSkills(input.skills);
-  const verification = input.verification ?? createNotRunVerificationSummary();
   const fixTasks = hasChangedFiles
     ? createFixTasks({
         analysisReport: input.analysisReport,
@@ -89,6 +99,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
       edgeCaseOverflow: edgeCasePlan.overflow.length,
       configuredChecks: configuredChecks.length,
       toolAdapters: toolAdapterPlans.length,
+      experimentPlans: experimentPlans.length,
       patternInsights: patternInsights.length,
       productFailureBundles: input.analysisReport.productFailureBundles?.length ?? 0,
       verificationStatus: verification.status,
@@ -106,6 +117,7 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
     edgeCaseOverflow: edgeCasePlan.overflow,
     configuredChecks,
     toolAdapterPlans,
+    experimentPlans,
     patternInsights,
     memory,
     skills,

@@ -1,5 +1,6 @@
 export { appendConfiguredChecks, appendToolAdapterPlans } from "./sections/checks";
 export { appendMemorySummary, appendSkills } from "./sections/context";
+export { appendExperimentPlans } from "./sections/experiments";
 export { appendEdgeCases, appendFixTasks } from "./sections/fix-tasks";
 export {
   appendImpactGraph,

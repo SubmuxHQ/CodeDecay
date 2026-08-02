@@ -91,6 +91,7 @@ export interface RedteamReport {
   edgeCaseOverflow: RedteamEdgeCase[];
   configuredChecks: RedteamConfiguredCheck[];
   toolAdapterPlans: RedteamToolAdapterPlan[];
+  experimentPlans: RedteamExperimentPlan[];
   patternInsights: RedteamPatternInsight[];
   memory: RedteamMemorySummary;
   skills: RedteamSkillSummary[];
@@ -119,6 +120,7 @@ export interface RedteamSummary {
   edgeCaseOverflow: number;
   configuredChecks: number;
   toolAdapters: number;
+  experimentPlans: number;
   patternInsights: number;
   productFailureBundles: number;
   verificationStatus: RedteamVerificationStatus;
@@ -144,6 +146,92 @@ export interface RedteamToolAdapterPlan {
   willRun: false;
   requiresApproval: boolean;
   timeoutMs?: number | undefined;
+}
+
+export type RedteamExperimentTargetKind = "api" | "cli" | "browser" | "static" | "human";
+export type RedteamExperimentApprovalState = "proposed" | "approved" | "rejected" | "needs-human";
+export type RedteamExperimentRiskClass = "low" | "medium" | "high" | "blocked";
+export type RedteamExperimentPlanStatus = "valid" | "blocked" | "needs-human";
+
+export interface RedteamExperimentPlan {
+  id: string;
+  hypothesisId: string;
+  requirementIds: string[];
+  target: RedteamExperimentTarget;
+  preconditions: string[];
+  setup: RedteamExperimentStep[];
+  action: RedteamExperimentStep;
+  oracle: RedteamExperimentOracle;
+  baseHeadExpectation: string;
+  toolAdapter: RedteamExperimentToolAdapter;
+  commands: RedteamExperimentCommand[];
+  timeoutMs: number;
+  cleanup: RedteamExperimentCleanup;
+  requiredSecrets: string[];
+  riskClass: RedteamExperimentRiskClass;
+  approvalState: RedteamExperimentApprovalState;
+  status: RedteamExperimentPlanStatus;
+  willRun: false;
+  networkBoundary: "loopback-only" | "none" | "needs-human";
+  generatedArtifacts: RedteamExperimentArtifact[];
+  attachedResults: RedteamExperimentAttachedResult[];
+  limitations: string[];
+}
+
+export interface RedteamExperimentTarget {
+  kind: RedteamExperimentTargetKind;
+  name: string;
+  files: string[];
+  routes: string[];
+  networkTargets: string[];
+}
+
+export interface RedteamExperimentStep {
+  description: string;
+  command?: string | undefined;
+  files: string[];
+  env: string[];
+}
+
+export interface RedteamExperimentOracle {
+  description: string;
+  disconfirmingResult: string;
+  expectedBase: string;
+  expectedHead: string;
+}
+
+export interface RedteamExperimentToolAdapter {
+  kind: RedteamHypothesisVerifierKind;
+  name: string;
+  configured: boolean;
+}
+
+export interface RedteamExperimentCommand {
+  label: string;
+  command: string;
+  source: "configured-check" | "tool-adapter" | "differential" | "product-target";
+  timeoutMs?: number | undefined;
+}
+
+export interface RedteamExperimentCleanup {
+  behavior: string;
+  commands: string[];
+  failureMode: "needs-human" | "safe";
+}
+
+export interface RedteamExperimentArtifact {
+  kind: "plan" | "generated-test" | "trace" | "screenshot" | "stdout" | "stderr" | "diff";
+  path?: string | undefined;
+  promoteRequiresApproval: boolean;
+}
+
+export interface RedteamExperimentAttachedResult {
+  checkName: string;
+  status: RedteamExecutionStatus;
+  proof: RedteamProofGrade;
+  command?: string | undefined;
+  summary: string;
+  artifactDirectory?: string | undefined;
 }
 
 export interface RedteamVerificationSummary {

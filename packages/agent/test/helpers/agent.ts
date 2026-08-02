@@ -29,6 +29,7 @@ export function createFixtureReport(): RedteamReport {
       edgeCaseOverflow: 0,
       configuredChecks: 1,
       toolAdapters: 1,
+      experimentPlans: 0,
       patternInsights: 0,
       productFailureBundles: 1,
       verificationStatus: "not-run",
@@ -302,6 +303,7 @@ export function createFixtureReport(): RedteamReport {
         requiresApproval: true
       }
     ],
+    experimentPlans: [],
     patternInsights: [],
     verification: {
       status: "not-run",
