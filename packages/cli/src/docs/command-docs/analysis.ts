@@ -1,6 +1,22 @@
 import type { CommandDoc } from "../../renderers/discovery";
 
 export const ANALYSIS_COMMAND_DOCS: Record<string, CommandDoc> = {
+  migration: {
+    name: "migration",
+    summary: "Plan schema migration and mixed-version safety checks.",
+    usage: ["codedecay migration [options]"],
+    description: ["Parse repo-local PostgreSQL or Prisma migration SQL, identify destructive and backfill risks, and emit a five-state deployment compatibility matrix without contacting a database."],
+    options: [
+      { flag: "--file <path>", description: "Repo-local migration SQL file; repeat for multiple files" },
+      { flag: "--rollback-file <path>", description: "Repo-local rollback SQL file; repeat for multiple files" },
+      { flag: "--target-kind <kind>", description: "unspecified, disposable-local, remote-unapproved, or production-like" },
+      { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
+      { flag: "--format <format>", description: "json or markdown (default: markdown)" },
+      { flag: "--output <path>", description: "Write the plan to a file instead of stdout" }
+    ],
+    examples: ["codedecay migration --file prisma/migrations/20260802_change/migration.sql --target-kind disposable-local", "codedecay migration --file migration.sql --target-kind production-like --format json"],
+    notes: ["This command is plan-only: it reads no database secret, contacts no database, and applies no migration."]
+  },
   runtime: {
     name: "runtime",
     summary: "Ingest local runtime exports as redacted engineering evidence.",

@@ -15,6 +15,7 @@
     "@submuxhq/codedecay-core": "workspace:*",
     "@submuxhq/codedecay-memory": "workspace:*",
     "chokidar": "^4.0.3",
+    "pgsql-ast-parser": "^12.0.2",
     "yaml": "^2.8.1"
   },
   "scripts": {

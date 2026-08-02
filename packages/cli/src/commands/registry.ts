@@ -16,6 +16,7 @@ import {
   runMemoryLearnCommand as runMemoryLearnCommandWithDependencies
 } from "./memory";
 import { runMcpCommand as runMcpCommandWithDependencies } from "./mcp";
+import { runMigrationCommand as runMigrationCommandWithDependencies } from "./migration";
 import { runProductCommand as runProductCommandWithDependencies } from "./product";
 import { runRedteamCommand as runRedteamCommandWithDependencies } from "./redteam";
 import { runRevalidateCommand as runRevalidateCommandWithDependencies } from "./revalidate";
@@ -92,6 +93,10 @@ export function createCommandHandlers(options: CommandRegistryOptions): Record<s
     }),
     mcp: (context) => runMcpCommandWithDependencies(context, {
       cliPath: options.cliPath
+    }),
+    migration: (context) => runMigrationCommandWithDependencies(context, {
+      resolveRepoRoot: getRepoRootForCli,
+      writeOutput: writeCliOutput
     }),
     memory: (context) => runMemoryCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),
     "memory-import": (context) => runMemoryImportCommandWithDependencies(context, { resolveRepoRoot: getRepoRootForCli }),

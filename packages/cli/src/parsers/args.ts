@@ -12,6 +12,7 @@ export { parseLlmReviewArgs } from "./llm-review";
 export { parseLoopArgs } from "./loop";
 export { parseMcpArgs } from "./mcp";
 export { parseMemoryArgs, parseMemoryImportArgs, parseMemoryLearnArgs, parseMemorySetupArgs } from "./memory";
+export { parseMigrationArgs } from "./migration";
 export { parseRevalidateArgs } from "./revalidate";
 export { parseRuntimeArgs } from "./runtime";
 export { parseProductArgs } from "./product";
