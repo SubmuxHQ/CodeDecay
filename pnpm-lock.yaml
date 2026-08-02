@@ -145,6 +145,9 @@ importers:
       '@submuxhq/codedecay-memory':
         specifier: workspace:*
         version: link:../memory
+      chokidar:
+        specifier: ^4.0.3
+        version: 4.0.3
 
   packages/llm:
     dependencies:

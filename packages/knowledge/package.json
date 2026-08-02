@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@submuxhq/codedecay-core": "workspace:*",
-    "@submuxhq/codedecay-memory": "workspace:*"
+    "@submuxhq/codedecay-memory": "workspace:*",
+    "chokidar": "^4.0.3"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean --tsconfig ../../tsconfig.base.json"

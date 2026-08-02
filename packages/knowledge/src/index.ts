@@ -25,6 +25,20 @@ export {
   ENGINEERING_CONTEXT_SCHEMA_VERSION,
   ENGINEERING_CONTEXT_TRUST_CLASSES
 } from "./types";
+export {
+  CONTEXT_SERVICE_SCHEMA_VERSION,
+  CONTEXT_SERVICE_STATE_PATH,
+  LocalContextService
+} from "./service";
+export type {
+  ContextInvalidationReason,
+  ContextServiceBuildInput,
+  ContextServiceFreshness,
+  ContextServiceHealth,
+  ContextServiceMetadata,
+  ContextServiceQueryResult,
+  LocalContextServiceOptions
+} from "./service";
 export type {
   EngineeringContextConfidence,
   EngineeringContextDocumentInput,
