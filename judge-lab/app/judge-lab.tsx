@@ -261,10 +261,15 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
           <article>
             <span className="card-label">TRY ON YOUR REPO</span>
             <h3>Run the CLI where your code lives.</h3>
-            <pre>
-              <code>{`npx @submuxhq/codedecay@0.4.1 redteam --base main --head HEAD --format markdown
-npx @submuxhq/codedecay@0.4.1 agent --base main --head HEAD`}</code>
-            </pre>
+            <textarea
+              className="command-snippet"
+              aria-label="Local CLI commands"
+              readOnly
+              rows={2}
+              spellCheck={false}
+              value={`npx @submuxhq/codedecay@0.4.1 redteam --base main --head HEAD --format markdown
+npx @submuxhq/codedecay@0.4.1 agent --base main --head HEAD`}
+            />
             <p>
               This is the real product path: local diff, local checks, no hidden upload, and
               agent-readable tasks for Codex, Claude Code, Cursor, or MCP clients.
@@ -273,12 +278,17 @@ npx @submuxhq/codedecay@0.4.1 agent --base main --head HEAD`}</code>
           <article>
             <span className="card-label">AUTOMATE IN CI</span>
             <h3>Add it before merge.</h3>
-            <pre>
-              <code>{`- uses: SubmuxHQ/CodeDecay/.github/actions/codedecay@v0.4.1
+            <textarea
+              className="command-snippet"
+              aria-label="GitHub Action configuration"
+              readOnly
+              rows={4}
+              spellCheck={false}
+              value={`- uses: SubmuxHQ/CodeDecay/.github/actions/codedecay@v0.4.1
   with:
     base: main
-    head: HEAD`}</code>
-            </pre>
+    head: HEAD`}
+            />
             <p>
               The GitHub Action turns the same merge-safety checks into review evidence before a
               risky AI-generated change lands.
