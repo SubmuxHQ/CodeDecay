@@ -577,7 +577,7 @@ a:focus-visible {
   text-transform: uppercase;
 }
 
-.use-grid pre {
+.command-snippet {
   background: #0b0b0a;
   border: 1px solid var(--line);
   color: #c8c4b9;
@@ -587,7 +587,9 @@ a:focus-visible {
   margin: 20px 0;
   overflow-x: auto;
   padding: 18px;
+  resize: none;
   white-space: pre;
+  width: 100%;
 }
 
 .scenario-picker {
