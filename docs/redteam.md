@@ -56,6 +56,9 @@ Exit codes:
 - base/head differential probe and API contract evidence when `--with-checks`,
   `--base`, and `--head` are provided and probes or OpenAPI contracts are
   configured
+- reviewable experiment plans that map agent hypotheses to configured checks,
+  OSS adapters, product probes, differential runs, or human decisions without
+  executing them
 - local memory summary from `.codedecay/memory.json`
 - repo-local agent skill summaries from `.agents/skills/*/SKILL.md`
 - configured test/build/start/probe commands and configured Agent Process,
@@ -141,6 +144,9 @@ Suggested workflow:
 5. Run `codedecay redteam --with-checks --base main --head HEAD`,
    `codedecay execute`, or `codedecay differential` explicitly when you want
    configured checks, base/head behavior probes, or API contract diffs.
+6. Review any experiment plans before execution; they are proposed artifacts
+   until the exact commands, targets, environment names, and cleanup behavior
+   are approved.
 
 See [Agent skills](skills.md) for the local skill file format.
 

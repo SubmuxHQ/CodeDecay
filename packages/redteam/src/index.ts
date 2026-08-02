@@ -1,5 +1,6 @@
 export { createRedteamReport } from "./report";
 export { createEdgeCasePlan, MAX_RANKED_EDGE_CASES } from "./edge-cases";
+export { createExperimentPlans } from "./experiments";
 export {
   applyHypothesisVerifierResults,
   collectHypothesisEvidenceIds,
@@ -14,6 +15,19 @@ export type {
   RedteamCheckKind,
   RedteamConfiguredCheck,
   RedteamExecutionStatus,
+  RedteamExperimentApprovalState,
+  RedteamExperimentAttachedResult,
+  RedteamExperimentArtifact,
+  RedteamExperimentCleanup,
+  RedteamExperimentCommand,
+  RedteamExperimentOracle,
+  RedteamExperimentPlan,
+  RedteamExperimentPlanStatus,
+  RedteamExperimentRiskClass,
+  RedteamExperimentStep,
+  RedteamExperimentTarget,
+  RedteamExperimentTargetKind,
+  RedteamExperimentToolAdapter,
   RedteamEdgeCase,
   RedteamEdgeCaseConfidence,
   RedteamEdgeCaseDerivation,

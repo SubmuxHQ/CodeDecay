@@ -3,6 +3,7 @@ import { createRedteamReport, renderRedteamReport, weakTestRuleIds } from "../sr
 import { summarizeMemory, summarizeSkills } from "../src/context";
 import { suggestEdgeCases } from "../src/edge-cases";
 import { createFixTasks } from "../src/fix-tasks";
+import { createConsequenceHypothesisReport } from "../src/hypotheses";
 import { createRedteamSafetySummary } from "../src/safety";
 import {
   createEmptyMemory,
@@ -36,6 +37,7 @@ describe("redteam report assembly and rendering", () => {
       testProofStatus: "weak",
       configuredChecks: 2,
       toolAdapters: 3,
+      experimentPlans: 0,
       patternInsights: 3,
       productFailureBundles: 1,
       verificationStatus: "not-run",
@@ -144,6 +146,99 @@ describe("redteam report assembly and rendering", () => {
         })
       ])
     );
+  });
+
+  it("renders approval-gated experiment plans from consequence hypotheses", () => {
+    const hypotheses = createConsequenceHypothesisReport({
+      evidenceIds: ["changed:src/auth/session.ts"],
+      rawText: JSON.stringify({
+        hypotheses: [{
+          id: "HYPOTHESIS-1",
+          claim: "Session API can grant access without a token.",
+          affectedRequirementOrFlow: "Auth fails closed",
+          causalChain: ["session route changed", "negative auth proof missing"],
+          evidenceIds: ["changed:src/auth/session.ts"],
+          assumptions: [],
+          uncertainty: "Need base/head route behavior.",
+          userVisibleConsequence: "Anonymous users can see private data.",
+          severitySuggestion: "high",
+          disconfirmingResult: "Base and head both reject anonymous requests.",
+          proposedVerifier: { kind: "differential", name: "base/head API probe" },
+          status: "candidate"
+        }]
+      })
+    });
+    const report = createRedteamReport({
+      analysisReport: createFixtureAnalysisReport(),
+      config: createFixtureConfig(),
+      memory: createFixtureMemory(),
+      investigation: {
+        status: "completed",
+        provider: { configuredProvider: "disabled", timeoutMs: 1 },
+        suggestions: [],
+        hypotheses,
+        limitations: [],
+        untrusted: true,
+        llmCalled: false
+      },
+      verification: {
+        status: "failed",
+        commandsExecuted: true,
+        total: 1,
+        passed: 0,
+        failed: 1,
+        skipped: 0,
+        blocked: 0,
+        timedOut: 0,
+        errors: 0,
+        durationMs: 12,
+        checks: [{
+          kind: "probe",
+          name: "Differential: session probe",
+          command: "npx codedecay differential --base main --head HEAD --format markdown",
+          status: "failed",
+          proof: "tool-evidence",
+          summary: "Differential probe behavior changed.",
+          durationMs: 12,
+          differentialStatus: "changed",
+          differences: ["stdout differs"],
+          rerunCommand: "npx codedecay differential --base main --head HEAD --format markdown",
+          artifacts: {
+            directory: ".codedecay/local/differential/run-1",
+            baseResult: ".codedecay/local/differential/run-1/session-probe/base.json",
+            headResult: ".codedecay/local/differential/run-1/session-probe/head.json",
+            baseStdout: ".codedecay/local/differential/run-1/session-probe/base.stdout.txt",
+            headStdout: ".codedecay/local/differential/run-1/session-probe/head.stdout.txt",
+            baseStderr: ".codedecay/local/differential/run-1/session-probe/base.stderr.txt",
+            headStderr: ".codedecay/local/differential/run-1/session-probe/head.stderr.txt"
+          }
+        }],
+        notes: ["Base/head differential probe behavior changed."]
+      },
+      generatedAt: "2026-01-01T00:00:00.000Z"
+    });
+
+    expect(report.summary.experimentPlans).toBe(1);
+    expect(report.experimentPlans[0]).toMatchObject({
+      hypothesisId: "HYPOTHESIS-1",
+      approvalState: "proposed",
+      willRun: false,
+      toolAdapter: { kind: "differential", configured: true },
+      attachedResults: [
+        expect.objectContaining({
+          checkName: "Differential: session probe",
+          status: "failed",
+          proof: "tool-evidence",
+          artifactDirectory: ".codedecay/local/differential/run-1"
+        })
+      ]
+    });
+
+    const markdown = renderRedteamReport(report, "markdown");
+    expect(markdown).toContain("### Reviewable Experiment Plans");
+    expect(markdown).toContain("CodeDecay will not run them until a user explicitly approves execution.");
+    expect(markdown).toContain("npx codedecay differential --base <base> --head <head> --format json");
+    expect(markdown).toContain("Attached results: Differential: session probe failed (tool-evidence)");
   });
 
   it("renders JSON and Markdown", () => {

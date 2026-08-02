@@ -6,6 +6,7 @@ import { formatRisk } from "./render/helpers";
 import {
   appendConfiguredChecks,
   appendEdgeCases,
+  appendExperimentPlans,
   appendFixTasks,
   appendImpactGraph,
   appendImpactedAreas,
@@ -53,6 +54,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
     `| Scenario overflow | ${report.summary.edgeCaseOverflow} |`,
     `| Configured checks listed | ${report.summary.configuredChecks} |`,
     `| Tool adapters planned | ${report.summary.toolAdapters} |`,
+    `| Experiment plans | ${report.summary.experimentPlans} |`,
     `| Verification status | ${report.summary.verificationStatus} |`,
     `| Pattern insights | ${report.summary.patternInsights} |`,
     `| Product failure bundles | ${report.summary.productFailureBundles} |`,
@@ -79,6 +81,7 @@ export function renderRedteamMarkdown(report: RedteamReport): string {
   appendPatternInsights(lines, report.patternInsights);
   appendConfiguredChecks(lines, report.configuredChecks);
   appendToolAdapterPlans(lines, report.toolAdapterPlans);
+  appendExperimentPlans(lines, report.experimentPlans);
   appendInvestigation(lines, report.investigation);
   appendFixTasks(lines, report.fixTasks);
   appendMemorySummary(lines, report.memory);
