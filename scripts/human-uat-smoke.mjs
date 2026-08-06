@@ -184,6 +184,7 @@ function checkKitFiles(checks) {
     "summary.template.md",
     "facilitator-runbook.md",
     "outreach.md",
+    "outreach-messages.md",
     "session-checklist.md",
     "live-session.md",
     "tasks.json",
