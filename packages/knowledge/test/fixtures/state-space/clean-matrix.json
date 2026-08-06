@@ -1,0 +1,27 @@
+{
+  "id": "uat-state-3-clean-matrix",
+  "kind": "explicit-matrix",
+  "seed": 33,
+  "dimensions": [
+    {
+      "id": "flag:gamma",
+      "kind": "feature-flag",
+      "values": ["off", "on"],
+      "sourceRef": "fixture",
+      "note": "Gamma flag"
+    }
+  ],
+  "combinations": [
+    { "id": "off", "values": { "flag:gamma": "off" }, "selected": true },
+    { "id": "on", "values": { "flag:gamma": "on" }, "selected": true }
+  ],
+  "oracle": {},
+  "implementation": { "mode": "clean" },
+  "bounds": {
+    "maxDimensions": 4,
+    "maxCombinations": 8,
+    "timeoutMs": 5000,
+    "targetKind": "fixture-local"
+  },
+  "cleanup": { "plan": "reset fixture flags" }
+}

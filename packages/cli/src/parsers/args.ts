@@ -14,6 +14,7 @@ export { parseMcpArgs } from "./mcp";
 export { parseMemoryArgs, parseMemoryImportArgs, parseMemoryLearnArgs, parseMemoryLearningArgs, parseMemorySetupArgs } from "./memory";
 export { parseMigrationArgs } from "./migration";
 export { parseConcurrencyArgs } from "./concurrency";
+export { parseStateSpaceArgs } from "./state-space";
 export { parseRevalidateArgs } from "./revalidate";
 export { parseRuntimeArgs } from "./runtime";
 export { parseProductArgs } from "./product";

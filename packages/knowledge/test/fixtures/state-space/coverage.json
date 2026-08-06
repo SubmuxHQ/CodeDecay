@@ -1,0 +1,37 @@
+{
+  "id": "uat-state-4-coverage",
+  "kind": "pairwise-matrix",
+  "seed": 44,
+  "dimensions": [
+    {
+      "id": "flag:a",
+      "kind": "feature-flag",
+      "values": ["off", "on"],
+      "sourceRef": "fixture",
+      "note": "A"
+    },
+    {
+      "id": "flag:b",
+      "kind": "feature-flag",
+      "values": ["off", "on"],
+      "sourceRef": "fixture",
+      "note": "B"
+    },
+    {
+      "id": "cache",
+      "kind": "cache-state",
+      "values": ["cold", "warm"],
+      "sourceRef": "fixture",
+      "note": "cache"
+    }
+  ],
+  "oracle": {},
+  "implementation": { "mode": "clean" },
+  "bounds": {
+    "maxDimensions": 8,
+    "maxCombinations": 3,
+    "timeoutMs": 5000,
+    "targetKind": "fixture-local"
+  },
+  "cleanup": { "plan": "reset fixture" }
+}

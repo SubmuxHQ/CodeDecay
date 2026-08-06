@@ -1,0 +1,27 @@
+{
+  "id": "uat-state-1-stale-cache",
+  "kind": "explicit-matrix",
+  "seed": 11,
+  "dimensions": [
+    {
+      "id": "cache",
+      "kind": "cache-state",
+      "values": ["cold", "warm"],
+      "sourceRef": "fixture",
+      "note": "Cold vs warm cache after write"
+    }
+  ],
+  "combinations": [
+    { "id": "cold", "values": { "cache": "cold" }, "selected": true },
+    { "id": "warm", "values": { "cache": "warm" }, "selected": true }
+  ],
+  "oracle": { "cacheKey": "profile:1", "expectedReadValue": "new" },
+  "implementation": { "mode": "stale-cache", "writeValue": "new", "cachedValue": "old" },
+  "bounds": {
+    "maxDimensions": 4,
+    "maxCombinations": 8,
+    "timeoutMs": 5000,
+    "targetKind": "fixture-local"
+  },
+  "cleanup": { "plan": "flush fixture cache" }
+}
