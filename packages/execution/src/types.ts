@@ -23,6 +23,16 @@ export interface RunConfiguredCommandOptions {
   capabilityIntentSource?: CapabilityIntentSource | undefined;
   /** When false, skips writing capability audit events. Defaults to true. */
   capabilityAudit?: boolean | undefined;
+  /**
+   * Optional session-scoped approval. When set, the command may run only with
+   * the exact approved scope and expires after consume/session TTL.
+   */
+  capabilityApproval?: {
+    sessionId: string;
+    approvalId: string;
+    toolName?: string | undefined;
+    now?: Date | undefined;
+  } | undefined;
 }
 
 export interface CommandSafetyCheck {

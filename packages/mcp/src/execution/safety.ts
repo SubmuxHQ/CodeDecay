@@ -10,6 +10,7 @@ export function createExecutionSafety(
     "Only commands explicitly configured in CodeDecay config and enabled tool adapters are eligible to run.",
     "Command execution also requires safety.allowCommands: true in CodeDecay config.",
     "Configured commands also pass through safety.capabilityPolicy (default deny for elevated capabilities).",
+    "MCP confirmation is session-scoped: an approval authorizes only the exact tool/command scope and expires after consume or TTL.",
     "confirmExecution authorizes only this execute_configured_checks call; it does not grant unrelated later capabilities."
   ];
 

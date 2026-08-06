@@ -6,11 +6,23 @@ export {
   appendCapabilityAuditEvent,
   resolveCapabilityAuditPath,
   CAPABILITY_AUDIT_RELATIVE_PATH,
+  assertMcpConfirmationScope,
+  assertTrustedCapabilityEvidence,
+  approvalFingerprint,
   checkPathWithinAllowedRoots,
+  clearCapabilityApprovalSession,
+  consumeCapabilityApproval,
+  createCapabilityApproval,
   detectShellSubstitution,
+  enforceSandboxPolicy,
+  evaluateProcessIsolation,
   fetchWithoutExternalRedirect,
+  getCapabilityApproval,
+  isTrustedCapabilityEvidenceSource,
   redactSecretsFromText,
   redactSecretsFromUnknown,
+  resetCapabilityApprovalSessionsForTests,
+  validateCapabilityApproval,
   validateNetworkDestination,
   validateResolvedNetworkDestination,
   CAPABILITY_KINDS,
@@ -19,6 +31,8 @@ export {
 } from "./capability";
 export type {
   CapabilityAllowRule,
+  CapabilityApproval,
+  CapabilityApprovalScope,
   CapabilityAuditEvent,
   CapabilityAuditPhase,
   CapabilityAuthorization,
@@ -27,8 +41,13 @@ export type {
   CapabilityKind,
   CapabilityPolicy,
   CapabilityRequest,
+  CapabilitySandboxMode,
+  CreateCapabilityApprovalInput,
   NetworkDestinationCheck,
-  NetworkDestinationPolicy
+  NetworkDestinationPolicy,
+  ProcessIsolationEvaluation,
+  SandboxEnforcement,
+  SandboxMode
 } from "./capability";
 export type {
   CommandExecutionResult,

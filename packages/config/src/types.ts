@@ -22,7 +22,8 @@ export type {
 export type {
   CodeDecayCapabilityAllowRule,
   CodeDecayCapabilityKind,
-  CodeDecayCapabilityPolicy
+  CodeDecayCapabilityPolicy,
+  CodeDecayCapabilitySandboxMode
 } from "./types/capability-policy";
 export {
   CODEDECAY_CAPABILITY_KINDS,

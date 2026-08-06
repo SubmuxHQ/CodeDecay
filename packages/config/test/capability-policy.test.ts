@@ -8,7 +8,8 @@ describe("capability policy config normalization", () => {
 
     expect(loaded.config.safety.capabilityPolicy).toEqual({
       version: 1,
-      allow: []
+      allow: [],
+      sandbox: "best-effort"
     });
   });
 
@@ -23,6 +24,7 @@ describe("capability policy config normalization", () => {
         "  allowCommands: true",
         "  capabilityPolicy:",
         "    version: 1",
+        "    sandbox: required",
         "    allow:",
         "      - capability: artifact.persist",
         "        paths:",
@@ -38,6 +40,7 @@ describe("capability policy config normalization", () => {
 
     expect(loaded.config.safety.capabilityPolicy).toEqual({
       version: 1,
+      sandbox: "required",
       allow: [
         {
           capability: "artifact.persist",

@@ -30,6 +30,8 @@ export interface CodeDecayCapabilityAllowRule {
   hosts?: string[] | undefined;
 }
 
+export type CodeDecayCapabilitySandboxMode = "off" | "best-effort" | "required";
+
 /**
  * Versioned capability policy. Default is deny-all elevated capabilities.
  * `safety.allowCommands` remains separate trusted user intent for command.execute.
@@ -37,4 +39,9 @@ export interface CodeDecayCapabilityAllowRule {
 export interface CodeDecayCapabilityPolicy {
   version: typeof CODEDECAY_CAPABILITY_POLICY_VERSION;
   allow: CodeDecayCapabilityAllowRule[];
+  /**
+   * Process isolation posture. `required` blocks when isolation is weaker or
+   * unsupported instead of silently granting full access.
+   */
+  sandbox?: CodeDecayCapabilitySandboxMode | undefined;
 }

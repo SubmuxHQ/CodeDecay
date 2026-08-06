@@ -112,7 +112,8 @@ export const EXPECTED_FULL_CONFIG: CodeDecayConfig = {
     allowCommands: true,
     capabilityPolicy: {
       version: 1,
-      allow: []
+      allow: [],
+      sandbox: "best-effort"
     }
   },
   llm: {
