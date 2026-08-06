@@ -74,6 +74,7 @@ export default defineConfig({
         text: "Workflows",
         items: [
           { text: "Configuration", link: "/configuration" },
+          { text: "Threat Model", link: "/security/threat-model" },
           { text: "Redteam Reports", link: "/redteam" },
           { text: "Task-Scoped Context", link: "/context" },
           { text: "Agent Task Bundles", link: "/agent" },

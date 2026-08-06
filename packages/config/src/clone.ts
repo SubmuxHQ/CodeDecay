@@ -7,6 +7,7 @@ import type {
   CodeDecayProductTestingConfig,
   CodeDecayToolAdapters
 } from "./types";
+import { cloneCapabilityPolicy } from "./normalize/capability-policy";
 import { cloneMemoryProviders } from "./normalize/memory-providers";
 
 export function cloneConfig(config: CodeDecayConfig): CodeDecayConfig {
@@ -14,7 +15,10 @@ export function cloneConfig(config: CodeDecayConfig): CodeDecayConfig {
     version: config.version,
     commands: cloneCommands(config.commands),
     probes: config.probes.map((probe) => ({ ...probe })),
-    safety: { ...config.safety },
+    safety: {
+      ...config.safety,
+      capabilityPolicy: cloneCapabilityPolicy(config.safety.capabilityPolicy)
+    },
     llm: { ...config.llm },
     memoryProviders: cloneMemoryProviders(config.memoryProviders),
     toolAdapters: cloneToolAdapters(config.toolAdapters),

@@ -109,7 +109,11 @@ export const EXPECTED_FULL_CONFIG: CodeDecayConfig = {
   ],
   safety: {
     commandTimeoutMs: 30000,
-    allowCommands: true
+    allowCommands: true,
+    capabilityPolicy: {
+      version: 1,
+      allow: []
+    }
   },
   llm: {
     provider: "ollama",
