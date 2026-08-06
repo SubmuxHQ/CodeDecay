@@ -4,12 +4,13 @@ import { createStrykerHarness } from "./harness";
 
 export function createConfiguredStrykerHarness(
   adapter: CodeDecayStrykerToolAdapter,
-  allowCommands: boolean
+  safety: { allowCommands: boolean; capabilityPolicy?: import("@submuxhq/codedecay-execution").CapabilityPolicy | undefined }
 ): ConfiguredToolHarness {
   const command = adapter.command ?? DEFAULT_STRYKER_COMMAND;
   const options: StrykerHarnessOptions = {
     command,
-    allowCommands
+    allowCommands: safety.allowCommands,
+    capabilityPolicy: safety.capabilityPolicy
   };
 
   if (adapter.timeoutMs !== undefined) {

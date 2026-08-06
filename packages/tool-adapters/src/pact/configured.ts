@@ -4,12 +4,13 @@ import type { CodeDecayCommandToolAdapter, ConfiguredToolHarness, PactHarnessOpt
 
 export function createConfiguredPactHarness(
   adapter: CodeDecayCommandToolAdapter,
-  allowCommands: boolean
+  safety: { allowCommands: boolean; capabilityPolicy?: import("@submuxhq/codedecay-execution").CapabilityPolicy | undefined }
 ): ConfiguredToolHarness {
   const command = adapter.command ?? DEFAULT_PACT_COMMAND;
   const harnessOptions: PactHarnessOptions & { command: string } = {
     command,
-    allowCommands
+    allowCommands: safety.allowCommands,
+    capabilityPolicy: safety.capabilityPolicy
   };
 
   if (adapter.timeoutMs !== undefined) {

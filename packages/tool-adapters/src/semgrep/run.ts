@@ -26,6 +26,7 @@ import {
 } from "./evidence";
 import { analyzeSemgrepReport, findingsAtOrAboveThreshold } from "./report";
 import { validateSemgrepPlan } from "./validation";
+import { toolAdapterSafeCommandPolicy } from "../safety";
 
 export async function runSemgrepPlan(
   plan: HarnessPlan,
@@ -70,10 +71,7 @@ export async function runSemgrepPlan(
     cwd: context.cwd,
     timeoutMs,
     outputLimit: options.outputLimit,
-    safety: {
-      allowCommands: options.allowCommands ?? false,
-      allowUnsafeCommands: options.allowUnsafeCommands
-    }
+    safety: toolAdapterSafeCommandPolicy(options)
   });
   const durationMs = elapsed(startedAt);
   const canParseSemgrepReport = execution.status === "passed" || execution.status === "failed";

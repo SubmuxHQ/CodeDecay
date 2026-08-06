@@ -1,5 +1,6 @@
 export { runConfiguredCommand } from "./command";
 export { checkCommandSafety } from "./safety";
+export { createSafeCommandPolicy } from "./safe-policy";
 export {
   authorizeCapability,
   appendCapabilityAuditEvent,

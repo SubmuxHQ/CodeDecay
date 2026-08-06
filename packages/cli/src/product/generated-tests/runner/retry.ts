@@ -1,5 +1,5 @@
 import type { LoadedCodeDecayConfig, CodeDecayProductTarget } from "@submuxhq/codedecay-config";
-import { runConfiguredCommand } from "@submuxhq/codedecay-execution";
+import { createSafeCommandPolicy, runConfiguredCommand } from "@submuxhq/codedecay-execution";
 import { generatedProductBaseUrl } from "../manifest";
 import type {
   ProductGeneratedTestCase,
@@ -76,9 +76,11 @@ export async function attachGeneratedFailureRetryEvidence(input: {
       env: {
         CODEDECAY_PRODUCT_BASE_URL: generatedProductBaseUrl(input.rootDir, input.generatedTests)
       },
-      safety: {
-        allowCommands: input.loadedConfig.config.safety.allowCommands
-      }
+      safety: createSafeCommandPolicy({
+        allowCommands: input.loadedConfig.config.safety.allowCommands,
+        capabilityPolicy: input.loadedConfig.config.safety.capabilityPolicy
+      }),
+      capabilityIntentSource: "user-config"
     });
     const parsed = parsePlaywrightTestRun({
       stdout: execution.stdout,

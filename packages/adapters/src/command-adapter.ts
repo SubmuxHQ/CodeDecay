@@ -1,5 +1,5 @@
 import type { Finding } from "@submuxhq/codedecay-core";
-import { runConfiguredCommand, type CommandExecutionResult } from "@submuxhq/codedecay-execution";
+import { createSafeCommandPolicy, runConfiguredCommand, type CommandExecutionResult } from "@submuxhq/codedecay-execution";
 import type { AdapterContext, AdapterResult, CodeDecayAdapter, CommandAdapterOptions } from "./types";
 import { validateCommandAdapterOptions } from "./validation";
 
@@ -21,9 +21,11 @@ async function runCommandAdapter(
     command: options.command,
     cwd: context.rootDir,
     timeoutMs: options.timeoutMs ?? context.config.safety.commandTimeoutMs,
-    safety: {
-      allowCommands: options.requiresCommandAllowlist ? context.config.safety.allowCommands : true
-    }
+    safety: createSafeCommandPolicy({
+      allowCommands: options.requiresCommandAllowlist ? context.config.safety.allowCommands : true,
+      capabilityPolicy: context.config.safety.capabilityPolicy
+    }),
+    capabilityIntentSource: "user-config"
   });
 
   return adapterResultFromExecution(options, result);

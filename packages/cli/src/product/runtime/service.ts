@@ -2,6 +2,8 @@ import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:chil
 import type { LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
 import {
   checkCommandSafety,
+  createSafeCommandPolicy,
+  detectShellSubstitution,
   runConfiguredCommand,
   type CommandExecutionResult
 } from "@submuxhq/codedecay-execution";
@@ -18,9 +20,11 @@ export async function runProductOneShotCommand(
     command,
     cwd: rootDir,
     timeoutMs,
-    safety: {
-      allowCommands: loadedConfig.config.safety.allowCommands
-    }
+    safety: createSafeCommandPolicy({
+      allowCommands: loadedConfig.config.safety.allowCommands,
+      capabilityPolicy: loadedConfig.config.safety.capabilityPolicy
+    }),
+    capabilityIntentSource: "user-config"
   });
 }
 
@@ -39,6 +43,20 @@ export async function startManagedProductProcess(
       stdout: "",
       stderr: "Product target startup is disabled by config safety.allowCommands.",
       blockedReason: "safety.allowCommands is false"
+    };
+  }
+
+  const substitution = detectShellSubstitution(command);
+  if (substitution) {
+    const message = `Command was blocked by CodeDecay capability policy: command rejected: ${substitution}.`;
+    return {
+      command,
+      status: "blocked",
+      durationMs: 0,
+      stdout: "",
+      stderr: message,
+      error: message,
+      blockedReason: `command rejected: ${substitution}`
     };
   }
 

@@ -68,7 +68,8 @@ export async function runLoopCommand(
     securityScoreThreshold: options.securityScoreThreshold,
     agentTimeoutMs: loadedConfig.config.safety.commandTimeoutMs,
     commandSafety: {
-      allowCommands: loadedConfig.config.safety.allowCommands
+      allowCommands: loadedConfig.config.safety.allowCommands,
+      capabilityPolicy: loadedConfig.config.safety.capabilityPolicy
     },
     createRedteamReport: async () =>
       await createRedteamReportForCli(rootDir, {

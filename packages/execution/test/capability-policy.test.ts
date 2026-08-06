@@ -7,6 +7,7 @@ import {
   authorizeCapability,
   checkPathWithinAllowedRoots,
   createDefaultCapabilityPolicy,
+  createSafeCommandPolicy,
   detectShellSubstitution,
   fetchWithoutExternalRedirect,
   resolveCapabilityAuditPath,
@@ -173,6 +174,40 @@ describe("capability policy foundation", () => {
 
     expect(denied.allowed).toBe(false);
     expect(allowed.allowed).toBe(true);
+  });
+
+  it("passes loaded capabilityPolicy into configured command execution", async () => {
+    const root = createTempDir();
+    const result = await runConfiguredCommand({
+      command: "node -e \"console.log('policy')\"",
+      cwd: root,
+      timeoutMs: 1000,
+      safety: createSafeCommandPolicy({
+        allowCommands: true,
+        capabilityPolicy: {
+          version: 1,
+          allow: [{ capability: "command.execute", commands: ["node"] }]
+        }
+      })
+    });
+
+    expect(result.status).toBe("passed");
+
+    const denied = await runConfiguredCommand({
+      command: "node -e \"console.log('nope')\"",
+      cwd: root,
+      timeoutMs: 1000,
+      safety: createSafeCommandPolicy({
+        allowCommands: true,
+        capabilityPolicy: {
+          version: 1,
+          allow: [{ capability: "command.execute", commands: ["pnpm"] }]
+        }
+      })
+    });
+
+    expect(denied.status).toBe("blocked");
+    expect(denied.blockedReason).toContain("not listed in capabilityPolicy.allow commands");
   });
 
   it("blocks credentials, metadata hosts, and off-allowlist redirect targets", async () => {
