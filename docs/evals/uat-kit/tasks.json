@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kitId": "codedecay-human-uat",
+  "humanEvidence": false,
+  "note": "Machine-readable task IDs for facilitators and CI smoke. Real human sessions are still required.",
+  "tasks": [
+    {
+      "id": "UAT-HUMAN-1",
+      "title": "Fresh install and first useful result",
+      "fixture": "published-package"
+    },
+    {
+      "id": "UAT-HUMAN-2",
+      "title": "Ambiguous requirement and clarification",
+      "fixture": "planted"
+    },
+    {
+      "id": "UAT-HUMAN-3",
+      "title": "Weak test exists but does not prove the production path",
+      "fixture": "planted"
+    },
+    {
+      "id": "UAT-HUMAN-4",
+      "title": "Approved behavioral experiment finds the planted defect",
+      "fixture": "planted"
+    },
+    {
+      "id": "UAT-HUMAN-5",
+      "title": "Agent repair plus current-tree revalidation",
+      "fixture": "planted"
+    },
+    {
+      "id": "UAT-HUMAN-6",
+      "title": "Unsafe command or external target is blocked and correctly understood",
+      "fixture": "unsafe"
+    },
+    {
+      "id": "UAT-HUMAN-7",
+      "title": "Clean decoy produces no unnecessary repair",
+      "fixture": "decoy"
+    },
+    {
+      "id": "UAT-HUMAN-8",
+      "title": "Participant explains final evidence and limitations accurately",
+      "fixture": "planted"
+    }
+  ]
+}
