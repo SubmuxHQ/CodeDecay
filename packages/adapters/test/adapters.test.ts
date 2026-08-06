@@ -185,7 +185,11 @@ function createConfig(input: { allowCommands: boolean }): CodeDecayConfig {
     probes: [],
     safety: {
       commandTimeoutMs: 1000,
-      allowCommands: input.allowCommands
+      allowCommands: input.allowCommands,
+      capabilityPolicy: {
+        version: 1,
+        allow: []
+      }
     },
     llm: {
       provider: "disabled",

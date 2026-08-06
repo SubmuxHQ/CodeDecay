@@ -20,7 +20,11 @@ describe("CodeDecay config defaults and loading", () => {
       probes: [],
       safety: {
         commandTimeoutMs: 120_000,
-        allowCommands: false
+        allowCommands: false,
+        capabilityPolicy: {
+          version: 1,
+          allow: []
+        }
       },
       llm: {
         provider: "disabled",

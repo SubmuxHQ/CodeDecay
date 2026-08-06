@@ -116,6 +116,14 @@ productTesting:
 safety:
   commandTimeoutMs: 120000
   allowCommands: false
+  # Optional elevated capabilities. Default is deny-all.
+  # See docs/security/threat-model.md.
+  # capabilityPolicy:
+  #   version: 1
+  #   allow:
+  #     - capability: artifact.persist
+  #       paths:
+  #         - .codedecay/local
 
 llm:
   provider: disabled
@@ -342,6 +350,19 @@ Schemathesis proof checks.
 
 Config files make project commands explicit. CodeDecay should not guess commands
 from model output or run arbitrary commands by default.
+
+Capability authorization is additive to `safety.allowCommands`:
+
+- `safety.capabilityPolicy` defaults to deny-all elevated capabilities
+  (`network`, `secret.env`, `model.call`, `git.mutate`, installs, and so on).
+- `safety.allowCommands: true` is trusted user intent for `command.execute` on
+  configured commands. It does not grant network, secrets, or model calls.
+- Agent, memory, MCP, and generated-experiment text alone cannot flip a
+  capability to allowed.
+- Configured command strings with shell substitution (`$(...)`, backticks,
+  `${...}`, `$ENV`) are rejected before spawn.
+- Capability decisions append to `.codedecay/local/capability-audit.jsonl`.
+- Threat model: [security/threat-model](./security/threat-model.md).
 
 Current behavior:
 

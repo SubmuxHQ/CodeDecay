@@ -1,10 +1,15 @@
 import { DEFAULT_CODEDECAY_CONFIG } from "../defaults";
 import type { CodeDecaySafety } from "../types";
+import { cloneCapabilityPolicy, normalizeCapabilityPolicy } from "./capability-policy";
 import { isPlainObject, normalizeBoolean, normalizePositiveInteger } from "./primitives";
 
 export function normalizeSafety(value: unknown, sourcePath: string): CodeDecaySafety {
   if (value === undefined) {
-    return { ...DEFAULT_CODEDECAY_CONFIG.safety };
+    return {
+      commandTimeoutMs: DEFAULT_CODEDECAY_CONFIG.safety.commandTimeoutMs,
+      allowCommands: DEFAULT_CODEDECAY_CONFIG.safety.allowCommands,
+      capabilityPolicy: cloneCapabilityPolicy(DEFAULT_CODEDECAY_CONFIG.safety.capabilityPolicy)
+    };
   }
 
   if (!isPlainObject(value)) {
@@ -21,8 +26,14 @@ export function normalizeSafety(value: unknown, sourcePath: string): CodeDecaySa
       ? DEFAULT_CODEDECAY_CONFIG.safety.allowCommands
       : normalizeBoolean(value.allowCommands, "safety.allowCommands", sourcePath);
 
+  const capabilityPolicy = normalizeCapabilityPolicy(
+    value.capabilityPolicy,
+    `${sourcePath}.capabilityPolicy`
+  );
+
   return {
     commandTimeoutMs,
-    allowCommands
+    allowCommands,
+    capabilityPolicy
   };
 }
