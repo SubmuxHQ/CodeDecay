@@ -22,10 +22,15 @@ describe("human UAT kit scaffolding (#692)", () => {
       "observer-rubric.md",
       "consent-privacy.md",
       "facilitator-runbook.md",
+      "outreach.md",
+      "session-checklist.md",
       "fixtures.md",
       "tasks.json",
       "result.schema.json",
-      "summary.template.md"
+      "summary.template.md",
+      "result-templates/ai-assisted-individual.template.json",
+      "result-templates/experienced-engineer.template.json",
+      "result-templates/team-devops.template.json"
     ]) {
       expect(existsSync(join(kitRoot, file))).toBe(true);
     }
@@ -33,7 +38,15 @@ describe("human UAT kit scaffolding (#692)", () => {
       required: string[];
     };
     expect(schema.required).toEqual(
-      expect.arrayContaining(["schemaVersion", "participantRole", "tasks", "trustComprehension"])
+      expect.arrayContaining([
+        "schemaVersion",
+        "participantRole",
+        "tasks",
+        "trustComprehension",
+        "friction",
+        "humanEvidence",
+        "packageIdentity"
+      ])
     );
     expect(readFileSync(join(kitRoot, "README.md"), "utf8")).toMatch(
       /cannot\s+finish\s+without\s+independent\s+human|cannot\s+close\s+without\s+independent\s+human/i
@@ -49,5 +62,13 @@ describe("human UAT kit scaffolding (#692)", () => {
     expect(tasks.schemaVersion).toBe(1);
     expect(tasks.humanEvidence).toBe(false);
     expect(tasks.tasks.map((task) => task.id)).toEqual(expectedTaskIds);
+  });
+
+  it("keeps blank templates non-evidential until a real session fills them", () => {
+    const template = JSON.parse(
+      readFileSync(join(kitRoot, "result-templates/ai-assisted-individual.template.json"), "utf8")
+    ) as { humanEvidence: boolean; observerNotes: string };
+    expect(template.humanEvidence).toBe(false);
+    expect(template.observerNotes).toMatch(/TEMPLATE/i);
   });
 });

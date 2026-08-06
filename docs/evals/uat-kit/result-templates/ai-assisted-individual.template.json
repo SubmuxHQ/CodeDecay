@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "kitVersion": "uat-kit-2026-08",
+  "humanEvidence": false,
+  "participantRole": "ai-assisted-individual",
+  "environment": "TODO: OS + package manager",
+  "sessionDate": "TODO: YYYY-MM-DD",
+  "packageIdentity": {
+    "source": "npm",
+    "version": "TODO"
+  },
+  "tasks": [
+    {
+      "id": "UAT-HUMAN-1",
+      "completed": false,
+      "attempts": 0,
+      "timeSeconds": 0,
+      "clarificationRequests": 0,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": ""
+    },
+    {
+      "id": "UAT-HUMAN-2",
+      "completed": false,
+      "attempts": 0,
+      "timeSeconds": 0,
+      "clarificationRequests": 0,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": ""
+    },
+    {
+      "id": "UAT-HUMAN-3",
+      "completed": false,
+      "attempts": 0,
+      "timeSeconds": 0,
+      "clarificationRequests": 0,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": ""
+    },
+    {
+      "id": "UAT-HUMAN-4",
+      "completed": false,
+      "attempts": 0,
+      "timeSeconds": 0,
+      "clarificationRequests": 0,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": ""
+    },
+    {
+      "id": "UAT-HUMAN-5",
+      "completed": false,
+      "attempts": 0,
+      "timeSeconds": 0,
+      "clarificationRequests": 0,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": ""
+    },
+    {
+      "id": "UAT-HUMAN-6",
+      "completed": false,
+      "attempts": 0,
+      "timeSeconds": 0,
+      "clarificationRequests": 0,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": ""
+    },
+    {
+      "id": "UAT-HUMAN-7",
+      "completed": false,
+      "attempts": 0,
+      "timeSeconds": 0,
+      "clarificationRequests": 0,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": ""
+    },
+    {
+      "id": "UAT-HUMAN-8",
+      "completed": false,
+      "attempts": 0,
+      "timeSeconds": 0,
+      "clarificationRequests": 0,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": ""
+    }
+  ],
+  "trustComprehension": {
+    "deterministicEvidence": false,
+    "runtimeToolProof": false,
+    "memory": false,
+    "aiSuggestion": false,
+    "unverified": false,
+    "needsHuman": false,
+    "verified": false
+  },
+  "mistakenTrustInterpretation": false,
+  "friction": {
+    "install": "none",
+    "authenticationProvider": "none",
+    "packageManager": "none",
+    "terminal": "none",
+    "mcp": "none",
+    "documentation": "none",
+    "analysisQuality": "none"
+  },
+  "abandonment": false,
+  "linkedIssues": [],
+  "observerNotes": "TEMPLATE \u2014 fill during a real independent human session, then set humanEvidence=true."
+}

@@ -144,6 +144,8 @@ try {
   assert(/preflight|ai/i.test(aiHelp.stdout), "ai workflow help must be discoverable");
   checks.push({ id: "UAT-HUMAN-1-discover", ok: true, detail: "codedecay ai --help ok" });
 
+  checkResultTooling(checks, runDir);
+
   report.status = "passed";
   report.checks = checks;
   report.finishedAt = new Date().toISOString();
@@ -181,13 +183,78 @@ function checkKitFiles(checks) {
     "result.schema.json",
     "summary.template.md",
     "facilitator-runbook.md",
+    "outreach.md",
+    "session-checklist.md",
     "tasks.json",
-    "fixtures.md"
+    "fixtures.md",
+    "result-templates/ai-assisted-individual.template.json",
+    "result-templates/experienced-engineer.template.json",
+    "result-templates/team-devops.template.json"
   ]) {
     const path = join(kitRoot, file);
     assert(existsSync(path), `missing kit file: ${file}`);
   }
   checks.push({ id: "kit-files", ok: true, detail: "versioned kit files present" });
+}
+
+function checkResultTooling(checks, runDir) {
+  const sampleDir = join(repoRoot, "scripts/fixtures/human-uat/sample-results");
+  const samples = [
+    "ai-assisted-individual.synthetic.json",
+    "experienced-engineer.synthetic.json",
+    "team-devops.synthetic.json"
+  ].map((name) => join(sampleDir, name));
+  for (const sample of samples) {
+    assert(existsSync(sample), `missing synthetic sample ${sample}`);
+    const sampleJson = JSON.parse(readFileSync(sample, "utf8"));
+    assert(
+      /SYNTHETIC FIXTURE/i.test(String(sampleJson.observerNotes ?? "")),
+      "synthetic samples must be labeled as non-human evidence"
+    );
+  }
+
+  const template = join(kitRoot, "result-templates/ai-assisted-individual.template.json");
+  const templateValidate = runCommand(
+    process.execPath,
+    [join(repoRoot, "scripts/human-uat-validate-result.mjs"), template],
+    { cwd: repoRoot, timeoutMs: 15_000 }
+  );
+  record("template-rejects-until-filled", templateValidate, checks, (result) => {
+    if (result.exitCode === 0) {
+      throw new Error("Blank result templates must fail validation until humanEvidence=true and fields are filled.");
+    }
+  });
+
+  const validate = runCommand(
+    process.execPath,
+    [join(repoRoot, "scripts/human-uat-validate-result.mjs"), ...samples],
+    { cwd: repoRoot, timeoutMs: 15_000 }
+  );
+  record("synthetic-results-validate", validate, checks, (result) => {
+    if (result.exitCode !== 0) {
+      throw new Error(`synthetic sample validation failed: ${result.stderr || result.stdout}`);
+    }
+  });
+
+  const summaryMd = join(runDir, "synthetic-summary.md");
+  const summarize = runCommand(
+    process.execPath,
+    [join(repoRoot, "scripts/human-uat-summarize.mjs"), "--out", summaryMd, ...samples],
+    { cwd: repoRoot, timeoutMs: 15_000 }
+  );
+  record("synthetic-summarize", summarize, checks, (result) => {
+    if (result.exitCode !== 0) {
+      throw new Error(`summarize failed: ${result.stderr || result.stdout}`);
+    }
+    const markdown = readFileSync(summaryMd, "utf8");
+    assert(/Decision: pass/i.test(markdown), "synthetic three-role summary should decide pass");
+    assert(/not deterministic smoke output/i.test(markdown), "summary must distinguish from smoke");
+  });
+  checks.push({
+    id: "result-tooling",
+    ok: true,
+    detail: "templates reject; synthetic samples validate+summarize (not human evidence)"
+  });
 }
 
 function checkTasksManifest(checks) {
