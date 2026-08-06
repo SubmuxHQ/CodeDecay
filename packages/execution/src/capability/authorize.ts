@@ -1,5 +1,6 @@
 import { checkPathWithinAllowedRoots } from "./paths";
 import { detectShellSubstitution } from "./shell";
+import { validateNetworkDestination } from "./network";
 import type {
   CapabilityAllowRule,
   CapabilityAuthorization,
@@ -146,14 +147,16 @@ function authorizeHosts(
     return deny(request, "network requires explicit hosts");
   }
 
-  const allowed = new Set(matchingRules.flatMap((rule) => (rule.hosts ?? []).map((host) => host.toLowerCase())));
-  if (allowed.size === 0) {
+  const allowed = matchingRules.flatMap((rule) => (rule.hosts ?? []).map((host) => host.toLowerCase()));
+  if (allowed.length === 0) {
     return deny(request, "network has no allowed hosts in policy");
   }
 
   for (const host of hosts) {
-    if (!allowed.has(host.toLowerCase())) {
-      return deny(request, `network host '${host}' is not allowlisted`);
+    const candidate = host.includes("://") ? host : `https://${host}`;
+    const check = validateNetworkDestination(candidate, { allowedHosts: allowed });
+    if (!check.allowed) {
+      return deny(request, check.reason);
     }
   }
 

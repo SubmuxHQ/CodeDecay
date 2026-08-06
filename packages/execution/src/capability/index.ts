@@ -3,6 +3,11 @@ export { appendCapabilityAuditEvent, resolveCapabilityAuditPath, CAPABILITY_AUDI
 export { checkPathWithinAllowedRoots } from "./paths";
 export { detectShellSubstitution } from "./shell";
 export {
+  fetchWithoutExternalRedirect,
+  validateNetworkDestination,
+  validateResolvedNetworkDestination
+} from "./network";
+export {
   CAPABILITY_KINDS,
   CAPABILITY_POLICY_VERSION,
   createDefaultCapabilityPolicy
@@ -18,3 +23,4 @@ export type {
   CapabilityPolicy,
   CapabilityRequest
 } from "./types";
+export type { NetworkDestinationCheck, NetworkDestinationPolicy } from "./network";

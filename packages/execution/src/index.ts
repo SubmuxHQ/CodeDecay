@@ -7,6 +7,9 @@ export {
   CAPABILITY_AUDIT_RELATIVE_PATH,
   checkPathWithinAllowedRoots,
   detectShellSubstitution,
+  fetchWithoutExternalRedirect,
+  validateNetworkDestination,
+  validateResolvedNetworkDestination,
   CAPABILITY_KINDS,
   CAPABILITY_POLICY_VERSION,
   createDefaultCapabilityPolicy
@@ -20,7 +23,9 @@ export type {
   CapabilityIntentSource,
   CapabilityKind,
   CapabilityPolicy,
-  CapabilityRequest
+  CapabilityRequest,
+  NetworkDestinationCheck,
+  NetworkDestinationPolicy
 } from "./capability";
 export type {
   CommandExecutionResult,

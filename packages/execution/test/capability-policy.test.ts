@@ -8,9 +8,12 @@ import {
   checkPathWithinAllowedRoots,
   createDefaultCapabilityPolicy,
   detectShellSubstitution,
+  fetchWithoutExternalRedirect,
   resolveCapabilityAuditPath,
-  runConfiguredCommand
+  runConfiguredCommand,
+  validateNetworkDestination
 } from "../src/index";
+import { createServer } from "node:http";
 
 const tempRoots: string[] = [];
 
@@ -171,6 +174,29 @@ describe("capability policy foundation", () => {
     expect(denied.allowed).toBe(false);
     expect(allowed.allowed).toBe(true);
   });
+
+  it("blocks credentials, metadata hosts, and off-allowlist redirect targets", async () => {
+    expect(
+      validateNetworkDestination("http://user:pass@127.0.0.1/health", {
+        allowedHosts: ["127.0.0.1"]
+      }).allowed
+    ).toBe(false);
+
+    expect(
+      validateNetworkDestination("http://169.254.169.254/latest/meta-data", {
+        allowedHosts: ["169.254.169.254"]
+      }).reason
+    ).toContain("metadata");
+
+    const server = await createRedirectServer("https://evil.example/");
+    try {
+      await expect(
+        fetchWithoutExternalRedirect(server.url, { allowedHosts: ["127.0.0.1"] })
+      ).rejects.toThrow(/not allowlisted/);
+    } finally {
+      await server.close();
+    }
+  });
 });
 
 function createTempDir(): string {
@@ -178,4 +204,36 @@ function createTempDir(): string {
   mkdirSync(root, { recursive: true });
   tempRoots.push(root);
   return root;
+}
+
+function createRedirectServer(location: string): Promise<{ url: string; close: () => Promise<void> }> {
+  return new Promise((resolve, reject) => {
+    const server = createServer((_request, response) => {
+      response.writeHead(302, { Location: location });
+      response.end();
+    });
+
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        reject(new Error("Failed to bind redirect server"));
+        return;
+      }
+
+      resolve({
+        url: `http://127.0.0.1:${address.port}/`,
+        close: async () =>
+          await new Promise<void>((closeResolve, closeReject) => {
+            server.close((error) => {
+              if (error) {
+                closeReject(error);
+                return;
+              }
+              closeResolve();
+            });
+          })
+      });
+    });
+  });
 }

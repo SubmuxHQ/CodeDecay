@@ -91,8 +91,11 @@ capability to allowed.
 - OS process isolation / sandboxing is platform-dependent; missing sandbox
   features must degrade to blocked or visibly weaker isolation, never silent
   full access (follow-up under #690).
-- Live redirect/SSRF validation for approved HTTP targets is not complete in
-  the foundation slice.
+- Product health checks and capability `network` authorization validate each
+  redirect hop against the allowlist and block credentials-in-URL plus common
+  metadata endpoints. DNS-rebinding defenses for non-literal hostnames are
+  available via `validateResolvedNetworkDestination` and still need broader
+  call-site coverage.
 - MCP confirmation scopes still need per-tool narrowing beyond the shared
   authorize gate.
 - Command denylist is heuristic; allowlisted user commands can still be
