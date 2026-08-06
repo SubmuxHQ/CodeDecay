@@ -12,6 +12,7 @@ export * from "./execution";
 export * from "./llm-review";
 export * from "./loop";
 export * from "./maintenance";
+export * from "./concurrency";
 export * from "./migration";
 export * from "./mcp";
 export * from "./memory";

@@ -28,6 +28,31 @@ export const ANALYSIS_COMMAND_DOCS: Record<string, CommandDoc> = {
       "See docs/migration.md for what plan-ready vs fully-verified means."
     ]
   },
+  concurrency: {
+    name: "concurrency",
+    summary: "Plan and evaluate deterministic concurrency/idempotency oracles.",
+    usage: ["codedecay concurrency [options]"],
+    description: [
+      "Load a seeded concurrency experiment fixture, detect candidate surfaces, enforce disposable bounds, and evaluate duplicate-delivery / lost-update oracles without spawning a scheduler or contacting production queues."
+    ],
+    options: [
+      { flag: "--experiment <path>", description: "Repo-local concurrency experiment JSON fixture" },
+      { flag: "--surface <path>", description: "Source file to scan for concurrency candidates; repeatable" },
+      { flag: "--target-kind <kind>", description: "fixture-local | disposable-local | remote-unapproved | production-like | unspecified" },
+      { flag: "--cleanup-plan <text>", description: "Disposable target cleanup plan" },
+      { flag: "--cwd <path>", description: "Working directory" },
+      { flag: "--format <json|markdown>", description: "Output format" },
+      { flag: "--output <path>", description: "Write report to a file" }
+    ],
+    examples: [
+      "codedecay concurrency --experiment .codedecay/concurrency/duplicate.json --surface src/jobs/payout.ts",
+      "codedecay concurrency --experiment experiment.json --target-kind fixture-local --format json"
+    ],
+    notes: [
+      "This command is oracle/plan-only: it does not run parallel load generators or touch production queues.",
+      "Stress-only results stay inconclusive. See docs/concurrency.md."
+    ]
+  },
   runtime: {
     name: "runtime",
     summary: "Ingest local runtime exports as redacted engineering evidence.",

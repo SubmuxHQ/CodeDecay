@@ -15,7 +15,8 @@ import {
   contextServiceToolSchema,
   serviceTopologyToolSchema,
   runtimeEvidenceToolSchema,
-  migrationSafetyToolSchema
+  migrationSafetyToolSchema,
+  concurrencySafetyToolSchema
 } from "./schemas";
 import type {
   AgentPreflightToolInput,
@@ -33,7 +34,8 @@ import type {
   ContextServiceToolInput,
   ServiceTopologyToolInput,
   RuntimeEvidenceToolInput,
-  MigrationSafetyToolInput
+  MigrationSafetyToolInput,
+  ConcurrencySafetyToolInput
 } from "./types";
 
 export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayMcpToolHandlers): void {
@@ -147,6 +149,13 @@ export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayM
     "Plan-only PostgreSQL migration safety analysis with mixed-version matrix, target gates, and cleanup obligations. Does not connect to a database.",
     migrationSafetyToolSchema,
     async (input) => textResult(handlers.migrationSafety(input as MigrationSafetyToolInput))
+  );
+
+  server.tool(
+    "concurrency_safety",
+    "Evaluate deterministic concurrency/idempotency experiment fixtures with bounds gates and state oracles. Does not spawn schedulers or contact production queues.",
+    concurrencySafetyToolSchema,
+    async (input) => textResult(handlers.concurrencySafety(input as ConcurrencySafetyToolInput))
   );
 
   server.tool(

@@ -22,7 +22,8 @@ import type {
   ContextServiceToolInput,
   ServiceTopologyToolInput,
   RuntimeEvidenceToolInput,
-  MigrationSafetyToolInput
+  MigrationSafetyToolInput,
+  ConcurrencySafetyToolInput
 } from "./types";
 
 export interface CodeDecayMcpToolHandlers {
@@ -41,6 +42,7 @@ export interface CodeDecayMcpToolHandlers {
   serviceTopology(input: ServiceTopologyToolInput): string | Promise<string>;
   runtimeEvidence(input: RuntimeEvidenceToolInput): string | Promise<string>;
   migrationSafety(input: MigrationSafetyToolInput): string | Promise<string>;
+  concurrencySafety(input: ConcurrencySafetyToolInput): string | Promise<string>;
   agentInvestigation(input: AgentInvestigationToolInput): string | Promise<string>;
   scopeCheck(input: ScopeCheckToolInput): string | Promise<string>;
   designContractCheck(input: DesignContractCheckToolInput): string | Promise<string>;

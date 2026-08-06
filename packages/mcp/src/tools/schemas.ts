@@ -157,6 +157,18 @@ export const migrationSafetyToolSchema = {
   rollbackFailed: z.boolean().optional().describe("Mark rollback as failed.")
 };
 
+export const concurrencySafetyToolSchema = {
+  cwd: cwdSchema,
+  format: formatSchema,
+  experimentFile: z.string().optional().describe("Repo-local concurrency experiment JSON fixture."),
+  surfaceFiles: z.array(z.string()).optional().describe("Source files to scan for concurrency candidates."),
+  targetKind: z
+    .enum(["unspecified", "fixture-local", "disposable-local", "remote-unapproved", "production-like"])
+    .optional()
+    .describe("Concurrency experiment target classification."),
+  cleanupPlan: z.string().optional().describe("Disposable target cleanup plan.")
+};
+
 export const agentSessionToolSchema = {
   cwd: cwdSchema,
   operation: z.enum(["start", "context", "checkpoint", "finish"]).describe("Session lifecycle operation."),

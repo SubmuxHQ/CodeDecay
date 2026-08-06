@@ -1,0 +1,26 @@
+{
+  "id": "uat-concurrency-2-lost-update",
+  "kind": "deterministic-schedule",
+  "actors": ["client-a", "client-b"],
+  "operations": [
+    { "id": "inc-a", "type": "read-modify-write", "payloadKey": "balance", "amount": 1 },
+    { "id": "inc-b", "type": "read-modify-write", "payloadKey": "balance", "amount": 1 }
+  ],
+  "schedule": {
+    "seed": 7,
+    "steps": [
+      { "at": 0, "operationId": "inc-a", "actor": "client-a", "barrier": "shared-read" },
+      { "at": 0, "operationId": "inc-b", "actor": "client-b", "barrier": "shared-read" }
+    ]
+  },
+  "faultPoints": ["lost-update-without-version"],
+  "stateOracle": { "invariant": "no-lost-update", "expectedFinalValue": 2 },
+  "implementation": { "mode": "lost-update" },
+  "bounds": {
+    "maxParallelism": 2,
+    "repetitions": 1,
+    "timeoutMs": 5000,
+    "targetKind": "fixture-local"
+  },
+  "cleanup": { "plan": "reset fixture balance" }
+}

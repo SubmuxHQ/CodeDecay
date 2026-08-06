@@ -1,0 +1,23 @@
+{
+  "id": "uat-concurrency-4-stress-only",
+  "kind": "probabilistic-stress",
+  "actors": ["hammer"],
+  "operations": [
+    { "id": "hit", "type": "http-mutate", "payloadKey": "pay" }
+  ],
+  "schedule": {
+    "seed": 99,
+    "steps": [
+      { "at": 0, "operationId": "hit", "actor": "hammer" }
+    ]
+  },
+  "stateOracle": { "invariant": "exactly-once-effect", "expectedSideEffects": 1 },
+  "implementation": { "mode": "idempotent" },
+  "bounds": {
+    "maxParallelism": 4,
+    "repetitions": 10,
+    "timeoutMs": 5000,
+    "targetKind": "fixture-local"
+  },
+  "cleanup": { "plan": "reset fixture" }
+}

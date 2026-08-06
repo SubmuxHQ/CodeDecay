@@ -31,6 +31,7 @@ import { runContextServiceTool } from "./handlers/context-service";
 import { runServiceTopologyTool } from "./handlers/service-topology";
 import { runRuntimeEvidenceTool } from "./handlers/runtime-evidence";
 import { runMigrationSafetyTool } from "./handlers/migration-safety";
+import { runConcurrencySafetyTool } from "./handlers/concurrency-safety";
 import type { StartMcpServerOptions } from "./server/types";
 import { registerCodeDecayMcpTools } from "./tools/registry";
 
@@ -59,6 +60,7 @@ export { runContextServiceTool } from "./handlers/context-service";
 export { runServiceTopologyTool } from "./handlers/service-topology";
 export { runRuntimeEvidenceTool } from "./handlers/runtime-evidence";
 export { runMigrationSafetyTool } from "./handlers/migration-safety";
+export { runConcurrencySafetyTool } from "./handlers/concurrency-safety";
 export {
   runProductFailuresTool,
   runProductPlanTool,
@@ -94,6 +96,7 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
     serviceTopology: (input) => runServiceTopologyTool(options, input),
     runtimeEvidence: (input) => runRuntimeEvidenceTool(options, input),
     migrationSafety: (input) => runMigrationSafetyTool(options, input),
+    concurrencySafety: (input) => runConcurrencySafetyTool(options, input),
     agentInvestigation: (input) => runAgentInvestigationTool(options, input),
     scopeCheck: (input) => runScopeCheckTool(options, input),
     designContractCheck: (input) => runDesignContractCheckTool(options, input),

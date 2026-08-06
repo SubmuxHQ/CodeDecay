@@ -1,0 +1,31 @@
+{
+  "id": "uat-concurrency-6-repair",
+  "kind": "deterministic-schedule",
+  "actors": ["worker-a", "worker-b"],
+  "operations": [
+    { "id": "deliver-1", "type": "deliver-message", "payloadKey": "job-42" },
+    { "id": "deliver-2", "type": "deliver-message", "payloadKey": "job-42" }
+  ],
+  "schedule": {
+    "seed": 42,
+    "steps": [
+      { "at": 0, "operationId": "deliver-1", "actor": "worker-a" },
+      { "at": 1, "operationId": "deliver-2", "actor": "worker-b", "barrier": "after-first-ack" }
+    ]
+  },
+  "retryPolicy": { "maxAttempts": 2, "duplicateDelivery": true },
+  "faultPoints": ["duplicate-queue-redelivery"],
+  "stateOracle": { "invariant": "exactly-once-effect", "expectedSideEffects": 1 },
+  "implementation": { "mode": "non-idempotent" },
+  "bounds": {
+    "maxParallelism": 2,
+    "repetitions": 1,
+    "timeoutMs": 5000,
+    "targetKind": "fixture-local"
+  },
+  "cleanup": { "plan": "reset fixture side-effect counter" },
+  "repair": {
+    "durableRegressionTestId": "test/idempotency.regression.test.ts",
+    "revalidated": true
+  }
+}
