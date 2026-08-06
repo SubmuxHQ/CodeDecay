@@ -2,6 +2,7 @@ export { authorizeCapability } from "./authorize";
 export { appendCapabilityAuditEvent, resolveCapabilityAuditPath, CAPABILITY_AUDIT_RELATIVE_PATH } from "./audit";
 export { checkPathWithinAllowedRoots } from "./paths";
 export { detectShellSubstitution } from "./shell";
+export { redactSecretsFromText, redactSecretsFromUnknown } from "./redact";
 export {
   fetchWithoutExternalRedirect,
   validateNetworkDestination,

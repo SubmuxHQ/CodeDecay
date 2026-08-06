@@ -1,6 +1,7 @@
 import { mkdirSync, appendFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { redactSecretsFromText } from "./redact";
 import type { CapabilityAuditEvent, CapabilityAuditPhase, CapabilityKind, CapabilityIntentSource } from "./types";
 
 export const CAPABILITY_AUDIT_RELATIVE_PATH = join(".codedecay", "local", "capability-audit.jsonl");
@@ -32,11 +33,11 @@ export function appendCapabilityAuditEvent(options: AppendCapabilityAuditOptions
     capability: options.capability,
     intentSource: options.intentSource,
     decision: options.decision,
-    reason: options.reason
+    reason: redactSecretsFromText(options.reason)
   };
 
   if (options.command !== undefined) {
-    event.command = options.command;
+    event.command = redactSecretsFromText(options.command);
   }
 
   if (options.paths !== undefined) {

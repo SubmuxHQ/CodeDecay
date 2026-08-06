@@ -70,6 +70,7 @@ Out of scope unless explicitly configured
 | Agent declares a check “verified” | Agent text is never trusted evidence |
 | Destructive `rm -rf`, push, deploy, migrate | Pattern denylist in `checkCommandSafety` |
 | Silent model or network use | LLM provider defaults to `disabled`; network capability default-deny |
+| Secrets appear in command output or audit logs | stdout/stderr/error/audit fields pass through `redactSecretsFromText` |
 
 ## Capability policy (version 1)
 
@@ -100,10 +101,13 @@ capability to allowed.
   authorize gate.
 - Command denylist is heuristic; allowlisted user commands can still be
   dangerous if the user authorizes them.
+- Pattern-based secret redaction is heuristic; unknown secret formats may still
+  leak until allowlisted secret.env values are also scrubbed by exact match.
 
 ## Audit
 
 Capability decisions append to
 `.codedecay/local/capability-audit.jsonl` when a repository cwd is available.
 Events cover requested, granted, denied, started, completed, timed-out, and
-cancelled phases for attributable review.
+cancelled phases for attributable review. Secret-looking values in reason and
+command fields are redacted before append.

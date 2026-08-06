@@ -9,6 +9,8 @@ export {
   checkPathWithinAllowedRoots,
   detectShellSubstitution,
   fetchWithoutExternalRedirect,
+  redactSecretsFromText,
+  redactSecretsFromUnknown,
   validateNetworkDestination,
   validateResolvedNetworkDestination,
   CAPABILITY_KINDS,
