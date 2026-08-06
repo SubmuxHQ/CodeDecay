@@ -159,11 +159,100 @@ export function retrieveApprovedLearningEvents(input: MemoryLearningRetrievalInp
 
     included.push({
       event,
-      reason: inclusionReason(event, input)
+      reason: inclusionReason(event, input, now)
     });
   }
 
   return { included, suppressed };
+}
+
+export interface MemoryLearningConflict {
+  kind: "duplicate" | "contradiction" | "rename-scope";
+  leftEventId: string;
+  rightEventId: string;
+  reason: string;
+}
+
+/**
+ * Detect duplicate proposals, contradictory approved/proposed pairs, and
+ * rename-style scope overlaps that should supersede older learnings.
+ */
+export function detectLearningConflicts(memory: CodeDecayMemory): MemoryLearningConflict[] {
+  const events = learningEvents(memory);
+  const conflicts: MemoryLearningConflict[] = [];
+
+  for (let leftIndex = 0; leftIndex < events.length; leftIndex += 1) {
+    const left = events[leftIndex];
+    if (!left) {
+      continue;
+    }
+
+    for (let rightIndex = leftIndex + 1; rightIndex < events.length; rightIndex += 1) {
+      const right = events[rightIndex];
+      if (!right) {
+        continue;
+      }
+
+      if (isTerminalStatus(left.reviewStatus) || isTerminalStatus(right.reviewStatus)) {
+        continue;
+      }
+
+      if (left.kind === right.kind && normalizeComparable(left.title) === normalizeComparable(right.title) && scopesOverlap(left.scope, right.scope)) {
+        conflicts.push({
+          kind: "duplicate",
+          leftEventId: left.id,
+          rightEventId: right.id,
+          reason: `duplicate ${left.kind} proposals share title and overlapping scope`
+        });
+        continue;
+      }
+
+      if (
+        areContradictoryKinds(left.kind, right.kind) &&
+        scopesOverlap(left.scope, right.scope) &&
+        titlesRelated(left.title, right.title)
+      ) {
+        conflicts.push({
+          kind: "contradiction",
+          leftEventId: left.id,
+          rightEventId: right.id,
+          reason: `${left.kind} and ${right.kind} conflict on related scope`
+        });
+        continue;
+      }
+
+      if (
+        ((left.kind === "ownership-change" && right.kind === "architecture-decision") ||
+          (left.kind === "architecture-decision" && right.kind === "ownership-change")) &&
+        scopesOverlap(left.scope, right.scope)
+      ) {
+        conflicts.push({
+          kind: "rename-scope",
+          leftEventId: left.id,
+          rightEventId: right.id,
+          reason: "ownership/architecture learnings overlap and may invalidate stale routing"
+        });
+      }
+    }
+  }
+
+  return conflicts;
+}
+
+export function appendLearningEventProposal(
+  memory: CodeDecayMemory,
+  input: MemoryLearningEventInput
+): { memory: CodeDecayMemory; event: MemoryLearningEvent; conflicts: MemoryLearningConflict[] } {
+  const event = createLearningEventProposal(input);
+  const nextMemory: CodeDecayMemory = {
+    ...memory,
+    learningEvents: [...learningEvents(memory), event]
+  };
+  return {
+    memory: nextMemory,
+    event,
+    conflicts: detectLearningConflicts(nextMemory)
+  };
 }
 
 export function normalizeLearningEvent(value: unknown, index: number, sourcePath: string): MemoryLearningEvent {
@@ -235,10 +324,73 @@ function suppressionReason(
   return undefined;
 }
 
-function inclusionReason(event: MemoryLearningEvent, input: MemoryLearningRetrievalInput): string {
+function inclusionReason(event: MemoryLearningEvent, input: MemoryLearningRetrievalInput, now: number): string {
   const match = firstMatchingFile(event.scope, input.changedFiles, input.impactedAreas);
   const revision = event.scope.revision ? ` at ${event.scope.revision}` : "";
-  return `included approved ${event.kind}${revision} for ${match?.path ?? "matched impact scope"}`;
+  const reviewNote =
+    event.reviewDueAt && Date.parse(event.reviewDueAt) <= now ? "; due for review" : "";
+  return `included approved ${event.kind}${revision} for ${match?.path ?? "matched impact scope"}${reviewNote}`;
+}
+
+function isTerminalStatus(status: MemoryLearningReviewStatus): boolean {
+  return status === "rejected" || status === "superseded" || status === "expired" || status === "revoked";
+}
+
+function areContradictoryKinds(left: MemoryLearningEventKind, right: MemoryLearningEventKind): boolean {
+  const pair = new Set([left, right]);
+  return pair.has("confirmed-regression") && pair.has("refuted-hypothesis");
+}
+
+function scopesOverlap(left: MemoryLearningScope, right: MemoryLearningScope): boolean {
+  if (left.repository && right.repository && left.repository !== right.repository) {
+    return false;
+  }
+
+  const leftFiles = left.files ?? [];
+  const rightFiles = right.files ?? [];
+  if (leftFiles.length > 0 && rightFiles.length > 0) {
+    return leftFiles.some((leftFile) => rightFiles.some((rightFile) => pathsRelated(leftFile, rightFile)));
+  }
+
+  const leftAreas = left.areas ?? [];
+  const rightAreas = right.areas ?? [];
+  if (leftAreas.length > 0 && rightAreas.length > 0) {
+    return leftAreas.some((area) => rightAreas.includes(area));
+  }
+
+  const leftSymbols = left.symbols ?? [];
+  const rightSymbols = right.symbols ?? [];
+  if (leftSymbols.length > 0 && rightSymbols.length > 0) {
+    return leftSymbols.some((symbol) => rightSymbols.includes(symbol));
+  }
+
+  return leftFiles.length === 0 && rightFiles.length === 0 && leftAreas.length === 0 && rightAreas.length === 0;
+}
+
+function pathsRelated(left: string, right: string): boolean {
+  const normalizedLeft = left.replace(/\*\*/g, "*").replace(/\*/g, "");
+  const normalizedRight = right.replace(/\*\*/g, "*").replace(/\*/g, "");
+  return (
+    left === right ||
+    left.includes(normalizedRight) ||
+    right.includes(normalizedLeft) ||
+    normalizedLeft.includes(normalizedRight) ||
+    normalizedRight.includes(normalizedLeft)
+  );
+}
+
+function titlesRelated(left: string, right: string): boolean {
+  const leftTokens = new Set(normalizeComparable(left).split(" ").filter((token) => token.length > 3));
+  const rightTokens = normalizeComparable(right).split(" ").filter((token) => token.length > 3);
+  if (leftTokens.size === 0 || rightTokens.length === 0) {
+    return normalizeComparable(left) === normalizeComparable(right);
+  }
+  const overlap = rightTokens.filter((token) => leftTokens.has(token)).length;
+  return overlap >= Math.min(2, rightTokens.length);
+}
+
+function normalizeComparable(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function normalizeAuditEntry(value: unknown, sourcePath: string, field: string): MemoryLearningAuditEntry {

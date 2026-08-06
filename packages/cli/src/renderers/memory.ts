@@ -1,5 +1,11 @@
 import { CODEDECAY_VERSION } from "@submuxhq/codedecay-core";
-import type { LoadedCodeDecayMemory, MemoryImportResult, MemoryLearnResult, MemoryLearningProposal } from "@submuxhq/codedecay-memory";
+import type {
+  LoadedCodeDecayMemory,
+  MemoryImportResult,
+  MemoryLearnResult,
+  MemoryLearningConflict,
+  MemoryLearningProposal
+} from "@submuxhq/codedecay-memory";
 import type { ConfigFormat } from "../types";
 
 export function renderMemory(loadedMemory: LoadedCodeDecayMemory, format: ConfigFormat): string {
@@ -20,8 +26,60 @@ export function renderMemory(loadedMemory: LoadedCodeDecayMemory, format: Config
     `| Invariants | ${memory.invariants.length} |`,
     `| Architecture notes | ${memory.architecture.length} |`,
     `| Past regressions | ${memory.regressions.length} |`,
+    `| Learning events | ${memory.learningEvents?.length ?? 0} |`,
     ""
   ];
+
+  return `${lines.join("\n")}\n`;
+}
+
+export function renderMemoryLearningResult(input: {
+  format: ConfigFormat;
+  action: string;
+  eventId: string;
+  writtenPath?: string | undefined;
+  conflicts: MemoryLearningConflict[];
+  applied: boolean;
+}): string {
+  if (input.format === "json") {
+    return `${JSON.stringify(
+      {
+        tool: "CodeDecay",
+        version: CODEDECAY_VERSION,
+        action: input.action,
+        eventId: input.eventId,
+        applied: input.applied,
+        writtenPath: input.writtenPath,
+        conflicts: input.conflicts
+      },
+      null,
+      2
+    )}\n`;
+  }
+
+  const lines = [
+    "## CodeDecay Memory Learning",
+    "",
+    `**Action:** ${input.action}`,
+    `**Event id:** \`${input.eventId}\``,
+    `**Applied:** ${input.applied ? "yes" : "no (preview)"}`,
+    input.writtenPath ? `**Written to:** \`${input.writtenPath}\`` : "**Written to:** preview only",
+    "",
+    "### Conflicts",
+    ""
+  ];
+
+  if (input.conflicts.length === 0) {
+    lines.push("No learning conflicts detected.", "");
+  } else {
+    lines.push("| Kind | Left | Right | Reason |", "| --- | --- | --- | --- |");
+    for (const conflict of input.conflicts.slice(0, 20)) {
+      lines.push(
+        `| ${conflict.kind} | \`${conflict.leftEventId}\` | \`${conflict.rightEventId}\` | ${conflict.reason} |`
+      );
+    }
+    lines.push("");
+  }
 
   return `${lines.join("\n")}\n`;
 }

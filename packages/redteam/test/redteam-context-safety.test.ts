@@ -39,6 +39,7 @@ describe("redteam context and safety summaries", () => {
       invariants: 1,
       architecture: 0,
       regressions: 1,
+      learningEvents: 0,
       sourcePath: "/repo/.codedecay/memory.json"
     });
     expect(summarizeMemory(createFixtureMemory(), undefined)).not.toHaveProperty("sourcePath");
@@ -76,5 +77,59 @@ describe("redteam context and safety summaries", () => {
       }
     ]);
     expect(summarizeSkills(undefined)).toEqual([]);
+  });
+
+  it("reports when approved learnings influence proof planning", () => {
+    const memory = {
+      ...createFixtureMemory(),
+      learningEvents: [
+        {
+          id: "learn_payout",
+          schemaVersion: 1 as const,
+          kind: "confirmed-regression" as const,
+          title: "Payout retry idempotency regression",
+          summary: "Duplicate retry keys paid twice.",
+          invariant: "A payout retry key must settle at most once.",
+          proofRecipe: "Run the retry integration test against the real API route.",
+          sourceEvidenceIds: ["check:payout-retry"],
+          scope: { files: ["src/auth/session.ts"] },
+          confidence: 0.9,
+          trustClass: "human-approved" as const,
+          creator: "kunal",
+          createdAt: "2026-08-01T10:00:00.000Z",
+          reviewStatus: "approved" as const,
+          auditTrail: [
+            {
+              action: "approve" as const,
+              actor: "kunal",
+              timestamp: "2026-08-01T11:00:00.000Z",
+              reason: "Verified"
+            }
+          ]
+        }
+      ]
+    };
+
+    const summary = summarizeMemory(memory, "/repo/.codedecay/memory.json", [], {
+      changedFiles: createFixtureAnalysisReport().changedFiles,
+      impactedAreas: createFixtureAnalysisReport().impactedAreas
+    });
+
+    expect(summary.learningEvents).toBe(1);
+    expect(summary.approvedLearningsApplied).toBe(1);
+    expect(summary.learningInfluences?.[0]).toContain(
+      "Prior learning influenced proof planning: Payout retry idempotency regression"
+    );
+
+    const report = createRedteamReport({
+      analysisReport: createFixtureAnalysisReport(),
+      config: createFixtureConfig(),
+      memory,
+      memorySource: "/repo/.codedecay/memory.json",
+      skills: createFixtureSkills()
+    });
+    const markdown = renderRedteamReport(report, "markdown");
+    expect(markdown).toContain("| Approved learnings applied | 1 |");
+    expect(markdown).toContain("Prior learning influenced proof planning");
   });
 });

@@ -432,4 +432,86 @@ describe("codedecay memory CLI contract", () => {
     );
     expect(JSON.stringify(parsed.memory)).not.toContain("token=secret");
   });
+
+  it("proposes and approves learning events without auto-approving untrusted input", async () => {
+    const repo = createLowRiskRepo();
+    const proposalPath = join(repo, "learning-event.json");
+    writeFile(
+      repo,
+      "learning-event.json",
+      JSON.stringify(
+        {
+          kind: "confirmed-regression",
+          title: "Payout retry double settlement",
+          summary: "Duplicate keys paid twice.",
+          invariant: "Retry keys settle once.",
+          proofRecipe: "pnpm test payouts/retry",
+          sourceEvidenceIds: ["check:payout-retry"],
+          scope: { files: ["src/payouts/**"], areas: ["api"] },
+          trustClass: "agent-proposal-untrusted",
+          creator: "agent"
+        },
+        null,
+        2
+      )
+    );
+
+    const preview = await run(
+      ["memory", "learning", "--action", "propose", "--input", proposalPath, "--format", "json"],
+      repo
+    );
+    expect(preview.exitCode).toBe(0);
+    expect(existsSync(join(repo, ".codedecay/memory.json"))).toBe(false);
+    const previewParsed = JSON.parse(preview.stdout);
+    expect(previewParsed.action).toBe("propose");
+    expect(previewParsed.applied).toBe(false);
+    expect(previewParsed.eventId).toMatch(/^learn_/);
+
+    const appliedPropose = await run(
+      [
+        "memory",
+        "learning",
+        "--action",
+        "propose",
+        "--input",
+        proposalPath,
+        "--apply",
+        "--format",
+        "json"
+      ],
+      repo
+    );
+    expect(appliedPropose.exitCode).toBe(0);
+    const proposeParsed = JSON.parse(appliedPropose.stdout);
+    const memoryAfterPropose = JSON.parse(readFileSync(join(repo, ".codedecay/memory.json"), "utf8"));
+    expect(memoryAfterPropose.learningEvents[0].reviewStatus).toBe("proposed");
+    expect(memoryAfterPropose.learningEvents[0].trustClass).toBe("agent-proposal-untrusted");
+
+    const approve = await run(
+      [
+        "memory",
+        "learning",
+        "--action",
+        "approve",
+        "--event-id",
+        proposeParsed.eventId,
+        "--actor",
+        "kunal",
+        "--reason",
+        "Verified against runtime evidence",
+        "--apply",
+        "--format",
+        "json"
+      ],
+      repo
+    );
+    expect(approve.exitCode).toBe(0);
+    const memoryAfterApprove = JSON.parse(readFileSync(join(repo, ".codedecay/memory.json"), "utf8"));
+    expect(memoryAfterApprove.learningEvents[0].reviewStatus).toBe("approved");
+    expect(memoryAfterApprove.learningEvents[0].trustClass).toBe("human-approved");
+    expect(memoryAfterApprove.learningEvents[0].auditTrail.map((e: { action: string }) => e.action)).toEqual([
+      "propose",
+      "approve"
+    ]);
+  });
 });

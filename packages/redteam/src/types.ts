@@ -290,6 +290,9 @@ export interface RedteamMemorySummary {
   invariants: number;
   architecture: number;
   regressions: number;
+  learningEvents?: number | undefined;
+  approvedLearningsApplied?: number | undefined;
+  learningInfluences?: string[] | undefined;
   providerSources?: RedteamMemoryProviderSource[] | undefined;
   providerFailures?: RedteamMemoryProviderSource[] | undefined;
 }

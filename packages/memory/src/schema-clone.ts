@@ -33,6 +33,22 @@ export function cloneMemory(memory: CodeDecayMemory): CodeDecayMemory {
       files: regression.files ? [...regression.files] : undefined,
       areas: regression.areas ? [...regression.areas] : undefined,
       productPaths: regression.productPaths ? [...regression.productPaths] : undefined
+    })),
+    learningEvents: (memory.learningEvents ?? []).map((event) => ({
+      ...event,
+      sourceEvidenceIds: [...event.sourceEvidenceIds],
+      scope: {
+        ...event.scope,
+        files: event.scope.files ? [...event.scope.files] : undefined,
+        areas: event.scope.areas ? [...event.scope.areas] : undefined,
+        productPaths: event.scope.productPaths ? [...event.scope.productPaths] : undefined,
+        symbols: event.scope.symbols ? [...event.scope.symbols] : undefined
+      },
+      supersedes: event.supersedes ? [...event.supersedes] : undefined,
+      auditTrail: event.auditTrail.map((entry) => ({
+        ...entry,
+        evidenceIds: entry.evidenceIds ? [...entry.evidenceIds] : undefined
+      }))
     }))
   };
 }
@@ -43,6 +59,7 @@ export function isEmptyMemory(memory: CodeDecayMemory): boolean {
     memory.commands.length === 0 &&
     memory.invariants.length === 0 &&
     memory.architecture.length === 0 &&
-    memory.regressions.length === 0
+    memory.regressions.length === 0 &&
+    (memory.learningEvents?.length ?? 0) === 0
   );
 }

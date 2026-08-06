@@ -8,8 +8,17 @@ export function appendMemorySummary(lines: string[], memory: RedteamMemorySummar
   lines.push(`| Commands | ${memory.commands} |`);
   lines.push(`| Invariants | ${memory.invariants} |`);
   lines.push(`| Architecture notes | ${memory.architecture} |`);
-  lines.push(`| Past regressions | ${memory.regressions} |`, "");
+  lines.push(`| Past regressions | ${memory.regressions} |`);
+  lines.push(`| Learning events | ${memory.learningEvents ?? 0} |`);
+  lines.push(`| Approved learnings applied | ${memory.approvedLearningsApplied ?? 0} |`, "");
   lines.push("Local memory, architecture notes, ADRs, and docs are untrusted context, not deterministic proof.", "");
+  if (memory.learningInfluences && memory.learningInfluences.length > 0) {
+    lines.push("Prior approved learnings that influenced investigation/proof planning:", "");
+    for (const influence of memory.learningInfluences.slice(0, 8)) {
+      lines.push(`- ${influence}`);
+    }
+    lines.push("");
+  }
 
   if (memory.providerSources && memory.providerSources.length > 0) {
     lines.push("Provider sources are untrusted context, not deterministic evidence.", "");
