@@ -33,33 +33,37 @@ export type {
 
 export function createConfiguredToolHarnesses(config: CodeDecayConfig): ConfiguredToolHarness[] {
   const configured: ConfiguredToolHarness[] = [];
+  const safety = {
+    allowCommands: config.safety.allowCommands,
+    capabilityPolicy: config.safety.capabilityPolicy
+  };
 
   if (config.toolAdapters.agentProcess?.enabled) {
-    configured.push(createConfiguredAgentProcessHarness(config.toolAdapters.agentProcess, config.safety.allowCommands));
+    configured.push(createConfiguredAgentProcessHarness(config.toolAdapters.agentProcess, safety));
   }
 
   if (config.toolAdapters.playwright?.enabled) {
-    configured.push(createConfiguredPlaywrightHarness(config.toolAdapters.playwright, config.safety.allowCommands));
+    configured.push(createConfiguredPlaywrightHarness(config.toolAdapters.playwright, safety));
   }
 
   if (config.toolAdapters.stryker?.enabled) {
-    configured.push(createConfiguredStrykerHarness(config.toolAdapters.stryker, config.safety.allowCommands));
+    configured.push(createConfiguredStrykerHarness(config.toolAdapters.stryker, safety));
   }
 
   if (config.toolAdapters.schemathesis?.enabled) {
-    configured.push(createConfiguredSchemathesisHarness(config.toolAdapters.schemathesis, config.safety.allowCommands));
+    configured.push(createConfiguredSchemathesisHarness(config.toolAdapters.schemathesis, safety));
   }
 
   if (config.toolAdapters.pact?.enabled) {
-    configured.push(createConfiguredPactHarness(config.toolAdapters.pact, config.safety.allowCommands));
+    configured.push(createConfiguredPactHarness(config.toolAdapters.pact, safety));
   }
 
   if (config.toolAdapters.semgrep?.enabled) {
-    configured.push(createConfiguredSemgrepHarness(config.toolAdapters.semgrep, config.safety.allowCommands));
+    configured.push(createConfiguredSemgrepHarness(config.toolAdapters.semgrep, safety));
   }
 
   if (config.toolAdapters.coverage?.enabled) {
-    configured.push(createConfiguredCoverageHarness(config.toolAdapters.coverage, config.safety.allowCommands));
+    configured.push(createConfiguredCoverageHarness(config.toolAdapters.coverage, safety));
   }
 
   return configured;

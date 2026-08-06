@@ -27,6 +27,7 @@ import {
 } from "../shared/execution";
 import { elapsed } from "../shared/values";
 import type { PactHarnessOptions } from "../types";
+import { toolAdapterSafeCommandPolicy } from "../safety";
 
 export function createPactHarness(options: PactHarnessOptions = {}): CodeDecayHarness {
   const command = options.command ?? DEFAULT_PACT_COMMAND;
@@ -95,10 +96,7 @@ async function runPactPlan(
     cwd: context.cwd,
     timeoutMs,
     outputLimit: options.outputLimit,
-    safety: {
-      allowCommands: options.allowCommands ?? false,
-      allowUnsafeCommands: options.allowUnsafeCommands
-    }
+    safety: toolAdapterSafeCommandPolicy(options)
   });
   const durationMs = elapsed(startedAt);
   const evidence = [pactEvidenceFromExecution(execution)];

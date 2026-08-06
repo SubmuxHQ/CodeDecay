@@ -24,6 +24,7 @@ import {
   DEFAULT_COVERAGE_TIMEOUT_MS
 } from "./constants";
 import { validateCoveragePlan } from "./validation";
+import { toolAdapterSafeCommandPolicy } from "../safety";
 
 export async function runCoveragePlan(
   plan: HarnessPlan,
@@ -134,9 +135,6 @@ async function runCoverageCommand(
     cwd: context.cwd,
     timeoutMs,
     outputLimit: options.outputLimit,
-    safety: {
-      allowCommands: options.allowCommands ?? false,
-      allowUnsafeCommands: options.allowUnsafeCommands
-    }
+    safety: toolAdapterSafeCommandPolicy(options)
   });
 }

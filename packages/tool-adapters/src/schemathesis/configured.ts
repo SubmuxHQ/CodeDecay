@@ -8,10 +8,11 @@ import type {
 
 export function createConfiguredSchemathesisHarness(
   adapter: CodeDecaySchemathesisToolAdapter,
-  allowCommands: boolean
+  safety: { allowCommands: boolean; capabilityPolicy?: import("@submuxhq/codedecay-execution").CapabilityPolicy | undefined }
 ): ConfiguredToolHarness {
   const options: SchemathesisHarnessOptions = {
-    allowCommands
+    allowCommands: safety.allowCommands,
+    capabilityPolicy: safety.capabilityPolicy
   };
 
   if (adapter.command !== undefined) {

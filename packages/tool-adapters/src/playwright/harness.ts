@@ -27,6 +27,7 @@ import {
 } from "../shared/execution";
 import { elapsed } from "../shared/values";
 import type { PlaywrightHarnessOptions } from "../types";
+import { toolAdapterSafeCommandPolicy } from "../safety";
 
 export function createPlaywrightHarness(options: PlaywrightHarnessOptions = {}): CodeDecayHarness {
   const command = options.command ?? DEFAULT_PLAYWRIGHT_COMMAND;
@@ -95,10 +96,7 @@ async function runPlaywrightPlan(
     cwd: context.cwd,
     timeoutMs,
     outputLimit: options.outputLimit,
-    safety: {
-      allowCommands: options.allowCommands ?? false,
-      allowUnsafeCommands: options.allowUnsafeCommands
-    }
+    safety: toolAdapterSafeCommandPolicy(options)
   });
   const durationMs = elapsed(startedAt);
   const evidence = [playwrightEvidenceFromExecution(execution)];

@@ -25,6 +25,7 @@ import {
   agentProcessMissingCommandEvidence
 } from "./evidence";
 import { validateAgentProcessPlan } from "./validation";
+import { toolAdapterSafeCommandPolicy } from "../safety";
 
 export async function runAgentProcessPlan(
   plan: HarnessPlan,
@@ -65,10 +66,7 @@ export async function runAgentProcessPlan(
       CODEDECAY_AGENT_PROFILE: profile,
       CODEDECAY_AGENT_OUTPUT_UNTRUSTED: "1"
     },
-    safety: {
-      allowCommands: options.allowCommands ?? false,
-      allowUnsafeCommands: options.allowUnsafeCommands
-    }
+    safety: toolAdapterSafeCommandPolicy(options)
   });
   const durationMs = elapsed(startedAt);
   const artifacts = [{ path: bundle.artifactPath, description: "CodeDecay agent task bundle passed to the local agent process." }];

@@ -4,10 +4,11 @@ import { resolveCoverageDisplayCommand } from "./plan";
 
 export function createConfiguredCoverageHarness(
   adapter: CodeDecayCoverageToolAdapter,
-  allowCommands: boolean
+  safety: { allowCommands: boolean; capabilityPolicy?: import("@submuxhq/codedecay-execution").CapabilityPolicy | undefined }
 ): ConfiguredToolHarness {
   const options: CoverageHarnessOptions = {
-    allowCommands
+    allowCommands: safety.allowCommands,
+    capabilityPolicy: safety.capabilityPolicy
   };
 
   if (adapter.command !== undefined) {

@@ -4,10 +4,11 @@ import { resolveSemgrepDisplayCommand } from "./commands";
 
 export function createConfiguredSemgrepHarness(
   adapter: CodeDecaySemgrepToolAdapter,
-  allowCommands: boolean
+  safety: { allowCommands: boolean; capabilityPolicy?: import("@submuxhq/codedecay-execution").CapabilityPolicy | undefined }
 ): ConfiguredToolHarness {
   const options: SemgrepHarnessOptions = {
-    allowCommands
+    allowCommands: safety.allowCommands,
+    capabilityPolicy: safety.capabilityPolicy
   };
 
   if (adapter.command !== undefined) {
