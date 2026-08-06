@@ -2,14 +2,18 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { parse, type Statement } from "pgsql-ast-parser";
+import { classifyMigrationConnectionTarget } from "./target-safety";
 import {
   MIGRATION_EVIDENCE_SCHEMA_VERSION,
+  type MigrationCleanupEvidence,
   type MigrationMatrixState,
   type MigrationOperationEvidence,
   type MigrationOperationKind,
   type MigrationRisk,
+  type MigrationRollbackStatus,
   type MigrationSafetyReport,
-  type MigrationTargetKind
+  type MigrationTargetKind,
+  type MigrationVerdict
 } from "./types";
 
 const MAX_FILES = 100;
@@ -20,42 +24,118 @@ export interface AnalyzeMigrationSafetyOptions {
   files: string[];
   targetKind?: MigrationTargetKind | undefined;
   rollbackFiles?: string[] | undefined;
+  connectionUrl?: string | undefined;
+  connectionHost?: string | undefined;
+  databaseUrlEnv?: string | undefined;
+  cleanupPlan?: string | undefined;
+  /** Synthetic/fixture signal that rollback execution failed. */
+  rollbackFailed?: boolean | undefined;
   generatedAt?: string | undefined;
 }
 
 export function analyzeMigrationSafety(options: AnalyzeMigrationSafetyOptions): MigrationSafetyReport {
   const rootDir = realpathSync(options.rootDir);
-  const targetKind = options.targetKind ?? "unspecified";
+  const connectionTarget = classifyMigrationConnectionTarget({
+    connectionUrl: options.connectionUrl,
+    connectionHost: options.connectionHost,
+    databaseUrlEnv: options.databaseUrlEnv,
+    declaredTargetKind: options.targetKind
+  });
+  const targetKind = options.connectionUrl || options.connectionHost
+    ? connectionTarget.kind
+    : (options.targetKind ?? connectionTarget.kind);
   const files = boundedFiles(options.files, "migration");
   const rollbackFiles = boundedFiles(options.rollbackFiles ?? [], "rollback");
   const operations = files.flatMap((path) => parseMigrationFile(rootDir, path, rollbackFiles.length > 0));
   for (const path of rollbackFiles) parseMigrationFile(rootDir, path, true);
+
   const blockers = operations.filter((item) => item.risk === "blocker").map((item) => `${item.sourceRef}: ${item.detail}`);
   if (targetKind === "production-like") blockers.unshift("Production-like database targets are blocked; use a disposable local database.");
   if (targetKind === "remote-unapproved") blockers.unshift("Remote database target is not explicitly approved as disposable.");
   if (targetKind === "unspecified") blockers.unshift("Database target classification is required before migration execution.");
+  for (const reason of connectionTarget.reasons) {
+    if (!blockers.includes(reason) && connectionTarget.blocked) blockers.push(reason);
+  }
+
+  const cleanup = createCleanupEvidence(options.cleanupPlan, targetKind);
+
+  const rollbackStatus = resolveRollbackStatus(rollbackFiles.length > 0, options.rollbackFailed === true);
+  if (rollbackStatus === "failed") {
+    blockers.push("Rollback execution failed; the migration cannot be fully verified.");
+  }
+
   const limitations = [
     "Static migration plans do not prove existing-data compatibility, lock duration, application compatibility, or rollback execution.",
-    "No database was contacted and no migration command was executed."
+    "No database was contacted and no migration command was executed.",
+    "A plan-ready additive migration still requires disposable mixed-version execution before a fully verified verdict."
   ];
   if (files.length === 0) limitations.unshift("No migration SQL file was supplied.");
   if (targetKind === "unspecified") limitations.unshift("Database target classification is unspecified; execution must remain blocked.");
-  const matrix = createMatrix(operations, rollbackFiles.length > 0, targetKind);
+  if (options.databaseUrlEnv) limitations.push(`Database credentials are referenced only as environment variable ${options.databaseUrlEnv}; secret values were not read.`);
+
+  const matrix = createMatrix(operations, rollbackFiles.length > 0, targetKind, rollbackStatus);
+  const verdict = resolveVerdict(blockers, targetKind, operations, rollbackStatus);
+
   return {
     tool: "CodeDecay",
     schemaVersion: MIGRATION_EVIDENCE_SCHEMA_VERSION,
     generatedAt: options.generatedAt ?? new Date().toISOString(),
     dialect: "postgresql",
     targetKind,
+    verdict,
+    fullyVerified: false,
+    rollbackStatus,
+    connectionTarget,
+    cleanup,
     sourceFiles: files,
     rollbackFiles,
     operations,
     matrix,
     blockers,
-    investigationTasks: matrix.flatMap((item) => item.verificationTask ? [item.verificationTask] : []),
+    investigationTasks: matrix.flatMap((item) => (item.verificationTask ? [item.verificationTask] : [])),
     limitations,
-    safety: { commandsExecuted: false, databaseConnected: false, migrationApplied: false, secretsRead: false, productionTargetAllowed: false }
+    safety: {
+      commandsExecuted: false,
+      databaseConnected: false,
+      migrationApplied: false,
+      secretsRead: false,
+      productionTargetAllowed: false
+    }
   };
+}
+
+function createCleanupEvidence(plan: string | undefined, targetKind: MigrationTargetKind): MigrationCleanupEvidence {
+  const trimmed = plan?.trim();
+  return {
+    plan: trimmed || undefined,
+    required: targetKind === "disposable-local",
+    proven: false,
+    requiredOnFailure: true,
+    limitations: [
+      "Cleanup was not executed by this plan-only analyzer.",
+      "Failed mixed-version or rollback paths still require disposable database cleanup."
+    ]
+  };
+}
+
+function resolveRollbackStatus(rollbackProvided: boolean, rollbackFailed: boolean): MigrationRollbackStatus {
+  if (rollbackFailed) return "failed";
+  if (!rollbackProvided) return "missing";
+  return "unproven";
+}
+
+function resolveVerdict(
+  blockers: string[],
+  targetKind: MigrationTargetKind,
+  operations: MigrationOperationEvidence[],
+  rollbackStatus: MigrationRollbackStatus
+): MigrationVerdict {
+  if (rollbackStatus === "failed" || blockers.length > 0 || targetKind !== "disposable-local") {
+    return blockers.length || rollbackStatus === "failed" ? "plan-blocked" : "not-fully-verified";
+  }
+  const onlyAdditiveSafe = operations.length > 0 && operations.every((item) => item.risk === "info" && !item.destructive);
+  if (onlyAdditiveSafe) return "plan-ready";
+  return "needs-execution-proof";
 }
 
 function parseMigrationFile(rootDir: string, path: string, rollbackProvided: boolean): MigrationOperationEvidence[] {
@@ -79,50 +159,177 @@ function normalizeStatement(statement: Statement, path: string, index: number, r
   if (type === "alter table" && Array.isArray(value.changes)) {
     return value.changes.map((change, changeIndex) => normalizeAlter(change, table, path, index, changeIndex + 1, rollbackProvided));
   }
-  if (type === "create index") return [operation("create-index", table, `Create index ${objectName(value.indexName) ?? "unknown-index"} on ${table}.`, path, index, "needs-proof", false, "high", false, rollbackProvided)];
-  if (type === "drop table" || type === "drop type" || type === "drop sequence") return [operation("drop-object", table, `Drop ${type.slice(5)} ${table}.`, path, index, "blocker", true, "high", false, rollbackProvided)];
-  if (type === "create table" || type === "create type" || type === "create sequence") return [operation("create-object", table, `Create ${type.slice(7)} ${table}.`, path, index, "info", false, "low", false, rollbackProvided)];
-  if (type === "update") return [operation("backfill", table, `Backfill data in ${table}.`, path, index, "needs-proof", false, "high", false, rollbackProvided)];
+  if (type === "create index") {
+    return [operation("create-index", table, `Create index ${objectName(value.indexName) ?? "unknown-index"} on ${table}.`, path, index, "needs-proof", false, "high", false, rollbackProvided)];
+  }
+  if (type === "drop table" || type === "drop type" || type === "drop sequence") {
+    return [operation("drop-object", table, `Drop ${type.slice(5)} ${table}.`, path, index, "blocker", true, "high", false, rollbackProvided)];
+  }
+  if (type === "create table" || type === "create type" || type === "create sequence") {
+    return [operation("create-object", table, `Create ${type.slice(7)} ${table}.`, path, index, "info", false, "low", false, rollbackProvided)];
+  }
+  if (type === "update") {
+    return [operation("backfill", table, `Backfill data in ${table}.`, path, index, "needs-proof", false, "high", false, rollbackProvided)];
+  }
   return [operation("other", table, `Review PostgreSQL statement type ${type}.`, path, index, "needs-proof", false, "unknown", false, rollbackProvided, ["Statement has no specialized migration classifier."])];
 }
 
-function normalizeAlter(change: unknown, table: string, path: string, statementIndex: number, changeIndex: number, rollbackProvided: boolean): MigrationOperationEvidence {
+function normalizeAlter(
+  change: unknown,
+  table: string,
+  path: string,
+  statementIndex: number,
+  changeIndex: number,
+  rollbackProvided: boolean
+): MigrationOperationEvidence {
   const value = change as Record<string, unknown>;
   const type = String(value.type ?? "alter column");
   const column = objectName(value.column) ?? objectName((value.column as Record<string, unknown> | undefined)?.name) ?? "unknown-column";
   const sourceIndex = `${statementIndex}.${changeIndex}`;
-  if (type === "drop column") return operation("drop-column", `${table}.${column}`, `Drop column ${table}.${column}.`, path, sourceIndex, "blocker", true, "high", false, rollbackProvided);
+  if (type === "drop column") {
+    return operation("drop-column", `${table}.${column}`, `Drop column ${table}.${column}.`, path, sourceIndex, "blocker", true, "high", false, rollbackProvided);
+  }
+  if (type === "rename column") {
+    const to = objectName(value.to) ?? "unknown-column";
+    return operation(
+      "rename-column",
+      `${table}.${column}->${to}`,
+      `Rename column ${table}.${column} to ${to}; old application versions may break during rolling deployment.`,
+      path,
+      sourceIndex,
+      "blocker",
+      true,
+      "high",
+      false,
+      rollbackProvided
+    );
+  }
+  if (type === "rename") {
+    const to = objectName(value.to) ?? "unknown-object";
+    return operation(
+      "rename-object",
+      `${table}->${to}`,
+      `Rename ${table} to ${to}; old application versions may break during rolling deployment.`,
+      path,
+      sourceIndex,
+      "blocker",
+      true,
+      "high",
+      false,
+      rollbackProvided
+    );
+  }
   if (type === "add column") {
     const definition = value.column as Record<string, unknown> | undefined;
     const constraints = Array.isArray(definition?.constraints) ? definition.constraints as Array<Record<string, unknown>> : [];
     const notNull = constraints.some((item) => item.type === "not null");
     const hasDefault = constraints.some((item) => item.type === "default");
     const unsafe = notNull && !hasDefault;
-    return operation("add-column", `${table}.${column}`, `Add column ${table}.${column}${unsafe ? " as NOT NULL without a default or proven backfill" : ""}.`, path, sourceIndex, unsafe ? "blocker" : "info", false, unsafe ? "high" : "low", unsafe, rollbackProvided);
+    return operation(
+      "add-column",
+      `${table}.${column}`,
+      `Add column ${table}.${column}${unsafe ? " as NOT NULL without a default or proven backfill" : ""}.`,
+      path,
+      sourceIndex,
+      unsafe ? "blocker" : "info",
+      false,
+      unsafe ? "high" : "low",
+      unsafe,
+      rollbackProvided
+    );
   }
   const risky = /set not null|alter type|set data type/i.test(type);
   return operation("alter-column", `${table}.${column}`, `Apply ${type} to ${table}.${column}.`, path, sourceIndex, risky ? "blocker" : "needs-proof", risky, "high", risky, rollbackProvided);
 }
 
-function operation(kind: MigrationOperationKind, object: string, detail: string, path: string, index: number | string, risk: MigrationRisk, destructive: boolean, lockRisk: "low" | "unknown" | "high", requiresBackfill: boolean, rollbackProvided: boolean, limitations: string[] = []): MigrationOperationEvidence {
+function operation(
+  kind: MigrationOperationKind,
+  object: string,
+  detail: string,
+  path: string,
+  index: number | string,
+  risk: MigrationRisk,
+  destructive: boolean,
+  lockRisk: "low" | "unknown" | "high",
+  requiresBackfill: boolean,
+  rollbackProvided: boolean,
+  limitations: string[] = []
+): MigrationOperationEvidence {
   const sourceRef = `${path}#statement:${index}`;
   return {
     evidenceId: `migration:${createHash("sha256").update(`${sourceRef}\0${kind}\0${object}`).digest("hex").slice(0, 20)}`,
-    kind, object, detail, sourceRef, risk, destructive, lockRisk, requiresBackfill,
+    kind,
+    object,
+    detail,
+    sourceRef,
+    risk,
+    destructive,
+    lockRisk,
+    requiresBackfill,
     rollbackSupported: rollbackProvided ? "unknown" : false,
-    limitations: [...limitations, ...(rollbackProvided ? ["Rollback SQL was supplied but not executed."] : ["No rollback SQL was supplied."])]
+    limitations: [
+      ...limitations,
+      ...(rollbackProvided ? ["Rollback SQL was supplied but not executed."] : ["No rollback SQL was supplied."])
+    ]
   };
 }
 
-function createMatrix(operations: MigrationOperationEvidence[], rollbackProvided: boolean, targetKind: MigrationTargetKind): MigrationMatrixState[] {
+function createMatrix(
+  operations: MigrationOperationEvidence[],
+  rollbackProvided: boolean,
+  targetKind: MigrationTargetKind,
+  rollbackStatus: MigrationRollbackStatus
+): MigrationMatrixState[] {
   const risky = operations.filter((item) => item.risk === "blocker");
   const targetBlocked = targetKind !== "disposable-local";
   return [
-    { state: "old-app-old-schema", status: "baseline", evidenceIds: [], reason: "Baseline state is unchanged by this plan; runtime behavior was not executed." },
-    { state: "old-app-new-schema", status: risky.length || targetBlocked ? "blocked" : "needs-proof", evidenceIds: risky.map((item) => item.evidenceId), reason: risky.length ? "Destructive or incompatible schema operations may break the old application." : "Old application compatibility with the new schema requires execution proof.", verificationTask: "Run the old application against the migrated disposable database and verify representative reads, writes, and jobs." },
-    { state: "new-app-old-schema", status: targetBlocked ? "blocked" : "needs-proof", evidenceIds: [], reason: "The new application may access schema objects that do not exist before migration.", verificationTask: "Run the new application against the old disposable schema and verify startup plus changed persistence flows." },
-    { state: "new-app-new-schema", status: targetBlocked ? "blocked" : "needs-proof", evidenceIds: operations.map((item) => item.evidenceId), reason: "Static SQL analysis cannot prove existing-data or application behavior.", verificationTask: "Apply the migration to representative disposable data and run changed API, job, and persistence checks." },
-    { state: "rollback", status: !rollbackProvided || targetBlocked ? "blocked" : "needs-proof", evidenceIds: operations.filter((item) => item.destructive).map((item) => item.evidenceId), reason: rollbackProvided ? "Rollback SQL exists but has not been executed or checked for data restoration." : "No rollback SQL was supplied.", verificationTask: "Execute the reviewed rollback on a disposable database and prove schema, data, and cleanup outcomes." }
+    {
+      state: "old-app-old-schema",
+      status: "baseline",
+      evidenceIds: [],
+      reason: "Baseline state is unchanged by this plan; runtime behavior was not executed."
+    },
+    {
+      state: "old-app-new-schema",
+      status: risky.length || targetBlocked ? "blocked" : "needs-proof",
+      evidenceIds: risky.map((item) => item.evidenceId),
+      reason: risky.length
+        ? "Destructive or incompatible schema operations may break the old application during rolling deployment."
+        : "Old application compatibility with the new schema requires execution proof.",
+      verificationTask:
+        "Run the old application against the migrated disposable database and verify representative reads, writes, and jobs."
+    },
+    {
+      state: "new-app-old-schema",
+      status: targetBlocked ? "blocked" : "needs-proof",
+      evidenceIds: [],
+      reason: "The new application may access schema objects that do not exist before migration.",
+      verificationTask: "Run the new application against the old disposable schema and verify startup plus changed persistence flows."
+    },
+    {
+      state: "new-app-new-schema",
+      status: targetBlocked ? "blocked" : "needs-proof",
+      evidenceIds: operations.map((item) => item.evidenceId),
+      reason: "Static SQL analysis cannot prove existing-data or application behavior.",
+      verificationTask: "Apply the migration to representative disposable data and run changed API, job, and persistence checks."
+    },
+    {
+      state: "rollback",
+      status:
+        rollbackStatus === "failed"
+          ? "failed"
+          : !rollbackProvided || targetBlocked
+            ? "blocked"
+            : "needs-proof",
+      evidenceIds: operations.filter((item) => item.destructive).map((item) => item.evidenceId),
+      reason:
+        rollbackStatus === "failed"
+          ? "Rollback execution failed; full verification is blocked until rollback succeeds on a disposable database."
+          : rollbackProvided
+            ? "Rollback SQL exists but has not been executed or checked for data restoration."
+            : "No rollback SQL was supplied.",
+      verificationTask: "Execute the reviewed rollback on a disposable database and prove schema, data, and cleanup outcomes."
+    }
   ];
 }
 
@@ -133,10 +340,14 @@ function boundedFiles(files: string[], label: string): string[] {
 
 function resolveInside(rootDir: string, path: string): string {
   const lexical = resolve(rootDir, path);
-  if (lexical !== rootDir && !lexical.startsWith(`${rootDir}/`)) throw new Error(`Migration path must stay inside repository: ${path}`);
+  if (lexical !== rootDir && !lexical.startsWith(`${rootDir}/`)) {
+    throw new Error(`Migration path must stay inside repository: ${path}`);
+  }
   if (!existsSync(lexical)) throw new Error(`Migration file not found: ${path}`);
   const real = realpathSync(lexical);
-  if (real !== rootDir && !real.startsWith(`${rootDir}/`)) throw new Error(`Migration path must stay inside repository: ${path}`);
+  if (real !== rootDir && !real.startsWith(`${rootDir}/`)) {
+    throw new Error(`Migration path must stay inside repository: ${path}`);
+  }
   return real;
 }
 

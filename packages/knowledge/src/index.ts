@@ -70,15 +70,20 @@ export {
 export { ingestRuntimeEvidence, persistRuntimeEvidenceArtifact, RUNTIME_EVIDENCE_ARTIFACT_PATH } from "./runtime/ingest";
 export { analyzeMigrationSafety } from "./migration/analyze";
 export type { AnalyzeMigrationSafetyOptions } from "./migration/analyze";
+export { classifyMigrationConnectionTarget } from "./migration/target-safety";
 export { renderMigrationSafetyMarkdown } from "./migration/render";
 export { MIGRATION_EVIDENCE_SCHEMA_VERSION } from "./migration/types";
 export type {
+  MigrationCleanupEvidence,
+  MigrationConnectionTarget,
   MigrationMatrixState,
   MigrationOperationEvidence,
   MigrationOperationKind,
   MigrationRisk,
+  MigrationRollbackStatus,
   MigrationSafetyReport,
-  MigrationTargetKind
+  MigrationTargetKind,
+  MigrationVerdict
 } from "./migration/types";
 export type { IngestRuntimeEvidenceOptions } from "./runtime/ingest";
 export { renderRuntimeEvidenceMarkdown } from "./runtime/render";

@@ -10,12 +10,23 @@ export const ANALYSIS_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--file <path>", description: "Repo-local migration SQL file; repeat for multiple files" },
       { flag: "--rollback-file <path>", description: "Repo-local rollback SQL file; repeat for multiple files" },
       { flag: "--target-kind <kind>", description: "unspecified, disposable-local, remote-unapproved, or production-like" },
+      { flag: "--connection-url <url>", description: "Optional DB URL used only for host classification; secret values are redacted" },
+      { flag: "--connection-host <host>", description: "Optional DB host used for target classification" },
+      { flag: "--database-url-env <NAME>", description: "Env var name holding credentials; values are never read" },
+      { flag: "--cleanup-plan <text>", description: "Disposable database cleanup plan recorded in the report" },
+      { flag: "--rollback-failed", description: "Mark rollback as failed so the verdict stays not fully verified" },
       { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
       { flag: "--format <format>", description: "json or markdown (default: markdown)" },
       { flag: "--output <path>", description: "Write the plan to a file instead of stdout" }
     ],
-    examples: ["codedecay migration --file prisma/migrations/20260802_change/migration.sql --target-kind disposable-local", "codedecay migration --file migration.sql --target-kind production-like --format json"],
-    notes: ["This command is plan-only: it reads no database secret, contacts no database, and applies no migration."]
+    examples: [
+      "codedecay migration --file prisma/migrations/20260802_change/migration.sql --target-kind disposable-local",
+      "codedecay migration --file migration.sql --connection-host localhost --cleanup-plan \"drop docker volume codedecay-mig\" --format json"
+    ],
+    notes: [
+      "This command is plan-only: it reads no database secret, contacts no database, and applies no migration.",
+      "See docs/migration.md for what plan-ready vs fully-verified means."
+    ]
   },
   runtime: {
     name: "runtime",

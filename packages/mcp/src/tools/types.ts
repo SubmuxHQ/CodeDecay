@@ -73,6 +73,19 @@ export interface RuntimeEvidenceToolInput {
   environment?: string | undefined;
 }
 
+export interface MigrationSafetyToolInput {
+  cwd?: string | undefined;
+  format?: "markdown" | "json" | undefined;
+  files?: string[] | undefined;
+  rollbackFiles?: string[] | undefined;
+  targetKind?: "unspecified" | "disposable-local" | "remote-unapproved" | "production-like" | undefined;
+  connectionUrl?: string | undefined;
+  connectionHost?: string | undefined;
+  databaseUrlEnv?: string | undefined;
+  cleanupPlan?: string | undefined;
+  rollbackFailed?: boolean | undefined;
+}
+
 export interface AgentSessionToolInput {
   cwd?: string | undefined;
   operation: "start" | "context" | "checkpoint" | "finish";

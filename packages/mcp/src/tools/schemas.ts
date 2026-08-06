@@ -141,6 +141,22 @@ export const runtimeEvidenceToolSchema = {
   environment: z.string().optional().describe("Environment label when an export omits one.")
 };
 
+export const migrationSafetyToolSchema = {
+  cwd: cwdSchema,
+  format: formatSchema,
+  files: z.array(z.string()).optional().describe("Repo-local migration SQL files."),
+  rollbackFiles: z.array(z.string()).optional().describe("Repo-local rollback SQL files."),
+  targetKind: z
+    .enum(["unspecified", "disposable-local", "remote-unapproved", "production-like"])
+    .optional()
+    .describe("Database target classification."),
+  connectionUrl: z.string().optional().describe("Optional URL used only for host classification; secrets are redacted."),
+  connectionHost: z.string().optional().describe("Optional host used for target classification."),
+  databaseUrlEnv: z.string().optional().describe("Credential env var name; values are never read."),
+  cleanupPlan: z.string().optional().describe("Disposable database cleanup plan."),
+  rollbackFailed: z.boolean().optional().describe("Mark rollback as failed.")
+};
+
 export const agentSessionToolSchema = {
   cwd: cwdSchema,
   operation: z.enum(["start", "context", "checkpoint", "finish"]).describe("Session lifecycle operation."),
