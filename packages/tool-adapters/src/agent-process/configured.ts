@@ -11,10 +11,11 @@ import { createAgentProcessHarness } from "./harness";
 
 export function createConfiguredAgentProcessHarness(
   adapter: CodeDecayAgentProcessToolAdapter,
-  allowCommands: boolean
+  safety: { allowCommands: boolean; capabilityPolicy?: import("@submuxhq/codedecay-execution").CapabilityPolicy | undefined }
 ): ConfiguredToolHarness {
   const options: AgentProcessHarnessOptions = {
-    allowCommands
+    allowCommands: safety.allowCommands,
+    capabilityPolicy: safety.capabilityPolicy
   };
 
   if (adapter.command !== undefined) {

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CodeDecayProductTarget, LoadedCodeDecayConfig } from "@submuxhq/codedecay-config";
-import { runConfiguredCommand } from "@submuxhq/codedecay-execution";
+import { createSafeCommandPolicy, runConfiguredCommand } from "@submuxhq/codedecay-execution";
 import { generatedProductBaseUrl } from "./manifest";
 import { elapsed } from "./strings";
 import type {
@@ -99,9 +99,11 @@ export async function runGeneratedProductTests(
     env: {
       CODEDECAY_PRODUCT_BASE_URL: generatedProductBaseUrl(rootDir, generatedTests)
     },
-    safety: {
-      allowCommands: loadedConfig.config.safety.allowCommands
-    }
+    safety: createSafeCommandPolicy({
+      allowCommands: loadedConfig.config.safety.allowCommands,
+      capabilityPolicy: loadedConfig.config.safety.capabilityPolicy
+    }),
+    capabilityIntentSource: "user-config"
   });
   const testSource = readFileSync(join(rootDir, generatedTests.sourcePath), "utf8");
   const impactedFiles = dependencies.findImpactedProductFiles(rootDir);

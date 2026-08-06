@@ -26,6 +26,7 @@ import {
   strykerReportFailureMessage
 } from "./report";
 import { validateStrykerPlan } from "./validation";
+import { toolAdapterSafeCommandPolicy } from "../safety";
 
 export async function runStrykerPlan(
   plan: HarnessPlan,
@@ -40,10 +41,7 @@ export async function runStrykerPlan(
     cwd: context.cwd,
     timeoutMs,
     outputLimit: options.outputLimit,
-    safety: {
-      allowCommands: options.allowCommands ?? false,
-      allowUnsafeCommands: options.allowUnsafeCommands
-    }
+    safety: toolAdapterSafeCommandPolicy(options)
   });
   const durationMs = elapsed(startedAt);
   const mutationReport = analyzeStrykerMutationReport(context.cwd, options.reportPath ?? DEFAULT_STRYKER_REPORT_PATH);

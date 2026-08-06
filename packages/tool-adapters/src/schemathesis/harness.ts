@@ -27,6 +27,7 @@ import {
 } from "../shared/execution";
 import { elapsed } from "../shared/values";
 import type { SchemathesisHarnessOptions } from "../types";
+import { toolAdapterSafeCommandPolicy } from "../safety";
 
 export function createSchemathesisHarness(options: SchemathesisHarnessOptions = {}): CodeDecayHarness {
   const command = resolveSchemathesisCommand(options);
@@ -105,10 +106,7 @@ async function runSchemathesisPlan(
     cwd: context.cwd,
     timeoutMs,
     outputLimit: options.outputLimit,
-    safety: {
-      allowCommands: options.allowCommands ?? false,
-      allowUnsafeCommands: options.allowUnsafeCommands
-    }
+    safety: toolAdapterSafeCommandPolicy(options)
   });
   const durationMs = elapsed(startedAt);
   const evidence = [schemathesisEvidenceFromExecution(execution)];

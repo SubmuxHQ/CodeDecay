@@ -8,7 +8,9 @@ export function createExecutionSafety(
   const notes = [
     "This MCP tool never runs arbitrary commands from MCP input.",
     "Only commands explicitly configured in CodeDecay config and enabled tool adapters are eligible to run.",
-    "Command execution also requires safety.allowCommands: true in CodeDecay config."
+    "Command execution also requires safety.allowCommands: true in CodeDecay config.",
+    "Configured commands also pass through safety.capabilityPolicy (default deny for elevated capabilities).",
+    "confirmExecution authorizes only this execute_configured_checks call; it does not grant unrelated later capabilities."
   ];
 
   if (!confirmExecution) {
