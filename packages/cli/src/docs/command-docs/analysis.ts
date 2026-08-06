@@ -78,6 +78,31 @@ export const ANALYSIS_COMMAND_DOCS: Record<string, CommandDoc> = {
       "Remote flag providers stay blocked unless explicitly configured."
     ]
   },
+  resilience: {
+    name: "resilience",
+    summary: "Plan and evaluate bounded fault/mixed-version resilience matrices.",
+    usage: ["codedecay resilience [options]"],
+    description: [
+      "Load a seeded resilience experiment fixture, detect timeout/retry/parse candidates, evaluate fault and rolling-deploy oracles, and enforce disposable target/retry bounds without injecting chaos."
+    ],
+    options: [
+      { flag: "--experiment <path>", description: "Repo-local resilience experiment JSON fixture" },
+      { flag: "--surface <path>", description: "Source file to scan for resilience candidates; repeatable" },
+      { flag: "--target-kind <kind>", description: "fixture-local | disposable-local | remote-unapproved | production-like | unspecified" },
+      { flag: "--cleanup-plan <text>", description: "Disposable target cleanup plan" },
+      { flag: "--cwd <path>", description: "Working directory" },
+      { flag: "--format <json|markdown>", description: "Output format" },
+      { flag: "--output <path>", description: "Write report to a file" }
+    ],
+    examples: [
+      "codedecay resilience --experiment .codedecay/resilience/timeout.json --surface src/clients/payments.ts",
+      "codedecay resilience --experiment experiment.json --target-kind fixture-local --format json"
+    ],
+    notes: [
+      "One passing fault mode never proves general resilience. See docs/resilience.md.",
+      "Production targets and chaos injection stay blocked in this slice."
+    ]
+  },
   runtime: {
     name: "runtime",
     summary: "Ingest local runtime exports as redacted engineering evidence.",

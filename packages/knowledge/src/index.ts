@@ -132,6 +132,25 @@ export type {
   StateSpaceTargetKind,
   StateSpaceVerdict
 } from "./state-space/types";
+export { analyzeResilienceSafety } from "./resilience/analyze";
+export type { AnalyzeResilienceSafetyOptions } from "./resilience/analyze";
+export { gateResilienceBounds } from "./resilience/bounds";
+export { detectResilienceCandidates } from "./resilience/detect";
+export { evaluateResilienceOracle, generateResilienceCells } from "./resilience/oracles";
+export { renderResilienceSafetyMarkdown } from "./resilience/render";
+export {
+  RESILIENCE_DEFAULT_BOUNDS,
+  RESILIENCE_EVIDENCE_SCHEMA_VERSION
+} from "./resilience/types";
+export type {
+  ResilienceBounds,
+  ResilienceCandidate,
+  ResilienceExperimentInput,
+  ResilienceFaultMode,
+  ResilienceSafetyReport,
+  ResilienceTargetKind,
+  ResilienceVerdict
+} from "./resilience/types";
 export type { IngestRuntimeEvidenceOptions } from "./runtime/ingest";
 export { renderRuntimeEvidenceMarkdown } from "./runtime/render";
 export { RUNTIME_EVIDENCE_SCHEMA_VERSION } from "./runtime/types";

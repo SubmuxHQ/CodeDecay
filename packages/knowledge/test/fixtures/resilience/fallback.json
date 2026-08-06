@@ -1,0 +1,37 @@
+{
+  "id": "uat-resilience-3-fallback",
+  "kind": "fault-matrix",
+  "seed": 3,
+  "services": [
+    { "serviceId": "api", "version": "new", "role": "consumer" },
+    { "serviceId": "payments", "version": "new", "role": "dependency" }
+  ],
+  "dependencyEdge": "api->payments",
+  "fault": { "mode": "timeout", "injectionPoint": "payments", "durationMs": 1000 },
+  "cells": [
+    {
+      "id": "fallback",
+      "producerVersion": "new",
+      "consumerVersion": "new",
+      "fault": "timeout",
+      "selected": true
+    },
+    {
+      "id": "recovery",
+      "producerVersion": "new",
+      "consumerVersion": "new",
+      "fault": "recovery",
+      "selected": true
+    }
+  ],
+  "oracle": { "expectedSideEffects": 1, "allowDegraded": true, "requireRecovery": true },
+  "implementation": { "mode": "correct-fallback", "sideEffectPerAttempt": 1, "recovers": true },
+  "bounds": {
+    "maxRetries": 3,
+    "maxRequests": 10,
+    "timeoutMs": 5000,
+    "maxFaultDurationMs": 5000,
+    "targetKind": "fixture-local"
+  },
+  "cleanup": { "plan": "stop fixture services", "recovered": true }
+}

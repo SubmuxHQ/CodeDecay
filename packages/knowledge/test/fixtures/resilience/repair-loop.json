@@ -1,0 +1,48 @@
+{
+  "id": "uat-resilience-6-repair",
+  "kind": "explicit-matrix",
+  "seed": 6,
+  "services": [
+    { "serviceId": "producer", "version": "new", "role": "producer" },
+    { "serviceId": "consumer", "version": "new", "role": "consumer" }
+  ],
+  "dependencyEdge": "producer->consumer",
+  "fault": { "mode": "timeout", "injectionPoint": "producer", "durationMs": 1000 },
+  "cells": [
+    {
+      "id": "happy",
+      "producerVersion": "new",
+      "consumerVersion": "new",
+      "fault": "recovery",
+      "selected": true
+    },
+    {
+      "id": "fault",
+      "producerVersion": "new",
+      "consumerVersion": "new",
+      "fault": "timeout",
+      "selected": true
+    },
+    {
+      "id": "mixed",
+      "producerVersion": "new",
+      "consumerVersion": "old",
+      "fault": "malformed-response",
+      "selected": true
+    }
+  ],
+  "oracle": { "expectedSideEffects": 1, "requireRecovery": true },
+  "implementation": { "mode": "repaired", "recovers": true, "canParseNewResponse": true, "sideEffectPerAttempt": 1 },
+  "bounds": {
+    "maxRetries": 3,
+    "maxRequests": 10,
+    "timeoutMs": 5000,
+    "maxFaultDurationMs": 5000,
+    "targetKind": "fixture-local"
+  },
+  "cleanup": { "plan": "stop fixture services", "recovered": true },
+  "repair": {
+    "durableRegressionTestId": "test/resilience.regression.test.ts",
+    "revalidated": true
+  }
+}
