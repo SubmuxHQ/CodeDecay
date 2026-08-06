@@ -23,7 +23,8 @@ describe("CodeDecay config defaults and loading", () => {
         allowCommands: false,
         capabilityPolicy: {
           version: 1,
-          allow: []
+          allow: [],
+          sandbox: "best-effort"
         }
       },
       llm: {

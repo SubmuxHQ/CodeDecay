@@ -89,20 +89,27 @@ capability to allowed.
 
 ## Residual risks
 
-- OS process isolation / sandboxing is platform-dependent; missing sandbox
-  features must degrade to blocked or visibly weaker isolation, never silent
-  full access (follow-up under #690).
+- Hardened OS sandboxing (seatbelt/seccomp/landlock) is not yet implemented.
+  `capabilityPolicy.sandbox` defaults to `best-effort` (visibly weaker isolation
+  with allowlists) and `required` degrades to **blocked**, never silent full
+  access. See `evaluateProcessIsolation` / `enforceSandboxPolicy`.
 - Product health checks and capability `network` authorization validate each
   redirect hop against the allowlist and block credentials-in-URL plus common
   metadata endpoints. DNS-rebinding defenses for non-literal hostnames are
-  available via `validateResolvedNetworkDestination` and still need broader
-  call-site coverage.
-- MCP confirmation scopes still need per-tool narrowing beyond the shared
-  authorize gate.
+  available via `validateResolvedNetworkDestination`.
+- MCP confirmations are session-scoped via `createCapabilityApproval` /
+  `assertMcpConfirmationScope`; one tool confirmation cannot authorize an
+  unrelated later tool or a different command scope.
 - Command denylist is heuristic; allowlisted user commands can still be
   dangerous if the user authorizes them.
 - Pattern-based secret redaction is heuristic; unknown secret formats may still
   leak until allowlisted secret.env values are also scrubbed by exact match.
+
+## Session approvals
+
+Optional session-scoped approvals bind an exact capability scope (command,
+paths, hosts, secrets, MCP tool name) with expiry and single-use consume
+semantics (`UAT-SECURITY-5`). Approvals never elevate untrusted intent sources.
 
 ## Audit
 

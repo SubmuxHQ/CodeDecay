@@ -1,5 +1,7 @@
+import { getCapabilityApproval, validateCapabilityApproval, consumeCapabilityApproval } from "./approvals";
 import { checkPathWithinAllowedRoots } from "./paths";
 import { detectShellSubstitution } from "./shell";
+import { enforceSandboxPolicy } from "./sandbox";
 import { validateNetworkDestination } from "./network";
 import type {
   CapabilityAllowRule,
@@ -24,6 +26,7 @@ const PATH_SCOPED_CAPABILITIES = new Set<CapabilityKind>(["fs.read", "fs.write",
  * Untrusted intent sources can never elevate. command.execute additionally
  * requires trusted allowCommands intent. Other elevated capabilities require
  * an explicit policy.allow rule from loaded user config.
+ * Optional session approvals must match exact scope and remain unexpired.
  */
 export function authorizeCapability(request: CapabilityRequest): CapabilityAuthorization {
   const { capability, intent, policy } = request;
@@ -43,8 +46,36 @@ export function authorizeCapability(request: CapabilityRequest): CapabilityAutho
     }
   }
 
+  const sandbox = enforceSandboxPolicy(policy.sandbox ?? "best-effort");
+  if (!sandbox.allowed && (capability === "command.execute" || capability === "process.start" || capability === "package.install")) {
+    return deny(request, sandbox.reason);
+  }
+
+  if (request.approval) {
+    const approval = getCapabilityApproval(request.approval.sessionId, request.approval.approvalId);
+    if (!approval) {
+      return deny(request, "capability approval not found for session");
+    }
+    const approvalCheck = validateCapabilityApproval(approval, {
+      capability: request.capability,
+      command: request.command,
+      paths: request.paths,
+      hosts: request.hosts,
+      secrets: request.secrets,
+      toolName: request.approval.toolName,
+      now: request.approval.now
+    });
+    if (!approvalCheck.allowed) {
+      return deny(request, approvalCheck.reason);
+    }
+  }
+
   if (capability === "command.execute") {
-    return authorizeCommandExecute(request);
+    const decision = authorizeCommandExecute(request);
+    if (decision.allowed && request.approval) {
+      consumeCapabilityApproval(request.approval.sessionId, request.approval.approvalId, request.approval.now);
+    }
+    return decision;
   }
 
   const matchingRules = policy.allow.filter((rule) => rule.capability === capability);
@@ -53,17 +84,32 @@ export function authorizeCapability(request: CapabilityRequest): CapabilityAutho
   }
 
   if (PATH_SCOPED_CAPABILITIES.has(capability)) {
-    return authorizePathScoped(request, matchingRules);
+    const decision = authorizePathScoped(request, matchingRules);
+    if (decision.allowed && request.approval) {
+      consumeCapabilityApproval(request.approval.sessionId, request.approval.approvalId, request.approval.now);
+    }
+    return decision;
   }
 
   if (capability === "secret.env") {
-    return authorizeSecrets(request, matchingRules);
+    const decision = authorizeSecrets(request, matchingRules);
+    if (decision.allowed && request.approval) {
+      consumeCapabilityApproval(request.approval.sessionId, request.approval.approvalId, request.approval.now);
+    }
+    return decision;
   }
 
   if (capability === "network") {
-    return authorizeHosts(request, matchingRules);
+    const decision = authorizeHosts(request, matchingRules);
+    if (decision.allowed && request.approval) {
+      consumeCapabilityApproval(request.approval.sessionId, request.approval.approvalId, request.approval.now);
+    }
+    return decision;
   }
 
+  if (request.approval) {
+    consumeCapabilityApproval(request.approval.sessionId, request.approval.approvalId, request.approval.now);
+  }
   return allow(request, `capability '${capability}' granted by policy`);
 }
 

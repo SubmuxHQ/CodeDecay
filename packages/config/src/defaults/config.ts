@@ -14,7 +14,8 @@ export const DEFAULT_CODEDECAY_CONFIG: CodeDecayConfig = {
     allowCommands: false,
     capabilityPolicy: {
       version: CODEDECAY_CAPABILITY_POLICY_VERSION,
-      allow: []
+      allow: [],
+      sandbox: "best-effort"
     }
   },
   llm: {

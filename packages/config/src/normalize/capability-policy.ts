@@ -1,13 +1,20 @@
-import type { CodeDecayCapabilityAllowRule, CodeDecayCapabilityKind, CodeDecayCapabilityPolicy } from "../types";
+import type {
+  CodeDecayCapabilityAllowRule,
+  CodeDecayCapabilityKind,
+  CodeDecayCapabilityPolicy,
+  CodeDecayCapabilitySandboxMode
+} from "../types";
 import { CODEDECAY_CAPABILITY_KINDS, CODEDECAY_CAPABILITY_POLICY_VERSION } from "../types/capability-policy";
 import { isPlainObject, normalizeNonEmptyString, normalizeStringList } from "./primitives";
 
 const CAPABILITY_KIND_SET = new Set<string>(CODEDECAY_CAPABILITY_KINDS);
+const SANDBOX_MODES = new Set<CodeDecayCapabilitySandboxMode>(["off", "best-effort", "required"]);
 
 export function createDefaultCapabilityPolicy(): CodeDecayCapabilityPolicy {
   return {
     version: CODEDECAY_CAPABILITY_POLICY_VERSION,
-    allow: []
+    allow: [],
+    sandbox: "best-effort"
   };
 }
 
@@ -30,16 +37,23 @@ export function normalizeCapabilityPolicy(value: unknown, sourcePath: string): C
       ? []
       : normalizeCapabilityAllowRules(value.allow, `${sourcePath}.allow`);
 
+  const sandbox =
+    value.sandbox === undefined
+      ? "best-effort"
+      : normalizeSandboxMode(value.sandbox, `${sourcePath}.sandbox`);
+
   return {
     version,
-    allow
+    allow,
+    sandbox
   };
 }
 
 export function cloneCapabilityPolicy(policy: CodeDecayCapabilityPolicy): CodeDecayCapabilityPolicy {
   return {
     version: policy.version,
-    allow: policy.allow.map((rule) => cloneCapabilityAllowRule(rule))
+    allow: policy.allow.map((rule) => cloneCapabilityAllowRule(rule)),
+    sandbox: policy.sandbox
   };
 }
 
@@ -51,6 +65,14 @@ function normalizeCapabilityPolicyVersion(value: unknown, sourcePath: string): t
   throw new Error(
     `Invalid CodeDecay config at ${sourcePath}: safety.capabilityPolicy.version must be ${CODEDECAY_CAPABILITY_POLICY_VERSION}.`
   );
+}
+
+function normalizeSandboxMode(value: unknown, field: string): CodeDecayCapabilitySandboxMode {
+  const text = normalizeNonEmptyString(value, field, field);
+  if (!SANDBOX_MODES.has(text as CodeDecayCapabilitySandboxMode)) {
+    throw new Error(`Invalid CodeDecay config at ${field}: sandbox must be one of off, best-effort, required.`);
+  }
+  return text as CodeDecayCapabilitySandboxMode;
 }
 
 function normalizeCapabilityAllowRules(value: unknown, field: string): CodeDecayCapabilityAllowRule[] {

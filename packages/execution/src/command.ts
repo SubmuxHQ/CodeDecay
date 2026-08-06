@@ -74,7 +74,8 @@ export async function runConfiguredCommand(options: RunConfiguredCommandOptions)
     },
     policy,
     command: options.command,
-    cwd: options.cwd
+    cwd: options.cwd,
+    approval: options.capabilityApproval
   });
 
   if (auditEnabled) {

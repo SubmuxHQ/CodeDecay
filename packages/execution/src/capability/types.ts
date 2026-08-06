@@ -35,9 +35,16 @@ export interface CapabilityAllowRule {
   hosts?: string[] | undefined;
 }
 
+export type CapabilitySandboxMode = "off" | "best-effort" | "required";
+
 export interface CapabilityPolicy {
   version: typeof CAPABILITY_POLICY_VERSION;
   allow: CapabilityAllowRule[];
+  /**
+   * Process isolation posture. `required` blocks when isolation is weaker or
+   * unsupported instead of silently granting full access.
+   */
+  sandbox?: CapabilitySandboxMode | undefined;
 }
 
 export interface CapabilityIntent {
@@ -57,6 +64,13 @@ export interface CapabilityRequest {
   /** Absolute allowed roots for path-scoped capabilities. */
   allowedRoots?: string[] | undefined;
   cwd?: string | undefined;
+  /** Optional session-scoped approval that must match exact capability scope. */
+  approval?: {
+    sessionId: string;
+    approvalId: string;
+    toolName?: string | undefined;
+    now?: Date | undefined;
+  } | undefined;
 }
 
 export interface CapabilityAuthorization {
@@ -92,6 +106,7 @@ export interface CapabilityAuditEvent {
 export function createDefaultCapabilityPolicy(): CapabilityPolicy {
   return {
     version: CAPABILITY_POLICY_VERSION,
-    allow: []
+    allow: [],
+    sandbox: "best-effort"
   };
 }
