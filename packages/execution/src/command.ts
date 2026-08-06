@@ -5,6 +5,7 @@ import {
   detectShellSubstitution
 } from "./capability";
 import { checkCommandSafety } from "./safety";
+import { sanitizeExecutionResult } from "./sanitize-result";
 import { spawnCommand } from "./spawn-command";
 import type { CommandExecutionResult, RunConfiguredCommandOptions } from "./types";
 import { validateRunOptions } from "./validation";
@@ -32,7 +33,7 @@ export async function runConfiguredCommand(options: RunConfiguredCommandOptions)
     }
 
     const message = `Command was blocked by CodeDecay capability policy: ${reason}.`;
-    return {
+    return sanitizeExecutionResult({
       command: options.command,
       status: "blocked",
       durationMs: 0,
@@ -40,7 +41,7 @@ export async function runConfiguredCommand(options: RunConfiguredCommandOptions)
       stderr: message,
       error: message,
       blockedReason: reason
-    };
+    });
   }
 
   if (!options.safety.allowCommands) {
@@ -56,13 +57,13 @@ export async function runConfiguredCommand(options: RunConfiguredCommandOptions)
       });
     }
 
-    return {
+    return sanitizeExecutionResult({
       command: options.command,
       status: "skipped",
       durationMs: 0,
       stdout: "",
       stderr: "Command execution is disabled by config safety.allowCommands."
-    };
+    });
   }
 
   const authorization = authorizeCapability({
@@ -102,7 +103,7 @@ export async function runConfiguredCommand(options: RunConfiguredCommandOptions)
     }
 
     const message = `Command was blocked by CodeDecay capability policy: ${authorization.reason}.`;
-    return {
+    return sanitizeExecutionResult({
       command: options.command,
       status: "blocked",
       durationMs: 0,
@@ -110,7 +111,7 @@ export async function runConfiguredCommand(options: RunConfiguredCommandOptions)
       stderr: message,
       error: message,
       blockedReason: authorization.reason
-    };
+    });
   }
 
   if (auditEnabled) {
@@ -139,7 +140,7 @@ export async function runConfiguredCommand(options: RunConfiguredCommandOptions)
         command: options.command
       });
     }
-    return {
+    return sanitizeExecutionResult({
       command: options.command,
       status: "blocked",
       durationMs: 0,
@@ -147,7 +148,7 @@ export async function runConfiguredCommand(options: RunConfiguredCommandOptions)
       stderr: message,
       error: message,
       blockedReason: safety.reason
-    };
+    });
   }
 
   if (auditEnabled) {
@@ -162,7 +163,7 @@ export async function runConfiguredCommand(options: RunConfiguredCommandOptions)
     });
   }
 
-  const result = await spawnCommand(options);
+  const result = sanitizeExecutionResult(await spawnCommand(options));
 
   if (auditEnabled) {
     const phase =
