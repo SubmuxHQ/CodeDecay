@@ -1,0 +1,31 @@
+{
+  "id": "uat-resilience-1-timeout-retries",
+  "kind": "explicit-matrix",
+  "seed": 1,
+  "services": [
+    { "serviceId": "api", "version": "new", "role": "consumer" },
+    { "serviceId": "payments", "version": "new", "role": "dependency" }
+  ],
+  "dependencyEdge": "api->payments",
+  "fault": { "mode": "timeout", "injectionPoint": "payments", "durationMs": 2000 },
+  "cells": [
+    {
+      "id": "timeout-cell",
+      "producerVersion": "new",
+      "consumerVersion": "new",
+      "fault": "timeout",
+      "selected": true
+    }
+  ],
+  "retryPolicy": { "maxAttempts": 3 },
+  "oracle": { "expectedSideEffects": 1 },
+  "implementation": { "mode": "unsafe-retry", "sideEffectPerAttempt": 1 },
+  "bounds": {
+    "maxRetries": 5,
+    "maxRequests": 20,
+    "timeoutMs": 5000,
+    "maxFaultDurationMs": 5000,
+    "targetKind": "fixture-local"
+  },
+  "cleanup": { "plan": "stop fixture services", "recovered": true }
+}

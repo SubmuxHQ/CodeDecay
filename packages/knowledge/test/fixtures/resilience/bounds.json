@@ -1,0 +1,30 @@
+{
+  "id": "uat-resilience-4-bounds",
+  "kind": "explicit-matrix",
+  "seed": 4,
+  "services": [
+    { "serviceId": "api", "version": "new", "role": "consumer" }
+  ],
+  "dependencyEdge": "api->dep",
+  "fault": { "mode": "timeout", "injectionPoint": "dep", "durationMs": 1000 },
+  "cells": [
+    {
+      "id": "unbounded",
+      "producerVersion": "new",
+      "consumerVersion": "new",
+      "fault": "timeout",
+      "selected": true
+    }
+  ],
+  "retryPolicy": { "applicationRetriesIndefinitely": true },
+  "oracle": { "expectedSideEffects": 1 },
+  "implementation": { "mode": "unbounded-retry", "sideEffectPerAttempt": 1 },
+  "bounds": {
+    "maxRetries": 3,
+    "maxRequests": 10,
+    "timeoutMs": 5000,
+    "maxFaultDurationMs": 5000,
+    "targetKind": "fixture-local"
+  },
+  "cleanup": { "plan": "stop fixture", "recovered": true }
+}

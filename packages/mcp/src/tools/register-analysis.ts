@@ -17,7 +17,8 @@ import {
   runtimeEvidenceToolSchema,
   migrationSafetyToolSchema,
   concurrencySafetyToolSchema,
-  stateSpaceSafetyToolSchema
+  stateSpaceSafetyToolSchema,
+  resilienceSafetyToolSchema
 } from "./schemas";
 import type {
   AgentPreflightToolInput,
@@ -37,7 +38,8 @@ import type {
   RuntimeEvidenceToolInput,
   MigrationSafetyToolInput,
   ConcurrencySafetyToolInput,
-  StateSpaceSafetyToolInput
+  StateSpaceSafetyToolInput,
+  ResilienceSafetyToolInput
 } from "./types";
 
 export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayMcpToolHandlers): void {
@@ -165,6 +167,13 @@ export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayM
     "Evaluate bounded cache/feature-flag state matrices with coverage accounting. Does not contact remote flag providers without explicit configuration.",
     stateSpaceSafetyToolSchema,
     async (input) => textResult(handlers.stateSpaceSafety(input as StateSpaceSafetyToolInput))
+  );
+
+  server.tool(
+    "resilience_safety",
+    "Evaluate bounded fault/mixed-version resilience matrices. Does not inject chaos or intercept production traffic.",
+    resilienceSafetyToolSchema,
+    async (input) => textResult(handlers.resilienceSafety(input as ResilienceSafetyToolInput))
   );
 
   server.tool(

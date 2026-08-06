@@ -15,6 +15,7 @@ export { parseMemoryArgs, parseMemoryImportArgs, parseMemoryLearnArgs, parseMemo
 export { parseMigrationArgs } from "./migration";
 export { parseConcurrencyArgs } from "./concurrency";
 export { parseStateSpaceArgs } from "./state-space";
+export { parseResilienceArgs } from "./resilience";
 export { parseRevalidateArgs } from "./revalidate";
 export { parseRuntimeArgs } from "./runtime";
 export { parseProductArgs } from "./product";
