@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "kitVersion": "uat-kit-2026-08",
+  "humanEvidence": true,
+  "participantRole": "team-devops",
+  "environment": "synthetic-ci-c",
+  "sessionDate": "2026-08-06",
+  "packageIdentity": {
+    "source": "packed-tarball",
+    "version": "0.4.1-synthetic"
+  },
+  "tasks": [
+    {
+      "id": "UAT-HUMAN-1",
+      "completed": true,
+      "attempts": 1,
+      "timeSeconds": 61,
+      "clarificationRequests": 0,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": "synthetic"
+    },
+    {
+      "id": "UAT-HUMAN-2",
+      "completed": true,
+      "attempts": 1,
+      "timeSeconds": 62,
+      "clarificationRequests": 1,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": "synthetic"
+    },
+    {
+      "id": "UAT-HUMAN-3",
+      "completed": true,
+      "attempts": 1,
+      "timeSeconds": 63,
+      "clarificationRequests": 0,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": "synthetic"
+    },
+    {
+      "id": "UAT-HUMAN-4",
+      "completed": true,
+      "attempts": 1,
+      "timeSeconds": 64,
+      "clarificationRequests": 0,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": "synthetic"
+    },
+    {
+      "id": "UAT-HUMAN-5",
+      "completed": true,
+      "attempts": 1,
+      "timeSeconds": 65,
+      "clarificationRequests": 0,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": "synthetic"
+    },
+    {
+      "id": "UAT-HUMAN-6",
+      "completed": true,
+      "attempts": 1,
+      "timeSeconds": 66,
+      "clarificationRequests": 0,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": "synthetic"
+    },
+    {
+      "id": "UAT-HUMAN-7",
+      "completed": true,
+      "attempts": 1,
+      "timeSeconds": 67,
+      "clarificationRequests": 0,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": "synthetic"
+    },
+    {
+      "id": "UAT-HUMAN-8",
+      "completed": true,
+      "attempts": 1,
+      "timeSeconds": 68,
+      "clarificationRequests": 0,
+      "unsafeActions": 0,
+      "commandFailures": 0,
+      "notes": "synthetic"
+    }
+  ],
+  "trustComprehension": {
+    "deterministicEvidence": true,
+    "runtimeToolProof": true,
+    "memory": true,
+    "aiSuggestion": true,
+    "unverified": true,
+    "needsHuman": true,
+    "verified": true
+  },
+  "mistakenTrustInterpretation": false,
+  "friction": {
+    "install": "none",
+    "authenticationProvider": "none",
+    "packageManager": "none",
+    "terminal": "none",
+    "mcp": "none",
+    "documentation": "none",
+    "analysisQuality": "none"
+  },
+  "abandonment": false,
+  "linkedIssues": [],
+  "observerNotes": "SYNTHETIC FIXTURE FOR VALIDATOR/SUMMARIZE TESTS ONLY \u2014 not a real participant."
+}

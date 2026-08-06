@@ -3,26 +3,57 @@
   "$id": "https://codedecay.dev/schemas/human-uat-result.json",
   "title": "CodeDecay human UAT result",
   "type": "object",
-  "required": ["schemaVersion", "participantRole", "tasks", "trustComprehension"],
+  "required": [
+    "schemaVersion",
+    "kitVersion",
+    "participantRole",
+    "packageIdentity",
+    "tasks",
+    "trustComprehension",
+    "friction",
+    "mistakenTrustInterpretation",
+    "abandonment",
+    "humanEvidence"
+  ],
   "properties": {
     "schemaVersion": { "const": 1 },
+    "kitVersion": { "type": "string", "minLength": 1 },
+    "humanEvidence": { "const": true },
     "participantRole": {
       "type": "string",
       "enum": ["ai-assisted-individual", "experienced-engineer", "team-devops"]
     },
     "environment": { "type": "string" },
+    "sessionDate": { "type": "string" },
+    "packageIdentity": {
+      "type": "object",
+      "required": ["source", "version"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": ["npm", "packed-tarball"]
+        },
+        "version": { "type": "string", "minLength": 1 },
+        "integrity": { "type": "string" }
+      }
+    },
     "tasks": {
       "type": "array",
+      "minItems": 8,
       "items": {
         "type": "object",
         "required": ["id", "completed", "attempts", "timeSeconds"],
         "properties": {
-          "id": { "type": "string" },
+          "id": {
+            "type": "string",
+            "pattern": "^UAT-HUMAN-[1-8]$"
+          },
           "completed": { "type": "boolean" },
           "attempts": { "type": "integer", "minimum": 0 },
           "timeSeconds": { "type": "number", "minimum": 0 },
           "clarificationRequests": { "type": "integer", "minimum": 0 },
           "unsafeActions": { "type": "integer", "minimum": 0 },
+          "commandFailures": { "type": "integer", "minimum": 0 },
           "notes": { "type": "string" }
         }
       }
@@ -40,7 +71,17 @@
       ],
       "additionalProperties": { "type": "boolean" }
     },
+    "mistakenTrustInterpretation": { "type": "boolean" },
+    "friction": {
+      "type": "object",
+      "required": ["install", "authenticationProvider", "packageManager", "terminal", "mcp", "documentation", "analysisQuality"],
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["none", "minor", "blocking"]
+      }
+    },
     "abandonment": { "type": "boolean" },
-    "linkedIssues": { "type": "array", "items": { "type": "string" } }
+    "linkedIssues": { "type": "array", "items": { "type": "string" } },
+    "observerNotes": { "type": "string" }
   }
 }
