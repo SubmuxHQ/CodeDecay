@@ -13,6 +13,8 @@ export function renderLoopMarkdown(report: LoopReport): string {
     "## CodeDecay Loop Report",
     "",
     `**Status:** ${statusLabel(report.status)}`,
+    ...(report.stopReason ? [`**Stop reason:** ${report.stopReason}`] : []),
+    ...(report.auditPath ? [`**Audit:** \`${report.auditPath}\``] : []),
     "",
     "| Signal | Value |",
     "| --- | ---: |",

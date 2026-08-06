@@ -34,7 +34,7 @@ Progress considers merge risk, decay risk, security risk, weak-test findings, pr
 
 `codedecay loop` never prints an unqualified "safe" verdict. Clean outcomes are always qualified by evidence depth.
 
-The loop can only report a `merge-safe-*` verdict when all of these are true:
+The loop can only report a `verified` or `shallow-proof` verdict when all of these are true:
 
 - final risk is at or below the configured safe threshold, `low` by default
 - weak-test findings are zero
@@ -42,21 +42,23 @@ The loop can only report a `merge-safe-*` verdict when all of these are true:
 - no high-severity findings remain in deterministic analysis
 - configured checks exist and pass
 
-If no checks are configured, the best possible terminal status is `unverified`, not a `merge-safe-*` verdict.
+If no checks are configured, the best possible terminal status is `unverified`, not a verified verdict.
 
-`merge-safe-verified` means configured checks passed, deterministic security matchers were clean, Semgrep was enabled and clean, and coverage/mutation evidence was available if configured.
+`verified` means configured checks passed, deterministic security matchers were clean, Semgrep was enabled and clean, and coverage/mutation evidence was available if configured. Legacy alias: `merge-safe-verified`.
 
-`merge-safe-shallow` means the gates passed, but one or more deeper evidence streams were missing. Treat it as heuristic clean, not as deep verification. Run `codedecay doctor` to configure OSS adapters such as Semgrep, coverage, and StrykerJS.
+`shallow-proof` means the gates passed, but one or more deeper evidence streams were missing. Treat it as heuristic clean, not as deep verification. Run `codedecay doctor` to configure OSS adapters such as Semgrep, coverage, and StrykerJS. Legacy alias: `merge-safe-shallow`.
 
 Terminal statuses:
 
-- `merge-safe-verified`: configured and enabled checks found nothing at the selected thresholds, including available security/coverage/mutation depth
-- `merge-safe-shallow`: risk, weak-test, security-score, and configured-check gates passed, but depth evidence such as Semgrep, coverage, or mutation testing is missing
+- `verified`: configured and enabled checks found nothing at the selected thresholds, including available security/coverage/mutation depth
+- `shallow-proof`: risk, weak-test, security-score, and configured-check gates passed, but depth evidence such as Semgrep, coverage, or mutation testing is missing
 - `unverified`: risk and weak-test evidence are clean, but no configured checks proved the result
 - `plan-only`: no agent command was configured
-- `stuck`: the agent made no progress for two rounds
+- `stuck`: the agent made no progress for two rounds, oscillated, or widened scope unsafely
+- `budget-exhausted`: round, wall-time, model-call, or changed-file budget exhausted
+- `unsafe-change`: verifier edited files, or protected/out-of-scope paths changed
 - `needs-human`: max rounds were reached
-- `agent-error`: the agent command failed, timed out, was skipped, or was blocked by safety policy
+- `builder-error` / `verifier-error` / `agent-error`: role command failed, timed out, was skipped, or was blocked by safety policy
 
 ## Example
 

@@ -370,7 +370,9 @@ function runLoopConvergenceChecks() {
   const editedTest = readFileSync(join(loopRepo, "test/checkout.test.js"), "utf8");
   const converged =
     typeof report?.status === "string" &&
-    report.status.startsWith("merge-safe-") &&
+    (report.status === "verified" ||
+      report.status === "shallow-proof" ||
+      report.status.startsWith("merge-safe-")) &&
     rounds.length >= 2 &&
     Number(firstRound?.weakTestFindings) > Number(lastRound?.weakTestFindings) &&
     firstRound?.agent?.madeChanges === true &&

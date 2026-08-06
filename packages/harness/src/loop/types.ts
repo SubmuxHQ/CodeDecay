@@ -262,6 +262,8 @@ export interface LoopReport {
   requirementTrace?: RequirementTraceGraph | undefined;
   rounds: LoopRoundSnapshot[];
   nextSteps: string[];
+  auditPath?: string | undefined;
+  stopReason?: string | undefined;
   safety: {
     commandsExecuted: boolean;
     agentCommandConfigured: boolean;
@@ -310,6 +312,14 @@ export interface CodeDecayLoopInput {
   securityScoreThreshold?: number | undefined;
   agentTimeoutMs: number;
   commandSafety: SafeCommandPolicy;
+  maxWallTimeMs?: number | undefined;
+  maxChangedFiles?: number | undefined;
+  maxModelCalls?: number | undefined;
+  allowedPathPrefixes?: string[] | undefined;
+  protectedPathPrefixes?: string[] | undefined;
+  auditPath?: string | undefined;
+  resumeFromAuditPath?: string | undefined;
+  runId?: string | undefined;
   createRedteamReport(): Promise<LoopRedteamReport>;
   renderAgentBundle(report: LoopRedteamReport): string;
   renderBuilderBundle?: ((report: LoopRedteamReport) => string) | undefined;

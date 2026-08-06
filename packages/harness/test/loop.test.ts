@@ -21,7 +21,7 @@ afterEach(() => {
 });
 
 describe("CodeDecay loop controller", () => {
-  it("reports merge-safe-shallow when gates pass but depth evidence is missing", async () => {
+  it("reports shallow-proof when gates pass but depth evidence is missing", async () => {
     const repo = createRepo();
     const report = await runCodeDecayLoop({
       ...baseInput(repo),
@@ -29,7 +29,7 @@ describe("CodeDecay loop controller", () => {
       runConfiguredChecks: async () => checkSnapshot("passed", true)
     });
 
-    expect(report.status).toBe("merge-safe-shallow");
+    expect(report.status).toBe("shallow-proof");
     expect(report.roundsRun).toBe(1);
     expect(report.safety.commandsExecuted).toBe(true);
     expect(report.verdict.missingDepth).toEqual(
@@ -37,7 +37,7 @@ describe("CodeDecay loop controller", () => {
     );
   });
 
-  it("reports merge-safe-verified when security, coverage, mutation, and configured checks pass", async () => {
+  it("reports verified when security, coverage, mutation, and configured checks pass", async () => {
     const repo = createRepo();
     const report = await runCodeDecayLoop({
       ...baseInput(repo),
@@ -51,7 +51,7 @@ describe("CodeDecay loop controller", () => {
       runConfiguredChecks: async () => verifiedCheckSnapshot()
     });
 
-    expect(report.status).toBe("merge-safe-verified");
+    expect(report.status).toBe("verified");
     expect(report.verdict.verifiedBy).toEqual(
       expect.arrayContaining(["Semgrep (0 findings)", "coverage evidence (100%)", "mutation evidence (100%)"])
     );
@@ -124,7 +124,7 @@ describe("CodeDecay loop controller", () => {
       runConfiguredChecks: async () => checkSnapshot("passed", true)
     });
 
-    expect(report.status).toBe("merge-safe-shallow");
+    expect(report.status).toBe("shallow-proof");
     expect(report.verdict.highFindingCount).toBe(0);
     expect(report.rounds[0]?.agent).toBeUndefined();
     expect(existsSync(join(repo, "agent-ran.txt"))).toBe(false);
@@ -160,7 +160,7 @@ describe("CodeDecay loop controller", () => {
       createRedteamReport,
       runConfiguredChecks
     });
-    expect(report.status).toBe("merge-safe-shallow");
+    expect(report.status).toBe("shallow-proof");
     expect(report.roundsRun).toBe(1);
     expect(report.rounds.filter((round) => round.agent).length).toBe(1);
     expect(report.rounds[0]?.postAgentVerification).toMatchObject({
@@ -340,6 +340,108 @@ describe("CodeDecay loop controller", () => {
     });
     expect(report.nextSteps).toContain("A read-only verifier or protected role changed files.");
   });
+
+  it("UAT-LOOP-1/2: verifier finds planted API miss, builder repairs, final tree reaches verified", async () => {
+    const repo = createRepo();
+    let builderCalls = 0;
+    const createRedteamReport = vi.fn()
+      .mockResolvedValueOnce(redteamReport({
+        riskLevel: "high",
+        mergeRiskScore: 80,
+        weakTestFindings: 0,
+        requirementStatus: "proof-missing"
+      }))
+      .mockResolvedValueOnce(redteamReport({
+        riskLevel: "high",
+        mergeRiskScore: 70,
+        weakTestFindings: 0,
+        requirementStatus: "proof-missing"
+      }))
+      .mockResolvedValueOnce(redteamReport({
+        riskLevel: "low",
+        mergeRiskScore: 5,
+        weakTestFindings: 0,
+        requirementStatus: "verified",
+        securityAnalysis: { scannedFiles: ["src/users.ts"], candidateCount: 0 }
+      }))
+      .mockResolvedValue(redteamReport({
+        riskLevel: "low",
+        mergeRiskScore: 5,
+        weakTestFindings: 0,
+        requirementStatus: "verified",
+        securityAnalysis: { scannedFiles: ["src/users.ts"], candidateCount: 0 }
+      }));
+
+    const report = await runCodeDecayLoop({
+      ...baseInput(repo),
+      maxRounds: 2,
+      runId: "uat-loop-1",
+      builderCommand: "node -e \"const fs=require('fs'); fs.mkdirSync('src',{recursive:true}); const n=fs.existsSync('src/users.ts')?2:1; fs.writeFileSync('src/users.ts','fix-'+n);\"",
+      verifierCommand: "node -e \"console.log('hypothesis: missing API contract proof'); console.log('challenge: unit test passes but API requirement unmet')\"",
+      createRedteamReport,
+      runConfiguredChecks: async () => {
+        builderCalls += 1;
+        return builderCalls >= 3 ? verifiedCheckSnapshot() : checkSnapshot("passed", true);
+      }
+    });
+
+    expect(report.rounds.some((round) => round.verifier?.stdout.includes("missing API"))).toBe(true);
+    expect(report.stateMachine.hypothesisStatuses.some((entry) => entry.status === "candidate")).toBe(true);
+    expect(report.status).toBe("verified");
+    expect(report.requirementTrace?.criteria[0]?.status).toBe("verified");
+    expect(report.auditPath).toContain("loop-audit");
+    expect(existsSync(report.auditPath!)).toBe(true);
+  });
+
+  it("UAT-LOOP-4: protected-path edits and oscillation stop with correct statuses", async () => {
+    const protectedRepo = createRepo();
+    const protectedReport = await runCodeDecayLoop({
+      ...baseInput(protectedRepo),
+      maxRounds: 1,
+      protectedPathPrefixes: [".codedecay"],
+      builderCommand: "node -e \"require('fs').mkdirSync('.codedecay',{recursive:true}); require('fs').writeFileSync('.codedecay/policy.yml','bad')\"",
+      createRedteamReport: async () => redteamReport({ riskLevel: "high", mergeRiskScore: 90, weakTestFindings: 1 }),
+      runConfiguredChecks: async () => checkSnapshot("passed", true)
+    });
+    expect(protectedReport.status).toBe("unsafe-change");
+    expect(protectedReport.stopReason).toContain("Protected path");
+
+    const oscillateRepo = createRepo();
+    const oscillateReport = await runCodeDecayLoop({
+      ...baseInput(oscillateRepo),
+      maxRounds: 4,
+      builderCommand: "node -e \"require('fs').writeFileSync('flip.txt', 'same')\"",
+      createRedteamReport: async () => redteamReport({ riskLevel: "high", mergeRiskScore: 90, weakTestFindings: 1 }),
+      runConfiguredChecks: async () => checkSnapshot("passed", true)
+    });
+    expect(["stuck", "budget-exhausted", "needs-human"]).toContain(oscillateReport.status);
+  });
+
+  it("UAT-LOOP-5: verifier outage preserves deterministic evidence and does not let builder self-verify", async () => {
+    const repo = createRepo();
+    const createRedteamReport = vi.fn()
+      .mockResolvedValueOnce(redteamReport({ riskLevel: "high", mergeRiskScore: 90, weakTestFindings: 1 }))
+      .mockResolvedValue(redteamReport({
+        riskLevel: "low",
+        mergeRiskScore: 10,
+        weakTestFindings: 0,
+        securityAnalysis: { scannedFiles: ["agent.txt"], candidateCount: 0 }
+      }));
+    const report = await runCodeDecayLoop({
+      ...baseInput(repo),
+      maxRounds: 1,
+      builderCommand: "node -e \"require('fs').writeFileSync('agent.txt', 'fixed')\"",
+      verifierCommand: "node -e \"process.exit(2)\"",
+      createRedteamReport,
+      runConfiguredChecks: async () => verifiedCheckSnapshot()
+    });
+
+    expect(report.status).toBe("verifier-error");
+    expect(report.roles.find((role) => role.role === "verifier")?.canVerifyCriteria).toBe(false);
+    expect(report.roles.find((role) => role.role === "builder")?.proofAuthority).toBe("none");
+    expect(report.finalCheckStatus).toBe("passed");
+    expect(report.finalMergeRiskScore).toBe(10);
+  });
 });
 
 describe("classifySafeStatus", () => {
@@ -370,7 +472,7 @@ describe("classifySafeStatus", () => {
       "low"
     );
 
-    expect(status).toBe("merge-safe-shallow");
+    expect(status).toBe("shallow-proof");
   });
 
   it("does not return merge-safe when a high security finding remains", () => {
@@ -396,14 +498,14 @@ describe("classifySafeStatus", () => {
     expect(status).toBeUndefined();
   });
 
-  it("returns merge-safe-shallow when gates pass without scanner, coverage, or mutation depth", () => {
+  it("returns shallow-proof when gates pass without scanner, coverage, or mutation depth", () => {
     const status = classifySafeStatus(
       redteamReport({ riskLevel: "low", mergeRiskScore: 10, weakTestFindings: 0 }),
       checkSnapshot("passed", true),
       "low"
     );
 
-    expect(status).toBe("merge-safe-shallow");
+    expect(status).toBe("shallow-proof");
   });
 });
 

@@ -17,4 +17,11 @@ export interface LoopOptions {
   securityScoreThreshold: number;
   task?: string | undefined;
   requirements?: string | undefined;
+  maxWallTimeMs?: number | undefined;
+  maxChangedFiles?: number | undefined;
+  maxModelCalls?: number | undefined;
+  allowedPaths?: string[] | undefined;
+  protectedPaths?: string[] | undefined;
+  resumeFrom?: string | undefined;
+  runId?: string | undefined;
 }
