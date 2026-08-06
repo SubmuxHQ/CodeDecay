@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codedecay.dev/schemas/human-uat-result.json",
+  "title": "CodeDecay human UAT result",
+  "type": "object",
+  "required": ["schemaVersion", "participantRole", "tasks", "trustComprehension"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "participantRole": {
+      "type": "string",
+      "enum": ["ai-assisted-individual", "experienced-engineer", "team-devops"]
+    },
+    "environment": { "type": "string" },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "completed", "attempts", "timeSeconds"],
+        "properties": {
+          "id": { "type": "string" },
+          "completed": { "type": "boolean" },
+          "attempts": { "type": "integer", "minimum": 0 },
+          "timeSeconds": { "type": "number", "minimum": 0 },
+          "clarificationRequests": { "type": "integer", "minimum": 0 },
+          "unsafeActions": { "type": "integer", "minimum": 0 },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "trustComprehension": {
+      "type": "object",
+      "required": [
+        "deterministicEvidence",
+        "runtimeToolProof",
+        "memory",
+        "aiSuggestion",
+        "unverified",
+        "needsHuman",
+        "verified"
+      ],
+      "additionalProperties": { "type": "boolean" }
+    },
+    "abandonment": { "type": "boolean" },
+    "linkedIssues": { "type": "array", "items": { "type": "string" } }
+  }
+}
