@@ -22,18 +22,19 @@ describe("human UAT kit scaffolding (#692)", () => {
       "observer-rubric.md",
       "consent-privacy.md",
       "facilitator-runbook.md",
-      "outreach.md",
-      "session-checklist.md",
-      "fixtures.md",
-      "tasks.json",
-      "result.schema.json",
-      "summary.template.md",
-      "result-templates/ai-assisted-individual.template.json",
-      "result-templates/experienced-engineer.template.json",
-      "result-templates/team-devops.template.json"
-    ]) {
-      expect(existsSync(join(kitRoot, file))).toBe(true);
-    }
+    "outreach.md",
+    "session-checklist.md",
+    "live-session.md",
+    "fixtures.md",
+    "tasks.json",
+    "result.schema.json",
+    "summary.template.md",
+    "result-templates/ai-assisted-individual.template.json",
+    "result-templates/experienced-engineer.template.json",
+    "result-templates/team-devops.template.json"
+  ]) {
+    expect(existsSync(join(kitRoot, file))).toBe(true);
+  }
     const schema = JSON.parse(readFileSync(join(kitRoot, "result.schema.json"), "utf8")) as {
       required: string[];
     };

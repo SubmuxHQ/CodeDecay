@@ -24,6 +24,7 @@
     "test:human-uat-smoke": "pnpm build:packages && node scripts/human-uat-smoke.mjs",
     "uat:validate-result": "node scripts/human-uat-validate-result.mjs",
     "uat:summarize": "node scripts/human-uat-summarize.mjs",
+    "uat:start-session": "pnpm build:packages && node scripts/human-uat-start-session.mjs",
     "gen:launch": "node scripts/gen-launch.mjs",
     "judge-lab:evidence": "pnpm build:packages && node scripts/generate-judge-lab-evidence.mjs",
     "judge-lab:evidence:check": "node scripts/generate-judge-lab-evidence.mjs --check",

@@ -14,6 +14,7 @@ sample results, or the deterministic CI smoke as human acceptance evidence.
 | `facilitator-runbook.md` | How to schedule and run sessions |
 | `outreach.md` | Invite copy for independent participants |
 | `session-checklist.md` | Live-session facilitator checklist |
+| `live-session.md` | One-command session workspace + recruit/run ops |
 | `fixtures.md` | Planted / decoy / unsafe fixture guide |
 | `tasks.json` | Machine-readable task IDs |
 | `result.schema.json` | Machine-readable participant result schema |
@@ -23,8 +24,8 @@ sample results, or the deterministic CI smoke as human acceptance evidence.
 ## How to run (when humans are scheduled)
 
 1. Pack/publish `@submuxhq/codedecay` and install into a fresh environment.
-2. Materialize fixtures: `node scripts/human-uat-setup.mjs`
-3. Recruit with `outreach.md`; run the session with `session-checklist.md`.
+2. Or run `node scripts/human-uat-start-session.mjs` for fixtures + packed consumer.
+3. Recruit with `outreach.md`; run the session with `session-checklist.md` / `live-session.md`.
 4. Fill a `result-templates/*.template.json` copy; set `humanEvidence: true`.
 5. Validate: `node scripts/human-uat-validate-result.mjs <result.json>`
 6. After ≥3 valid results: `node scripts/human-uat-summarize.mjs --out summary.md *.json`
