@@ -131,6 +131,16 @@ export const serviceTopologyToolSchema = {
   subscriberServiceId: z.string().optional().describe("Optional AsyncAPI subscriber service id.")
 };
 
+export const runtimeEvidenceToolSchema = {
+  cwd: cwdSchema,
+  format: formatSchema,
+  telemetry: z.string().optional().describe("Repo-local OTLP JSON trace export."),
+  errors: z.string().optional().describe("Repo-local structured error/deployment export."),
+  topology: z.string().optional().describe("Optional repo-local service topology manifest."),
+  headRevision: z.string().optional().describe("Current source revision for trust classification."),
+  environment: z.string().optional().describe("Environment label when an export omits one.")
+};
+
 export const agentSessionToolSchema = {
   cwd: cwdSchema,
   operation: z.enum(["start", "context", "checkpoint", "finish"]).describe("Session lifecycle operation."),

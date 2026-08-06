@@ -36,7 +36,10 @@ export const ANALYSIS_COMMAND_DOCS: Record<string, CommandDoc> = {
       "codedecay runtime --telemetry .codedecay/runtime/traces.json --head-revision $(git rev-parse HEAD)",
       "codedecay runtime --errors .codedecay/runtime/errors.json --format json"
     ],
-    notes: ["Inputs must resolve inside the repository. The command performs no network calls or project command execution."]
+    notes: [
+      "Inputs must resolve inside the repository. The command performs no network calls or project command execution.",
+      "Historical or sampled runtime evidence cannot prove the current tree safe. See docs/runtime.md."
+    ]
   },
   topology: {
     name: "topology",

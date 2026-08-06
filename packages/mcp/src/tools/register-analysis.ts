@@ -13,7 +13,8 @@ import {
   scopeCheckToolSchema,
   taskContextToolSchema,
   contextServiceToolSchema,
-  serviceTopologyToolSchema
+  serviceTopologyToolSchema,
+  runtimeEvidenceToolSchema
 } from "./schemas";
 import type {
   AgentPreflightToolInput,
@@ -29,7 +30,8 @@ import type {
   TaskContextToolInput,
   WhatDidIMissToolInput,
   ContextServiceToolInput,
-  ServiceTopologyToolInput
+  ServiceTopologyToolInput,
+  RuntimeEvidenceToolInput
 } from "./types";
 
 export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayMcpToolHandlers): void {
@@ -129,6 +131,13 @@ export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayM
     "Build cross-repository service topology impact from local manifests and OpenAPI/AsyncAPI contracts. Local-only; no clone, network, model, or telemetry calls.",
     serviceTopologyToolSchema,
     async (input) => textResult(handlers.serviceTopology(input as ServiceTopologyToolInput))
+  );
+
+  server.tool(
+    "runtime_evidence",
+    "Ingest local OpenTelemetry/error exports as redacted runtime evidence. Local-only; historical evidence cannot prove the current tree.",
+    runtimeEvidenceToolSchema,
+    async (input) => textResult(handlers.runtimeEvidence(input as RuntimeEvidenceToolInput))
   );
 
   server.tool(

@@ -63,6 +63,16 @@ export interface ServiceTopologyToolInput {
   subscriberServiceId?: string | undefined;
 }
 
+export interface RuntimeEvidenceToolInput {
+  cwd?: string | undefined;
+  format?: "markdown" | "json" | undefined;
+  telemetry?: string | undefined;
+  errors?: string | undefined;
+  topology?: string | undefined;
+  headRevision?: string | undefined;
+  environment?: string | undefined;
+}
+
 export interface AgentSessionToolInput {
   cwd?: string | undefined;
   operation: "start" | "context" | "checkpoint" | "finish";
