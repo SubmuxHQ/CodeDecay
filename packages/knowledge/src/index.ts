@@ -67,7 +67,7 @@ export {
   SERVICE_TOPOLOGY_NODE_KINDS,
   SERVICE_TOPOLOGY_SCHEMA_VERSION
 } from "./topology/types";
-export { ingestRuntimeEvidence } from "./runtime/ingest";
+export { ingestRuntimeEvidence, persistRuntimeEvidenceArtifact, RUNTIME_EVIDENCE_ARTIFACT_PATH } from "./runtime/ingest";
 export { analyzeMigrationSafety } from "./migration/analyze";
 export type { AnalyzeMigrationSafetyOptions } from "./migration/analyze";
 export { renderMigrationSafetyMarkdown } from "./migration/render";
@@ -84,11 +84,15 @@ export type { IngestRuntimeEvidenceOptions } from "./runtime/ingest";
 export { renderRuntimeEvidenceMarkdown } from "./runtime/render";
 export { RUNTIME_EVIDENCE_SCHEMA_VERSION } from "./runtime/types";
 export type {
+  RuntimeDeploymentEvidence,
   RuntimeErrorEvidence,
   RuntimeEvidenceReport,
   RuntimeEvidenceSource,
   RuntimeEvidenceTrust,
-  RuntimeOperationEvidence
+  RuntimeInvestigationTask,
+  RuntimeOperationEvidence,
+  RuntimeProviderConfig,
+  RuntimeProviderKind
 } from "./runtime/types";
 export type {
   ServiceTopologyConfidence,

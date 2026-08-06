@@ -29,6 +29,7 @@ import {
 } from "./handlers/product";
 import { runContextServiceTool } from "./handlers/context-service";
 import { runServiceTopologyTool } from "./handlers/service-topology";
+import { runRuntimeEvidenceTool } from "./handlers/runtime-evidence";
 import type { StartMcpServerOptions } from "./server/types";
 import { registerCodeDecayMcpTools } from "./tools/registry";
 
@@ -55,6 +56,7 @@ export {
 export { runExecuteConfiguredChecksTool } from "./handlers/execution";
 export { runContextServiceTool } from "./handlers/context-service";
 export { runServiceTopologyTool } from "./handlers/service-topology";
+export { runRuntimeEvidenceTool } from "./handlers/runtime-evidence";
 export {
   runProductFailuresTool,
   runProductPlanTool,
@@ -88,6 +90,7 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
     taskContext: (input) => runTaskContextTool(options, input),
     contextService: (input) => runContextServiceTool(options, input),
     serviceTopology: (input) => runServiceTopologyTool(options, input),
+    runtimeEvidence: (input) => runRuntimeEvidenceTool(options, input),
     agentInvestigation: (input) => runAgentInvestigationTool(options, input),
     scopeCheck: (input) => runScopeCheckTool(options, input),
     designContractCheck: (input) => runDesignContractCheckTool(options, input),
