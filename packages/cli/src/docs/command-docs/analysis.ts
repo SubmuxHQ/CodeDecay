@@ -53,6 +53,31 @@ export const ANALYSIS_COMMAND_DOCS: Record<string, CommandDoc> = {
       "Stress-only results stay inconclusive. See docs/concurrency.md."
     ]
   },
+  "state-space": {
+    name: "state-space",
+    summary: "Plan and evaluate bounded cache/feature-flag state matrices.",
+    usage: ["codedecay state-space [options]"],
+    description: [
+      "Load a seeded state-space experiment fixture, detect cache/flag candidates, generate bounded pairwise or explicit combinations, and evaluate stale-cache / flag-interaction oracles without contacting remote providers by default."
+    ],
+    options: [
+      { flag: "--experiment <path>", description: "Repo-local state-space experiment JSON fixture" },
+      { flag: "--surface <path>", description: "Source file to scan for state dimensions; repeatable" },
+      { flag: "--target-kind <kind>", description: "fixture-local | disposable-local | remote-unapproved | production-like | unspecified" },
+      { flag: "--cleanup-plan <text>", description: "Disposable target cleanup plan" },
+      { flag: "--cwd <path>", description: "Working directory" },
+      { flag: "--format <json|markdown>", description: "Output format" },
+      { flag: "--output <path>", description: "Write report to a file" }
+    ],
+    examples: [
+      "codedecay state-space --experiment .codedecay/state-space/stale-cache.json --surface src/cache/profile.ts",
+      "codedecay state-space --experiment experiment.json --target-kind fixture-local --format json"
+    ],
+    notes: [
+      "Coverage is bounded and never implies exhaustive proof. See docs/state-space.md.",
+      "Remote flag providers stay blocked unless explicitly configured."
+    ]
+  },
   runtime: {
     name: "runtime",
     summary: "Ingest local runtime exports as redacted engineering evidence.",

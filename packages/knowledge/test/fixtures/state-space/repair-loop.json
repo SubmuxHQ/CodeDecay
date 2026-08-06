@@ -1,0 +1,31 @@
+{
+  "id": "uat-state-6-repair",
+  "kind": "explicit-matrix",
+  "seed": 66,
+  "dimensions": [
+    {
+      "id": "cache",
+      "kind": "cache-state",
+      "values": ["cold", "warm"],
+      "sourceRef": "fixture",
+      "note": "Cache states after repair"
+    }
+  ],
+  "combinations": [
+    { "id": "cold", "values": { "cache": "cold" }, "selected": true },
+    { "id": "warm", "values": { "cache": "warm" }, "selected": true }
+  ],
+  "oracle": { "cacheKey": "profile:1", "expectedReadValue": "new" },
+  "implementation": { "mode": "repaired", "writeValue": "new", "cachedValue": "new" },
+  "bounds": {
+    "maxDimensions": 4,
+    "maxCombinations": 8,
+    "timeoutMs": 5000,
+    "targetKind": "fixture-local"
+  },
+  "cleanup": { "plan": "flush fixture cache" },
+  "repair": {
+    "durableRegressionTestId": "test/cache-invalidation.regression.test.ts",
+    "revalidated": true
+  }
+}

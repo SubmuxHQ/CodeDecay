@@ -169,6 +169,18 @@ export const concurrencySafetyToolSchema = {
   cleanupPlan: z.string().optional().describe("Disposable target cleanup plan.")
 };
 
+export const stateSpaceSafetyToolSchema = {
+  cwd: cwdSchema,
+  format: formatSchema,
+  experimentFile: z.string().optional().describe("Repo-local state-space experiment JSON fixture."),
+  surfaceFiles: z.array(z.string()).optional().describe("Source files to scan for cache/flag dimensions."),
+  targetKind: z
+    .enum(["unspecified", "fixture-local", "disposable-local", "remote-unapproved", "production-like"])
+    .optional()
+    .describe("State-space experiment target classification."),
+  cleanupPlan: z.string().optional().describe("Disposable target cleanup plan.")
+};
+
 export const agentSessionToolSchema = {
   cwd: cwdSchema,
   operation: z.enum(["start", "context", "checkpoint", "finish"]).describe("Session lifecycle operation."),

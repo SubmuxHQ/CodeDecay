@@ -110,6 +110,28 @@ export type {
   ConcurrencyTargetKind,
   ConcurrencyVerdict
 } from "./concurrency/types";
+export { analyzeStateSpaceSafety } from "./state-space/analyze";
+export type { AnalyzeStateSpaceSafetyOptions } from "./state-space/analyze";
+export { gateStateSpaceBounds } from "./state-space/bounds";
+export { detectStateSpaceCandidates } from "./state-space/detect";
+export { evaluateStateSpaceOracle, generateStateSpaceCombinations } from "./state-space/oracles";
+export { renderStateSpaceSafetyMarkdown } from "./state-space/render";
+export {
+  STATE_SPACE_DEFAULT_BOUNDS,
+  STATE_SPACE_EVIDENCE_SCHEMA_VERSION
+} from "./state-space/types";
+export type {
+  StateSpaceBounds,
+  StateSpaceCandidate,
+  StateSpaceCombination,
+  StateSpaceCoverageReport,
+  StateSpaceDimension,
+  StateSpaceExperimentInput,
+  StateSpaceExperimentKind,
+  StateSpaceSafetyReport,
+  StateSpaceTargetKind,
+  StateSpaceVerdict
+} from "./state-space/types";
 export type { IngestRuntimeEvidenceOptions } from "./runtime/ingest";
 export { renderRuntimeEvidenceMarkdown } from "./runtime/render";
 export { RUNTIME_EVIDENCE_SCHEMA_VERSION } from "./runtime/types";

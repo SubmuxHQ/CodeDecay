@@ -1,0 +1,28 @@
+{
+  "id": "uat-state-5-remote-provider",
+  "kind": "explicit-matrix",
+  "seed": 55,
+  "dimensions": [
+    {
+      "id": "flag:remote",
+      "kind": "feature-flag",
+      "values": ["off", "on"],
+      "sourceRef": "fixture",
+      "note": "Remote-backed flag"
+    }
+  ],
+  "combinations": [
+    { "id": "off", "values": { "flag:remote": "off" }, "selected": true }
+  ],
+  "oracle": {},
+  "implementation": { "mode": "clean" },
+  "bounds": {
+    "maxDimensions": 4,
+    "maxCombinations": 4,
+    "timeoutMs": 5000,
+    "targetKind": "fixture-local",
+    "allowRemoteFlagProvider": false
+  },
+  "remoteFlagProvider": { "configured": false, "contacted": true },
+  "cleanup": { "plan": "n/a" }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "uat-state-2-flag-pair",
+  "kind": "explicit-matrix",
+  "seed": 22,
+  "dimensions": [
+    {
+      "id": "flag:alpha",
+      "kind": "feature-flag",
+      "values": ["off", "on"],
+      "sourceRef": "fixture",
+      "note": "Alpha flag"
+    },
+    {
+      "id": "flag:beta",
+      "kind": "feature-flag",
+      "values": ["off", "on"],
+      "sourceRef": "fixture",
+      "note": "Beta flag"
+    }
+  ],
+  "combinations": [
+    { "id": "alpha-on", "values": { "flag:alpha": "on", "flag:beta": "off" }, "selected": true },
+    { "id": "beta-on", "values": { "flag:alpha": "off", "flag:beta": "on" }, "selected": true },
+    { "id": "both-on", "values": { "flag:alpha": "on", "flag:beta": "on" }, "selected": true },
+    { "id": "both-off", "values": { "flag:alpha": "off", "flag:beta": "off" }, "selected": true }
+  ],
+  "oracle": { "requiredFlagsOn": ["flag:alpha", "flag:beta"] },
+  "implementation": { "mode": "flag-interaction-bug" },
+  "bounds": {
+    "maxDimensions": 4,
+    "maxCombinations": 8,
+    "timeoutMs": 5000,
+    "targetKind": "fixture-local"
+  },
+  "cleanup": { "plan": "reset fixture flags" }
+}

@@ -16,7 +16,8 @@ import {
   serviceTopologyToolSchema,
   runtimeEvidenceToolSchema,
   migrationSafetyToolSchema,
-  concurrencySafetyToolSchema
+  concurrencySafetyToolSchema,
+  stateSpaceSafetyToolSchema
 } from "./schemas";
 import type {
   AgentPreflightToolInput,
@@ -35,7 +36,8 @@ import type {
   ServiceTopologyToolInput,
   RuntimeEvidenceToolInput,
   MigrationSafetyToolInput,
-  ConcurrencySafetyToolInput
+  ConcurrencySafetyToolInput,
+  StateSpaceSafetyToolInput
 } from "./types";
 
 export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayMcpToolHandlers): void {
@@ -156,6 +158,13 @@ export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayM
     "Evaluate deterministic concurrency/idempotency experiment fixtures with bounds gates and state oracles. Does not spawn schedulers or contact production queues.",
     concurrencySafetyToolSchema,
     async (input) => textResult(handlers.concurrencySafety(input as ConcurrencySafetyToolInput))
+  );
+
+  server.tool(
+    "state_space_safety",
+    "Evaluate bounded cache/feature-flag state matrices with coverage accounting. Does not contact remote flag providers without explicit configuration.",
+    stateSpaceSafetyToolSchema,
+    async (input) => textResult(handlers.stateSpaceSafety(input as StateSpaceSafetyToolInput))
   );
 
   server.tool(
