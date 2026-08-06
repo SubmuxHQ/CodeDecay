@@ -85,6 +85,31 @@ export type {
   MigrationTargetKind,
   MigrationVerdict
 } from "./migration/types";
+export { analyzeConcurrencySafety } from "./concurrency/analyze";
+export type { AnalyzeConcurrencySafetyOptions } from "./concurrency/analyze";
+export { gateConcurrencyBounds } from "./concurrency/bounds";
+export { detectConcurrencyCandidates } from "./concurrency/detect";
+export { evaluateConcurrencyOracle } from "./concurrency/oracles";
+export { renderConcurrencySafetyMarkdown } from "./concurrency/render";
+export {
+  CONCURRENCY_DEFAULT_BOUNDS,
+  CONCURRENCY_EVIDENCE_SCHEMA_VERSION
+} from "./concurrency/types";
+export type {
+  ConcurrencyBounds,
+  ConcurrencyCandidate,
+  ConcurrencyCandidateKind,
+  ConcurrencyCleanupEvidence,
+  ConcurrencyExperimentInput,
+  ConcurrencyExperimentKind,
+  ConcurrencyImplementationMode,
+  ConcurrencyInvariant,
+  ConcurrencyOracleResult,
+  ConcurrencyRepairTask,
+  ConcurrencySafetyReport,
+  ConcurrencyTargetKind,
+  ConcurrencyVerdict
+} from "./concurrency/types";
 export type { IngestRuntimeEvidenceOptions } from "./runtime/ingest";
 export { renderRuntimeEvidenceMarkdown } from "./runtime/render";
 export { RUNTIME_EVIDENCE_SCHEMA_VERSION } from "./runtime/types";

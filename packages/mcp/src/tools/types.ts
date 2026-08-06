@@ -86,6 +86,15 @@ export interface MigrationSafetyToolInput {
   rollbackFailed?: boolean | undefined;
 }
 
+export interface ConcurrencySafetyToolInput {
+  cwd?: string | undefined;
+  format?: "markdown" | "json" | undefined;
+  experimentFile?: string | undefined;
+  surfaceFiles?: string[] | undefined;
+  targetKind?: "unspecified" | "fixture-local" | "disposable-local" | "remote-unapproved" | "production-like" | undefined;
+  cleanupPlan?: string | undefined;
+}
+
 export interface AgentSessionToolInput {
   cwd?: string | undefined;
   operation: "start" | "context" | "checkpoint" | "finish";

@@ -1,0 +1,24 @@
+{
+  "id": "uat-concurrency-5-bounds",
+  "kind": "deterministic-schedule",
+  "actors": ["worker"],
+  "operations": [
+    { "id": "deliver-1", "type": "deliver-message", "payloadKey": "job-1" }
+  ],
+  "schedule": {
+    "seed": 1,
+    "steps": [
+      { "at": 0, "operationId": "deliver-1", "actor": "worker" }
+    ]
+  },
+  "stateOracle": { "invariant": "exactly-once-effect", "expectedSideEffects": 1 },
+  "implementation": { "mode": "idempotent" },
+  "bounds": {
+    "maxParallelism": 64,
+    "repetitions": 500,
+    "timeoutMs": 120000,
+    "targetKind": "fixture-local",
+    "networkTarget": "https://api.production.example"
+  },
+  "cleanup": { "plan": "n/a" }
+}
