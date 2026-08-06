@@ -27,3 +27,15 @@ export interface MemoryLearnOptions {
   format: ConfigFormat;
   apply: boolean;
 }
+
+export interface MemoryLearningOptions {
+  cwd?: string | undefined;
+  format: ConfigFormat;
+  apply: boolean;
+  action: "approve" | "reject" | "supersede" | "expire" | "revoke" | "propose";
+  eventId?: string | undefined;
+  actor: string;
+  reason: string;
+  input?: string | undefined;
+  evidenceIds?: string[] | undefined;
+}

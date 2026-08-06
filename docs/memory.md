@@ -234,6 +234,49 @@ Retention and redaction defaults:
   severity, add a clearer `description`, or remove the `productPaths` until the
   check is stable.
 
+## Verified Learning Lifecycle
+
+Flat memory sections are useful, but durable engineering knowledge should come
+from verified outcomes: confirmed regressions, repairs, refuted hypotheses,
+accepted risks, incidents, ADRs, conventions, ownership changes, and proof
+recipes.
+
+Use versioned `learningEvents` in `.codedecay/memory.json`:
+
+```bash
+# Preview a proposal (does not mutate memory)
+npx codedecay memory learning --action propose --input learning-event.json
+
+# Persist the proposal
+npx codedecay memory learning --action propose --input learning-event.json --apply
+
+# Explicit human review
+npx codedecay memory learning --action approve --event-id <id> --actor kunal --reason "Verified against payout retry CI" --apply
+npx codedecay memory learning --action reject --event-id <id> --apply
+npx codedecay memory learning --action supersede --event-id <id> --apply
+npx codedecay memory learning --action expire --event-id <id> --apply
+npx codedecay memory learning --action revoke --event-id <id> --apply
+```
+
+Rules:
+
+- Agent output, PR text, comments, and external memory stay `proposed` until an
+  explicit approve/reject/supersede/expire/revoke operation.
+- Trusted runtime/tool evidence can raise proposal confidence, but never silently
+  writes durable approved memory.
+- Every event keeps source evidence IDs, scope (repo/revision/files/symbols),
+  trust class, creator, timestamps, review status, and an audit trail.
+- Retrieval only surfaces approved, in-scope, non-expired events and explains
+  inclusion and suppression.
+- Refuted hypotheses affect ranking only inside a narrowly matched scope; they
+  cannot globally disable a rule.
+- Redteam/analyze reports show when a prior approved learning influenced
+  investigation or proof planning (`memory-learning-influenced`).
+
+Conflict detection flags duplicates, contradictions (for example confirmed
+regression vs refuted hypothesis), and ownership/architecture overlaps that
+should supersede stale routing.
+
 ## Report Behavior
 
 When memory matches a PR, CodeDecay may add:
@@ -241,8 +284,10 @@ When memory matches a PR, CodeDecay may add:
 - findings for impacted invariants
 - findings for past regression areas
 - findings for matching architecture notes
+- findings for approved learning events that match the change
 - recommended checks for flows
 - recommended commands from the memory file
+- recommended proof recipes from approved learnings
 
 CodeDecay does not run memory commands automatically. They are reported as
 project-specific checks for the user or future execution adapters.

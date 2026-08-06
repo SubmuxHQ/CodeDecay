@@ -40,7 +40,10 @@ export function createRedteamReport(input: RedteamReportInput): RedteamReport {
     toolAdapterPlans,
     verification
   });
-  const memory = summarizeMemory(input.memory, input.memorySource, input.memoryProviderSources);
+  const memory = summarizeMemory(input.memory, input.memorySource, input.memoryProviderSources, {
+    changedFiles: input.analysisReport.changedFiles,
+    impactedAreas: input.analysisReport.impactedAreas
+  });
   const skills = summarizeSkills(input.skills);
   const fixTasks = hasChangedFiles
     ? createFixTasks({

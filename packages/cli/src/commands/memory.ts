@@ -1,22 +1,29 @@
 import { readFileSync } from "node:fs";
 import { dirname, extname, resolve } from "node:path";
 import {
+  appendLearningEventProposal,
+  applyLearningEventOperation,
+  detectLearningConflicts,
   importCodeDecayMemory,
   learnCodeDecayMemory,
   loadCodeDecayMemory,
-  writeCodeDecayMemory
+  writeCodeDecayMemory,
+  type MemoryLearningEventInput,
+  type MemoryLearningConflict
 } from "@submuxhq/codedecay-memory";
 import { write } from "../io";
 import {
   parseMemoryArgs,
   parseMemoryImportArgs,
   parseMemoryLearnArgs,
+  parseMemoryLearningArgs,
   parseMemorySetupArgs
 } from "../parsers/args";
 import {
   renderMemory,
   renderMemoryImportResult,
-  renderMemoryLearnResult
+  renderMemoryLearnResult,
+  renderMemoryLearningResult
 } from "../renderers/memory";
 import {
   createMemorySetupResult,
@@ -31,6 +38,14 @@ export interface MemoryCommandDependencies {
 export function runMemoryCommand(context: CliCommandContext, dependencies: MemoryCommandDependencies): void {
   if (context.args[0] === "setup") {
     runMemorySetupCommand({
+      ...context,
+      args: context.args.slice(1)
+    }, dependencies);
+    return;
+  }
+
+  if (context.args[0] === "learning") {
+    runMemoryLearningCommand({
       ...context,
       args: context.args.slice(1)
     }, dependencies);
@@ -90,6 +105,54 @@ export function runMemoryLearnCommand(context: CliCommandContext, dependencies: 
       inputPath,
       writtenPath,
       result: learned
+    })
+  );
+}
+
+export function runMemoryLearningCommand(context: CliCommandContext, dependencies: MemoryCommandDependencies): void {
+  const options = parseMemoryLearningArgs(context.args);
+  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
+  const rootDir = dependencies.resolveRepoRoot(cwd, { format: "markdown" });
+  const loadedMemory = loadCodeDecayMemory(rootDir);
+  const timestamp = new Date().toISOString();
+  let memory = loadedMemory.memory;
+  let eventId = options.eventId;
+  let conflicts: MemoryLearningConflict[] = detectLearningConflicts(memory);
+
+  if (options.action === "propose") {
+    const inputPath = resolve(context.runtimeCwd, options.input!);
+    const proposal = JSON.parse(readFileSync(inputPath, "utf8")) as MemoryLearningEventInput;
+    // Proposals always land as reviewStatus=proposed; approve/reject/etc. are explicit ops.
+    const appended = appendLearningEventProposal(memory, {
+      ...proposal,
+      timestamp: proposal.timestamp ?? timestamp,
+      creator: proposal.creator ?? options.actor
+    });
+    memory = appended.memory;
+    eventId = appended.event.id;
+    conflicts = appended.conflicts;
+  } else {
+    memory = applyLearningEventOperation(memory, {
+      eventId: options.eventId!,
+      action: options.action,
+      actor: options.actor,
+      timestamp,
+      reason: options.reason,
+      evidenceIds: options.evidenceIds
+    });
+    conflicts = detectLearningConflicts(memory);
+  }
+
+  const writtenPath = options.apply ? writeCodeDecayMemory(rootDir, memory) : undefined;
+  write(
+    context.runtime.stdout,
+    renderMemoryLearningResult({
+      format: options.format,
+      action: options.action,
+      eventId: eventId!,
+      writtenPath,
+      conflicts,
+      applied: options.apply
     })
   );
 }

@@ -3,12 +3,15 @@ export { firstLine, firstMatchingFile, matchesMemoryEntry } from "./context-matc
 export { importCodeDecayMemory } from "./import-memory";
 export { normalizeMemory, parseJsonMemory } from "./schema";
 export {
+  appendLearningEventProposal,
   applyLearningEventOperation,
   createLearningEventProposal,
+  detectLearningConflicts,
   normalizeLearningEvent,
   redactLearningText,
   retrieveApprovedLearningEvents
 } from "./learning-events";
+export type { MemoryLearningConflict } from "./learning-events";
 export { learnCodeDecayMemory } from "./learn-memory";
 export {
   createLocalMemoryProvider,

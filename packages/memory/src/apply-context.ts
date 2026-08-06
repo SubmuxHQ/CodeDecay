@@ -1,6 +1,7 @@
 import type { AnalyzerResult } from "@submuxhq/codedecay-core";
 import { dedupeStrings } from "@submuxhq/codedecay-core";
 import { firstLine, firstMatchingFile, matchesMemoryEntry } from "./context-matchers";
+import { retrieveApprovedLearningEvents } from "./learning-events";
 import { isEmptyMemory } from "./schema";
 import type { MemoryContextInput } from "./types";
 
@@ -80,6 +81,43 @@ export function applyMemoryContext(input: MemoryContextInput): AnalyzerResult {
       file: match.path,
       line: firstLine(match)
     });
+  }
+
+  const learning = retrieveApprovedLearningEvents({
+    memory: input.memory,
+    changedFiles: input.changedFiles,
+    impactedAreas: input.impactedAreas
+  });
+
+  for (const entry of learning.included) {
+    const event = entry.event;
+    if (event.kind === "refuted-hypothesis") {
+      // Narrow suppression only: do not emit a global disable finding.
+      continue;
+    }
+
+    const match = firstMatchingFile(event.scope, input.changedFiles, input.impactedAreas);
+    if (!match) {
+      continue;
+    }
+
+    findings.push({
+      ruleId: "memory-learning-influenced",
+      title: "Prior approved learning applies",
+      description: `Prior learning influenced this investigation: ${event.title}. ${event.summary}${
+        event.invariant ? ` Invariant: ${event.invariant}.` : ""
+      } (${entry.reason})`,
+      severity: event.kind === "confirmed-regression" || event.kind === "incident" ? "high" : "medium",
+      category: "regression",
+      file: match.path,
+      line: firstLine(match)
+    });
+
+    if (event.proofRecipe) {
+      recommendedTests.push(`Learning proof recipe (${event.title}): ${event.proofRecipe}`);
+    } else if (event.invariant) {
+      recommendedTests.push(`Verify learned invariant (${event.title}): ${event.invariant}`);
+    }
   }
 
   return {
