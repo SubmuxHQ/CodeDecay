@@ -6,7 +6,11 @@ import {
   createEngineeringTaskContext,
   loadImpactGraphArtifact,
   persistEngineeringTaskContext,
-  renderEngineeringTaskContextMarkdown
+  renderEngineeringTaskContextMarkdown,
+  startContextService,
+  stopContextService,
+  getOrCreateContextService,
+  writeContextServiceMarker
 } from "@submuxhq/codedecay-knowledge";
 import { parseContextArgs } from "../parsers/args";
 import { loadNormalizedRequirementContext } from "../requirements/context";
@@ -23,14 +27,19 @@ export interface RunContextCommandDependencies {
   }): void;
 }
 
-export function runContextCommand(
+export async function runContextCommand(
   context: CliCommandContext,
   dependencies: RunContextCommandDependencies
-): void {
+): Promise<void> {
   const options = parseContextArgs(context.args);
+  if (options.serviceAction) {
+    await runContextServiceCommand(context, dependencies, options);
+    return;
+  }
+
   const task = options.task?.trim();
   if (!task) {
-    throw new Error("context requires --task <description>.");
+    throw new Error('context requires --task <description>, or a service subcommand such as "serve".');
   }
 
   const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
@@ -70,4 +79,114 @@ export function runContextCommand(
       : renderEngineeringTaskContextMarkdown(taskContext),
     runtime: context.runtime
   });
+}
+
+async function runContextServiceCommand(
+  context: CliCommandContext,
+  dependencies: RunContextCommandDependencies,
+  options: ContextOptions
+): Promise<void> {
+  const cwd = resolve(context.runtimeCwd, options.cwd ?? ".");
+  const rootDir = dependencies.resolveRepoRoot(cwd, options);
+  const action = options.serviceAction!;
+
+  if (action === "serve") {
+    const service = await startContextService(rootDir);
+    const health = service.health();
+    writeContextServiceMarker(rootDir, health);
+    dependencies.writeOutput({
+      cwd,
+      output: options.output,
+      rendered:
+        options.format === "json"
+          ? `${JSON.stringify({ status: "started", health }, null, 2)}\n`
+          : renderServiceMarkdown("started", health),
+      runtime: context.runtime
+    });
+    // Long-lived local serve: keep the process until interrupt.
+    await new Promise<void>((resolvePromise) => {
+      const stop = async () => {
+        await stopContextService(rootDir);
+        resolvePromise();
+      };
+      process.once("SIGINT", () => void stop());
+      process.once("SIGTERM", () => void stop());
+    });
+    return;
+  }
+
+  if (action === "stop") {
+    await stopContextService(rootDir);
+    dependencies.writeOutput({
+      cwd,
+      output: options.output,
+      rendered: options.format === "json" ? `${JSON.stringify({ status: "stopped" }, null, 2)}\n` : "## Context Service\n\nStopped.\n",
+      runtime: context.runtime
+    });
+    return;
+  }
+
+  const service = getOrCreateContextService(rootDir, { acquireLock: action === "rebuild" || action === "reset" });
+  if (action === "rebuild") {
+    await service.rebuild("manual-rebuild");
+  } else if (action === "reset") {
+    await service.reset();
+  } else if (action === "query") {
+    if (service.health().cacheGeneration === 0) {
+      await service.rebuild("initial");
+    }
+    const result = await service.query({
+      waitBudgetMs: options.waitBudgetMs ?? 250,
+      sessionId: options.sessionId,
+      task: options.task
+    });
+    writeContextServiceMarker(rootDir, service.health());
+    dependencies.writeOutput({
+      cwd,
+      output: options.output,
+      rendered: `${JSON.stringify(result, null, 2)}\n`,
+      runtime: context.runtime
+    });
+    return;
+  }
+
+  if (service.health().cacheGeneration === 0 && action === "health") {
+    await service.rebuild("initial");
+  }
+  const health = service.health();
+  writeContextServiceMarker(rootDir, health);
+  dependencies.writeOutput({
+    cwd,
+    output: options.output,
+    rendered: options.format === "json" ? `${JSON.stringify(health, null, 2)}\n` : renderServiceMarkdown(action, health),
+    runtime: context.runtime
+  });
+}
+
+function renderServiceMarkdown(action: string, health: {
+  repositoryId: string;
+  freshness: string;
+  treeFingerprint: string;
+  cacheGeneration: number;
+  indexedRevision: string;
+  lastBuild?: { mode: string; durationMs: number } | undefined;
+  activeSessions: number;
+}): string {
+  return [
+    "## CodeDecay Context Service",
+    "",
+    `**Action:** ${action}`,
+    `**Repository:** \`${health.repositoryId}\``,
+    `**Freshness:** ${health.freshness}`,
+    `**Revision:** \`${health.indexedRevision}\``,
+    `**Tree fingerprint:** \`${health.treeFingerprint}\``,
+    `**Cache generation:** ${health.cacheGeneration}`,
+    `**Active sessions:** ${health.activeSessions}`,
+    health.lastBuild
+      ? `**Last build:** ${health.lastBuild.mode} (${health.lastBuild.durationMs}ms)`
+      : "**Last build:** none",
+    "",
+    "Local-only. No model, network, telemetry, install, or project-command calls.",
+    ""
+  ].join("\n");
 }

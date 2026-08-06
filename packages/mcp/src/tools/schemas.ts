@@ -104,6 +104,17 @@ export const taskContextToolSchema = {
   maxNodes: z.number().int().positive().optional().describe("Maximum selected context nodes.")
 };
 
+export const contextServiceToolSchema = {
+  cwd: cwdSchema,
+  operation: z
+    .enum(["health", "query", "rebuild", "start"])
+    .optional()
+    .describe("Local context service operation. Defaults to health."),
+  sessionId: z.string().optional().describe("Optional agent session id for isolated task state."),
+  task: z.string().optional().describe("Optional task label stored per session."),
+  waitBudgetMs: z.number().int().nonnegative().optional().describe("Max wait for an in-flight index update.")
+};
+
 export const agentSessionToolSchema = {
   cwd: cwdSchema,
   operation: z.enum(["start", "context", "checkpoint", "finish"]).describe("Session lifecycle operation."),

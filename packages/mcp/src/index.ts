@@ -27,6 +27,7 @@ import {
   runProductRerunTool,
   runProductRunTool
 } from "./handlers/product";
+import { runContextServiceTool } from "./handlers/context-service";
 import type { StartMcpServerOptions } from "./server/types";
 import { registerCodeDecayMcpTools } from "./tools/registry";
 
@@ -51,6 +52,7 @@ export {
   runWhatDidIMissTool
 } from "./handlers/analysis";
 export { runExecuteConfiguredChecksTool } from "./handlers/execution";
+export { runContextServiceTool } from "./handlers/context-service";
 export {
   runProductFailuresTool,
   runProductPlanTool,
@@ -82,6 +84,7 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
     agentPreflight: (input) => runAgentPreflightTool(options, input),
     agentSession: (input) => runAgentSessionTool(options, input),
     taskContext: (input) => runTaskContextTool(options, input),
+    contextService: (input) => runContextServiceTool(options, input),
     agentInvestigation: (input) => runAgentInvestigationTool(options, input),
     scopeCheck: (input) => runScopeCheckTool(options, input),
     designContractCheck: (input) => runDesignContractCheckTool(options, input),

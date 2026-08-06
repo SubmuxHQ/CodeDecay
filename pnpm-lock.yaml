@@ -199,6 +199,9 @@ importers:
       '@submuxhq/codedecay-harness':
         specifier: workspace:*
         version: link:../harness
+      '@submuxhq/codedecay-knowledge':
+        specifier: workspace:*
+        version: link:../knowledge
       '@submuxhq/codedecay-llm':
         specifier: workspace:*
         version: link:../llm

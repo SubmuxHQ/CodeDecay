@@ -11,7 +11,8 @@ import {
   fixTasksToolSchema,
   gitContextToolSchema,
   scopeCheckToolSchema,
-  taskContextToolSchema
+  taskContextToolSchema,
+  contextServiceToolSchema
 } from "./schemas";
 import type {
   AgentPreflightToolInput,
@@ -25,7 +26,8 @@ import type {
   RegressionSurfaceToolInput,
   ScopeCheckToolInput,
   TaskContextToolInput,
-  WhatDidIMissToolInput
+  WhatDidIMissToolInput,
+  ContextServiceToolInput
 } from "./types";
 
 export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayMcpToolHandlers): void {
@@ -111,6 +113,13 @@ export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayM
     "Return bounded task-scoped engineering context with stable evidence IDs, provenance, trust class, freshness, and relevance explanations. Does not execute commands, call models, or use network access.",
     taskContextToolSchema,
     async (input) => textResult(handlers.taskContext(input as TaskContextToolInput))
+  );
+
+  server.tool(
+    "context_service",
+    "Query the local incremental context service (health/query/rebuild/start). Local-only; no model, network, telemetry, or project-command calls.",
+    contextServiceToolSchema,
+    async (input) => textResult(handlers.contextService(input as ContextServiceToolInput))
   );
 
   server.tool(

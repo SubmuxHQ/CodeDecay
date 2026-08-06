@@ -4,6 +4,8 @@ import { dirname, resolve } from "node:path";
 import { watch, type FSWatcher } from "chokidar";
 import type { EngineeringContextGraph } from "./types";
 import { resolveGitSourceRevision } from "./context";
+import { acquireContextServiceLock, type ContextServiceLockHandle } from "./service-lock";
+import type { ContextServiceBuildStats } from "./service-build";
 
 export const CONTEXT_SERVICE_STATE_PATH = ".codedecay/local/context-service.json";
 export const CONTEXT_SERVICE_SCHEMA_VERSION = 1 as const;
@@ -28,10 +30,15 @@ export interface ContextServiceHealth extends ContextServiceMetadata {
   lastIndexedAt?: string | undefined;
   lastError?: string | undefined;
   corruptedStateRecovered: boolean;
+  lockPath?: string | undefined;
+  lastBuild?: ContextServiceBuildStats | undefined;
+  activeSessions: number;
 }
 
 export interface ContextServiceQueryResult extends ContextServiceMetadata {
   graph?: EngineeringContextGraph | undefined;
+  sessionId?: string | undefined;
+  task?: string | undefined;
 }
 
 export interface ContextServiceBuildInput {
@@ -48,6 +55,9 @@ export interface LocalContextServiceOptions {
   ignored?: Array<string | RegExp> | undefined;
   debounceMs?: number | undefined;
   statePath?: string | undefined;
+  lockPath?: string | undefined;
+  acquireLock?: boolean | undefined;
+  getBuildStats?: (() => ContextServiceBuildStats | undefined) | undefined;
   now?: (() => Date) | undefined;
 }
 
@@ -58,6 +68,11 @@ interface PersistedContextServiceState {
   treeFingerprint: string;
   cacheGeneration: number;
   lastIndexedAt: string;
+}
+
+interface SessionState {
+  task?: string | undefined;
+  updatedAt: string;
 }
 
 export class LocalContextService {
@@ -73,6 +88,9 @@ export class LocalContextService {
   private graph: EngineeringContextGraph | undefined;
   private pendingPaths = new Set<string>();
   private corruptedStateRecovered = false;
+  private lock: ContextServiceLockHandle | undefined;
+  private sessions = new Map<string, SessionState>();
+  private lastBuild: ContextServiceBuildStats | undefined;
   private state: ContextServiceHealth;
 
   constructor(private readonly options: LocalContextServiceOptions) {
@@ -93,11 +111,13 @@ export class LocalContextService {
       invalidationReason: recovered ? "initial" : "recovery",
       invalidatedPaths: [],
       lastIndexedAt: recovered?.lastIndexedAt,
-      corruptedStateRecovered: this.corruptedStateRecovered
+      corruptedStateRecovered: this.corruptedStateRecovered,
+      activeSessions: 0
     };
   }
 
   async start(): Promise<void> {
+    this.ensureLock();
     await this.rebuild("initial");
     const targets = this.options.watchPaths ?? [this.rootDir];
     this.watcher = watch(targets, {
@@ -127,13 +147,19 @@ export class LocalContextService {
   }
 
   rebuild(reason: ContextInvalidationReason = "manual-rebuild"): Promise<void> {
+    this.ensureLock();
     const run = async (): Promise<void> => {
       const invalidatedPaths = [...this.pendingPaths].sort();
       this.pendingPaths.clear();
       this.abortController = new AbortController();
       this.state = { ...this.state, freshness: "refreshing", indexing: true, invalidationReason: reason, invalidatedPaths };
       try {
-        const graph = await this.options.build({ rootDir: this.rootDir, invalidatedPaths, reason, signal: this.abortController.signal });
+        const graph = await this.options.build({
+          rootDir: this.rootDir,
+          invalidatedPaths,
+          reason,
+          signal: this.abortController.signal
+        });
         if (this.abortController.signal.aborted) return;
         const indexedRevision = resolveGitSourceRevision(this.rootDir);
         const treeFingerprint = fingerprintGeneration(
@@ -144,6 +170,7 @@ export class LocalContextService {
           invalidatedPaths
         );
         this.graph = graph;
+        this.lastBuild = this.options.getBuildStats?.();
         this.state = {
           ...this.state,
           indexedRevision,
@@ -153,7 +180,8 @@ export class LocalContextService {
           indexing: false,
           invalidatedPaths,
           lastIndexedAt: this.now().toISOString(),
-          lastError: undefined
+          lastError: undefined,
+          lastBuild: this.lastBuild
         };
         this.persistState();
       } catch (error: unknown) {
@@ -180,15 +208,62 @@ export class LocalContextService {
     return this.updateChain;
   }
 
-  async query(waitBudgetMs = 0): Promise<ContextServiceQueryResult> {
+  async query(
+    waitBudgetMsOrInput:
+      | number
+      | { waitBudgetMs?: number | undefined; sessionId?: string | undefined; task?: string | undefined } = 0
+  ): Promise<ContextServiceQueryResult> {
+    const input =
+      typeof waitBudgetMsOrInput === "number"
+        ? { waitBudgetMs: waitBudgetMsOrInput }
+        : waitBudgetMsOrInput;
+    const waitBudgetMs = input.waitBudgetMs ?? 0;
     if (this.activeUpdate && this.state.freshness !== "current" && waitBudgetMs > 0) {
       await Promise.race([this.activeUpdate, delay(waitBudgetMs)]);
     }
-    return { ...metadata(this.state), graph: this.graph };
+    let sessionId = input.sessionId;
+    let task = input.task;
+    if (sessionId) {
+      const existing = this.sessions.get(sessionId) ?? { updatedAt: this.now().toISOString() };
+      if (task) {
+        existing.task = task;
+      }
+      existing.updatedAt = this.now().toISOString();
+      this.sessions.set(sessionId, existing);
+      task = existing.task;
+      this.state = { ...this.state, activeSessions: this.sessions.size };
+    }
+    return {
+      ...metadata(this.state),
+      graph: this.graph,
+      sessionId,
+      task
+    };
   }
 
   health(): ContextServiceHealth {
-    return { ...this.state, invalidatedPaths: [...this.state.invalidatedPaths] };
+    return {
+      ...this.state,
+      invalidatedPaths: [...this.state.invalidatedPaths],
+      lastBuild: this.lastBuild,
+      activeSessions: this.sessions.size
+    };
+  }
+
+  reset(): Promise<void> {
+    this.graph = undefined;
+    this.sessions.clear();
+    this.pendingPaths.clear();
+    this.state = {
+      ...this.state,
+      freshness: "stale",
+      cacheGeneration: 0,
+      treeFingerprint: "unindexed",
+      activeSessions: 0,
+      invalidationReason: "recovery",
+      invalidatedPaths: []
+    };
+    return this.rebuild("recovery");
   }
 
   cancel(): void {
@@ -200,18 +275,34 @@ export class LocalContextService {
     this.cancel();
     await this.watcher?.close();
     await this.updateChain;
+    this.lock?.release();
+    this.lock = undefined;
+  }
+
+  private ensureLock(): void {
+    if (this.lock || this.options.acquireLock === false) {
+      return;
+    }
+    this.lock = acquireContextServiceLock(this.rootDir, { lockPath: this.options.lockPath });
+    this.state = { ...this.state, lockPath: this.lock.path };
   }
 
   private loadState(): PersistedContextServiceState | undefined {
     if (!existsSync(this.statePath)) return undefined;
     try {
       const value = JSON.parse(readFileSync(this.statePath, "utf8")) as PersistedContextServiceState;
-      if (value.schemaVersion !== CONTEXT_SERVICE_SCHEMA_VERSION || value.repositoryId !== this.repositoryId) throw new Error("incompatible context service state");
+      if (value.schemaVersion !== CONTEXT_SERVICE_SCHEMA_VERSION || value.repositoryId !== this.repositoryId) {
+        throw new Error("incompatible context service state");
+      }
       return value;
     } catch {
       this.corruptedStateRecovered = true;
       const quarantine = `${this.statePath}.corrupt-${Date.now()}`;
-      try { renameSync(this.statePath, quarantine); } catch { /* Rebuild still proceeds when quarantine is unavailable. */ }
+      try {
+        renameSync(this.statePath, quarantine);
+      } catch {
+        /* Rebuild still proceeds when quarantine is unavailable. */
+      }
       return undefined;
     }
   }
@@ -226,7 +317,9 @@ export class LocalContextService {
       lastIndexedAt: this.state.lastIndexedAt ?? this.now().toISOString()
     };
     mkdirSync(dirname(this.statePath), { recursive: true });
-    writeFileSync(this.statePath, `${JSON.stringify(document, null, 2)}\n`, "utf8");
+    const tempPath = `${this.statePath}.${process.pid}.${Date.now()}.tmp`;
+    writeFileSync(tempPath, `${JSON.stringify(document, null, 2)}\n`, "utf8");
+    renameSync(tempPath, this.statePath);
   }
 }
 
@@ -264,7 +357,11 @@ function hash(parts: string[]): string {
 }
 
 function realpathOrResolve(path: string): string {
-  try { return realpathSync(path); } catch { return resolve(path); }
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
 }
 
 function normalizePath(path: string): string {
