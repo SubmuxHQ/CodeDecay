@@ -1,0 +1,10 @@
+# Participant script (UAT-HUMAN-1..8)
+
+1. Install the published package; discover the primary AI workflow. (`UAT-HUMAN-1`)
+2. Supply a requirement with an ambiguity; resolve it. (`UAT-HUMAN-2`)
+3. Note a weak test that does not prove the production path. (`UAT-HUMAN-3`)
+4. Run an approved behavioral check that finds a planted defect. (`UAT-HUMAN-4`)
+5. Repair with your agent and revalidate the current tree. (`UAT-HUMAN-5`)
+6. Attempt an unsafe command/target; confirm it is blocked and understood. (`UAT-HUMAN-6`)
+7. Confirm a clean decoy does not force unnecessary repair. (`UAT-HUMAN-7`)
+8. Explain final evidence vs limitations (deterministic / tool / memory / AI / unverified / needs-human / verified). (`UAT-HUMAN-8`)

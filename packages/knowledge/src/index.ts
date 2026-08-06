@@ -165,6 +165,21 @@ export type {
   PolicyDecisionReport,
   PolicyVerdict
 } from "./policy/types";
+export {
+  defaultEfficacyScenarios,
+  renderAgentEfficacyMarkdown,
+  runAgentEfficacyEval
+} from "./eval/harness";
+export type { RunAgentEfficacyOptions } from "./eval/harness";
+export { AGENT_EFFICACY_SCHEMA_VERSION } from "./eval/types";
+export type {
+  AgentKind,
+  EfficacyRunReport,
+  EfficacyScenario,
+  EfficacyTrialResult,
+  EfficacyVerdict,
+  TrialArm
+} from "./eval/types";
 export type { IngestRuntimeEvidenceOptions } from "./runtime/ingest";
 export { renderRuntimeEvidenceMarkdown } from "./runtime/render";
 export { RUNTIME_EVIDENCE_SCHEMA_VERSION } from "./runtime/types";
