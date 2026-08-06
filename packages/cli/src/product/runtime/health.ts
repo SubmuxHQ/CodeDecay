@@ -1,4 +1,5 @@
 import type { ProductHealthResult } from "../../types";
+import { fetchWithoutExternalRedirect } from "@submuxhq/codedecay-execution";
 import { delay, elapsed } from "./timing";
 
 export async function pollProductHealth(url: string, timeoutMs: number): Promise<ProductHealthResult> {
@@ -7,6 +8,7 @@ export async function pollProductHealth(url: string, timeoutMs: number): Promise
   let attempts = 0;
   let lastStatus: number | undefined;
   let lastError: string | undefined;
+  const allowedHosts = hostnameAllowlistForConfiguredUrl(url);
 
   while (Date.now() <= deadline) {
     attempts += 1;
@@ -15,9 +17,11 @@ export async function pollProductHealth(url: string, timeoutMs: number): Promise
     const timeout = setTimeout(() => controller.abort(), Math.min(2500, remainingMs));
 
     try {
-      const response = await fetch(url, {
-        signal: controller.signal
-      });
+      const response = await fetchWithoutExternalRedirect(
+        url,
+        { allowedHosts },
+        { signal: controller.signal }
+      );
       lastStatus = response.status;
 
       if (response.status >= 200 && response.status < 400) {
@@ -49,4 +53,12 @@ export async function pollProductHealth(url: string, timeoutMs: number): Promise
     httpStatus: lastStatus,
     error: lastError ? `Timed out waiting for a healthy response: ${lastError}` : "Timed out waiting for a healthy response."
   };
+}
+
+function hostnameAllowlistForConfiguredUrl(url: string): string[] {
+  try {
+    return [new URL(url).hostname.replace(/^\[|\]$/g, "").toLowerCase()];
+  } catch {
+    return [];
+  }
 }

@@ -19,6 +19,15 @@ export type {
   CodeDecayProductTargetReadinessStatus,
   CodeDecayProductTestingConfig
 } from "./types/product";
+export type {
+  CodeDecayCapabilityAllowRule,
+  CodeDecayCapabilityKind,
+  CodeDecayCapabilityPolicy
+} from "./types/capability-policy";
+export {
+  CODEDECAY_CAPABILITY_KINDS,
+  CODEDECAY_CAPABILITY_POLICY_VERSION
+} from "./types/capability-policy";
 export type { CodeDecaySafety } from "./types/safety";
 export type {
   CodeDecayAgentBundleFormat,

@@ -1,4 +1,5 @@
 import type { CodeDecayConfig } from "../types";
+import { CODEDECAY_CAPABILITY_POLICY_VERSION } from "../types/capability-policy";
 
 export const DEFAULT_CODEDECAY_CONFIG: CodeDecayConfig = {
   version: 1,
@@ -10,7 +11,11 @@ export const DEFAULT_CODEDECAY_CONFIG: CodeDecayConfig = {
   probes: [],
   safety: {
     commandTimeoutMs: 120_000,
-    allowCommands: false
+    allowCommands: false,
+    capabilityPolicy: {
+      version: CODEDECAY_CAPABILITY_POLICY_VERSION,
+      allow: []
+    }
   },
   llm: {
     provider: "disabled",

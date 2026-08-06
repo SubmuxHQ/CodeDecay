@@ -170,7 +170,11 @@ export function createFixtureConfig(): CodeDecayConfig {
     probes: [{ name: "session probe", command: "node probe.js", timeoutMs: 1000 }],
     safety: {
       commandTimeoutMs: 120000,
-      allowCommands: true
+      allowCommands: true,
+      capabilityPolicy: {
+        version: 1,
+        allow: []
+      }
     },
     llm: {
       provider: "disabled",

@@ -18,6 +18,8 @@ probes:
 safety:
   commandTimeoutMs: 120000
   allowCommands: false
+  # capabilityPolicy defaults to deny-all elevated capabilities.
+  # See docs/security/threat-model.md.
 
 llm:
   provider: disabled

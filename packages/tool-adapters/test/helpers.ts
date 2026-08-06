@@ -60,7 +60,11 @@ export function createConfig(): CodeDecayConfig {
     probes: [],
     safety: {
       commandTimeoutMs: 120000,
-      allowCommands: false
+      allowCommands: false,
+      capabilityPolicy: {
+        version: 1,
+        allow: []
+      }
     },
     llm: {
       provider: "disabled",
