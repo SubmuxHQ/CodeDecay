@@ -256,6 +256,13 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       { flag: "--verifier-id <id>", description: "Identity label recorded for the verifier role" },
       { flag: "--safe-risk <level>", description: "Maximum acceptable risk level: low, medium, or high (default: low)" },
       { flag: "--max-security-score <score>", description: "Maximum acceptable security score from deterministic analysis, 0-100 (default: 0)" },
+      { flag: "--max-wall-time-ms <ms>", description: "Stop with budget-exhausted when wall time exceeds this limit" },
+      { flag: "--max-changed-files <n>", description: "Stop with budget-exhausted when changed files exceed this limit" },
+      { flag: "--max-model-calls <n>", description: "Stop with budget-exhausted after this many builder/verifier invocations" },
+      { flag: "--allowed-path <prefix>", description: "Restrict builder edits to this path prefix (repeatable)" },
+      { flag: "--protected-path <prefix>", description: "Treat edits under this path prefix as unsafe-change (repeatable)" },
+      { flag: "--resume-from <path>", description: "Resume budget counters from a prior loop audit JSONL file" },
+      { flag: "--run-id <id>", description: "Stable run id used for .codedecay/local/loop-audit/<id>.jsonl" },
       { flag: "--task <text>", description: "Task description used with a structured requirements artifact" },
       { flag: "--requirements <path>", description: "Preserve acceptance-criteria IDs and trace status across loop rounds" },
       { flag: "--format <format>", description: "json or markdown (default: markdown)" },
@@ -272,8 +279,8 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
       "Verifier output can propose hypotheses and proof tasks, but only trusted deterministic, OSS-tool, or runtime evidence can verify criteria.",
       "The loop never auto-commits or auto-pushes. It leaves edits in the working tree for human review.",
       "Agent output is untrusted. CodeDecay re-runs deterministic analysis and configured checks after each agent action.",
-      "Terminal clean verdicts are always qualified: merge-safe-verified has configured checks plus security/coverage/mutation depth, while merge-safe-shallow passed gates but is missing deeper evidence.",
-      "Exit codes: 0 for merge-safe-verified, merge-safe-shallow, or plan-only report generation; 1 for unverified, needs-human, budget-exhausted, unsafe-change, stuck, builder-error, verifier-error, or agent-error; and 2 for CLI/internal errors."
+      "Terminal clean verdicts are always qualified: verified has configured checks plus security/coverage/mutation depth, while shallow-proof passed gates but is missing deeper evidence.",
+      "Exit codes: 0 for verified, shallow-proof, or plan-only report generation; 1 for unverified, needs-human, budget-exhausted, unsafe-change, stuck, builder-error, verifier-error, or agent-error; and 2 for CLI/internal errors."
     ]
   },
   doctor: {

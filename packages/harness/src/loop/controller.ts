@@ -1,5 +1,22 @@
 import { createHash } from "node:crypto";
 import { isMemoryContextFinding } from "@submuxhq/codedecay-core";
+import {
+  appendLoopAuditRecord,
+  createAuditRecordFromRound,
+  defaultLoopAuditPath,
+  loadLoopAuditResumeState,
+  writeLoopAuditSummary
+} from "./audit";
+import {
+  checkChangedFileBudgets,
+  checkModelCallBudget,
+  checkWallTimeBudget,
+  createLoopBudgetState,
+  detectOscillation,
+  detectWideningScope,
+  type LoopBudgetConfig
+} from "./budgets";
+import { mergeHypothesisStatuses, parseVerifierHypothesisProposals } from "./hypotheses";
 import { riskRank } from "./risk";
 import { driveAgent } from "./agent";
 import { changedFilePaths, createChangedFilesFingerprint } from "./fingerprint";
@@ -13,6 +30,7 @@ import type {
   LoopAgentRole,
   LoopAgentResult,
   LoopCheckSnapshot,
+  LoopHypothesisStatusSnapshot,
   LoopRedteamReport,
   LoopReport,
   LoopRoundSnapshot,
@@ -25,6 +43,7 @@ import type {
 interface PreviousAgentRound {
   evidence: LoopProgressSnapshot;
   madeChanges: boolean;
+  changedPaths: string[];
 }
 
 export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopReport> {
@@ -32,17 +51,48 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
   const safeRiskLevel = input.safeRiskLevel ?? "low";
   const securityScoreThreshold = normalizeSecurityScoreThreshold(input.securityScoreThreshold);
   const builderCommand = input.builderCommand ?? input.agentCommand;
+  const nowFn = input.now ?? (() => new Date());
+  const budgetConfig: LoopBudgetConfig = {
+    maxWallTimeMs: input.maxWallTimeMs,
+    maxChangedFiles: input.maxChangedFiles,
+    allowedPathPrefixes: input.allowedPathPrefixes,
+    protectedPathPrefixes: input.protectedPathPrefixes,
+    maxModelCalls: input.maxModelCalls
+  };
+  const budgetState = createLoopBudgetState(nowFn().getTime());
+  const resume = input.resumeFromAuditPath ? loadLoopAuditResumeState(input.resumeFromAuditPath) : undefined;
+  if (resume) {
+    budgetState.modelCalls = resume.modelCalls;
+  }
+  const runId = input.runId ?? resume?.runId ?? `loop-${nowFn().toISOString().replace(/[:.]/g, "-")}`;
+  const auditPath = input.auditPath ?? defaultLoopAuditPath(input.cwd, runId);
   const rounds: LoopRoundSnapshot[] = [];
   let status: LoopStatus = "needs-human";
+  let stopReason: string | undefined = resume?.stopReason;
   let noProgressCount = 0;
   let previousAgentRound: PreviousAgentRound | undefined;
   let latestReport: LoopRedteamReport | undefined;
   let latestChecks: LoopCheckSnapshot | undefined;
   let postAgentVerificationPending = false;
+  let hypothesisStatuses: LoopHypothesisStatusSnapshot[] = [];
 
   for (let roundNumber = 1; roundNumber <= maxRounds; roundNumber += 1) {
+    const wallViolation = checkWallTimeBudget(budgetConfig, budgetState, nowFn().getTime());
+    if (wallViolation) {
+      status = wallViolation.status;
+      stopReason = wallViolation.reason;
+      break;
+    }
+
     const beforeChanges = input.getChangedFiles();
     const beforeFingerprint = createChangedFilesFingerprint(beforeChanges);
+    const scopeViolation = checkChangedFileBudgets(budgetConfig, beforeChanges);
+    if (scopeViolation) {
+      status = scopeViolation.status;
+      stopReason = scopeViolation.reason;
+      break;
+    }
+
     const report = await input.createRedteamReport();
     const checks = await input.runConfiguredChecks();
     latestReport = report;
@@ -50,6 +100,25 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
 
     if (postAgentVerificationPending) {
       recordPostAgentVerification(rounds.at(-1), report, checks);
+      const lastRound = rounds.at(-1);
+      if (lastRound?.stateMachine) {
+        lastRound.stateMachine = createStateMachineSnapshot(
+          "current-tree-reverify",
+          report,
+          checks,
+          createChangedFilesFingerprint(input.getChangedFiles()),
+          [
+            ...(lastRound.stateMachine.decisions ?? []),
+            {
+              phase: "current-tree-reverify",
+              actor: "codedecay",
+              summary: "Revalidated current tree after builder edit with deterministic checks.",
+              evidenceIds: loopEvidenceIds(report, checks)
+            }
+          ],
+          hypothesisStatuses
+        );
+      }
       postAgentVerificationPending = false;
     }
 
@@ -61,7 +130,7 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
         summary: "Current tree analyzed and configured checks captured before any builder edit.",
         evidenceIds: loopEvidenceIds(report, checks)
       }
-    ]);
+    ], hypothesisStatuses);
     rounds.push(round);
 
     if (previousAgentRound?.madeChanges) {
@@ -73,6 +142,16 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
       noProgressCount = riskReduced ? 0 : noProgressCount + 1;
       if (noProgressCount >= 2) {
         status = "stuck";
+        stopReason = "No evidence gain across consecutive builder rounds.";
+        break;
+      }
+      const widen = detectWideningScope(
+        previousAgentRound.changedPaths,
+        changedFilePaths(input.getChangedFiles())
+      );
+      if (widen) {
+        status = widen.status;
+        stopReason = widen.reason;
         break;
       }
     }
@@ -80,23 +159,33 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
     const safeStatus = classifySafeStatus(report, checks, safeRiskLevel, securityScoreThreshold);
     if (safeStatus) {
       status = safeStatus;
+      stopReason = `Trusted proof reached: ${safeStatus}.`;
       break;
     }
 
     if (!builderCommand) {
       round.planOnlyBundle = renderBundle(input, "builder", report);
       status = "plan-only";
+      stopReason = "No builder command configured; emitted a plan-only bundle.";
       round.stateMachine = createStateMachineSnapshot("plan", report, checks, beforeFingerprint, [
         {
           phase: "plan",
           actor: "codedecay",
-          summary: "No builder command configured; emitted a plan-only bundle.",
+          summary: stopReason,
           evidenceIds: loopEvidenceIds(report, checks)
         }
-      ]);
+      ], hypothesisStatuses);
       break;
     }
 
+    const modelBudget = checkModelCallBudget(budgetConfig, budgetState);
+    if (modelBudget) {
+      status = modelBudget.status;
+      stopReason = modelBudget.reason;
+      break;
+    }
+
+    budgetState.modelCalls += 1;
     const agent = await executeAgentRound(input, "builder", report, beforeFingerprint, builderCommand);
     const madeChanges = agent.madeChanges;
     round.agent = agent;
@@ -107,23 +196,92 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
       trusted: false
     }));
     postAgentVerificationPending = madeChanges;
-    round.stateMachine = createStateMachineSnapshot("build-edit", report, checks, createChangedFilesFingerprint(input.getChangedFiles()), [
-      {
-        phase: "build-edit",
-        actor: "builder",
-        summary: madeChanges
-          ? `Builder edited ${agent.changedFiles.length} changed file(s).`
-          : "Builder completed without changing the tree.",
-        evidenceIds: agent.changedFiles.map((file) => `builder-changed:${file}`)
+    const afterBuilderFingerprint = createChangedFilesFingerprint(input.getChangedFiles());
+    const afterBuilderPaths = changedFilePaths(input.getChangedFiles());
+    const postEditScope = checkChangedFileBudgets(budgetConfig, input.getChangedFiles());
+    round.stateMachine = createStateMachineSnapshot(
+      madeChanges ? "repair" : "build-edit",
+      report,
+      checks,
+      afterBuilderFingerprint,
+      [
+        {
+          phase: madeChanges ? "repair" : "build-edit",
+          actor: "builder",
+          summary: madeChanges
+            ? `Builder edited ${agent.changedFiles.length} changed file(s).`
+            : "Builder completed without changing the tree.",
+          evidenceIds: agent.changedFiles.map((file) => `builder-changed:${file}`)
+        }
+      ],
+      hypothesisStatuses
+    );
+
+    if (postEditScope) {
+      status = postEditScope.status;
+      stopReason = postEditScope.reason;
+      persistRoundAudit({
+        auditPath,
+        runId,
+        round,
+        nowFn,
+        budgetState,
+        stopReason,
+        statusHint: status
+      });
+      break;
+    }
+
+    if (madeChanges) {
+      const oscillation = detectOscillation(budgetState, afterBuilderFingerprint);
+      if (oscillation) {
+        status = oscillation.status;
+        stopReason = oscillation.reason;
+        persistRoundAudit({
+          auditPath,
+          runId,
+          round,
+          nowFn,
+          budgetState,
+          stopReason,
+          statusHint: status
+        });
+        break;
       }
-    ]);
+    }
 
     if (agent.status !== "passed") {
       status = "builder-error";
+      stopReason = `Builder command ended with status ${agent.status}.`;
+      persistRoundAudit({
+        auditPath,
+        runId,
+        round,
+        nowFn,
+        budgetState,
+        stopReason,
+        statusHint: status
+      });
       break;
     }
 
     if (input.verifierCommand) {
+      const verifierModelBudget = checkModelCallBudget(budgetConfig, budgetState);
+      if (verifierModelBudget) {
+        status = verifierModelBudget.status;
+        stopReason = verifierModelBudget.reason;
+        persistRoundAudit({
+          auditPath,
+          runId,
+          round,
+          nowFn,
+          budgetState,
+          stopReason,
+          statusHint: status
+        });
+        break;
+      }
+      budgetState.modelCalls += 1;
       const verifier = await executeAgentRound(
         input,
         "verifier",
@@ -132,28 +290,52 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
         input.verifierCommand
       );
       round.verifier = verifier;
+      hypothesisStatuses = mergeHypothesisStatuses(
+        hypothesisStatuses,
+        parseVerifierHypothesisProposals(verifier)
+      );
       if (verifier.madeChanges) {
         status = "unsafe-change";
+        stopReason = `Verifier changed files despite read-only role: ${verifier.changedFiles.join(", ")}.`;
         round.stateMachine = createStateMachineSnapshot("challenge", report, checks, createChangedFilesFingerprint(input.getChangedFiles()), [
           {
             phase: "challenge",
             actor: "verifier",
-            summary: `Verifier changed files despite read-only role: ${verifier.changedFiles.join(", ")}.`,
+            summary: stopReason,
             evidenceIds: verifier.changedFiles.map((file) => `verifier-unsafe-change:${file}`)
           }
-        ]);
+        ], hypothesisStatuses);
+        persistRoundAudit({
+          auditPath,
+          runId,
+          round,
+          nowFn,
+          budgetState,
+          stopReason,
+          statusHint: status
+        });
         break;
       }
       if (verifier.status !== "passed") {
         status = "verifier-error";
+        stopReason = `Verifier command ended with status ${verifier.status}.`;
         round.stateMachine = createStateMachineSnapshot("challenge", report, checks, createChangedFilesFingerprint(input.getChangedFiles()), [
           {
             phase: "challenge",
             actor: "verifier",
-            summary: `Verifier command ended with status ${verifier.status}.`,
+            summary: stopReason,
             evidenceIds: ["verifier:error"]
           }
-        ]);
+        ], hypothesisStatuses);
+        persistRoundAudit({
+          auditPath,
+          runId,
+          round,
+          nowFn,
+          budgetState,
+          stopReason,
+          statusHint: status
+        });
         break;
       }
       round.stateMachine = createStateMachineSnapshot("challenge", report, checks, createChangedFilesFingerprint(input.getChangedFiles()), [
@@ -161,26 +343,50 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
           phase: "challenge",
           actor: "verifier",
           summary: "Verifier challenged the current tree without editing files. Output is advisory until deterministic proof corroborates it.",
-          evidenceIds: ["verifier:challenge-output"]
+          evidenceIds: [
+            "verifier:challenge-output",
+            ...hypothesisStatuses.map((entry) => `hypothesis:${entry.hypothesisId}:${entry.status}`)
+          ]
         }
-      ]);
+      ], hypothesisStatuses);
     }
 
     if (!madeChanges) {
       noProgressCount += 1;
       if (noProgressCount >= 2) {
         status = "stuck";
+        stopReason = "Builder made no file changes twice.";
+        persistRoundAudit({
+          auditPath,
+          runId,
+          round,
+          nowFn,
+          budgetState,
+          stopReason,
+          statusHint: status
+        });
         break;
       }
     }
 
     previousAgentRound = {
       evidence: createLoopProgressSnapshot(report, checks),
-      madeChanges
+      madeChanges,
+      changedPaths: afterBuilderPaths
     };
+
+    persistRoundAudit({
+      auditPath,
+      runId,
+      round,
+      nowFn,
+      budgetState,
+      statusHint: status
+    });
 
     if (roundNumber === maxRounds) {
       status = "needs-human";
+      stopReason = "Max rounds reached before trusted proof.";
     }
   }
 
@@ -194,11 +400,15 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
       previousAgentRound,
       safeRiskLevel,
       securityScoreThreshold,
-      status
+      status,
+      hypothesisStatuses
     );
     finalReport = verification.report;
     finalChecks = verification.checks;
     status = verification.status;
+    if (!stopReason && verification.status !== status) {
+      stopReason = `Final revalidation status: ${verification.status}.`;
+    }
   }
 
   const verdict = createLoopVerdictEvidence(finalReport, finalChecks, safeRiskLevel, securityScoreThreshold, status);
@@ -206,11 +416,11 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
     {
       phase: "terminal-verdict",
       actor: "codedecay",
-      summary: `Loop stopped with status ${status}.`,
+      summary: stopReason ?? `Loop stopped with status ${status}.`,
       evidenceIds: loopEvidenceIds(finalReport, finalChecks)
     }
-  ]);
-  return assembleLoopReport({
+  ], hypothesisStatuses);
+  const reportOut = assembleLoopReport({
     input,
     maxRounds,
     rounds,
@@ -218,8 +428,36 @@ export async function runCodeDecayLoop(input: CodeDecayLoopInput): Promise<LoopR
     finalReport,
     finalChecks,
     verdict,
-    stateMachine: finalStateMachine
+    stateMachine: finalStateMachine,
+    auditPath,
+    stopReason
   });
+  writeLoopAuditSummary(auditPath, reportOut);
+  return reportOut;
+}
+
+function persistRoundAudit(input: {
+  auditPath: string;
+  runId: string;
+  round: LoopRoundSnapshot;
+  nowFn: () => Date;
+  budgetState: ReturnType<typeof createLoopBudgetState>;
+  stopReason?: string | undefined;
+  statusHint?: LoopStatus | undefined;
+}): void {
+  appendLoopAuditRecord(
+    input.auditPath,
+    createAuditRecordFromRound({
+      runId: input.runId,
+      round: input.round,
+      timestamp: input.nowFn().toISOString(),
+      modelCalls: input.budgetState.modelCalls,
+      wallTimeMs: input.nowFn().getTime() - input.budgetState.startedAtMs,
+      fingerprintCount: input.budgetState.fingerprints.length,
+      stopReason: input.stopReason,
+      statusHint: input.statusHint
+    })
+  );
 }
 
 function createRoundSnapshot(
@@ -280,14 +518,15 @@ function createStateMachineSnapshot(
   report: LoopRedteamReport,
   checks: LoopCheckSnapshot,
   changedTreeFingerprint: string,
-  decisions: LoopStateMachineSnapshot["decisions"]
+  decisions: LoopStateMachineSnapshot["decisions"],
+  hypothesisStatuses: LoopHypothesisStatusSnapshot[] = []
 ): LoopStateMachineSnapshot {
   return {
     schemaVersion: 1,
     phase,
     changedTreeFingerprint: hashChangedTreeFingerprint(changedTreeFingerprint),
     requirementStatuses: requirementStatuses(report) ?? [],
-    hypothesisStatuses: [],
+    hypothesisStatuses,
     experimentStatuses: experimentStatuses(checks),
     unresolvedHumanDecisions: unresolvedHumanDecisions(report, checks),
     decisions
@@ -400,6 +639,8 @@ interface AssembleLoopReportInput {
   finalChecks: LoopCheckSnapshot;
   verdict: LoopVerdictEvidence;
   stateMachine: LoopStateMachineSnapshot;
+  auditPath?: string | undefined;
+  stopReason?: string | undefined;
 }
 
 function assembleLoopReport(state: AssembleLoopReportInput): LoopReport {
@@ -416,7 +657,7 @@ function assembleLoopReport(state: AssembleLoopReportInput): LoopReport {
     head: input.head,
     maxRounds,
     roundsRun: rounds.length,
-    planOnly: !input.agentCommand,
+    planOnly: !builderCommand,
     finalRiskLevel: finalReport.summary.riskLevel,
     finalMergeRiskScore: finalReport.summary.mergeRiskScore,
     finalDecayScore: finalReport.summary.decayScore,
@@ -431,6 +672,8 @@ function assembleLoopReport(state: AssembleLoopReportInput): LoopReport {
     requirementTrace: finalReport.requirementTrace,
     rounds,
     nextSteps: nextStepsForStatus(status, verdict),
+    auditPath: state.auditPath,
+    stopReason: state.stopReason,
     safety: {
       commandsExecuted: didExecuteCommands(rounds),
       agentCommandConfigured: Boolean(builderCommand),
@@ -474,7 +717,7 @@ export function classifySafeStatus(
   checks: LoopCheckSnapshot,
   safeRiskLevel: LoopRedteamReport["summary"]["riskLevel"],
   securityScoreThreshold = 0
-): "merge-safe-verified" | "merge-safe-shallow" | "unverified" | undefined {
+): "verified" | "shallow-proof" | "unverified" | undefined {
   const evidence = createLoopVerdictEvidence(report, checks, safeRiskLevel, securityScoreThreshold, "needs-human");
   if (!evidence.riskAllowed || !evidence.weakTestsClear || !evidence.securityScoreAllowed || evidence.highFindingCount > 0) {
     return undefined;
@@ -488,7 +731,7 @@ export function classifySafeStatus(
     return undefined;
   }
 
-  return evidence.missingDepth.length === 0 ? "merge-safe-verified" : "merge-safe-shallow";
+  return evidence.missingDepth.length === 0 ? "verified" : "shallow-proof";
 }
 
 export function createLoopVerdictEvidence(
@@ -645,11 +888,31 @@ async function revalidateFinalAgentEdit(
   previousAgentRound: PreviousAgentRound | undefined,
   safeRiskLevel: LoopRedteamReport["summary"]["riskLevel"],
   securityScoreThreshold: number,
-  currentStatus: LoopStatus
+  currentStatus: LoopStatus,
+  hypothesisStatuses: LoopHypothesisStatusSnapshot[]
 ): Promise<{ report: LoopRedteamReport; checks: LoopCheckSnapshot; status: LoopStatus }> {
   const report = await input.createRedteamReport();
   const checks = await input.runConfiguredChecks();
   recordPostAgentVerification(finalRound, report, checks);
+
+  if (finalRound) {
+    finalRound.stateMachine = createStateMachineSnapshot(
+      "current-tree-reverify",
+      report,
+      checks,
+      createChangedFilesFingerprint(input.getChangedFiles()),
+      [
+        ...(finalRound.stateMachine?.decisions ?? []),
+        {
+          phase: "current-tree-reverify",
+          actor: "codedecay",
+          summary: "Final current-tree revalidation after the last builder edit.",
+          evidenceIds: loopEvidenceIds(report, checks)
+        }
+      ],
+      hypothesisStatuses
+    );
+  }
 
   if (finalRound?.agent?.madeChanges && previousAgentRound?.madeChanges) {
     finalRound.riskReducedFromPreviousRound = didLoopEvidenceImprove(
@@ -732,19 +995,19 @@ function nextStepsForStatus(status: LoopStatus, verdict: LoopVerdictEvidence): s
     case "merge-safe-shallow":
       return [
         "Review the working tree diff and the missing-depth list before merge.",
-        "Enable Semgrep, coverage, and StrykerJS adapters to upgrade this verdict to merge-safe-verified.",
+        "Enable Semgrep, coverage, and StrykerJS adapters to upgrade this verdict to verified.",
         "Treat this as shallow configured-check clean, not a guarantee of production safety."
       ];
     case "unverified":
       return [
         "Add or enable configured checks in .codedecay/config.yml.",
         "Run codedecay loop again after tests/build/probes can execute.",
-        "Do not treat this PR as merge-safe-* until real checks pass."
+        "Do not treat this PR as verified until real checks pass."
       ];
     case "plan-only":
       return [
         "Review the generated agent bundle and fix tasks.",
-        "Run again with --agent-cmd only after configuring a user-owned local agent command.",
+        "Run again with --agent-cmd or --builder-cmd only after configuring a user-owned local agent command.",
         "Keep safety.allowCommands false unless you explicitly want CodeDecay to run local commands."
       ];
     case "stuck":
@@ -768,7 +1031,7 @@ function nextStepsForStatus(status: LoopStatus, verdict: LoopVerdictEvidence): s
     case "builder-error":
     case "agent-error":
       return [
-        "Fix the configured --agent-cmd or safety.allowCommands settings.",
+        "Fix the configured --agent-cmd/--builder-cmd or safety.allowCommands settings.",
         "Remember agent output is untrusted until deterministic checks pass.",
         "Run in plan-only mode to inspect the prompt that would be sent."
       ];

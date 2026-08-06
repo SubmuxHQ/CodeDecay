@@ -67,6 +67,13 @@ export async function runLoopCommand(
     safeRiskLevel: options.safeRiskLevel,
     securityScoreThreshold: options.securityScoreThreshold,
     agentTimeoutMs: loadedConfig.config.safety.commandTimeoutMs,
+    maxWallTimeMs: options.maxWallTimeMs,
+    maxChangedFiles: options.maxChangedFiles,
+    maxModelCalls: options.maxModelCalls,
+    allowedPathPrefixes: options.allowedPaths,
+    protectedPathPrefixes: options.protectedPaths,
+    resumeFromAuditPath: options.resumeFrom,
+    runId: options.runId,
     commandSafety: {
       allowCommands: loadedConfig.config.safety.allowCommands,
       capabilityPolicy: loadedConfig.config.safety.capabilityPolicy

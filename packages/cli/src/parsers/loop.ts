@@ -186,6 +186,76 @@ export function parseLoopArgs(args: string[]): LoopOptions {
       continue;
     }
 
+    if (arg.startsWith("--max-wall-time-ms=")) {
+      options.maxWallTimeMs = parsePositiveInt(arg.slice("--max-wall-time-ms=".length), "--max-wall-time-ms");
+      continue;
+    }
+    if (arg === "--max-wall-time-ms") {
+      options.maxWallTimeMs = parsePositiveInt(requireValue(args, index, arg), "--max-wall-time-ms");
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--max-changed-files=")) {
+      options.maxChangedFiles = parsePositiveInt(arg.slice("--max-changed-files=".length), "--max-changed-files");
+      continue;
+    }
+    if (arg === "--max-changed-files") {
+      options.maxChangedFiles = parsePositiveInt(requireValue(args, index, arg), "--max-changed-files");
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--max-model-calls=")) {
+      options.maxModelCalls = parsePositiveInt(arg.slice("--max-model-calls=".length), "--max-model-calls");
+      continue;
+    }
+    if (arg === "--max-model-calls") {
+      options.maxModelCalls = parsePositiveInt(requireValue(args, index, arg), "--max-model-calls");
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--allowed-path=")) {
+      options.allowedPaths = [...(options.allowedPaths ?? []), arg.slice("--allowed-path=".length)];
+      continue;
+    }
+    if (arg === "--allowed-path") {
+      options.allowedPaths = [...(options.allowedPaths ?? []), requireValue(args, index, arg)];
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--protected-path=")) {
+      options.protectedPaths = [...(options.protectedPaths ?? []), arg.slice("--protected-path=".length)];
+      continue;
+    }
+    if (arg === "--protected-path") {
+      options.protectedPaths = [...(options.protectedPaths ?? []), requireValue(args, index, arg)];
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--resume-from=")) {
+      options.resumeFrom = arg.slice("--resume-from=".length);
+      continue;
+    }
+    if (arg === "--resume-from") {
+      options.resumeFrom = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--run-id=")) {
+      options.runId = arg.slice("--run-id=".length);
+      continue;
+    }
+    if (arg === "--run-id") {
+      options.runId = requireValue(args, index, arg);
+      index += 1;
+      continue;
+    }
+
     throwUnknownOption(arg, "loop");
   }
 
@@ -216,4 +286,12 @@ function parseSecurityScoreThreshold(value: string): number {
   }
 
   throw new Error(`Invalid --max-security-score "${value}". Expected a number from 0 to 100.`);
+}
+
+function parsePositiveInt(value: string, flag: string): number {
+  const parsed = Number(value);
+  if (Number.isInteger(parsed) && parsed > 0) {
+    return parsed;
+  }
+  throw new Error(`Invalid ${flag} "${value}". Expected a positive integer.`);
 }

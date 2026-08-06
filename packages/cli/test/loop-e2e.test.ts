@@ -31,7 +31,7 @@ describe("codedecay loop real edit convergence", () => {
     const report = JSON.parse(result.stdout) as LoopReport;
 
     expect(result.exitCode).toBe(0);
-    expect(report.status.startsWith("merge-safe-")).toBe(true);
+    expect(["verified", "shallow-proof"]).toContain(report.status);
     expect(report.rounds).toHaveLength(1);
     expect(report.rounds[0]?.agent?.madeChanges).toBe(true);
     expect(report.rounds[0]?.postAgentVerification).toMatchObject({
@@ -42,7 +42,7 @@ describe("codedecay loop real edit convergence", () => {
     expect(readFileSync(join(repo, ".git/codedecay-agent-runs"), "utf8")).toBe("x");
   });
 
-  it("drives a deterministic agent script from weak test to merge-safe-*", async () => {
+  it("drives a deterministic agent script from weak test to verified/shallow-proof", async () => {
     const repo = createLoopConvergenceRepo();
 
     const result = await run([
@@ -62,7 +62,7 @@ describe("codedecay loop real edit convergence", () => {
 
     expect(result.stderr).toBe("");
     expect(result.exitCode).toBe(0);
-    expect(report.status.startsWith("merge-safe-")).toBe(true);
+    expect(["verified", "shallow-proof"]).toContain(report.status);
     expect(report.rounds.length).toBeGreaterThanOrEqual(2);
     expect(report.rounds[0]?.weakTestFindings).toBeGreaterThan(report.rounds.at(-1)?.weakTestFindings ?? 0);
     expect(report.rounds[0]?.mergeRiskScore).toBeGreaterThan(report.rounds.at(-1)?.mergeRiskScore ?? 0);
