@@ -34,6 +34,7 @@ import { runMigrationSafetyTool } from "./handlers/migration-safety";
 import { runConcurrencySafetyTool } from "./handlers/concurrency-safety";
 import { runStateSpaceSafetyTool } from "./handlers/state-space-safety";
 import { runResilienceSafetyTool } from "./handlers/resilience-safety";
+import { runPolicyDecisionTool } from "./handlers/policy-decision";
 import type { StartMcpServerOptions } from "./server/types";
 import { registerCodeDecayMcpTools } from "./tools/registry";
 
@@ -65,6 +66,7 @@ export { runMigrationSafetyTool } from "./handlers/migration-safety";
 export { runConcurrencySafetyTool } from "./handlers/concurrency-safety";
 export { runStateSpaceSafetyTool } from "./handlers/state-space-safety";
 export { runResilienceSafetyTool } from "./handlers/resilience-safety";
+export { runPolicyDecisionTool } from "./handlers/policy-decision";
 export {
   runProductFailuresTool,
   runProductPlanTool,
@@ -103,6 +105,7 @@ export function createCodeDecayMcpServer(options: StartMcpServerOptions): McpSer
     concurrencySafety: (input) => runConcurrencySafetyTool(options, input),
     stateSpaceSafety: (input) => runStateSpaceSafetyTool(options, input),
     resilienceSafety: (input) => runResilienceSafetyTool(options, input),
+    policyDecision: (input) => runPolicyDecisionTool(options, input),
     agentInvestigation: (input) => runAgentInvestigationTool(options, input),
     scopeCheck: (input) => runScopeCheckTool(options, input),
     designContractCheck: (input) => runDesignContractCheckTool(options, input),

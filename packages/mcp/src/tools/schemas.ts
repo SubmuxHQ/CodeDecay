@@ -193,6 +193,21 @@ export const resilienceSafetyToolSchema = {
   cleanupPlan: z.string().optional().describe("Disposable target cleanup plan.")
 };
 
+export const policyDecisionToolSchema = {
+  cwd: cwdSchema,
+  format: formatSchema,
+  policyDirs: z.array(z.string()).optional().describe("Repo-local engineering policy directories."),
+  orgPolicyDirs: z.array(z.string()).optional().describe("Optional local organization policy directories."),
+  approvalDirs: z.array(z.string()).optional().describe("Approval record directories."),
+  exceptionDirs: z.array(z.string()).optional().describe("Exception record directories."),
+  changedPaths: z.array(z.string()).optional().describe("Changed paths for the decision."),
+  changeClass: z
+    .enum(["docs", "migration", "source", "protected-path", "test", "config", "unknown"])
+    .optional()
+    .describe("Optional explicit change class."),
+  now: z.string().optional().describe("ISO timestamp override for expiry checks.")
+};
+
 export const agentSessionToolSchema = {
   cwd: cwdSchema,
   operation: z.enum(["start", "context", "checkpoint", "finish"]).describe("Session lifecycle operation."),

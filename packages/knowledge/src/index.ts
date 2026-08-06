@@ -151,6 +151,20 @@ export type {
   ResilienceTargetKind,
   ResilienceVerdict
 } from "./resilience/types";
+export { analyzePolicyDecision } from "./policy/analyze";
+export type { AnalyzePolicyDecisionOptions } from "./policy/analyze";
+export { loadApprovalRecords, loadEngineeringPolicies, loadExceptionRecords } from "./policy/load";
+export { inferChangeClass, resolveApplicablePolicies } from "./policy/resolve";
+export { renderPolicyDecisionMarkdown } from "./policy/render";
+export { ENGINEERING_POLICY_SCHEMA_VERSION } from "./policy/types";
+export type {
+  ApprovalRecord,
+  EngineeringPolicy,
+  ExceptionRecord,
+  PolicyChangeClass,
+  PolicyDecisionReport,
+  PolicyVerdict
+} from "./policy/types";
 export type { IngestRuntimeEvidenceOptions } from "./runtime/ingest";
 export { renderRuntimeEvidenceMarkdown } from "./runtime/render";
 export { RUNTIME_EVIDENCE_SCHEMA_VERSION } from "./runtime/types";

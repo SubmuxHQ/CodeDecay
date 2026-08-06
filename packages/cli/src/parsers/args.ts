@@ -16,6 +16,7 @@ export { parseMigrationArgs } from "./migration";
 export { parseConcurrencyArgs } from "./concurrency";
 export { parseStateSpaceArgs } from "./state-space";
 export { parseResilienceArgs } from "./resilience";
+export { parsePolicyArgs } from "./policy";
 export { parseRevalidateArgs } from "./revalidate";
 export { parseRuntimeArgs } from "./runtime";
 export { parseProductArgs } from "./product";

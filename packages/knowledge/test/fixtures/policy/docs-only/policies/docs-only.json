@@ -1,0 +1,19 @@
+{
+  "id": "docs-only",
+  "version": 1,
+  "schemaVersion": 1,
+  "owner": "@docs",
+  "rationale": "Docs changes only need docs ownership.",
+  "source": "repository",
+  "precedence": 10,
+  "effectiveAt": "2026-01-01T00:00:00.000Z",
+  "scopes": [
+    { "kind": "change-class", "match": "docs" },
+    { "kind": "path", "match": "docs/**" }
+  ],
+  "requiredEvidence": [],
+  "requiredApprovers": [],
+  "forbiddenActions": [],
+  "protectedPaths": [],
+  "allowedTools": ["*"]
+}

@@ -18,7 +18,8 @@ import {
   migrationSafetyToolSchema,
   concurrencySafetyToolSchema,
   stateSpaceSafetyToolSchema,
-  resilienceSafetyToolSchema
+  resilienceSafetyToolSchema,
+  policyDecisionToolSchema
 } from "./schemas";
 import type {
   AgentPreflightToolInput,
@@ -39,7 +40,8 @@ import type {
   MigrationSafetyToolInput,
   ConcurrencySafetyToolInput,
   StateSpaceSafetyToolInput,
-  ResilienceSafetyToolInput
+  ResilienceSafetyToolInput,
+  PolicyDecisionToolInput
 } from "./types";
 
 export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayMcpToolHandlers): void {
@@ -174,6 +176,13 @@ export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayM
     "Evaluate bounded fault/mixed-version resilience matrices. Does not inject chaos or intercept production traffic.",
     resilienceSafetyToolSchema,
     async (input) => textResult(handlers.resilienceSafety(input as ResilienceSafetyToolInput))
+  );
+
+  server.tool(
+    "policy_decision",
+    "Resolve scoped engineering policies, approvals, and exceptions into a deterministic decision. Local-only; no identity provider or policy download.",
+    policyDecisionToolSchema,
+    async (input) => textResult(handlers.policyDecision(input as PolicyDecisionToolInput))
   );
 
   server.tool(
