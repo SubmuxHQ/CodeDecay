@@ -185,6 +185,7 @@ function checkKitFiles(checks) {
     "facilitator-runbook.md",
     "outreach.md",
     "session-checklist.md",
+    "live-session.md",
     "tasks.json",
     "fixtures.md",
     "result-templates/ai-assisted-individual.template.json",
