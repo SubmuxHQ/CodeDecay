@@ -64,6 +64,9 @@ jobs:
       - name: Package dry-run
         run: pnpm --filter @submuxhq/codedecay pack --dry-run
 
+      - name: Human UAT deterministic smoke
+        run: node scripts/human-uat-smoke.mjs --run-id ci
+
       - name: Child repository end-to-end acceptance
         run: node scripts/child-repo-e2e.mjs --run-id ci
 

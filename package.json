@@ -21,6 +21,7 @@
     "eval:benchmark": "vitest run packages/cli/test/benchmark-corpus.test.ts",
     "eval:pr-safety": "pnpm build:packages && node scripts/pr-safety-eval.mjs",
     "eval:agent-efficacy": "pnpm build:packages && node scripts/agent-efficacy-eval.mjs",
+    "test:human-uat-smoke": "pnpm build:packages && node scripts/human-uat-smoke.mjs",
     "gen:launch": "node scripts/gen-launch.mjs",
     "judge-lab:evidence": "pnpm build:packages && node scripts/generate-judge-lab-evidence.mjs",
     "judge-lab:evidence:check": "node scripts/generate-judge-lab-evidence.mjs --check",
