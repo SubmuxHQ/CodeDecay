@@ -21,3 +21,4 @@ export * from "./revalidate";
 export * from "./runtime";
 export * from "./session";
 export * from "./snapshot";
+export * from "./topology";

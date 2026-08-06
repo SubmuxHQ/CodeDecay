@@ -19,5 +19,6 @@ export { parseProductArgs } from "./product";
 export { parseRedteamArgs } from "./redteam";
 export { parseSessionArgs } from "./session";
 export { parseSnapshotArgs } from "./snapshot";
+export { parseTopologyArgs } from "./topology";
 export { parseUninstallArgs, parseUpdateArgs } from "./maintenance";
 export { HelpRequested } from "./shared";

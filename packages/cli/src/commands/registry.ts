@@ -23,6 +23,7 @@ import { runRevalidateCommand as runRevalidateCommandWithDependencies } from "./
 import { runRuntimeCommand as runRuntimeCommandWithDependencies } from "./runtime";
 import { runSessionCommand as runSessionCommandWithDependencies } from "./session";
 import { runSnapshotCommand as runSnapshotCommandWithDependencies } from "./snapshot";
+import { runTopologyCommand as runTopologyCommandWithDependencies } from "./topology";
 import { createProductTargetReport as createProductTargetReportWithRuntime } from "../product/runtime";
 import { renderProductTargetReport } from "../renderers/product-target-report";
 import {
@@ -135,6 +136,10 @@ export function createCommandHandlers(options: CommandRegistryOptions): Record<s
     }),
     snapshot: (context) => runSnapshotCommandWithDependencies(context, {
       createAnalysisContext: createAnalysisContextForCli,
+      resolveRepoRoot: getRepoRootForCli,
+      writeOutput: writeCliOutput
+    }),
+    topology: (context) => runTopologyCommandWithDependencies(context, {
       resolveRepoRoot: getRepoRootForCli,
       writeOutput: writeCliOutput
     })

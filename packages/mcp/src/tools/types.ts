@@ -47,6 +47,22 @@ export interface ContextServiceToolInput {
   waitBudgetMs?: number | undefined;
 }
 
+export interface ServiceTopologyToolInput {
+  cwd?: string | undefined;
+  format?: "markdown" | "json" | undefined;
+  manifest?: string | undefined;
+  openapi?: string[] | undefined;
+  asyncapi?: string[] | undefined;
+  localGraph?: string | undefined;
+  changed?: string[] | undefined;
+  invalidate?: string[] | undefined;
+  repositoryId?: string | undefined;
+  revision?: string | undefined;
+  producerServiceId?: string | undefined;
+  publisherServiceId?: string | undefined;
+  subscriberServiceId?: string | undefined;
+}
+
 export interface AgentSessionToolInput {
   cwd?: string | undefined;
   operation: "start" | "context" | "checkpoint" | "finish";

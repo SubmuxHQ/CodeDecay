@@ -52,6 +52,17 @@ export {
 } from "./topology/manifest";
 export { analyzeServiceTopologyImpact, renderServiceTopologyImpactMarkdown } from "./topology/impact";
 export {
+  buildServiceTopologyReport,
+  createTopologyAgentTasks,
+  mergeTopologyGraphs,
+  renderServiceTopologyReportMarkdown
+} from "./topology/compose";
+export { parseOpenApiTopology, topologyContractId } from "./topology/contracts/openapi";
+export { parseAsyncApiTopology } from "./topology/contracts/asyncapi";
+export type { BuildServiceTopologyOptions, ServiceTopologyAgentTask, ServiceTopologyReport } from "./topology/compose";
+export type { ParseOpenApiTopologyOptions } from "./topology/contracts/openapi";
+export type { ParseAsyncApiTopologyOptions } from "./topology/contracts/asyncapi";
+export {
   SERVICE_TOPOLOGY_EDGE_KINDS,
   SERVICE_TOPOLOGY_NODE_KINDS,
   SERVICE_TOPOLOGY_SCHEMA_VERSION

@@ -38,6 +38,39 @@ export const ANALYSIS_COMMAND_DOCS: Record<string, CommandDoc> = {
     ],
     notes: ["Inputs must resolve inside the repository. The command performs no network calls or project command execution."]
   },
+  topology: {
+    name: "topology",
+    summary: "Model cross-repository services and deployment dependencies.",
+    usage: ["codedecay topology [options]"],
+    description: [
+      "Load a reviewable topology manifest plus local OpenAPI/AsyncAPI contracts, merge repository-local graph evidence, and report downstream consumers, owners, deployments, and verification gaps.",
+      "Local-only: no repository cloning, remote $ref fetch, network discovery, model calls, installs, or telemetry."
+    ],
+    options: [
+      { flag: "--manifest <path>", description: "Repo-local topology YAML/JSON manifest" },
+      { flag: "--openapi <path>", description: "Repo-local OpenAPI 3 contract; repeatable" },
+      { flag: "--asyncapi <path>", description: "Repo-local AsyncAPI 2/3 contract; repeatable" },
+      { flag: "--local-graph <path>", description: "Optional engineering/impact graph JSON to link as contains edges" },
+      { flag: "--changed <node-id>", description: "Changed topology node id; repeatable" },
+      { flag: "--invalidate <path>", description: "Contract/manifest path to incrementally rebuild; repeatable" },
+      { flag: "--repository-id <id>", description: "Repository id stamped onto contract-derived nodes" },
+      { flag: "--revision <rev>", description: "Source revision stamped onto contract-derived nodes" },
+      { flag: "--producer-service <id>", description: "Optional service id that produces OpenAPI operations" },
+      { flag: "--publisher-service <id>", description: "Optional service id that publishes AsyncAPI channels" },
+      { flag: "--subscriber-service <id>", description: "Optional service id that subscribes to AsyncAPI channels" },
+      { flag: "--cwd <path>", description: "Repository working directory (default: current directory)" },
+      { flag: "--format <format>", description: "json or markdown (default: markdown)" },
+      { flag: "--output <path>", description: "Write the topology report to a file instead of stdout" }
+    ],
+    examples: [
+      "codedecay topology --manifest topology.yml --changed api:billing:v1 --format json",
+      "codedecay topology --manifest topology.yml --openapi docs/openapi.yaml --asyncapi docs/asyncapi.yaml --invalidate docs/openapi.yaml"
+    ],
+    notes: [
+      "Stale and inferred dependencies remain untrusted and emit corroboration tasks instead of merge-safe proof.",
+      "Normalized artifacts are written to `.codedecay/local/service-topology.json`."
+    ]
+  },
   analyze: {
     name: "analyze",
     summary: "Deterministic PR risk, impact, and decay report.",
