@@ -115,6 +115,22 @@ export const contextServiceToolSchema = {
   waitBudgetMs: z.number().int().nonnegative().optional().describe("Max wait for an in-flight index update.")
 };
 
+export const serviceTopologyToolSchema = {
+  cwd: cwdSchema,
+  format: formatSchema,
+  manifest: z.string().optional().describe("Repo-local topology YAML/JSON manifest."),
+  openapi: z.array(z.string()).optional().describe("Repo-local OpenAPI 3 contracts."),
+  asyncapi: z.array(z.string()).optional().describe("Repo-local AsyncAPI 2/3 contracts."),
+  localGraph: z.string().optional().describe("Optional local engineering/impact graph JSON."),
+  changed: z.array(z.string()).optional().describe("Changed topology node ids."),
+  invalidate: z.array(z.string()).optional().describe("Contract/manifest paths to incrementally rebuild."),
+  repositoryId: z.string().optional().describe("Repository id for contract-derived nodes."),
+  revision: z.string().optional().describe("Source revision for contract-derived nodes."),
+  producerServiceId: z.string().optional().describe("Optional OpenAPI producer service id."),
+  publisherServiceId: z.string().optional().describe("Optional AsyncAPI publisher service id."),
+  subscriberServiceId: z.string().optional().describe("Optional AsyncAPI subscriber service id.")
+};
+
 export const agentSessionToolSchema = {
   cwd: cwdSchema,
   operation: z.enum(["start", "context", "checkpoint", "finish"]).describe("Session lifecycle operation."),

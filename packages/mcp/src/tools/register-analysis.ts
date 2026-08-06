@@ -12,7 +12,8 @@ import {
   gitContextToolSchema,
   scopeCheckToolSchema,
   taskContextToolSchema,
-  contextServiceToolSchema
+  contextServiceToolSchema,
+  serviceTopologyToolSchema
 } from "./schemas";
 import type {
   AgentPreflightToolInput,
@@ -27,7 +28,8 @@ import type {
   ScopeCheckToolInput,
   TaskContextToolInput,
   WhatDidIMissToolInput,
-  ContextServiceToolInput
+  ContextServiceToolInput,
+  ServiceTopologyToolInput
 } from "./types";
 
 export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayMcpToolHandlers): void {
@@ -120,6 +122,13 @@ export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayM
     "Query the local incremental context service (health/query/rebuild/start). Local-only; no model, network, telemetry, or project-command calls.",
     contextServiceToolSchema,
     async (input) => textResult(handlers.contextService(input as ContextServiceToolInput))
+  );
+
+  server.tool(
+    "service_topology",
+    "Build cross-repository service topology impact from local manifests and OpenAPI/AsyncAPI contracts. Local-only; no clone, network, model, or telemetry calls.",
+    serviceTopologyToolSchema,
+    async (input) => textResult(handlers.serviceTopology(input as ServiceTopologyToolInput))
   );
 
   server.tool(
