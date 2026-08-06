@@ -14,7 +14,8 @@ import {
   taskContextToolSchema,
   contextServiceToolSchema,
   serviceTopologyToolSchema,
-  runtimeEvidenceToolSchema
+  runtimeEvidenceToolSchema,
+  migrationSafetyToolSchema
 } from "./schemas";
 import type {
   AgentPreflightToolInput,
@@ -31,7 +32,8 @@ import type {
   WhatDidIMissToolInput,
   ContextServiceToolInput,
   ServiceTopologyToolInput,
-  RuntimeEvidenceToolInput
+  RuntimeEvidenceToolInput,
+  MigrationSafetyToolInput
 } from "./types";
 
 export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayMcpToolHandlers): void {
@@ -138,6 +140,13 @@ export function registerAnalysisMcpTools(server: McpServer, handlers: CodeDecayM
     "Ingest local OpenTelemetry/error exports as redacted runtime evidence. Local-only; historical evidence cannot prove the current tree.",
     runtimeEvidenceToolSchema,
     async (input) => textResult(handlers.runtimeEvidence(input as RuntimeEvidenceToolInput))
+  );
+
+  server.tool(
+    "migration_safety",
+    "Plan-only PostgreSQL migration safety analysis with mixed-version matrix, target gates, and cleanup obligations. Does not connect to a database.",
+    migrationSafetyToolSchema,
+    async (input) => textResult(handlers.migrationSafety(input as MigrationSafetyToolInput))
   );
 
   server.tool(

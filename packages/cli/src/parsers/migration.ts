@@ -8,6 +8,10 @@ export function parseMigrationArgs(args: string[]): MigrationOptions {
     const arg = args[index];
     if (!arg) continue;
     if (arg === "--help" || arg === "-h") throw new HelpRequested();
+    if (arg === "--rollback-failed") {
+      options.rollbackFailed = true;
+      continue;
+    }
     const [flag, inline] = splitArg(arg);
     const value = () => inline ?? requireValue(args, index, flag);
     if (flag === "--file") options.files.push(value());
@@ -16,7 +20,14 @@ export function parseMigrationArgs(args: string[]): MigrationOptions {
     else if (flag === "--output") options.output = value();
     else if (flag === "--format") options.format = parseFormat(value());
     else if (flag === "--target-kind") options.targetKind = parseTarget(value());
-    else { throwUnknownOption(arg, "migration"); continue; }
+    else if (flag === "--connection-url") options.connectionUrl = value();
+    else if (flag === "--connection-host") options.connectionHost = value();
+    else if (flag === "--database-url-env") options.databaseUrlEnv = value();
+    else if (flag === "--cleanup-plan") options.cleanupPlan = value();
+    else {
+      throwUnknownOption(arg, "migration");
+      continue;
+    }
     if (inline === undefined) index += 1;
   }
   return options;

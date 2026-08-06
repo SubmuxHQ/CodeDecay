@@ -8,4 +8,9 @@ export interface MigrationOptions {
   targetKind: MigrationTargetKind;
   format: ConfigFormat;
   output?: string | undefined;
+  connectionUrl?: string | undefined;
+  connectionHost?: string | undefined;
+  databaseUrlEnv?: string | undefined;
+  cleanupPlan?: string | undefined;
+  rollbackFailed?: boolean | undefined;
 }
