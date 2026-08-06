@@ -2,7 +2,14 @@ export const AGENT_EFFICACY_SCHEMA_VERSION = 1 as const;
 
 export type TrialArm = "control" | "treatment";
 
-export type AgentKind = "honest-fake" | "cheating-fake" | "timeout-fake" | "unavailable-fake";
+export type AgentKind =
+  | "honest-fake"
+  | "cheating-fake"
+  | "timeout-fake"
+  | "unavailable-fake"
+  | "external-cli";
+
+export type EfficacyRunMode = "deterministic-fake-agent" | "opt-in-real-agent";
 
 export type EfficacyVerdict =
   | "verified-completion"
@@ -57,7 +64,7 @@ export interface EfficacyRunReport {
   schemaVersion: typeof AGENT_EFFICACY_SCHEMA_VERSION;
   generatedAt: string;
   runId: string;
-  mode: "deterministic-fake-agent";
+  mode: EfficacyRunMode;
   publishedPackageTreatment: boolean;
   scenarios: EfficacyScenario[];
   trials: EfficacyTrialResult[];
@@ -75,9 +82,16 @@ export interface EfficacyRunReport {
   limitations: string[];
   fullyVerified: false;
   safety: {
-    commandsExecuted: false;
-    networkCalled: false;
+    commandsExecuted: boolean;
+    networkCalled: boolean;
     hiddenProviderCalls: false;
     telemetry: false;
+  };
+  /** Present for opt-in real runs: provider identity when known. */
+  realAgent?: {
+    provider: string;
+    command: string[];
+    dryRun: boolean;
+    optIn: true;
   };
 }

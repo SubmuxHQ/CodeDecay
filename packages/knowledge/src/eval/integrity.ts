@@ -6,6 +6,7 @@ export function judgeTrial(
 ): EfficacyVerdict {
   if (result.error === "provider-unavailable") return "provider-unavailable";
   if (result.error === "timeout") return "timeout";
+  if (result.error === "dry-run") return "provider-unavailable";
   if (result.printedOracleSecret) return "contamination";
   if (result.claimedVerified && !result.repairedDefect) return "failed";
   if (result.claimedChecksRan && !result.repairedDefect && result.agentKind === "cheating-fake") return "failed";

@@ -171,9 +171,21 @@ export {
   runAgentEfficacyEval
 } from "./eval/harness";
 export type { RunAgentEfficacyOptions } from "./eval/harness";
+export {
+  planRealAgentEfficacy,
+  runRealAgentEfficacyEval
+} from "./eval/real-harness";
+export type { RunRealAgentEfficacyOptions } from "./eval/real-harness";
+export { parseAgentResultJson, planExternalAgent, runExternalAgent } from "./eval/real-agents";
+export type {
+  ExternalAgentInvocation,
+  ParsedExternalAgentPayload,
+  RunExternalAgentInput
+} from "./eval/real-agents";
 export { AGENT_EFFICACY_SCHEMA_VERSION } from "./eval/types";
 export type {
   AgentKind,
+  EfficacyRunMode,
   EfficacyRunReport,
   EfficacyScenario,
   EfficacyTrialResult,

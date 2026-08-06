@@ -13,6 +13,7 @@ sample results, or the deterministic CI smoke as human acceptance evidence.
 | `consent-privacy.md` | Consent + no telemetry / no secret collection |
 | `facilitator-runbook.md` | How to schedule and run sessions |
 | `outreach.md` | Invite copy for independent participants |
+| `outreach-messages.md` | Ready-to-send messages for the three roles |
 | `session-checklist.md` | Live-session facilitator checklist |
 | `live-session.md` | One-command session workspace + recruit/run ops |
 | `fixtures.md` | Planted / decoy / unsafe fixture guide |
