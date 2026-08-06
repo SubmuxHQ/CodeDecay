@@ -7,8 +7,21 @@ export function parseContextArgs(args: string[]): ContextOptions {
     format: "markdown"
   };
   const valueParsers = createContextValueParsers(options);
+  let index = 0;
+  const first = args[0];
+  if (
+    first === "serve" ||
+    first === "health" ||
+    first === "query" ||
+    first === "rebuild" ||
+    first === "reset" ||
+    first === "stop"
+  ) {
+    options.serviceAction = first;
+    index = 1;
+  }
 
-  for (let index = 0; index < args.length; index += 1) {
+  for (; index < args.length; index += 1) {
     const arg = args[index];
 
     if (!arg) {
@@ -62,6 +75,12 @@ function createContextValueParsers(options: ContextOptions): Record<string, (val
     },
     "--task": (value) => {
       options.task = value;
+    },
+    "--session-id": (value) => {
+      options.sessionId = value;
+    },
+    "--wait-budget-ms": (value) => {
+      options.waitBudgetMs = parsePositiveInteger(value, "--wait-budget-ms");
     }
   };
 }

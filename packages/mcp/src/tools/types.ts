@@ -39,6 +39,14 @@ export interface TaskContextToolInput extends McpToolInput {
   maxNodes?: number | undefined;
 }
 
+export interface ContextServiceToolInput {
+  cwd?: string | undefined;
+  operation?: "health" | "query" | "rebuild" | "start" | undefined;
+  sessionId?: string | undefined;
+  task?: string | undefined;
+  waitBudgetMs?: number | undefined;
+}
+
 export interface AgentSessionToolInput {
   cwd?: string | undefined;
   operation: "start" | "context" | "checkpoint" | "finish";

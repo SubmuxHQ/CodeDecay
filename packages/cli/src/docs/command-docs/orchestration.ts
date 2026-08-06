@@ -42,14 +42,20 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
   },
   context: {
     name: "context",
-    summary: "Retrieve bounded task-scoped engineering context for user-owned agents.",
-    usage: ["codedecay context --task <description> [options]"],
+    summary: "Retrieve bounded task-scoped engineering context or run the local incremental context service.",
+    usage: [
+      "codedecay context --task <description> [options]",
+      "codedecay context serve|health|query|rebuild|reset|stop [options]"
+    ],
     description: [
       "Build an inspectable task-scoped context packet from existing CodeDecay evidence: requirements, impact graph nodes, route/API evidence, symbols, tests, memory, docs/ADRs, CODEOWNERS, config, package manifests, and verification evidence.",
-      "Use this before or during implementation when an agent needs the smallest relevant set of repository facts and historical context instead of a whole-repo dump."
+      "Service subcommands start/query a long-lived local incremental context index (no network bind, no model/network/telemetry calls)."
     ],
     options: [
-      { flag: "--task <text>", description: "Required task/change description used for deterministic retrieval" },
+      { flag: "--task <text>", description: "Required for one-shot retrieval; optional for service query sessions" },
+      { flag: "serve|health|query|rebuild|reset|stop", description: "Local context service operations" },
+      { flag: "--session-id <id>", description: "Isolate task state for concurrent agent sessions over a shared index" },
+      { flag: "--wait-budget-ms <n>", description: "Max wait for an in-flight index update during query" },
       { flag: "--requirements <path>", description: "Optional repo-local JSON, YAML, or Markdown requirements artifact" },
       { flag: "--base <ref>", description: "Base git ref to compare from when a diff should influence context" },
       { flag: "--head <ref>", description: "Head git ref to compare to when a diff should influence context" },
@@ -60,13 +66,13 @@ export const ORCHESTRATION_COMMAND_DOCS: Record<string, CommandDoc> = {
     ],
     examples: [
       "codedecay context --task \"Allow finance admins to retry failed payouts\" --format markdown",
-      "codedecay context --task \"Change payout retry formatting\" --base main --head HEAD --format json",
-      "codedecay context --task \"Add billing export\" --requirements .codedecay/requirements.yml --max-nodes 16"
+      "codedecay context serve --format json",
+      "codedecay context query --session-id agent-a --task \"fix payouts\" --format json",
+      "codedecay context health --format json"
     ],
     notes: [
       "Context retrieval is deterministic lexical plus graph-neighbor ranking. It does not call models, embeddings, hosted services, network APIs, or telemetry.",
-      "The command refreshes local analysis artifacts but does not execute configured project commands or tool adapters.",
-      "Memory and documents are shown with trust class and limitations; they cannot become trusted proof without current-revision evidence.",
+      "The local context service reuses knowledge-graph artifacts, process-locks updates, and never returns stale evidence labeled as current.",
       "The inspectable artifact is written to `.codedecay/local/task-context.json`."
     ]
   },

@@ -18,7 +18,8 @@ import type {
   RegressionSurfaceToolInput,
   ScopeCheckToolInput,
   TaskContextToolInput,
-  WhatDidIMissToolInput
+  WhatDidIMissToolInput,
+  ContextServiceToolInput
 } from "./types";
 
 export interface CodeDecayMcpToolHandlers {
@@ -33,6 +34,7 @@ export interface CodeDecayMcpToolHandlers {
   agentPreflight(input: AgentPreflightToolInput): string | Promise<string>;
   agentSession(input: AgentSessionToolInput): string | Promise<string>;
   taskContext(input: TaskContextToolInput): string | Promise<string>;
+  contextService(input: ContextServiceToolInput): string | Promise<string>;
   agentInvestigation(input: AgentInvestigationToolInput): string | Promise<string>;
   scopeCheck(input: ScopeCheckToolInput): string | Promise<string>;
   designContractCheck(input: DesignContractCheckToolInput): string | Promise<string>;

@@ -9,4 +9,7 @@ export interface ContextOptions {
   task?: string | undefined;
   requirements?: string | undefined;
   maxNodes?: number | undefined;
+  serviceAction?: "serve" | "health" | "query" | "rebuild" | "reset" | "stop" | undefined;
+  sessionId?: string | undefined;
+  waitBudgetMs?: number | undefined;
 }

@@ -30,6 +30,19 @@ export {
   CONTEXT_SERVICE_STATE_PATH,
   LocalContextService
 } from "./service";
+export { CONTEXT_SERVICE_LOCK_PATH, acquireContextServiceLock } from "./service-lock";
+export { createDefaultContextServiceBuild } from "./service-build";
+export type { ContextServiceBuildMode, ContextServiceBuildStats, DefaultContextServiceBuild } from "./service-build";
+export type { ContextServiceLockHandle } from "./service-lock";
+export {
+  clearContextServiceMarker,
+  getContextService,
+  getOrCreateContextService,
+  readContextServiceMarker,
+  startContextService,
+  stopContextService,
+  writeContextServiceMarker
+} from "./service-runtime";
 export {
   SERVICE_TOPOLOGY_ARTIFACT_PATH,
   loadServiceTopologyManifest,
