@@ -103,6 +103,34 @@ export const ANALYSIS_COMMAND_DOCS: Record<string, CommandDoc> = {
       "Production targets and chaos injection stay blocked in this slice."
     ]
   },
+  policy: {
+    name: "policy",
+    summary: "Resolve scoped engineering policies, approvals, and exceptions.",
+    usage: ["codedecay policy [options]"],
+    description: [
+      "Load repository-local (and optional local org) policy fixtures, resolve applicability and conflicts, validate approvals/exceptions, and emit a deterministic decision without downloading policies or contacting identity providers."
+    ],
+    options: [
+      { flag: "--policies <dir>", description: "Repo-local policy directory (default: .codedecay/policies)" },
+      { flag: "--org-policies <dir>", description: "Optional local organization policy directory" },
+      { flag: "--approvals <dir>", description: "Approval record directory (default: .codedecay/approvals)" },
+      { flag: "--exceptions <dir>", description: "Exception record directory (default: .codedecay/exceptions)" },
+      { flag: "--changed <path>", description: "Changed path considered by the decision; repeatable" },
+      { flag: "--change-class <class>", description: "docs|migration|source|protected-path|test|config|unknown" },
+      { flag: "--now <iso>", description: "Override evaluation time for expiry checks" },
+      { flag: "--cwd <path>", description: "Working directory" },
+      { flag: "--format <json|markdown>", description: "Output format" },
+      { flag: "--output <path>", description: "Write report to a file" }
+    ],
+    examples: [
+      "codedecay policy --changed prisma/migrations/001/migration.sql --change-class migration",
+      "codedecay policy --policies .codedecay/policies --org-policies .codedecay/org-policies --format json"
+    ],
+    notes: [
+      "Local actor strings are not cryptographic identity. See docs/policy.md.",
+      "Agents cannot edit policy in the same session to authorize protected-path changes."
+    ]
+  },
   runtime: {
     name: "runtime",
     summary: "Ingest local runtime exports as redacted engineering evidence.",

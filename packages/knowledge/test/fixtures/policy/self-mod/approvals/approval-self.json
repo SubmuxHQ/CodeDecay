@@ -1,0 +1,11 @@
+{
+  "id": "approval-self",
+  "policyId": "payment-migration",
+  "actor": "@payment-owners",
+  "reason": "Agent attempted self-approval after editing policy.",
+  "scope": "prisma/migrations/**",
+  "evidenceIds": [],
+  "timestamp": "2026-08-06T00:00:00.000Z",
+  "expiresAt": "2027-01-01T00:00:00.000Z",
+  "revoked": false
+}

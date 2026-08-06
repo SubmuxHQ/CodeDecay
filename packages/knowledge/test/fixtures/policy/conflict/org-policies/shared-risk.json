@@ -1,0 +1,16 @@
+{
+  "id": "shared-risk",
+  "version": 1,
+  "schemaVersion": 1,
+  "owner": "@org-security",
+  "rationale": "Org policy for auth changes conflicts on required evidence.",
+  "source": "organization",
+  "precedence": 80,
+  "effectiveAt": "2026-01-01T00:00:00.000Z",
+  "scopes": [{ "kind": "path", "match": "src/auth/**" }],
+  "requiredEvidence": ["security-scan", "threat-model"],
+  "requiredApprovers": ["@security", "@org-security"],
+  "forbiddenActions": [],
+  "protectedPaths": ["src/auth/**"],
+  "allowedTools": ["*"]
+}

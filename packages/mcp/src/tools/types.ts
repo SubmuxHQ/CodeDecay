@@ -113,6 +113,18 @@ export interface ResilienceSafetyToolInput {
   cleanupPlan?: string | undefined;
 }
 
+export interface PolicyDecisionToolInput {
+  cwd?: string | undefined;
+  format?: "markdown" | "json" | undefined;
+  policyDirs?: string[] | undefined;
+  orgPolicyDirs?: string[] | undefined;
+  approvalDirs?: string[] | undefined;
+  exceptionDirs?: string[] | undefined;
+  changedPaths?: string[] | undefined;
+  changeClass?: "docs" | "migration" | "source" | "protected-path" | "test" | "config" | "unknown" | undefined;
+  now?: string | undefined;
+}
+
 export interface AgentSessionToolInput {
   cwd?: string | undefined;
   operation: "start" | "context" | "checkpoint" | "finish";

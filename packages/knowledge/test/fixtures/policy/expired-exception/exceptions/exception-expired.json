@@ -1,0 +1,12 @@
+{
+  "id": "exception-expired",
+  "policyId": "payment-migration",
+  "actor": "@payment-owners",
+  "reason": "Temporary skip",
+  "scope": "prisma/migrations/**",
+  "pathGlobs": ["**"],
+  "evidenceIds": [],
+  "timestamp": "2025-01-01T00:00:00.000Z",
+  "expiresAt": "2025-02-01T00:00:00.000Z",
+  "revoked": false
+}

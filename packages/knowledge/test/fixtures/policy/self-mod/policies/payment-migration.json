@@ -1,0 +1,19 @@
+{
+  "id": "payment-migration",
+  "version": 1,
+  "schemaVersion": 1,
+  "owner": "@payment-owners",
+  "rationale": "Payment schema changes need compatibility proof and owner approval.",
+  "source": "repository",
+  "precedence": 100,
+  "effectiveAt": "2026-01-01T00:00:00.000Z",
+  "scopes": [
+    { "kind": "path", "match": "prisma/migrations/**" },
+    { "kind": "change-class", "match": "protected-path" }
+  ],
+  "requiredEvidence": ["migration-matrix"],
+  "requiredApprovers": ["@payment-owners"],
+  "forbiddenActions": [],
+  "protectedPaths": ["prisma/migrations/**"],
+  "allowedTools": ["*"]
+}

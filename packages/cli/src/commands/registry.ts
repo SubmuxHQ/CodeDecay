@@ -20,6 +20,7 @@ import { runMigrationCommand as runMigrationCommandWithDependencies } from "./mi
 import { runConcurrencyCommand as runConcurrencyCommandWithDependencies } from "./concurrency";
 import { runStateSpaceCommand as runStateSpaceCommandWithDependencies } from "./state-space";
 import { runResilienceCommand as runResilienceCommandWithDependencies } from "./resilience";
+import { runPolicyCommand as runPolicyCommandWithDependencies } from "./policy";
 import { runProductCommand as runProductCommandWithDependencies } from "./product";
 import { runRedteamCommand as runRedteamCommandWithDependencies } from "./redteam";
 import { runRevalidateCommand as runRevalidateCommandWithDependencies } from "./revalidate";
@@ -111,6 +112,10 @@ export function createCommandHandlers(options: CommandRegistryOptions): Record<s
       writeOutput: writeCliOutput
     }),
     resilience: (context) => runResilienceCommandWithDependencies(context, {
+      resolveRepoRoot: getRepoRootForCli,
+      writeOutput: writeCliOutput
+    }),
+    policy: (context) => runPolicyCommandWithDependencies(context, {
       resolveRepoRoot: getRepoRootForCli,
       writeOutput: writeCliOutput
     }),
