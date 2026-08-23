@@ -33,12 +33,20 @@ async function findExistingComment(
   octokit: GitHubClient,
   target: GitHubTarget
 ): Promise<GitHubComment | undefined> {
-  const response = await octokit.rest.issues.listComments({
-    owner: target.owner,
-    repo: target.repo,
-    issue_number: target.pullNumber,
-    per_page: 100
-  });
+  for (let page = 1; page <= 10; page += 1) {
+    const response = await octokit.rest.issues.listComments({
+      owner: target.owner,
+      repo: target.repo,
+      issue_number: target.pullNumber,
+      per_page: 100,
+      page
+    });
 
-  return response.data.find((comment) => comment.body?.includes(COMMENT_MARKER));
+    const existing = response.data.find((comment) => comment.body?.includes(COMMENT_MARKER));
+    if (existing || response.data.length < 100) {
+      return existing;
+    }
+  }
+
+  return undefined;
 }

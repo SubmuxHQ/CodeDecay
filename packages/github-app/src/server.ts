@@ -24,8 +24,10 @@ createServer((request, response) => {
   }
 
   void Promise.resolve(middleware(request, response)).catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`CodeDecay GitHub App request failed: ${message}\n`);
     response.writeHead(500, { "content-type": "application/json" });
-    response.end(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+    response.end(JSON.stringify({ ok: false, error: "Internal server error" }));
   });
 }).listen(port, () => {
   process.stdout.write(`CodeDecay GitHub App listening on port ${port} at ${webhooksPath}\n`);
