@@ -103,12 +103,20 @@ runs:
 
     - name: "Write CodeDecay summary"
       shell: "bash"
+      env:
+        CODEDECAY_INPUT_MODE: "${{ inputs.mode }}"
+        CODEDECAY_INPUT_CWD: "${{ inputs.cwd }}"
+        CODEDECAY_INPUT_BASE: "${{ inputs.base }}"
+        CODEDECAY_INPUT_HEAD: "${{ inputs.head }}"
+        CODEDECAY_INPUT_TASK: "${{ inputs.task }}"
+        CODEDECAY_INPUT_REQUIREMENTS: "${{ inputs.requirements }}"
+        CODEDECAY_INPUT_PROFILE: "${{ inputs.profile }}"
       run: |
         set -euo pipefail
         ACTION_ROOT="$(cd "$GITHUB_ACTION_PATH/../.." && pwd)"
         CLI_PATH="$ACTION_ROOT/packages/cli/dist/index.js"
         SUMMARY_PATH="$RUNNER_TEMP/codedecay-summary.md"
-        MODE="${{ inputs.mode }}"
+        MODE="$CODEDECAY_INPUT_MODE"
 
         if [[ "$MODE" == "product" ]]; then
           exit 0
@@ -123,22 +131,22 @@ runs:
             ;;
         esac
 
-        args=("$MODE" --cwd "${{ inputs.cwd }}" --format markdown)
-        if [[ -n "${{ inputs.base }}" ]]; then
-          args+=(--base "${{ inputs.base }}")
+        args=("$MODE" --cwd "$CODEDECAY_INPUT_CWD" --format markdown)
+        if [[ -n "$CODEDECAY_INPUT_BASE" ]]; then
+          args+=(--base "$CODEDECAY_INPUT_BASE")
         fi
-        if [[ -n "${{ inputs.head }}" ]]; then
-          args+=(--head "${{ inputs.head }}")
+        if [[ -n "$CODEDECAY_INPUT_HEAD" ]]; then
+          args+=(--head "$CODEDECAY_INPUT_HEAD")
         fi
-        if [[ -n "${{ inputs.task }}" ]]; then
-          args+=(--task "${{ inputs.task }}")
+        if [[ -n "$CODEDECAY_INPUT_TASK" ]]; then
+          args+=(--task "$CODEDECAY_INPUT_TASK")
         fi
-        if [[ -n "${{ inputs.requirements }}" ]]; then
-          args+=(--requirements "${{ inputs.requirements }}")
+        if [[ -n "$CODEDECAY_INPUT_REQUIREMENTS" ]]; then
+          args+=(--requirements "$CODEDECAY_INPUT_REQUIREMENTS")
         fi
         if [[ "$MODE" == "agent" || "$MODE" == "ai" ]]; then
-          if [[ -n "${{ inputs.profile }}" ]]; then
-            args+=(--profile "${{ inputs.profile }}")
+          if [[ -n "$CODEDECAY_INPUT_PROFILE" ]]; then
+            args+=(--profile "$CODEDECAY_INPUT_PROFILE")
           fi
         fi
 
@@ -150,6 +158,9 @@ runs:
       shell: "bash"
       env:
         CODEDECAY_GITHUB_TOKEN: "${{ inputs.github-token }}"
+        CODEDECAY_INPUT_CWD: "${{ inputs.cwd }}"
+        CODEDECAY_INPUT_BASE: "${{ inputs.base }}"
+        CODEDECAY_INPUT_HEAD: "${{ inputs.head }}"
       run: |
         set -uo pipefail
         ACTION_ROOT="$(cd "$GITHUB_ACTION_PATH/../.." && pwd)"
@@ -183,12 +194,12 @@ runs:
         # shellcheck disable=SC1090
         source "$PR_META"
 
-        args=("analyze" --cwd "${{ inputs.cwd }}" --format pr-comment)
-        if [[ -n "${{ inputs.base }}" ]]; then
-          args+=(--base "${{ inputs.base }}")
+        args=("analyze" --cwd "$CODEDECAY_INPUT_CWD" --format pr-comment)
+        if [[ -n "$CODEDECAY_INPUT_BASE" ]]; then
+          args+=(--base "$CODEDECAY_INPUT_BASE")
         fi
-        if [[ -n "${{ inputs.head }}" ]]; then
-          args+=(--head "${{ inputs.head }}")
+        if [[ -n "$CODEDECAY_INPUT_HEAD" ]]; then
+          args+=(--head "$CODEDECAY_INPUT_HEAD")
         fi
 
         cd "$GITHUB_WORKSPACE"
@@ -223,12 +234,33 @@ runs:
 
     - name: "Run CodeDecay"
       shell: "bash"
+      env:
+        CODEDECAY_INPUT_MODE: "${{ inputs.mode }}"
+        CODEDECAY_INPUT_FORMAT: "${{ inputs.format }}"
+        CODEDECAY_INPUT_CWD: "${{ inputs.cwd }}"
+        CODEDECAY_INPUT_BASE: "${{ inputs.base }}"
+        CODEDECAY_INPUT_HEAD: "${{ inputs.head }}"
+        CODEDECAY_INPUT_OUTPUT: "${{ inputs.output }}"
+        CODEDECAY_INPUT_TASK: "${{ inputs.task }}"
+        CODEDECAY_INPUT_REQUIREMENTS: "${{ inputs.requirements }}"
+        CODEDECAY_INPUT_PROFILE: "${{ inputs.profile }}"
+        CODEDECAY_INPUT_WITH_CHECKS: "${{ inputs.with-checks }}"
+        CODEDECAY_INPUT_FAIL_ON_REQUIREMENTS: "${{ inputs.fail-on-requirements }}"
+        CODEDECAY_INPUT_FAIL_ON: "${{ inputs.fail-on }}"
+        CODEDECAY_INPUT_TARGET: "${{ inputs.target }}"
+        CODEDECAY_INPUT_PREVIEW_URL: "${{ inputs.preview-url }}"
+        CODEDECAY_INPUT_PRODUCT_EXPLORE: "${{ inputs.product-explore }}"
+        CODEDECAY_INPUT_PRODUCT_GENERATE_TESTS: "${{ inputs.product-generate-tests }}"
+        CODEDECAY_INPUT_PRODUCT_RUN_GENERATED_TESTS: "${{ inputs.product-run-generated-tests }}"
+        CODEDECAY_INPUT_PRODUCT_GENERATE_API_TESTS: "${{ inputs.product-generate-api-tests }}"
+        CODEDECAY_INPUT_PRODUCT_RUN_GENERATED_API_TESTS: "${{ inputs.product-run-generated-api-tests }}"
+        CODEDECAY_INPUT_PRODUCT_FAIL_ON_CLASSIFICATION: "${{ inputs.product-fail-on-classification }}"
       run: |
         set -euo pipefail
         ACTION_ROOT="$(cd "$GITHUB_ACTION_PATH/../.." && pwd)"
         CLI_PATH="$ACTION_ROOT/packages/cli/dist/index.js"
-        MODE="${{ inputs.mode }}"
-        FORMAT="${{ inputs.format }}"
+        MODE="$CODEDECAY_INPUT_MODE"
+        FORMAT="$CODEDECAY_INPUT_FORMAT"
         SUMMARY_PATH="$RUNNER_TEMP/codedecay-product-summary.md"
 
         case "$MODE" in
@@ -253,80 +285,80 @@ runs:
         fi
 
         if [[ "$MODE" == "product" ]]; then
-          args=("product" --cwd "${{ inputs.cwd }}" --format "$FORMAT")
-          if [[ -n "${{ inputs.target }}" ]]; then
-            args+=(--target "${{ inputs.target }}")
+          args=("product" --cwd "$CODEDECAY_INPUT_CWD" --format "$FORMAT")
+          if [[ -n "$CODEDECAY_INPUT_TARGET" ]]; then
+            args+=(--target "$CODEDECAY_INPUT_TARGET")
           fi
-          if [[ -n "${{ inputs.preview-url }}" ]]; then
-            export CODEDECAY_PRODUCT_PREVIEW_URL="${{ inputs.preview-url }}"
+          if [[ -n "$CODEDECAY_INPUT_PREVIEW_URL" ]]; then
+            export CODEDECAY_PRODUCT_PREVIEW_URL="$CODEDECAY_INPUT_PREVIEW_URL"
           fi
-          if [[ "${{ inputs.product-explore }}" == "true" ]]; then
+          if [[ "$CODEDECAY_INPUT_PRODUCT_EXPLORE" == "true" ]]; then
             args+=(--explore)
           fi
-          if [[ "${{ inputs.product-generate-tests }}" == "true" ]]; then
+          if [[ "$CODEDECAY_INPUT_PRODUCT_GENERATE_TESTS" == "true" ]]; then
             args+=(--generate-tests)
           fi
-          if [[ "${{ inputs.product-run-generated-tests }}" == "true" ]]; then
+          if [[ "$CODEDECAY_INPUT_PRODUCT_RUN_GENERATED_TESTS" == "true" ]]; then
             args+=(--run-generated-tests)
           fi
-          if [[ "${{ inputs.product-generate-api-tests }}" == "true" ]]; then
+          if [[ "$CODEDECAY_INPUT_PRODUCT_GENERATE_API_TESTS" == "true" ]]; then
             args+=(--generate-api-tests)
           fi
-          if [[ "${{ inputs.product-run-generated-api-tests }}" == "true" ]]; then
+          if [[ "$CODEDECAY_INPUT_PRODUCT_RUN_GENERATED_API_TESTS" == "true" ]]; then
             args+=(--run-generated-api-tests)
           fi
-          if [[ -n "${{ inputs.product-fail-on-classification }}" ]]; then
-            args+=(--fail-on-classification "${{ inputs.product-fail-on-classification }}")
+          if [[ -n "$CODEDECAY_INPUT_PRODUCT_FAIL_ON_CLASSIFICATION" ]]; then
+            args+=(--fail-on-classification "$CODEDECAY_INPUT_PRODUCT_FAIL_ON_CLASSIFICATION")
           fi
-          if [[ -n "${{ inputs.output }}" ]]; then
-            args+=(--output "${{ inputs.output }}")
+          if [[ -n "$CODEDECAY_INPUT_OUTPUT" ]]; then
+            args+=(--output "$CODEDECAY_INPUT_OUTPUT")
           fi
         else
-          args=("$MODE" --cwd "${{ inputs.cwd }}" --format "$FORMAT")
-          if [[ -n "${{ inputs.base }}" ]]; then
-            args+=(--base "${{ inputs.base }}")
+          args=("$MODE" --cwd "$CODEDECAY_INPUT_CWD" --format "$FORMAT")
+          if [[ -n "$CODEDECAY_INPUT_BASE" ]]; then
+            args+=(--base "$CODEDECAY_INPUT_BASE")
           fi
-          if [[ -n "${{ inputs.head }}" ]]; then
-            args+=(--head "${{ inputs.head }}")
+          if [[ -n "$CODEDECAY_INPUT_HEAD" ]]; then
+            args+=(--head "$CODEDECAY_INPUT_HEAD")
           fi
-          if [[ -n "${{ inputs.output }}" ]]; then
-            args+=(--output "${{ inputs.output }}")
+          if [[ -n "$CODEDECAY_INPUT_OUTPUT" ]]; then
+            args+=(--output "$CODEDECAY_INPUT_OUTPUT")
           fi
-          if [[ -n "${{ inputs.task }}" ]]; then
-            args+=(--task "${{ inputs.task }}")
+          if [[ -n "$CODEDECAY_INPUT_TASK" ]]; then
+            args+=(--task "$CODEDECAY_INPUT_TASK")
           fi
-          if [[ -n "${{ inputs.requirements }}" ]]; then
-            args+=(--requirements "${{ inputs.requirements }}")
+          if [[ -n "$CODEDECAY_INPUT_REQUIREMENTS" ]]; then
+            args+=(--requirements "$CODEDECAY_INPUT_REQUIREMENTS")
           fi
           if [[ "$MODE" == "agent" || "$MODE" == "ai" ]]; then
-            if [[ -n "${{ inputs.profile }}" ]]; then
-              args+=(--profile "${{ inputs.profile }}")
+            if [[ -n "$CODEDECAY_INPUT_PROFILE" ]]; then
+              args+=(--profile "$CODEDECAY_INPUT_PROFILE")
             fi
           fi
           if [[ "$MODE" == "redteam" || "$MODE" == "ai" ]]; then
-            if [[ "${{ inputs.with-checks }}" == "true" ]]; then
+            if [[ "$CODEDECAY_INPUT_WITH_CHECKS" == "true" ]]; then
               args+=(--with-checks)
             fi
           fi
-          if [[ "$MODE" != "agent" && "${{ inputs.fail-on-requirements }}" == "true" ]]; then
+          if [[ "$MODE" != "agent" && "$CODEDECAY_INPUT_FAIL_ON_REQUIREMENTS" == "true" ]]; then
             args+=(--fail-on-requirements)
           fi
-          if [[ "$MODE" != "agent" && -n "${{ inputs.fail-on }}" ]]; then
-            args+=(--fail-on "${{ inputs.fail-on }}")
+          if [[ "$MODE" != "agent" && -n "$CODEDECAY_INPUT_FAIL_ON" ]]; then
+            args+=(--fail-on "$CODEDECAY_INPUT_FAIL_ON")
           fi
         fi
 
         cd "$GITHUB_WORKSPACE"
         if [[ "$MODE" == "product" && "$FORMAT" == "markdown" ]]; then
           set +e
-          if [[ -n "${{ inputs.output }}" ]]; then
+          if [[ -n "$CODEDECAY_INPUT_OUTPUT" ]]; then
             node "$CLI_PATH" "${args[@]}"
             status=$?
-            output_path="${{ inputs.output }}"
+            output_path="$CODEDECAY_INPUT_OUTPUT"
             if [[ "$output_path" = /* ]]; then
               summary_source="$output_path"
             else
-              summary_source="$GITHUB_WORKSPACE/${{ inputs.cwd }}/$output_path"
+              summary_source="$GITHUB_WORKSPACE/$CODEDECAY_INPUT_CWD/$output_path"
             fi
             if [[ -f "$summary_source" ]]; then
               cat "$summary_source" >> "$GITHUB_STEP_SUMMARY"

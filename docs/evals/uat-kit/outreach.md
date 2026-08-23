@@ -6,7 +6,7 @@ Copy/adapt. Do **not** include maintainer walkthroughs or internal architecture 
 
 Subject: 60–90 min CodeDecay usability session (published npm package)
 
-Hi <Name>,
+Hi &lt;Name&gt;,
 
 We're running independent acceptance testing for CodeDecay's published AI
 workflow before closing our AI-native milestone. Looking for people who did
