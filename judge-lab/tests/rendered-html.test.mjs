@@ -37,8 +37,8 @@ test("server-renders the Judge Lab landing experience", async () => {
   assert.match(html, /CodeDecay turns Codex from a fast builder into a safer finisher\./);
   assert.match(html, /The risky path failed, got repaired, and now has proof\./);
   assert.match(html, /The web lab is the proof sandbox\. Your repo stays local\./);
-  assert.match(html, /npx @submuxhq\/codedecay@0\.4\.1 redteam/);
-  assert.match(html, /SubmuxHQ\/CodeDecay\/\.github\/actions\/codedecay@v0\.4\.1/);
+  assert.match(html, /npx @submuxhq\/codedecay@0\.4\.2 redteam/);
+  assert.match(html, /SubmuxHQ\/CodeDecay\/packages\/github-action@v0/);
   assert.match(html, /Watch CodeDecay catch it/);
   assert.match(html, /No login\. No repository upload\./);
   assert.match(html, /Don’t trust the green check\./);
@@ -46,7 +46,7 @@ test("server-renders the Judge Lab landing experience", async () => {
   assert.match(html, /\/demo\/codedecay-codex-repair\.mp4/);
   assert.match(html, /\/demo\/codedecay-codex-repair\.vtt/);
   assert.match(html, /Edited for time from one genuine session/);
-  assert.match(html.replaceAll("<!-- -->", ""), /v0\.4\.1 · fixture 36a38500031f/);
+  assert.match(html.replaceAll("<!-- -->", ""), /v0\.4\.2 · fixture 36a38500031f/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton/);
 });
 
@@ -93,7 +93,7 @@ test("live endpoint finds the curated anonymous admin route", async () => {
   assert.equal(response.status, 200);
   const payload = await response.json();
   assert.equal(payload.execution.mode, "live");
-  assert.equal(payload.links.release, "https://github.com/SubmuxHQ/CodeDecay/releases/tag/v0.4.1");
+  assert.equal(payload.links.release, "https://github.com/SubmuxHQ/CodeDecay/releases/tag/v0.4.2");
   assert.equal(payload.summary.riskLevel, "high");
   assert.equal(payload.impactedRoute.route, "/api/users");
   assert.ok(
