@@ -30,11 +30,11 @@
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
-    "@vitejs/plugin-rsc": "0.5.26",
+    "@vitejs/plugin-rsc": "0.5.34",
     "react-server-dom-webpack": "19.2.8",
     "tailwindcss": "4.2.1",
     "typescript": "5.9.3",
-    "vinext": "0.0.50",
+    "vinext": "1.0.0-beta.8",
     "vite": "8.1.5",
     "wrangler": "4.114.0"
   },
@@ -42,7 +42,8 @@
     "postcss": "8.5.23",
     "sharp": "0.35.3",
     "fast-uri": "3.1.5",
-    "undici": "7.29.0"
+    "undici": "7.29.0",
+    "nanoid": "3.3.18"
   },
   "type": "module"
 }
