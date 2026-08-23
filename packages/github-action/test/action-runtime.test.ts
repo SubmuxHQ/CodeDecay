@@ -202,6 +202,35 @@ describe("GitHub Action shell runtime", () => {
     expect(invalidFormat.stderr).toContain("CodeDecay mode 'ai' does not support SARIF output.");
     expect(existsSync(recordPath)).toBe(false);
   });
+
+  it("forwards shell-like input literally without evaluating it", () => {
+    const result = runMainStep({
+      mode: "ai",
+      task: "$(touch should-not-exist)\"; echo unsafe",
+      requirements: "requirements;$(echo still-data).yml"
+    });
+
+    expect(result).toMatchObject({ status: 0, stderr: "", timedOut: false });
+    expect(existsSync(join(workspace, "should-not-exist"))).toBe(false);
+    expect(readRecords()).toEqual([
+      {
+        argv: [
+          "ai",
+          "--cwd",
+          ".",
+          "--format",
+          "markdown",
+          "--task",
+          "$(touch should-not-exist)\"; echo unsafe",
+          "--requirements",
+          "requirements;$(echo still-data).yml"
+        ],
+        cwd: realpathSync(workspace),
+        githubToken: null,
+        previewUrl: null
+      }
+    ]);
+  });
 });
 
 function runMainStep(inputs: Record<string, string>) {

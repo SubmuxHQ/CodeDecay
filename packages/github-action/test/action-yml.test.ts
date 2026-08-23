@@ -34,19 +34,19 @@ describe("GitHub Action metadata", () => {
     expect(action.inputs["github-token"].default).toBe("${{ github.token }}");
   });
 
-  it("forwards cwd to every CLI invocation", () => {
+  it("passes action inputs through environment variables before constructing CLI arguments", () => {
     const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
-    const invocations = actionYaml.match(/args=\("\$MODE"[^\n]+/g) ?? [];
 
-    expect(invocations).toHaveLength(2);
-    expect(invocations.every((line) => line.includes("--cwd \"${{ inputs.cwd }}\""))).toBe(true);
+    expect(actionYaml).toContain('CODEDECAY_INPUT_CWD: "${{ inputs.cwd }}"');
+    expect(actionYaml).toContain('args=("$MODE" --cwd "$CODEDECAY_INPUT_CWD" --format "$FORMAT")');
+    expect(actionYaml).not.toContain('--cwd "${{ inputs.cwd }}"');
   });
 
   it("supports report modes and explicit product verification only", () => {
     const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
 
     expect(actionYaml).toContain("analyze|redteam|agent|ai|product");
-    expect(actionYaml).toContain('args=("product" --cwd "${{ inputs.cwd }}" --format "$FORMAT")');
+    expect(actionYaml).toContain('args=("product" --cwd "$CODEDECAY_INPUT_CWD" --format "$FORMAT")');
     expect(actionYaml).toContain("Unsupported CodeDecay mode");
     expect(actionYaml).toContain("does not support SARIF output");
     expect(actionYaml).not.toContain("analyze|redteam|agent|ai|product|execute");
@@ -77,28 +77,28 @@ describe("GitHub Action metadata", () => {
   it("wires product verification inputs without arbitrary command passthrough", () => {
     const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
 
-    expect(actionYaml).toContain('export CODEDECAY_PRODUCT_PREVIEW_URL="${{ inputs.preview-url }}"');
-    expect(actionYaml).toContain('args+=(--target "${{ inputs.target }}")');
+    expect(actionYaml).toContain('export CODEDECAY_PRODUCT_PREVIEW_URL="$CODEDECAY_INPUT_PREVIEW_URL"');
+    expect(actionYaml).toContain('args+=(--target "$CODEDECAY_INPUT_TARGET")');
     expect(actionYaml).toContain("args+=(--explore)");
     expect(actionYaml).toContain("args+=(--generate-tests)");
     expect(actionYaml).toContain("args+=(--run-generated-tests)");
     expect(actionYaml).toContain("args+=(--generate-api-tests)");
     expect(actionYaml).toContain("args+=(--run-generated-api-tests)");
-    expect(actionYaml).toContain('args+=(--fail-on-classification "${{ inputs.product-fail-on-classification }}")');
+    expect(actionYaml).toContain('args+=(--fail-on-classification "$CODEDECAY_INPUT_PRODUCT_FAIL_ON_CLASSIFICATION")');
     expect(actionYaml).not.toContain("product-extra-args");
   });
 
   it("does not forward fail-on to agent mode", () => {
     const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
 
-    expect(actionYaml).toContain('if [[ "$MODE" != "agent" && -n "${{ inputs.fail-on }}" ]]; then');
+    expect(actionYaml).toContain('if [[ "$MODE" != "agent" && -n "$CODEDECAY_INPUT_FAIL_ON" ]]; then');
   });
 
   it("wires the AI profile and explicit checks without arbitrary argument passthrough", () => {
     const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
 
     expect(actionYaml).toContain('if [[ "$MODE" == "agent" || "$MODE" == "ai" ]]; then');
-    expect(actionYaml).toContain('args+=(--profile "${{ inputs.profile }}")');
+    expect(actionYaml).toContain('args+=(--profile "$CODEDECAY_INPUT_PROFILE")');
     expect(actionYaml).toContain('if [[ "$MODE" == "redteam" || "$MODE" == "ai" ]]; then');
     expect(actionYaml).toContain("args+=(--with-checks)");
     expect(actionYaml).not.toContain("agent-extra-args");
@@ -108,9 +108,9 @@ describe("GitHub Action metadata", () => {
   it("forwards explicit structured requirement inputs and the opt-in CI gate", () => {
     const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
 
-    expect(actionYaml).toContain('if [[ -n "${{ inputs.task }}" ]]; then');
-    expect(actionYaml).toContain('args+=(--task "${{ inputs.task }}")');
-    expect(actionYaml).toContain('args+=(--requirements "${{ inputs.requirements }}")');
+    expect(actionYaml).toContain('if [[ -n "$CODEDECAY_INPUT_TASK" ]]; then');
+    expect(actionYaml).toContain('args+=(--task "$CODEDECAY_INPUT_TASK")');
+    expect(actionYaml).toContain('args+=(--requirements "$CODEDECAY_INPUT_REQUIREMENTS")');
     expect(actionYaml).toContain('args+=(--fail-on-requirements)');
     expect(actionYaml).not.toContain("pull_request.body");
   });
@@ -120,6 +120,16 @@ describe("GitHub Action metadata", () => {
 
     expect(actionYaml).toContain("pnpm --filter @submuxhq/codedecay build");
     expect(actionYaml).not.toContain("pnpm --filter codedecay build");
+  });
+
+  it("does not interpolate action inputs directly into Bash commands", () => {
+    const actionYaml = readFileSync("packages/github-action/action.yml", "utf8");
+    const runBlocks = [...actionYaml.matchAll(/run: \|\n([\s\S]*?)(?=\n    - name:|$)/g)].map((match) => match[1]);
+
+    expect(runBlocks).not.toHaveLength(0);
+    for (const run of runBlocks) {
+      expect(run).not.toMatch(/\$\{\{\s*inputs\./);
+    }
   });
 
   it("documents only supported action inputs in examples", () => {
