@@ -80,6 +80,26 @@ describe("CodeDecay GitHub App", () => {
     expect(octokit.rest.issues.createComment).not.toHaveBeenCalled();
   });
 
+  it("finds a marker comment beyond the first page", async () => {
+    const octokit = createOctokit();
+    const firstPage = Array.from({ length: 100 }, (_, index) => ({ id: index + 1, body: "other comment" }));
+    vi.mocked(octokit.rest.issues.listComments)
+      .mockResolvedValueOnce({ data: firstPage })
+      .mockResolvedValueOnce({ data: [{ id: 101, body: `${COMMENT_MARKER}\nOld report` }] });
+
+    await upsertPullRequestComment({
+      octokit,
+      target: { owner: "SubmuxHQ", repo: "CodeDecay", pullNumber: 12, headSha: "head-sha" },
+      markdown: "## New report"
+    });
+
+    expect(octokit.rest.issues.listComments).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ page: 2 })
+    );
+    expect(octokit.rest.issues.updateComment).toHaveBeenCalledWith(expect.objectContaining({ comment_id: 101 }));
+  });
+
   it("marks the check run as failed when analysis fails", async () => {
     const context = createContext();
     const cleanup = vi.fn();

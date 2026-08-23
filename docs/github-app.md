@@ -21,14 +21,15 @@ For the first hosted version, the app only runs deterministic PR analysis. It
 does not run project commands, deployment commands, LLM calls, model calls, or
 CodeDecayCloud services.
 
-## GitHub App settings
+## Create the GitHub App
 
 Create a GitHub App in the GitHub organization that will own the hosted app.
 
-Set the webhook URL to:
+Create the App from [`github-app-manifest.json`](./github-app-manifest.json) in
+the GitHub App creation flow. Its webhook URL is the Cloud Run service URL:
 
 ```text
-https://<render-service-host>/github/webhooks
+https://codedecay-github-app-1093061541451.us-central1.run.app/github/webhooks
 ```
 
 Subscribe to these events:
@@ -45,23 +46,43 @@ Use these repository permissions:
 
 The Issues permission is required because GitHub PR comments use the Issues API.
 
-## Render deployment
+## Google Cloud Run deployment
 
-Create a Render Web Service connected to this repository.
+The service is designed for Cloud Run in project
+`project-7279e7f9-46cf-49d4-bbd`, region `us-central1`. Store each required
+value in Secret Manager, never in a repository, command history, or GitHub
+Actions secret.
 
-Build command:
-
-```bash
-pnpm install --frozen-lockfile && pnpm --filter @submuxhq/codedecay-github-app build
-```
-
-Start command:
+Create the secret containers, then add values from local files. Keep the
+private key and webhook secret out of shell history and source control:
 
 ```bash
-pnpm --filter @submuxhq/codedecay-github-app start
+gcloud secrets create codedecay-github-app-id
+gcloud secrets create codedecay-github-app-private-key
+gcloud secrets create codedecay-github-app-webhook-secret
+gcloud secrets versions add codedecay-github-app-id --data-file=app-id.txt
+gcloud secrets versions add codedecay-github-app-private-key --data-file=private-key.pem
+gcloud secrets versions add codedecay-github-app-webhook-secret --data-file=webhook-secret.txt
 ```
 
-Required environment variables:
+Deploy the reviewed commit with Cloud Run. Keep a single instance during the
+staging rollout so duplicate webhook handling cannot race across instances.
+
+```bash
+gcloud run deploy codedecay-github-app \
+  --project=project-7279e7f9-46cf-49d4-bbd \
+  --region=us-central1 \
+  --source=. \
+  --allow-unauthenticated \
+  --min-instances=1 \
+  --max-instances=1 \
+  --memory=1Gi \
+  --cpu=1 \
+  --set-env-vars=NODE_ENV=production,GITHUB_WEBHOOK_PATH=/github/webhooks \
+  --set-secrets=GITHUB_APP_ID=codedecay-github-app-id:latest,GITHUB_PRIVATE_KEY=codedecay-github-app-private-key:latest,GITHUB_WEBHOOK_SECRET=codedecay-github-app-webhook-secret:latest
+```
+
+Cloud Run receives these required environment variables from Secret Manager:
 
 ```text
 GITHUB_APP_ID=<numeric app id>

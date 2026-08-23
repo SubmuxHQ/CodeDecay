@@ -1,0 +1,19 @@
+{
+  "name": "CodeDecay",
+  "description": "Deterministic CodeDecay pull-request safety analysis.",
+  "url": "https://github.com/SubmuxHQ/CodeDecay",
+  "hook_attributes": {
+    "url": "https://codedecay-github-app-1093061541451.us-central1.run.app/github/webhooks",
+    "active": true
+  },
+  "redirect_url": "https://github.com/SubmuxHQ/CodeDecay",
+  "public": false,
+  "default_permissions": {
+    "metadata": "read",
+    "contents": "read",
+    "pull_requests": "read",
+    "issues": "write",
+    "checks": "write"
+  },
+  "default_events": ["pull_request"]
+}
