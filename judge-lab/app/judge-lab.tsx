@@ -267,8 +267,8 @@ export function JudgeLab({ engineVersion, sourceCommit, scenarios }: JudgeLabPro
               readOnly
               rows={2}
               spellCheck={false}
-              value={`npx @submuxhq/codedecay@0.4.1 redteam --base main --head HEAD --format markdown
-npx @submuxhq/codedecay@0.4.1 agent --base main --head HEAD`}
+              value={`npx @submuxhq/codedecay@0.4.2 redteam --base main --head HEAD --format markdown
+npx @submuxhq/codedecay@0.4.2 agent --base main --head HEAD`}
             />
             <p>
               This is the real product path: local diff, local checks, no hidden upload, and
@@ -284,7 +284,7 @@ npx @submuxhq/codedecay@0.4.1 agent --base main --head HEAD`}
               readOnly
               rows={4}
               spellCheck={false}
-              value={`- uses: SubmuxHQ/CodeDecay/.github/actions/codedecay@v0.4.1
+              value={`- uses: SubmuxHQ/CodeDecay/packages/github-action@v0
   with:
     base: main
     head: HEAD`}
